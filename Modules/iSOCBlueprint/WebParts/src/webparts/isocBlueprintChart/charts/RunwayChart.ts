@@ -1,5 +1,5 @@
 import { type IRunwayData, type IRunwayItem } from './ChartTypes';
-import { type IChartTheme, esc, isNil, list, str, tint } from './ChartKit';
+import { type IChartTheme, esc, fmtDay, isNil, list, str, tint } from './ChartKit';
 import { BAD, NEUTRAL, OK, WARN, balancedColumns, card, pill } from './Visual';
 
 // Platform retirements on a time axis: each deadline a numbered marker
@@ -66,7 +66,7 @@ function itemCard(p: IPlaced, index: number, today: number, theme: IChartTheme):
   const use: unknown = p.item.inUse;
   const usage: string = isNil(use) ? pill('Not readable from the workspace', NEUTRAL)
     : use ? pill('In use' + (str(p.item.evidence) ? ': ' + str(p.item.evidence) : ''), BAD) : pill('Not in use', OK);
-  const date: string = new Date(p.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const date: string = fmtDay(p.at);
   return card('<div style="display:flex;align-items:center;gap:8px">' +
     '<span style="flex:none;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;background:' + c + '">' + (index + 1) + '</span>' +
     '<span style="font-size:12px;font-weight:800;font-variant-numeric:tabular-nums">' + esc(date) + '</span>' +

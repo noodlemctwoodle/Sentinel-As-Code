@@ -600,6 +600,7 @@
   .abar .pgd.up{background:var(--green);border-radius:0 999px 999px 0}
   .abar .pgd.down{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--red) 70%,transparent) 0 3px,color-mix(in srgb,var(--red) 25%,transparent) 3px 6px);border-radius:0 999px 999px 0}
   .matbadge.worse{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+  .pgtiles .pill .k{line-height:1.35;min-height:2.7em}
   .pgsub+.pgsub{margin-top:16px}
   .pgsubh{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
   .pgsubh .subcount{font-size:11px;padding:1px 7px;letter-spacing:0}
@@ -1605,7 +1606,41 @@
     markClamped(wrap);
     if(typeof window.fitIframe==='function') window.fitIframe();
   });
-  const fmtN = n => (Math.round((+n||0)*100)/100).toLocaleString();
+  // Figures as the report pages write them (Private/Format-BlueprintText.ps1):
+  // separators, and a fraction to two places with its trailing zero
+  // (13,448.90), so a column of GB reads alike; fmtGb always two places,
+  // <0.01 for a trace.
+  const fmtN = n => { const r=Math.round((+n||0)*100)/100; return Number.isInteger(r)? r.toLocaleString('en-GB') : r.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  const fmtGb = n => { const v=+n||0; return v>0&&v<0.005? '<0.01' : v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  // Dates as the report pages write them: 15 Oct 2026, or with the time
+  // 15 Oct 2026 21:03 UTC. Fixed month names, so no browser writes Sept. A
+  // date-only string is a UTC day; the build's 'yyyy-MM-dd HH:mm UTC' reads too.
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const toDate=v=>{ if(v instanceof Date) return v; if(typeof v==='number') return new Date(v);
+    const s=String(v==null?'':v).trim(); const m=/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?))?\s*(Z|UTC)?$/i.exec(s);
+    return m? new Date(m[1]+'T'+(m[2]||'00:00')+'Z') : new Date(s); };
+  const fmtDate=(v,o)=>{ o=o||{}; const d=toDate(v); if(isNaN(d)) return String(v==null?'':v);
+    const two=x=>String(x).padStart(2,'0');
+    return d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]+(o.year===false?'':' '+d.getUTCFullYear())+(o.time? ' '+two(d.getUTCHours())+':'+two(d.getUTCMinutes())+' UTC' : ''); };
+  // Azure regions by the names the portal shows (as Get-BlueprintRegionName).
+  const REGION_NAME={eastus:'East US',eastus2:'East US 2',centralus:'Central US',northcentralus:'North Central US',southcentralus:'South Central US',
+    westcentralus:'West Central US',westus:'West US',westus2:'West US 2',westus3:'West US 3',canadacentral:'Canada Central',canadaeast:'Canada East',
+    brazilsouth:'Brazil South',brazilsoutheast:'Brazil Southeast',mexicocentral:'Mexico Central',chilecentral:'Chile Central',northeurope:'North Europe',
+    westeurope:'West Europe',uksouth:'UK South',ukwest:'UK West',francecentral:'France Central',francesouth:'France South',
+    germanywestcentral:'Germany West Central',germanynorth:'Germany North',switzerlandnorth:'Switzerland North',switzerlandwest:'Switzerland West',
+    norwayeast:'Norway East',norwaywest:'Norway West',swedencentral:'Sweden Central',swedensouth:'Sweden South',polandcentral:'Poland Central',
+    italynorth:'Italy North',spaincentral:'Spain Central',austriaeast:'Austria East',belgiumcentral:'Belgium Central',denmarkeast:'Denmark East',
+    finlandcentral:'Finland Central',greececentral:'Greece Central',eastasia:'East Asia',southeastasia:'Southeast Asia',japaneast:'Japan East',
+    japanwest:'Japan West',koreacentral:'Korea Central',koreasouth:'Korea South',australiaeast:'Australia East',australiasoutheast:'Australia Southeast',
+    australiacentral:'Australia Central',australiacentral2:'Australia Central 2',newzealandnorth:'New Zealand North',centralindia:'Central India',
+    southindia:'South India',westindia:'West India',jioindiawest:'Jio India West',jioindiacentral:'Jio India Central',indonesiacentral:'Indonesia Central',
+    malaysiawest:'Malaysia West',taiwannorth:'Taiwan North',uaenorth:'UAE North',uaecentral:'UAE Central',qatarcentral:'Qatar Central',
+    israelcentral:'Israel Central',saudiarabiaeast:'Saudi Arabia East',southafricanorth:'South Africa North',southafricawest:'South Africa West',
+    usgovvirginia:'US Gov Virginia',usgovarizona:'US Gov Arizona',usgovtexas:'US Gov Texas'};
+  const regionName=r=>{ const k=String(r||'').replace(/\s/g,'').toLowerCase(); return REGION_NAME[k]||String(r||''); };
+  // A CamelCase API value in words: BenignPositive reads Benign positive.
+  const apiWords=v=>{ const s=String(v==null?'':v); if(!/^[A-Za-z][A-Za-z0-9]*$/.test(s) || !/[a-z][A-Z]|[A-Z]{2}[a-z]/.test(s)) return s;
+    const p=s.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/); return [p[0]].concat(p.slice(1).map(x=>/^[A-Z]{2,}$/.test(x)? x : x.toLowerCase())).join(' '); };
   // Money in its currency with thousands separators, whole units from a
   // thousand up; an unknown currency code keeps the code in front.
   const fmtMoney = (cur, v) => {
@@ -1665,10 +1700,10 @@
   document.getElementById('brandSub').textContent = PRODUCT_SUB;
   const w = M.workspace;
   document.getElementById('subtitle').innerHTML =
-    'Workspace <b>'+esc(w.name)+'</b>'+(w.region?' &middot; '+esc(w.region):'')+(w.resourceGroup?' &middot; '+esc(w.resourceGroup):'');
+    'Workspace <b>'+esc(w.name)+'</b>'+(w.region?' &middot; '+esc(regionName(w.region)):'')+(w.resourceGroup?' &middot; '+esc(w.resourceGroup):'');
   const headerMat = M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null;
   const headerFacts = [
-    {k:'Generated', v:w.generatedUtc||'n/a', cls:'ok'},
+    {k:'Generated', v:w.generatedUtc? fmtDate(w.generatedUtc,{time:true}) : 'n/a', cls:'ok'},
     {k:'Blueprint', v:'v'+(w.blueprintVer||'?')},
     {k:'Maturity', v:headerMat? (M.maturity.overall.score+' / 5 &middot; '+esc(M.maturity.overall.levelName)) : 'not assessed', cls:headerMat?'brand':'', raw:true},
     {k:'Findings', v:M.findings.total+' open', cls:M.findings.total>0?'alert':'ok'}
@@ -1683,7 +1718,7 @@
   document.getElementById('foot').innerHTML='<div class="privnote" role="note">'+
     '<span class="privicon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>'+
     '<div><div class="privt">Confidential: tenant configuration</div>'+
-    '<div class="privs">Generated by the iSOC Blueprint from this workspace'+(genAt? ' on '+esc(genAt) : '')+'. It holds workspace and subscription IDs, detection rules, role assignments and cost, so share it only as you would the workspace itself.</div></div></div>';
+    '<div class="privs">Generated by the iSOC Blueprint from this workspace'+(genAt? ' on '+esc(fmtDate(genAt,{time:true})) : '')+'. It holds workspace and subscription IDs, detection rules, role assignments and cost, so share it only as you would the workspace itself.</div></div></div>';
 
   // ---- glance stat tiles ----
   const c = M.counts, cost = M.cost;
@@ -1699,12 +1734,12 @@
   const skuCap=+w.skuCapacity||0;
   const skuSub=(w.sku==='CapacityReservation'||w.sku==='LACluster') && skuCap? skuCap.toLocaleString('en-GB')+' GB a day' : (SKU_NAME[w.sku]? w.sku : '');
   const pills = [
-    {k:'Region', v:w.region, ic:ICON.globe, sec:secOverview},
+    {k:'Region', v:regionName(w.region)||'n/a', s:(w.region&&regionName(w.region)!==w.region? w.region : ''), ic:ICON.globe, sec:secOverview},
     {k:'SKU', v:SKU_NAME[w.sku]||w.sku||'n/a', s:skuSub, ic:ICON.tag, sec:secOverview},
     {k:'Retention', v:w.retentionDays+' days', ic:ICON.history, sec:secRetention},
     {k:'Daily cap', v:w.dailyCap, ic:ICON.gauge, sec:secInventory},
     {k:'Ingestion', v:w.pnaIngestion, ic:ICON.ingest, sec:secOverview},
-    {k:'Monthly cost', v:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', ic:ICON.coins, sec:secCost},
+    {k:'Monthly cost', v:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', s:cost? 'projected from the last '+WIN.w() : '', ic:ICON.coins, sec:secCost},
     {k:'Open findings', v:M.findings.total, ic:ICON.shieldAlert,
       badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)},
     {k:'Maturity', v:(M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null)? (M.maturity.overall.score+' / 5'):'n/a', ic:ICON.gauge,
@@ -1839,7 +1874,7 @@
     const curve=(x0,y0,x1,y1)=>'M'+x0+','+y0+' C'+((x0+x1)/2)+','+y0+' '+((x0+x1)/2)+','+y1+' '+x1+','+y1;
     const gap=Math.min(44,(H-90)/Math.max(sources.length,1));
     const top=cy-(sources.length-1)*gap/2;
-    mk('text',{x:srcX-22,y:cy-r-14-Math.max(0,(sources.length-1)*gap/2-r),'text-anchor':'end','font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},'SOURCE FAMILY (GB / 30D)');
+    mk('text',{x:srcX-22,y:cy-r-14-Math.max(0,(sources.length-1)*gap/2-r),'text-anchor':'end','font-size':'10','font-weight':'800',style:'fill:var(--faint);'+LBL},'SOURCE FAMILY (GB / '+WIN.d().toUpperCase()+')');
     const tip=(el,text)=>{ const t=document.createElementNS(ns,'title'); t.textContent=text; el.appendChild(t); return el; };
     sources.forEach((s,i)=>{
       const y=top+i*gap; const col=famColor[s.category]||'#64748b';
@@ -2074,7 +2109,7 @@
       if(xa>0){ const kx=Math.sqrt(xa/maxXdr); strand('M214 '+y.toFixed(1)+' C 290 '+y.toFixed(1)+', 300 '+yX+', '+jx+' '+yX, col, 2+12*kx, 3.2-1.8*kx); }
       mk('circle',{cx:210,cy:y,r:3.5,fill:col,filter:'url(#lcGlow)'},null,srcG);
       mk('text',{x:198,y:y-2,'text-anchor':'end','font-size':'13',class:'lc-src'},s.category,srcG);
-      mk('text',{x:198,y:y+13,'text-anchor':'end','font-size':'10.5',class:'lc-sub'},(n0(s.gb)>=10? Math.round(n0(s.gb)).toLocaleString('en-GB') : n0(s.gb).toLocaleString('en-GB',{maximumFractionDigits:1}))+' GB',srcG);
+      mk('text',{x:198,y:y+13,'text-anchor':'end','font-size':'10.5',class:'lc-sub'},fmtGb(n0(s.gb))+' GB',srcG);
     });
     if(sources.length){ go(srcG,()=>{ if(activateTab) activateTab('flow'); bringTop(); },'Open the data flow'); }
     else mk('text',{x:140,y:cy,'text-anchor':'middle','font-size':'12',class:'lc-sub'},'No billable ingestion');
@@ -2172,8 +2207,11 @@
     }
 
     // The strip under the picture.
+    // Every GB ingested a day, billable and free; the split is under it, as
+    // the findings and the Progress tab quote the billable figure.
     const daily=(M.usageDaily||[]).map(d=>n0(d.billable)+n0(d.free));
     const avg=daily.length? daily.reduce((a,b)=>a+b,0)/daily.length : null;
+    const avgOf=k=>(M.usageDaily||[]).reduce((a,d)=>a+n0(d[k]),0)/Math.max(1,(M.usageDaily||[]).length);
     const spark=pts=>{ if(pts.length<2) return ''; const mx=Math.max(...pts,0.001), w=200, h=30;
       const xy=pts.map((v,i)=>(i/(pts.length-1)*w).toFixed(1)+','+(h-2-(v/mx)*(h-4)).toFixed(1)).join(' ');
       return '<svg class="lc-spark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true"><polyline points="'+xy+'" fill="none" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>'; };
@@ -2212,7 +2250,8 @@
       };
     })();
     document.getElementById('lcStrip').innerHTML=
-      '<div class="lc-kpi"><div class="k">Data ingestion</div><div class="v">'+(avg==null?'n/a':(avg>=10?Math.round(avg).toLocaleString('en-GB'):avg.toFixed(1))+'<small>GB / day</small>')+'</div>'+spark(daily)+'</div>'+
+      '<div class="lc-kpi"><div class="k">Data ingestion</div><div class="v">'+(avg==null?'n/a':fmtGb(avg)+'<small>GB a day</small>')+'</div>'+
+        (avg==null? '' : '<div class="s">'+fmtGb(avgOf('billable'))+' billable and '+fmtGb(avgOf('free'))+' free</div>')+spark(daily)+'</div>'+
       '<div class="lc-kpi"><div class="k">Alerts per incident</div><div class="v">'+(incidents>0?(alerts/incidents>=10?Math.round(alerts/incidents):(alerts/incidents).toFixed(1)):'n/a')+'</div><div class="s">'+
         (split? num(aSen)+' Sentinel, '+num(aXdr)+' XDR alerts' : num(alerts)+' alerts, '+num(incidents)+' incidents')+'</div></div>'+
       (incTrend? '<div class="lc-kpi"><div class="k">Incidents</div><div class="v">'+incTrend.value+'</div>'+incTrend.chart+'<div class="s">'+num(open)+' still open</div></div>'
@@ -2602,8 +2641,8 @@
 
   // ---- top tables / rules ----
   if(cost&&cost.topTables.length){
-    document.getElementById('topTables').innerHTML='<table class="tbl"><thead><tr><th>Table</th><th>Plan</th><th>GB/'+WIN.d()+'</th><th>'+esc(cost.currency)+'/mo</th></tr></thead><tbody>'+
-      cost.topTables.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.plan)+'</td><td>'+t.gb30d+'</td><td>'+t.cost+'</td></tr>').join('')+'</tbody></table>';
+    document.getElementById('topTables').innerHTML='<table class="tbl"><thead><tr><th>Table</th><th>Plan</th><th class="num">GB / '+WIN.d()+'</th><th class="num">Monthly cost</th></tr></thead><tbody>'+
+      cost.topTables.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.plan)+'</td><td class="num">'+fmtGb(t.gb30d)+'</td><td class="num">'+esc(fmtMoney(cost.currency,t.cost))+'</td></tr>').join('')+'</tbody></table>';
   }
   // The eight busiest rules here; Rule Performance lists every one.
   (function(){
@@ -3035,7 +3074,7 @@
   // 7a. Incident outcomes (30d)
   if(M.incidentsByClassification && M.incidentsByClassification.length){
     const cc={TruePositive:'#dc2626',FalsePositive:'#d97706',BenignPositive:'#0d9488',Undetermined:'#64748b',Unclassified:'#94a3b8'};
-    const items=M.incidentsByClassification.map(i=>({label:i.label,value:+i.value||0,display:(+i.value||0).toLocaleString(),color:cc[i.label]||'#94a3b8'}));
+    const items=M.incidentsByClassification.map(i=>({label:apiWords(i.label),value:+i.value||0,display:(+i.value||0).toLocaleString(),color:cc[i.label]||'#94a3b8'}));
     const tot=items.reduce((a,i)=>a+i.value,0);
     cards.push('<div class="ipanel"><h3>Incident outcomes ('+WIN.d()+')</h3>'+
       '<p class="note">How closed incidents were classified. Undetermined and unclassified closures give rule tuning nothing to work from.</p>'+
@@ -3115,7 +3154,7 @@
     const items=M.tiBySource.map((t,i)=>({label:t.source,value:+t.count||0,display:(+t.count||0).toLocaleString(),color:pal[i%pal.length]}));
     const tot=items.reduce((a,i)=>a+i.value,0);
     cards.push('<div class="ipanel"><h3>Threat intelligence by source ('+WIN.cd()+')</h3>'+
-      '<p class="note">Indicators observed per feed. One feed is a single point of failure for every TI detection.</p>'+
+      '<p class="note">Indicators observed per feed'+(WIN.days!==WIN.collected? ', over the collected '+WIN.cw()+': the window slider does not re-scope this card' : '')+'. One feed is a single point of failure for every TI detection.</p>'+
       donutMultiHtml(items,tot.toLocaleString(),'indicators')+'</div>');
   }
 
@@ -3133,7 +3172,7 @@
     const status=DL.enrolled
       ? 'Enrolled'+(DL.region?' ('+esc(DL.region)+')':'')+': every Analytics-plan table is mirrored to the lake; '+(DL.extendedCount||0)+' table'+(DL.extendedCount===1?'':'s')+' keep data beyond analytics retention and '+((DL.signals&&DL.signals.lakeOnlyTables)||0)+' route to the lake only.'
       : 'Not enrolled: all '+(DL.operationalTables||0)+' operational tables stay on the analytics tier with no lake mirror.';
-    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtN(DL.cost.lakeGb)+' GB in '+WIN.d()+' ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.lakeCost)+'/mo) beside '+fmtN(DL.cost.analyticsGb)+' GB on Analytics ('+esc(DL.cost.currency)+' '+fmtN(DL.cost.analyticsCost)+'/mo).</p>':'';
+    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtGb(DL.cost.lakeGb)+' GB in '+WIN.w()+' ('+esc(fmtMoney(DL.cost.currency,DL.cost.lakeCost))+' a month) beside '+fmtGb(DL.cost.analyticsGb)+' GB on Analytics ('+esc(fmtMoney(DL.cost.currency,DL.cost.analyticsCost))+' a month).</p>':'';
     cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
       // The button under the table list opens the data lake page; without a
       // list, the link sits in the description instead.
@@ -3356,8 +3395,8 @@
     const day=d=>new Date(d+'T00:00:00Z');
     const iso=d=>{ const t=day(cur.date); t.setUTCDate(t.getUTCDate()-d); return t.toISOString().slice(0,10); };
     const daysBetween=(a,b)=>Math.round((day(b)-day(a))/86400000);
-    const short=d=>day(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
-    const long=d=>day(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+    const short=d=>fmtDate(d,{year:false});
+    const long=d=>fmtDate(d);
     const andList=a=>a.length<2? a.join('') : a.slice(0,-1).join(', ')+' and '+a[a.length-1];
     const baselines=()=>{
       const earlier=entries.filter(e=>e.date<cur.date), out={};
@@ -3389,6 +3428,7 @@
     function tilesHtml(base){
       return '<div class="panel glance"><div class="phead"><div><h2>Progress at a glance</h2><p class="note">'+
         (base? 'Each figure now, and how it has moved since '+esc(long(base.date))+'. Green is better and red is worse; cost and volume are neither.' : 'Each figure as this run collected it. The next run adds the comparison.')+
+        ' Activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), whatever the window slider shows.'+
         '</p></div></div><div class="tiles pgtiles">'+TILES.filter(([k])=>mv(cur,k)!=null).map(([k,ic])=>{
           const m=MK[k], a=base? mv(base,k) : null, b=mv(cur,k);
           const s=!base? 'No earlier run yet' : a==null? 'Not captured on '+esc(short(base.date)) : fmtDelta(a,b,m[2],m[3])+' since '+esc(short(base.date));
@@ -3480,7 +3520,7 @@
       const rows=METRICS.filter(([k])=>mv(cur,k)!=null||mv(base,k)!=null).map(([k,label,better,f])=>
         '<tr><td>'+esc(label)+'</td>'+(base?'<td class="num">'+fmtVal(mv(base,k),f)+'</td>':'')+'<td class="num">'+fmtVal(mv(cur,k),f)+'</td>'+(base?'<td class="num">'+fmtDelta(mv(base,k),mv(cur,k),better,f)+'</td>':'')+'</tr>');
       return '<div class="panel"><div class="phead"><div><h2>Every measure</h2><p class="note">'+
-        (base? 'Each figure on '+esc(long(base.date))+' and now. Posture is as each run collected it; activity (ingestion, incidents) is each run\'s own '+WIN.w()+' view.' : 'Each figure as this run collected it.')+'</p></div></div>'+
+        (base? 'Each figure on '+esc(long(base.date))+' and now. Posture is as each run collected it; activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), not the window slider\'s.' : 'Each figure as this run collected it.')+'</p></div></div>'+
         '<table class="tbl"><thead><tr><th>Measure</th>'+(base?'<th class="num">'+esc(short(base.date))+'</th>':'')+'<th class="num">'+esc(short(cur.date))+'</th>'+(base?'<th class="num">Change</th>':'')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
     }
 
@@ -3558,8 +3598,9 @@
       return html || '<div class="docempty">No matches.</div>';
     }
 
-    const isNum = v => v!=='' && v!=null && !isNaN(String(v).replace(/[, %$£]/g,''));
-    const toNum = v => parseFloat(String(v).replace(/[, %$£]/g,''))||0;
+    const NUM_PREFIX=/^-?\s*(?:[A-Z]{2,3}\$|[A-Z]{3} |[£$€¥₹₩]|<)\s*/;
+    const isNum = v => v!=='' && v!=null && !isNaN(String(v).trim().replace(NUM_PREFIX,'').replace(/[, %]/g,''));
+    const toNum = v => parseFloat(String(v).trim().replace(NUM_PREFIX,'').replace(/[, %]/g,''))||0;
     const ICONN = {
       stat: svg('<path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/>'),
       rows: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>')
@@ -3683,8 +3724,13 @@
     // other in natural text order (Rule 2 before Rule 10). Empty cells go
     // last either way. The row filter keeps working on the sorted rows.
     const SORT_UNITS={kb:1e3,mb:1e6,gb:1e9,tb:1e12};
-    const sortNum=s=>{ const m=/^\s*[£$€]?\s*([+-]?[\d,]*\.?\d+)\s*(%|[a-z]{1,4})?\s*$/i.exec(s); if(!m) return null;
-      const v=parseFloat(m[1].replace(/,/g,'')); if(isNaN(v)) return null; return v*(SORT_UNITS[(m[2]||'').toLowerCase()]||1); };
+    // A date as the pages write it (15 Oct 2026, 15 Oct 2026 21:03 UTC)
+    // sorts by time; an amount by value whatever its currency (£, US$,
+    // SEK); a trace (<0.01) as its bound.
+    const SORT_DATE=/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})(?: (\d{2}):(\d{2}))?(?: UTC)?$/;
+    const sortNum=s=>{ const dm=SORT_DATE.exec(String(s).trim()); if(dm) return Date.UTC(+dm[3], MONTHS.indexOf(dm[2]), +dm[1], +(dm[4]||0), +(dm[5]||0));
+      const m=/^\s*(-)?\s*(?:[A-Z]{2,3}\$|[A-Z]{3} |[£$€¥₹₩])?\s*<?\s*([+-]?[\d,]*\.?\d+)\s*(%|[a-z]{1,4})?\s*$/i.exec(s); if(!m) return null;
+      const v=parseFloat(m[2].replace(/,/g,'')); if(isNaN(v)) return null; return (m[1]?-1:1)*v*(SORT_UNITS[(m[3]||'').toLowerCase()]||1); };
     const sortCollator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
     function sortTable(table, th){
       const tb=table.tBodies[0]; if(!tb) return;
@@ -4510,7 +4556,7 @@
   // pause after arrow keys, reloads the dashboard for that window and
   // reopens the view that was showing.
   const asOfT=Date.parse((DAILY&&DAILY.asOf)||'');
-  const fmtDay=(t,y)=>new Date(t).toLocaleDateString('en-GB',y? {day:'numeric',month:'short',year:'numeric',timeZone:'UTC'} : {day:'numeric',month:'short',timeZone:'UTC'});
+  const fmtDay=(t,y)=>fmtDate(t,{year:!!y});
   const winDates=n=>{
     if(isNaN(asOfT)) return '';
     const a=asOfT-n*864e5;

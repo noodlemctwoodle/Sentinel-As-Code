@@ -23,6 +23,28 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   days before it, so the 90-day baseline has a run. The demo workspace
   carries a quarter of runs to compare, the first 90 days back, with a
   regression or two among the gains.
+- **Figures that agree, written one way** - an audit of every dashboard
+  tab and report page found figures that disagreed and the same thing
+  written several ways. The data lake gap finding (SAC-MON-05) now gives
+  both its high-volume total and the GB of every table no detection reads,
+  so it reconciles with the Data flow and Progress tabs; the silent-rule
+  finding (SAC-DET-12) counts rules that fired by rule id, as the Data flow
+  ring does, so the two add up to the enabled rules; the lifecycle's GB a
+  day says it counts billable and free data and splits them. Labels follow
+  the window slider (the source family volumes, the monthly cost, which
+  now says the window it is projected from), and what does not follow it
+  says so (threat intelligence by source, the Progress tab). The alert
+  volumes by provider table covers the report's full window, with the last
+  7 days beside it. One house style, shared by the report pages, the
+  findings and the dashboard (`Private/Format-BlueprintText.ps1`): counts
+  with thousands separators, GB to two places, money in the workspace's
+  currency with its symbol (the data lake page printed dollars), dates as
+  "15 Oct 2026" with "21:03 UTC" where the time matters (no raw ISO
+  timestamps, no "Sept"), proper plurals instead of "table(s)", and API
+  values by name: Commitment tier, UK South, Benign positive, MITRE's
+  tactic names. Report tables sort these back by value and by date. The
+  Progress tiles keep their values in line when a label wraps, and the
+  demo's What's new carries its own items, not the test fixture's.
 - **Dashboard labels** - the data flow's ring and incident figures have
   thousands separators ("10,123 of 10,292"), as every other tab; the
   maturity view's area badge says it is the confidence in the score ("Good

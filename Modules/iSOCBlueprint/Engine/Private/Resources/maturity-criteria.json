@@ -182,7 +182,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} enabled analytics rule(s).",
+        "met": "{metric} enabled analytics {rule|rules}.",
         "gap": "No enabled analytics rules."
       }
     },
@@ -206,7 +206,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} enabled rule(s) authored without a template.",
+        "met": "{metric} enabled {rule|rules} authored without a template.",
         "gap": "Every enabled Scheduled/NRT rule comes from a template; no custom detections."
       }
     },
@@ -366,7 +366,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} data collection rule(s) in scope.",
+        "met": "{metric} data collection {rule|rules} in scope.",
         "gap": "No data collection rules in scope."
       }
     },
@@ -432,7 +432,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} audited queries in {lookback}.",
+        "met": "{metric} audited {query|queries} in {lookback}.",
         "gap": "No LAQueryLogs rows in {lookback}; query auditing is off."
       }
     },
@@ -499,7 +499,7 @@
       },
       "evidence": {
         "met": "No connector failures in SentinelHealth in {lookback}.",
-        "gap": "{metric} connector failure(s) in SentinelHealth in {lookback}."
+        "gap": "{metric} connector {failure|failures} in SentinelHealth in {lookback}."
       }
     },
     {
@@ -522,7 +522,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} billable GB ingested in {lookback}.",
+        "met": "{metric:gb} billable GB ingested in {lookback}.",
         "gap": "No billable ingestion in {lookback}."
       }
     },
@@ -546,7 +546,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} Entra ID table(s) ingesting in the last {recent}.",
+        "met": "{metric} Entra ID {table|tables} ingesting in the last {recent}.",
         "gap": "No Entra ID table ingested data in the last {recent}."
       }
     },
@@ -570,7 +570,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} Defender XDR table(s) with data.",
+        "met": "{metric} Defender XDR {table|tables} with data.",
         "gap": "No Defender XDR tables with data."
       }
     },
@@ -705,7 +705,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} playbook(s) deployed.",
+        "met": "{metric} {playbook|playbooks} deployed.",
         "gap": "No playbooks deployed."
       }
     },
@@ -729,7 +729,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} watchlist(s) defined.",
+        "met": "{metric} {watchlist|watchlists} defined.",
         "gap": "No watchlists defined."
       }
     },
@@ -774,7 +774,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} SentinelHealth row(s) in {lookback}.",
+        "met": "{metric} SentinelHealth {row|rows} in {lookback}.",
         "gap": "No SentinelHealth rows in {lookback}."
       }
     },
@@ -798,8 +798,8 @@
         "value": 10
       },
       "evidence": {
-        "met": "{metric} of 14 MITRE tactics have at least one enabled rule.",
-        "gap": "Only {metric} of 14 MITRE tactics have an enabled rule."
+        "met": "{metric} of 14 MITRE tactics {has|have} at least one enabled rule.",
+        "gap": "Only {metric} of 14 MITRE tactics {has|have} an enabled rule."
       }
     },
     {
@@ -863,7 +863,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} incident(s) closed in {lookback}.",
+        "met": "{metric} {incident|incidents} closed in {lookback}.",
         "gap": "No incidents closed in {lookback}."
       }
     },
@@ -908,8 +908,8 @@
         "value": 240
       },
       "evidence": {
-        "met": "Mean time to acknowledge is {metric} minutes.",
-        "gap": "Mean time to acknowledge is {metric} minutes, above the four-hour target."
+        "met": "Mean time to acknowledge is {metric:1dp} minutes.",
+        "gap": "Mean time to acknowledge is {metric:1dp} minutes, above the four-hour target."
       }
     },
     {
@@ -931,7 +931,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} incident(s) in {lookback}.",
+        "met": "{metric} {incident|incidents} in {lookback}.",
         "gap": "No incidents created in {lookback}."
       }
     },
@@ -1028,7 +1028,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} search or restore job(s) on record.",
+        "met": "{metric} search or restore {job|jobs} on record.",
         "gap": "No search jobs or restores on record."
       }
     },
@@ -1129,7 +1129,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} indicator(s) observed in {lookback}.",
+        "met": "{metric} {indicator|indicators} observed in {lookback}.",
         "gap": "No indicators observed in {lookback}."
       }
     },
@@ -1153,7 +1153,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} STIX object(s) in ThreatIntelObjects over {lookback}.",
+        "met": "{metric} STIX {object|objects} in ThreatIntelObjects over {lookback}.",
         "gap": "No STIX objects in ThreatIntelObjects."
       }
     },
@@ -1253,7 +1253,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} bookmark(s) created or changed in {lookback}.",
+        "met": "{metric} {bookmark|bookmarks} created or changed in {lookback}.",
         "gap": "No bookmark created or changed in {lookback}."
       }
     },
@@ -1277,7 +1277,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} hunting quer(ies) available.",
+        "met": "{metric} hunting {query|queries} available.",
         "gap": "No hunting queries available."
       }
     },
@@ -1300,8 +1300,8 @@
         "value": 25
       },
       "evidence": {
-        "met": "{metric} hunting queries available.",
-        "gap": "{metric} hunting queries, under the 25 target."
+        "met": "{metric} hunting {query|queries} available.",
+        "gap": "{metric} hunting {query|queries}, under the 25 target."
       }
     },
     {
@@ -1324,7 +1324,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} table(s) with retention set away from the workspace default.",
+        "met": "{metric} {table|tables} with retention set away from the workspace default.",
         "gap": "Every table uses the workspace default retention."
       }
     },
@@ -1389,7 +1389,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} table(s) with long-term retention or on the lake tier.",
+        "met": "{metric} {table|tables} with long-term retention or on the lake tier.",
         "gap": "No table has retention beyond the interactive window."
       }
     },
@@ -1413,7 +1413,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} summary rule(s) defined.",
+        "met": "{metric} summary {rule|rules} defined.",
         "gap": "No summary rules defined."
       }
     },
@@ -1458,8 +1458,8 @@
         "value": 10
       },
       "evidence": {
-        "met": "{metric} Owner or Contributor assignment(s) at workspace scope.",
-        "gap": "{metric} Owner or Contributor assignments at workspace scope, more than the ten expected of a least-privilege model."
+        "met": "{metric} Owner or Contributor {assignment|assignments} at workspace scope.",
+        "gap": "{metric} Owner or Contributor {assignment|assignments} at workspace scope, more than the ten expected of a least-privilege model."
       }
     },
     {
@@ -1482,7 +1482,7 @@
         "value": 0
       },
       "evidence": {
-        "met": "{metric} Microsoft Sentinel role assignment(s) at workspace scope.",
+        "met": "{metric} Microsoft Sentinel role {assignment|assignments} at workspace scope.",
         "gap": "No Microsoft Sentinel role assignments at workspace scope."
       }
     },

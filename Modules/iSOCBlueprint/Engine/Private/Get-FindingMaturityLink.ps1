@@ -22,8 +22,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -119,9 +119,9 @@ function Format-FindingMaturityShort {
 
     if (-not $Links -or @($Links).Count -eq 0) { return 'Not scored' }
     $parts = @($Links | ForEach-Object {
-            # The lift as maturity.json stores it (three decimals), as the
-            # roadmap shows it.
-            if ($null -ne $_.Lift -and $_.Lift -gt 0) { '+{0} to {1}' -f ([double]$_.Lift).ToString('0.###', [System.Globalization.CultureInfo]::InvariantCulture), $_.Area }
+            # The lift to two places, as the roadmap, the finding cards and
+            # every score on the pages write it.
+            if ($null -ne $_.Lift -and $_.Lift -gt 0) { '+{0} to {1}' -f ([double]$_.Lift).ToString('0.00', [System.Globalization.CultureInfo]::InvariantCulture), $_.Area }
             else { $_.Area }
         } | Sort-Object -Unique)
     return ($parts -join '; ')

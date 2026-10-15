@@ -96,7 +96,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.1
+    Version:      0.2.2
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
 
@@ -1145,6 +1145,24 @@ $tierList = [ordered]@{ 50 = 152.1284; 100 = 279.2558; 200 = 517.0006; 300 = 754
 $priceRow = { param($Service, $Meter, $Unit, $Price) [ordered]@{ currencyCode = 'GBP'; tierMinimumUnits = 0.0; retailPrice = $Price; unitPrice = $Price; armRegionName = $region; location = 'UK South'; meterName = $Meter; productName = $Service; serviceName = $Service; unitOfMeasure = $Unit; type = 'Consumption' } }
 Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1)); Region = $region; Currency = 'GBP'; CurrencySource = 'Region'; Services = @('Sentinel', 'Log Analytics')
         Prices = @(@(foreach ($p in $listPrices) { & $priceRow $p[0] $p[1] $p[2] $p[3] }) + @(foreach ($kv in $tierList.GetEnumerator()) { & $priceRow 'Sentinel' "$($kv.Key) GB Commitment Tier Capacity Reservation" '1/Day' $kv.Value })) })
+
+# What's new: the demo's own items, dated in the months before the demo's
+# day (the fixture's are marked as fixture items and dated for its own run).
+$monthAgo = { param([int] $m) $asOfUtc.AddMonths(-$m).ToString('yyyy-MM') }
+$sentinelNews = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new'
+$xdrNews = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new'
+$newsItem = { param($Product, $Month, $Title, $Status, $Summary, $Link, $Deadline) [ordered]@{ Product = $Product; Month = $Month; Title = $Title; Status = $Status; Summary = $Summary; Details = @(); Link = $Link; LearnMore = $null; Deadline = $Deadline } }
+$newsItems = @(
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 1) 'Call to action: move playbooks to the new incident trigger before 31 Mar 2027' 'Action needed' 'Playbooks on the old incident trigger stop running after the date. Move them to the new trigger and test each one.' "$sentinelNews#call-to-action" '2027-03')
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 1) 'UEBA behaviour layer is now generally available' 'Generally available' 'UEBA behaviours summarise raw logs into entity activity that hunting and detections can query.' "$sentinelNews#ueba" $null)
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 2) 'Query the data lake tier from advanced hunting (Preview)' 'Preview' 'Interactive queries over the data lake tier, beside the analytics tier, from the same hunting page.' "$sentinelNews#data-lake" $null)
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 4) 'Microsoft Sentinel in the Azure portal to be retired' 'Retiring' 'Microsoft Sentinel moves to the Defender portal. Plan the move of workbooks, automation and access before the date.' "$sentinelNews#portal" '2027-03')
+    (& $newsItem 'Microsoft Defender XDR' (& $monthAgo 1) 'Custom detection rules support near real-time frequency' 'Preview' 'Custom detections can run continuously instead of on a schedule.' "$xdrNews#custom-detections" $null)
+    (& $newsItem 'Microsoft Defender XDR' (& $monthAgo 3) 'Incident queue filters for sensitivity labels' 'Update' 'Filter the incident queue by the sensitivity labels of the data involved.' "$xdrNews#incident-queue" $null)
+)
+Save-DemoJson 'whats-new.json' ([ordered]@{ FetchedUtc = (Format-DemoTime $asOfUtc.AddMinutes(-2)); Months = 12
+        Sources = @([ordered]@{ Product = 'Microsoft Sentinel'; Url = $sentinelNews; Ok = $true; Error = $null; Items = 4 }, [ordered]@{ Product = 'Microsoft Defender XDR'; Url = $xdrNews; Ok = $true; Error = $null; Items = 2 })
+        Items = $newsItems })
 
 # The rest from the fixture, under the demo's names.
 $rename = [ordered]@{ 'law-sentinel-test' = $WorkspaceName; 'rg-sentinel-test' = $resourceGroup; '/resourceGroups/rg-test/' = "/resourceGroups/$resourceGroup/"; '00000000-0000-0000-0000-000000000001' = $subscriptionId; '00000000-0000-0000-0000-000000000000' = $subscriptionId; 'example.test' = 'contoso.com'; 'Sentinel Test' = 'Contoso Security Production' }

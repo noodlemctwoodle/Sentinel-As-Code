@@ -188,6 +188,11 @@ Describe 'The demo workspace generator' {
         @($progress.entries)[-1].date | Should -Be $model.progress.date
         @($progress.entries)[0].metrics.findings | Should -BeGreaterThan $model.progress.metrics.findings
         @($progress.entries)[0].metrics.rulesEnabled | Should -BeLessThan $model.progress.metrics.rulesEnabled
+        # What's new carries the demo's own items, not the fixture's.
+        $news = Read-Demo 'whats-new.json'
+        @($news.Items).Count | Should -BeGreaterThan 0
+        @($news.Items | Where-Object { [string]$_.Summary -match 'Fixture item' }).Count | Should -Be 0
+        @($news.Items | Where-Object { [string]$_.Title -match '(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}' }).Count | Should -Be 0
         # The first run is 90 days back, so each baseline (90 days included) has a run.
         ([datetime]$model.progress.date - [datetime]@($progress.entries)[0].date).Days | Should -Be 90
         # Not all of it better: areas climb at their own pace and one slips;

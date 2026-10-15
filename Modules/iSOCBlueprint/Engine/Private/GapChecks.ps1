@@ -20,7 +20,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.1
+    Version:        0.8.0
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Gap Engine
     Requires:       PowerShell 7.2+
@@ -37,6 +37,8 @@
 
 Set-StrictMode -Version Latest
 
+# Counts, GB, money, dates and plurals written as the dashboard writes them.
+. (Join-Path $PSScriptRoot 'Format-BlueprintText.ps1')
 # The connector catalogue helpers (SAC-PLT-10 reads the catalogue).
 . (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
 # Watchlist freshness (SAC-DET-15), shared with the watchlists page.
@@ -141,6 +143,8 @@ function _Window {
 }
 # "1 day" or "N days".
 function _Days([int]$Days) { if ($Days -eq 1) { '1 day' } else { "$Days days" } }
+# One wording or the other by the count: _ByCount 1 'has' 'have' reads has.
+function _ByCount { param($Count, [string]$One, [string]$Many) if ((ConvertTo-BlueprintDouble $Count) -eq 1) { $One } else { $Many } }
 # A total over the lookback as a 30-day figure.
 function _Per30([double]$Value, $Inventory) { $Value * 30.0 / (_Window $Inventory).Days }
 
@@ -151,7 +155,7 @@ function Test-WorkspaceRetentionMeetsSentinelBenefit {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $retention = Get-PropOrDefault $Inventory.Workspace 'properties.retentionInDays' 0
     if ([int]$retention -lt 90) {
-        return New-Finding -Evidence "Workspace default retention is $retention days; Sentinel includes the 30->90d upgrade at no extra cost on eligible tables." -Detail @{ RetentionInDays = [int]$retention }
+        return New-Finding -Evidence "Workspace default retention is $(Format-BlueprintPlural $retention 'day'); Sentinel includes the 30->90d upgrade at no extra cost on eligible tables." -Detail @{ RetentionInDays = [int]$retention }
     }
     return $null
 }
@@ -186,7 +190,7 @@ function Test-NoisyTableHasTransform {
     })
     if ($missing.Count -gt 0) {
         $names = ($missing | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "High-volume Analytics-plan tables with no DCR transform: $names." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "$(_ByCount $missing.Count 'High-volume Analytics-plan table' 'High-volume Analytics-plan tables') with no DCR transform: $names." -Detail @{ Tables = $names }
     }
     return $null
 }
@@ -205,7 +209,7 @@ function Test-RecommendedConnectorsDeployed {
     $recommended = @('AzureActiveDirectory','MicrosoftThreatProtection','AzureSecurityCenter','Office365','MicrosoftDefenderAdvancedThreatProtection','ThreatIntelligence')
     $missing = @($recommended | Where-Object { $deployedKinds -notcontains $_ })
     if ($missing.Count -gt 0) {
-        return New-Finding -Evidence "Recommended connector kinds not deployed: $($missing -join ', ')." -Detail @{ Missing = $missing }
+        return New-Finding -Evidence "Recommended $(_ByCount $missing.Count 'connector kind' 'connector kinds') not deployed: $($missing -join ', ')." -Detail @{ Missing = $missing }
     }
     return $null
 }
@@ -264,7 +268,7 @@ function Test-MitreTacticCoverage {
     $uncovered = @($Inventory.MitreTactics | Where-Object { -not $coveredTactics.ContainsKey($_.sentinelShortName) })
     if ($uncovered.Count -gt 0) {
         $names = ($uncovered | Select-Object -ExpandProperty name) -join ', '
-        return New-Finding -Evidence "MITRE tactics with zero enabled rules: $names." -Detail @{ UncoveredTactics = $uncovered }
+        return New-Finding -Evidence "$(_ByCount $uncovered.Count 'MITRE tactic' 'MITRE tactics') with zero enabled rules: $names." -Detail @{ UncoveredTactics = $uncovered }
     }
     return $null
 }
@@ -278,8 +282,8 @@ function Test-WatchlistsStale {
     $use = Get-WatchlistRuleUse -Rules @($Inventory.AlertRules)
     $stale = @(Get-WatchlistFreshness -Watchlists @($Inventory.Watchlists) -RuleUse $use | Where-Object Status -EQ 'Stale, used by rules' | Sort-Object AgeDays -Descending)
     if ($stale.Count -eq 0) { return $null }
-    $names = ($stale | ForEach-Object { "$(Get-EvidenceName $_ 'Name', 'Alias' 'Unnamed watchlist') ($($_.AgeDays) days, $($_.EnabledRules) rule$(if ($_.EnabledRules -ne 1) { 's' }))" }) -join '; '
-    return New-Finding -Evidence "$($stale.Count) watchlist(s) read by enabled analytics rules have not been updated in $($script:WatchlistStaleDays) days or more: $names." -Detail @{ Count = $stale.Count }
+    $names = ($stale | ForEach-Object { "$(Get-EvidenceName $_ 'Name', 'Alias' 'Unnamed watchlist') ($(Format-BlueprintPlural $_.AgeDays 'day'), $(Format-BlueprintPlural $_.EnabledRules 'rule'))" }) -join '; '
+    return New-Finding -Evidence "$(Format-BlueprintPlural $stale.Count 'watchlist') read by enabled analytics rules $(_ByCount $stale.Count 'has' 'have') not been updated in $(Format-BlueprintPlural $script:WatchlistStaleDays 'day') or more: $names." -Detail @{ Count = $stale.Count }
 }
 
 # ------------------------------------------------------------
@@ -323,13 +327,13 @@ function Test-RulesDisabledOrFailing {
             }
         } | Sort-Object { -$_.Alerts30d })
         $extra = ''
-        if ($bulk) { $extra += " $bulkCount of them were last modified on $bulkDay, which looks like a bulk change rather than rule-by-rule tuning." }
+        if ($bulk) { $extra += " $(Format-BlueprintCount $bulkCount) of them were last modified on $(Format-BlueprintDate $bulkDay), which looks like a bulk change rather than rule-by-rule tuning." }
         if ($firedThenDisabled.Count -gt 0) {
             $win = (_Window $Inventory).Days
-            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($($_.Alerts30d) alert(s) in $($win)d$(if ($_.LastModified.Length -ge 10) { ', disabled ' + $_.LastModified.Substring(0, 10) }))" }) -join '; '
-            $extra += " $($firedThenDisabled.Count) of them produced alerts in the last $(_Days $win) and were disabled since: $sample."
+            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($(Format-BlueprintPlural $_.Alerts30d 'alert') in $(_Days $win)$(if ($_.LastModified.Length -ge 10) { ', disabled ' + (Format-BlueprintDate $_.LastModified) }))" }) -join '; '
+            $extra += " $(Format-BlueprintCount $firedThenDisabled.Count) of them produced alerts in the last $(_Days $win) and $(_ByCount $firedThenDisabled.Count 'was' 'were') disabled since: $sample."
         }
-        return New-Finding -Evidence "$($bad.Count) rule(s) disabled: $names.$extra" -Detail @{
+        return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'rule') disabled: $names.$extra" -Detail @{
             Count             = $bad.Count
             BulkDay           = $(if ($bulk) { $bulkDay } else { $null })
             BulkCount         = $(if ($bulk) { $bulkCount } else { 0 })
@@ -355,7 +359,7 @@ function Test-HighSeverityTemplatesDeployed {
         ($sev -eq 'High') -and ($name) -and (-not $deployedTemplateNames.ContainsKey($name))
     })
     if ($missing.Count -gt 0) {
-        return New-Finding -Evidence "$($missing.Count) High-severity template(s) not deployed." -Detail @{ Count = $missing.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $missing.Count 'High-severity template') not deployed." -Detail @{ Count = $missing.Count }
     }
     return $null
 }
@@ -370,7 +374,7 @@ function Test-RbacOverPrivileged {
         $role -in @('Owner','Contributor')
     })
     if ($bad.Count -gt 0) {
-        return New-Finding -Evidence "$($bad.Count) Owner/Contributor role assignment(s) at workspace scope." -Detail @{ Count = $bad.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'Owner/Contributor role assignment') at workspace scope." -Detail @{ Count = $bad.Count }
     }
     return $null
 }
@@ -399,7 +403,7 @@ function Test-PlaybookMiHasResponder {
         -not ($roles -contains 'Microsoft Sentinel Responder')
     })
     if ($bad.Count -gt 0) {
-        return New-Finding -Evidence "$($bad.Count) playbook managed identity(ies) missing Microsoft Sentinel Responder." -Detail @{ Count = $bad.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'playbook managed identity' 'playbook managed identities') missing Microsoft Sentinel Responder." -Detail @{ Count = $bad.Count }
     }
     return $null
 }
@@ -416,7 +420,7 @@ function Test-DcrTransformMissing {
         ($hasCustom) -and (-not $hasTransform)
     })
     if ($missing.Count -gt 0) {
-        return New-Finding -Evidence "$($missing.Count) DCR(s) target a custom table without transformKql." -Detail @{ Count = $missing.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $missing.Count 'DCR') $(_ByCount $missing.Count 'targets' 'target') a custom table without transformKql." -Detail @{ Count = $missing.Count }
     }
     return $null
 }
@@ -439,7 +443,7 @@ function Test-ContentHubUpdatesAvailable {
         $id -and $installed -and $latest.ContainsKey($id) -and ($latest[$id] -ne $installed)
     })
     if ($stale.Count -gt 0) {
-        return New-Finding -Evidence "$($stale.Count) installed Content Hub solution(s) have a newer version available." -Detail @{ Count = $stale.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $stale.Count 'installed Content Hub solution') $(_ByCount $stale.Count 'has' 'have') a newer version available." -Detail @{ Count = $stale.Count }
     }
     return $null
 }
@@ -452,7 +456,7 @@ function Test-OnboardedToDefender {
     # The defender-onboarding state is workspace-specific and exposed via a separate REST
     # surface that may not be in scope. Until we wire that detection, surface the deadline
     # universally as an Info finding so it appears in every report.
-    return New-Finding -Evidence 'Sentinel in the Azure portal retires 2027-03-31. Plan the migration to the unified Defender XDR experience.' -Detail @{ Deadline = '2027-03-31' }
+    return New-Finding -Evidence 'Sentinel in the Azure portal retires on 31 Mar 2027. Plan the migration to the unified Defender XDR experience.' -Detail @{ Deadline = '2027-03-31' }
 }
 
 # ------------------------------------------------------------
@@ -474,7 +478,7 @@ function Test-CommitmentTierOpportunity {
     $rungs = @($Inventory.CommitmentTiers.rungsGbPerDay)
     $next = $rungs | Where-Object { $_ -le $dailyAvg } | Select-Object -Last 1
     if ($next) {
-        return New-Finding -Evidence "$((_Window $Inventory).Days)-day average ingest is ~$([math]::Round($dailyAvg,1)) GB/day on PerGB2018; $next GB/day commitment tier is a candidate." -Detail @{ DailyAvgGb = $dailyAvg; NextRung = $next }
+        return New-Finding -Evidence "$((_Window $Inventory).Days)-day average ingest is about $(Format-BlueprintGb $dailyAvg) GB a day on PerGB2018; the $(Format-BlueprintCount $next) GB a day commitment tier is a candidate." -Detail @{ DailyAvgGb = $dailyAvg; NextRung = $next }
     }
     return $null
 }
@@ -496,7 +500,7 @@ function Test-HighVolumeTablePlanCandidate {
     })
     if ($candidates.Count -gt 0) {
         $names = ($candidates | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "Analytics-plan tables above 50 GB per 30 days that are Basic/Auxiliary candidates: $names." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "$(_ByCount $candidates.Count 'Analytics-plan table above 50 GB per 30 days that is a Basic/Auxiliary candidate' 'Analytics-plan tables above 50 GB per 30 days that are Basic/Auxiliary candidates'): $names." -Detail @{ Tables = $names }
     }
     return $null
 }
@@ -511,7 +515,7 @@ function Test-RetentionOverArchive {
         $r -gt 90
     })
     if ($bad.Count -gt 0) {
-        return New-Finding -Evidence "$($bad.Count) table(s) have interactive retention > 90d. Consider lowering retentionInDays and using totalRetentionInDays for archive." -Detail @{ Count = $bad.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'table') $(_ByCount $bad.Count 'has' 'have') interactive retention of more than 90 days. Consider lowering retentionInDays and using totalRetentionInDays for archive." -Detail @{ Count = $bad.Count }
     }
     return $null
 }
@@ -528,7 +532,7 @@ function Test-DedicatedClusterCandidate {
     }
     $dailyAvg = $totalGb30d / (_Window $Inventory).Days
     if ($dailyAvg -gt 500.0) {
-        return New-Finding -Evidence "Average ingest ~$([math]::Round($dailyAvg,1)) GB/day with no dedicated cluster, cluster offers cluster-level CR pricing, CMK, and AZ." -Detail @{ DailyAvgGb = $dailyAvg }
+        return New-Finding -Evidence "Average ingest about $(Format-BlueprintGb $dailyAvg) GB a day with no dedicated cluster, cluster offers cluster-level CR pricing, CMK, and AZ." -Detail @{ DailyAvgGb = $dailyAvg }
     }
     return $null
 }
@@ -546,7 +550,7 @@ function Test-SentinelBenefitApplied {
     })
     if ($billableSecurity.Count -gt 0) {
         $names = ($billableSecurity | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "Eligible security tables with non-zero billable ingest in the last $(_Days (_Window $Inventory).Days): $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "Eligible security $(_ByCount $billableSecurity.Count 'table' 'tables') with non-zero billable ingest in the last $(_Days (_Window $Inventory).Days): $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }
     }
     return $null
 }
@@ -589,7 +593,7 @@ function Test-ResourceProvidersRegistered {
     })
     if ($bad.Count -gt 0) {
         $names = ($bad | Select-Object -ExpandProperty ProviderNamespace) -join ', '
-        return New-Finding -Evidence "Resource provider(s) not registered: $names." -Detail @{ Providers = $names }
+        return New-Finding -Evidence "$(_ByCount $bad.Count 'Resource provider' 'Resource providers') not registered: $names." -Detail @{ Providers = $names }
     }
     return $null
 }
@@ -605,7 +609,7 @@ function Test-DataLakeMirroringCandidate {
         [int](Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0) -gt 365
     })
     if ($analyticsLongRetention.Count -gt 0) {
-        return New-Finding -Evidence "$($analyticsLongRetention.Count) Analytics-plan table(s) with > 365d total retention, Data Lake mirroring candidates." -Detail @{ Count = $analyticsLongRetention.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $analyticsLongRetention.Count 'Analytics-plan table') with total retention of more than 365 days, $(_ByCount $analyticsLongRetention.Count 'a Data Lake mirroring candidate' 'Data Lake mirroring candidates')." -Detail @{ Count = $analyticsLongRetention.Count }
     }
     return $null
 }
@@ -649,7 +653,7 @@ function Test-SilentTables {
     if ($silent.Count -gt 0) {
         $names = ($silent | Select-Object -ExpandProperty DataType) -join ', '
         $w = _Window $Inventory
-        return New-Finding -Evidence "Silent table(s) (data in the last $(_Days $w.Days) but none in the last $(_Days $w.RecentDays)): $names." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "$(_ByCount $silent.Count 'Silent table' 'Silent tables') (data in the last $(_Days $w.Days) but none in the last $(_Days $w.RecentDays)): $names." -Detail @{ Tables = $names }
     }
     return $null
 }
@@ -676,7 +680,7 @@ function Test-OrphanTables {
         $type -eq 'CustomLog' -and -not $populated.ContainsKey($name)
     })
     if ($orphans.Count -gt 0) {
-        return New-Finding -Evidence "$($orphans.Count) table(s) have a schema but no data in the last $(_Days (_Window $Inventory).Days)." -Detail @{ Count = $orphans.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $orphans.Count 'table') $(_ByCount $orphans.Count 'has' 'have') a schema but no data in the last $(_Days (_Window $Inventory).Days)." -Detail @{ Count = $orphans.Count }
     }
     return $null
 }
@@ -690,7 +694,7 @@ function _GetBillable30d {
     $v = Get-PropOrDefault $Row 'BillableLast30d' 0
     if ($null -eq $v) { return 0.0 }
     $d = 0.0
-    if ([double]::TryParse([string]$v, [ref]$d)) { return $d }
+    if ([double]::TryParse([string]$v, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
     return 0.0
 }
 
@@ -735,8 +739,10 @@ function Test-ConnectorTableMismatch {
     }
     if ($bad.Count -eq 0 -and $silent.Count -eq 0) { return $null }
     $parts = @()
-    if ($bad.Count) { $parts += "core table(s) with no data in the last $(_Days (_Window $Inventory).RecentDays): $($bad -join '; ')" }
-    if ($silent.Count) { $parts += "connector(s) with no data in any table they write: " + (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ') }
+    # A table can be expected by several connectors, so count the tables.
+    $badTables = @($bad | ForEach-Object { ($_ -split ' to ')[-1] } | Sort-Object -Unique).Count
+    if ($bad.Count) { $parts += "$(Format-BlueprintPlural $badTables 'core table') with no data in the last $(_Days (_Window $Inventory).RecentDays): $($bad -join '; ')" }
+    if ($silent.Count) { $parts += "$(Format-BlueprintPlural $silent.Count 'connector') with no data in any table $(_ByCount $silent.Count 'it writes' 'they write'): " + (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ') }
     return New-Finding -Evidence "Connected data connectors that are not delivering, $($parts -join '; and ')." -Detail @{ Mismatches = @($bad); SilentConnectors = @($silent | ForEach-Object { [pscustomobject]@{ Connector = $_.Connector; Id = $_.Id; Tables = $_.Tables } }) }
 }
 
@@ -754,7 +760,7 @@ function Test-IncidentMttrThreshold {
     if (-not [double]::TryParse([string]$mttrRaw, [ref]$mttr)) { return $null }
     if ($mttr -le 1440.0) { return $null }
     $hours = [math]::Round($mttr / 60.0, 1)
-    return New-Finding -Evidence "MTTR over the last $(_Days (_Window $Inventory).Days) is $hours hours across $closed closed incident(s); SOC target is <= 24h." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
+    return New-Finding -Evidence "MTTR over the last $(_Days (_Window $Inventory).Days) is $(Format-BlueprintNumber $hours -Decimals 1) hours across $(Format-BlueprintPlural $closed 'closed incident'); SOC target is 24 hours or less." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
 }
 
 # ------------------------------------------------------------
@@ -773,7 +779,7 @@ function Test-IncidentClosedWithoutAcknowledgement {
     $unack = $closed - $ack
     $ratio = $unack / [double]$closed
     if ($ratio -le 0.5) { return $null }
-    return New-Finding -Evidence "$unack of $closed closed incidents ($([math]::Round($ratio*100,0))%) never reached an acknowledged state. Automation is auto-closing without analyst review, or analytics rules are flooding the queue." -Detail @{ Closed = $closed; Acknowledged = $ack; Unacknowledged = $unack }
+    return New-Finding -Evidence "$(Format-BlueprintCount $unack) of $(Format-BlueprintCount $closed) closed incidents ($([math]::Round($ratio*100,0))%) never reached an acknowledged state. Automation is auto-closing without analyst review, or analytics rules are flooding the queue." -Detail @{ Closed = $closed; Acknowledged = $ack; Unacknowledged = $unack }
 }
 
 # ------------------------------------------------------------
@@ -798,7 +804,7 @@ function Test-MouldyAnalyticsRules {
     })
     if ($mouldy.Count -eq 0) { return $null }
     $names = ($mouldy | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
-    return New-Finding -Evidence "$($mouldy.Count) enabled Scheduled/NRT rule(s) not modified in over 12 months: $names." -Detail @{ Count = $mouldy.Count }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $mouldy.Count 'enabled Scheduled/NRT rule') not modified in over 12 months: $names." -Detail @{ Count = $mouldy.Count }
 }
 
 # ------------------------------------------------------------
@@ -831,7 +837,7 @@ function Test-AnalyticsRuleTemplateDrift {
     }
     if ($drifted.Count -eq 0) { return $null }
     $sample = ($drifted | ForEach-Object { "$($_.Name) ($($_.Deployed) to $($_.Latest))" }) -join '; '
-    return New-Finding -Evidence "$($drifted.Count) deployed rule(s) lag the latest template version: $sample." -Detail @{ Count = $drifted.Count }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $drifted.Count 'deployed rule') $(_ByCount $drifted.Count 'lags' 'lag') the latest template version: $sample." -Detail @{ Count = $drifted.Count }
 }
 
 # ------------------------------------------------------------
@@ -848,7 +854,7 @@ function Test-DominantNoisyRule {
     $ratio = $topAlerts / [double]$totalAlerts
     if ($ratio -le 0.30) { return $null }
     $name = Get-EvidenceName $top 'AlertName' 'Unnamed alert'
-    return New-Finding -Evidence "Rule `"$name`" produced $([int]$topAlerts) of $([int]$totalAlerts) alerts in the last $(_Days (_Window $Inventory).Days) ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
+    return New-Finding -Evidence "Rule `"$name`" produced $(Format-BlueprintCount $topAlerts) of $(Format-BlueprintCount $totalAlerts) alerts in the last $(_Days (_Window $Inventory).Days) ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
 }
 
 # ------------------------------------------------------------
@@ -864,27 +870,59 @@ function Test-AutomationRulesPresent {
 # ------------------------------------------------------------
 # SAC-DET-12, Enabled rule with zero alerts in the lookback
 # ------------------------------------------------------------
+# A rule id as the rules-fired capture and the dashboard key it: lower case,
+# braces off, the last segment when it arrives as a resource path.
+function _ToRuleKey {
+    param([object]$Value)
+    $k = ([string]$Value).Trim().ToLowerInvariant().Trim('{', '}')
+    if ($k -match '/') { $k = ($k -split '/')[-1].Trim('{', '}') }
+    return $k
+}
+
 function Test-DeadAnalyticsRule {
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    if (-not $Inventory.AlertRules -or -not $Inventory.AnalyticsRuleVolumes) { return $null }
-    # Volumes capture is over the lookback. Project the noisy-rule set into a name lookup
-    # then surface enabled Scheduled/NRT rules whose displayName is absent
-    # from it, they produced no alerts in the window.
-    $noisy = @{}
-    foreach ($v in $Inventory.AnalyticsRuleVolumes) {
-        $n = Get-PropOrDefault $v 'AlertName' ''
-        if ($n) { $noisy[$n] = $true }
+    $rules = @(_GetEnabledQueryRules $Inventory)
+    if ($rules.Count -eq 0) { return $null }
+    $volumes = @(Get-PropOrDefault $Inventory 'AnalyticsRuleVolumes' @() | Where-Object { $null -ne $_ })
+    if (@(Get-PropOrDefault $Inventory 'RawFiles' @()) -contains 'rules-fired.json') {
+        # The rules that fired, as the dashboard's alerts ring counts them: by
+        # rule id, or by alert name for an alert that carries none. The alert
+        # volumes also hold other products' alerts, whose names can match a
+        # rule's title without the rule having fired.
+        $firedIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $firedNames = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($f in @($Inventory.RulesFired)) {
+            if ($null -eq $f) { continue }
+            $id = _ToRuleKey (Get-PropOrDefault $f 'AlertRuleId' '')
+            if ($id) { [void]$firedIds.Add($id); continue }
+            $alertName = [string](Get-PropOrDefault $f 'AlertName' '')
+            if ($alertName) { [void]$firedNames.Add($alertName) }
+        }
+        # Nothing fired and no alerts at all: a workspace not yet producing
+        # alerts, not evidence that every rule is dead.
+        if ($firedIds.Count -eq 0 -and $firedNames.Count -eq 0 -and $volumes.Count -eq 0) { return $null }
+        $dead = @($rules | Where-Object {
+            $id = _ToRuleKey (Get-PropOrDefault $_ 'name' '')
+            $title = [string](Get-PropOrDefault $_ 'properties.displayName' '')
+            -not (($id -and $firedIds.Contains($id)) -or ($title -and $firedNames.Contains($title)))
+        })
+    } else {
+        # No rules-fired capture (an older run): the alert volumes are the
+        # only signal, matched on the rule's display name.
+        $named = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($v in $volumes) {
+            $n = [string](Get-PropOrDefault $v 'AlertName' '')
+            if ($n) { [void]$named.Add($n) }
+        }
+        if ($named.Count -eq 0) { return $null }    # no volumes -> no signal
+        $dead = @($rules | Where-Object {
+            $title = [string](Get-PropOrDefault $_ 'properties.displayName' '')
+            $title -and -not $named.Contains($title)
+        })
     }
-    if ($noisy.Count -eq 0) { return $null }    # no volumes -> no signal
-    $dead = @($Inventory.AlertRules | Where-Object {
-        $kind = Get-PropOrDefault $_ 'kind' ''
-        $enabled = Get-PropOrDefault $_ 'properties.enabled' $false
-        $name = Get-PropOrDefault $_ 'properties.displayName' ''
-        ($kind -in @('Scheduled','NRT')) -and $enabled -and $name -and (-not $noisy.ContainsKey($name))
-    })
     if ($dead.Count -eq 0) { return $null }
     $sample = ($dead | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
-    return New-Finding -Evidence "$($dead.Count) enabled Scheduled/NRT rule(s) produced zero alerts in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{ Count = $dead.Count }
+    return New-Finding -Evidence "$(Format-BlueprintCount $dead.Count) of $(Format-BlueprintPlural $rules.Count 'enabled Scheduled/NRT rule') produced zero alerts in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{ Count = $dead.Count; Enabled = $rules.Count }
 }
 
 # ------------------------------------------------------------
@@ -905,7 +943,7 @@ function Test-ServicePrincipalOverPrivileged {
             $oid = [string](Get-PropOrDefault $_ 'ObjectId' '')
             Get-EvidenceName $_ 'DisplayName', 'SignInName' $(if ($oid) { "Unnamed service principal, object id $oid (deleted or not readable)" } else { 'Unnamed service principal' })
         }) -join '; '
-    return New-Finding -Evidence "$($bad.Count) service principal(s) hold Owner or Contributor at workspace scope: $names." -Detail @{ Count = $bad.Count }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'service principal') $(_ByCount $bad.Count 'holds' 'hold') Owner or Contributor at workspace scope: $names." -Detail @{ Count = $bad.Count }
 }
 
 # ------------------------------------------------------------
@@ -956,7 +994,7 @@ function Test-CefSplitOpportunity {
     if ($cef.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $cef[0]
     if ((_Per30 $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "CommonSecurityLog ingested $([math]::Round($gb30,1)) GB in the last $(_Days (_Window $Inventory).Days) at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "CommonSecurityLog ingested $(Format-BlueprintGb $gb30) GB in the last $(_Days (_Window $Inventory).Days) at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
@@ -970,7 +1008,7 @@ function Test-SyslogSplitOpportunity {
     if ($sys.Count -eq 0) { return $null }
     $gb30 = _GetBillable30d $sys[0]
     if ((_Per30 $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "Syslog ingested $([math]::Round($gb30,1)) GB in the last $(_Days (_Window $Inventory).Days), narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "Syslog ingested $(Format-BlueprintGb $gb30) GB in the last $(_Days (_Window $Inventory).Days), narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
@@ -990,7 +1028,7 @@ function Test-WindowsEventXPathFilterOpportunity {
         }
     }
     if ((_Per30 $totalGb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $([math]::Round($totalGb30,1)) GB in the last $(_Days (_Window $Inventory).Days), typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
+    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $(Format-BlueprintGb $totalGb30) GB in the last $(_Days (_Window $Inventory).Days), typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
 }
 
 # ------------------------------------------------------------
@@ -1009,7 +1047,7 @@ function Test-AzureDiagnosticsResourceSpecific {
     # but isn't a separate _raw capture). Flag based on volume alone, the
     # remediation is still correct: switch any RP that has a dedicated
     # resource-specific table.
-    return New-Finding -Evidence "AzureDiagnostics ingested $([math]::Round($gb30,1)) GB in the last $(_Days (_Window $Inventory).Days). Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "AzureDiagnostics ingested $(Format-BlueprintGb $gb30) GB in the last $(_Days (_Window $Inventory).Days). Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
 }
 
 # ------------------------------------------------------------
@@ -1053,7 +1091,7 @@ function Test-CustomLogsV1Migration {
     })
     if ($clv1.Count -eq 0) { return $null }
     $names = ($clv1 | ForEach-Object { Get-EvidenceName $_ 'name' 'Unnamed table' }) -join ', '
-    return New-Finding -Evidence "$($clv1.Count) custom log table(s) receive data but no DCR feeds them, likely still using the HTTP Data Collector API (CLv1). Affected: $names. Retirement is 2026-09-14." -Detail @{ Count = $clv1.Count }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $clv1.Count 'custom log table') $(_ByCount $clv1.Count 'receives' 'receive') data but no DCR feeds $(_ByCount $clv1.Count 'it' 'them'), likely still using the HTTP Data Collector API (CLv1). Affected: $names. The API $(if ([datetime]::UtcNow -ge [datetime]::new(2026, 9, 14, 0, 0, 0, [System.DateTimeKind]::Utc)) { 'retired on 14 Sep 2026' } else { 'retires on 14 Sep 2026' })." -Detail @{ Count = $clv1.Count }
 }
 
 # ------------------------------------------------------------
@@ -1068,7 +1106,7 @@ function Test-MmaAgentStillHeartbeating {
         if ($mma -gt 0) { $mmaTotal += $mma }
     }
     if ($mmaTotal -eq 0) { return $null }
-    return New-Finding -Evidence "$mmaTotal machine(s) still heartbeating via the legacy Log Analytics agent (MMA / OMS). MMA retired 2024-08-31; ingestion is degraded after 2025-02-01." -Detail @{ MmaCount = $mmaTotal }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $mmaTotal 'machine') still heartbeating via the legacy Log Analytics agent (MMA / OMS). MMA retired on 31 Aug 2024; ingestion is degraded after 1 Feb 2025." -Detail @{ MmaCount = $mmaTotal }
 }
 
 # ------------------------------------------------------------
@@ -1093,9 +1131,9 @@ function Test-LegacyThreatIntelligenceTable {
     $statusNote = if ($newPresent) {
         'New ThreatIntelIndicators table is also active, partial migration; ensure all detections, hunting queries and workbooks read from the new tables.'
     } else {
-        'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables, TI ingestion may be broken since the 2025-07-31 cutoff.'
+        'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables, TI ingestion may be broken since the 31 Jul 2025 cutoff.'
     }
-    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $([math]::Round($gb30,3)) GB in the last $(_Days (_Window $Inventory).Days). $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
+    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $(Format-BlueprintGb $gb30) GB in the last $(_Days (_Window $Inventory).Days). $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
 }
 
 # ============================================================
@@ -1206,9 +1244,9 @@ function Test-NoisyFalsePositiveRule {
     } | Sort-Object { -(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) })
     if ($noisy.Count -eq 0) { return $null }
     $sample = ($noisy | ForEach-Object {
-        "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Closed' 0)) closed as false positive, $(_ToDouble (Get-PropOrDefault $_ 'FPRate' 0))%)"
+        "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(Format-BlueprintCount (_ToInt (Get-PropOrDefault $_ 'FalsePositive' 0))) of $(Format-BlueprintCount (_ToInt (Get-PropOrDefault $_ 'Closed' 0))) closed as false positive, $(Format-BlueprintNumber (_ToDouble (Get-PropOrDefault $_ 'FPRate' 0)) -Decimals 1)%)"
     }) -join '; '
-    return New-Finding -Evidence "$($noisy.Count) rule(s) closed mostly as false positive in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $noisy.Count 'rule') closed mostly as false positive in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
         Count = $noisy.Count
         Rules = @($noisy | ForEach-Object {
             [pscustomobject]@{
@@ -1235,7 +1273,7 @@ function Test-RuleEntityMappingsPresent {
     if ($unmapped.Count -eq 0) { return $null }
     $names = @($unmapped | ForEach-Object { _GetRuleLabel $_ })
     $sample = $names -join '; '
-    return New-Finding -Evidence "$($unmapped.Count) of $($rules.Count) enabled Scheduled/NRT rule(s) have no entity mappings: $sample." -Detail @{ Count = $unmapped.Count; Total = $rules.Count; Rules = $names }
+    return New-Finding -Evidence "$(Format-BlueprintCount $unmapped.Count) of $(Format-BlueprintPlural $rules.Count 'enabled Scheduled/NRT rule') $(_ByCount $unmapped.Count 'has' 'have') no entity mappings: $sample." -Detail @{ Count = $unmapped.Count; Total = $rules.Count; Rules = $names }
 }
 
 # ------------------------------------------------------------
@@ -1254,7 +1292,7 @@ function Test-RuleCreatesIncidents {
     if ($alertOnly.Count -eq 0) { return $null }
     $names = @($alertOnly | ForEach-Object { _GetRuleLabel $_ })
     $sample = $names -join '; '
-    return New-Finding -Evidence "$($alertOnly.Count) enabled Scheduled/NRT rule(s) raise alerts without creating incidents: $sample." -Detail @{ Count = $alertOnly.Count; Rules = $names }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $alertOnly.Count 'enabled Scheduled/NRT rule') $(_ByCount $alertOnly.Count 'raises' 'raise') alerts without creating incidents: $sample." -Detail @{ Count = $alertOnly.Count; Rules = $names }
 }
 
 # ------------------------------------------------------------
@@ -1274,12 +1312,13 @@ function Test-LegacyIncidentCreationRules {
         ((Get-PropOrDefault $_ 'properties.dataTypes.incidents.state' '') -eq 'enabled')
     }).Count -gt 0
     $names = @($legacy | ForEach-Object { _GetRuleLabel $_ })
+    $these = _ByCount $legacy.Count 'this rule' 'these rules'
     $note = if ($xdrIncidents) {
-        'The Defender XDR connector already syncs incidents, so these rules can create duplicate incidents for the same alerts.'
+        "The Defender XDR connector already syncs incidents, so $these can create duplicate incidents for the same alerts."
     } else {
-        'The Defender XDR connector is not syncing incidents; enable that first so alert-to-incident creation moves to XDR before these rules are retired.'
+        "The Defender XDR connector is not syncing incidents; enable that first so alert-to-incident creation moves to XDR before $these $(_ByCount $legacy.Count 'is' 'are') retired."
     }
-    return New-Finding -Evidence "$($legacy.Count) enabled Microsoft incident-creation rule(s): $($names -join '; '). $note" -Detail @{ Count = $legacy.Count; Rules = $names; XdrIncidentsConnected = $xdrIncidents }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $legacy.Count 'enabled Microsoft incident-creation rule'): $($names -join '; '). $note" -Detail @{ Count = $legacy.Count; Rules = $names; XdrIncidentsConnected = $xdrIncidents }
 }
 
 # ------------------------------------------------------------
@@ -1295,7 +1334,7 @@ function Test-RulesOnLegacyThreatIntelTable {
     })
     if ($hits.Count -eq 0) { return $null }
     $names = @($hits | ForEach-Object { Get-EvidenceName $_ 'RuleName', 'RuleId' 'Unnamed rule' })
-    return New-Finding -Evidence "$($hits.Count) enabled rule(s) query ThreatIntelligenceIndicator, which stopped receiving indicators on 31 July 2025: $($names -join '; '). They match against an expiring indicator set and will go quiet without any error." -Detail @{ Count = $hits.Count; Rules = $names }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $hits.Count 'enabled rule') $(_ByCount $hits.Count 'queries' 'query') ThreatIntelligenceIndicator, which stopped receiving indicators on 31 Jul 2025: $($names -join '; '). $(_ByCount $hits.Count 'It matches' 'They match') against an expiring indicator set and will go quiet without any error." -Detail @{ Count = $hits.Count; Rules = $names }
 }
 
 # ------------------------------------------------------------
@@ -1327,6 +1366,20 @@ function Test-HighVolumeTableWithoutDetection {
     } | Sort-Object { -(_GetBillable30d $_) })
     if ($uncovered.Count -eq 0) { return $null }
 
+    # The figure the dashboard shows for data no detection reads: every table
+    # with data, the small and the operational ones included, totalled and
+    # taken off the covered total as the dashboard does.
+    $estateGb = 0.0; $coveredGb = 0.0
+    foreach ($row in @($Inventory.TablesWithData)) {
+        if ($null -eq $row) { continue }
+        $t = [string](Get-PropOrDefault $row 'DataType' '')
+        $gb = _GetBillable30d $row
+        if (-not $t -or $gb -le 0) { continue }
+        $estateGb += $gb
+        if ($referenced.Contains($t)) { $coveredGb += $gb }
+    }
+    $allTablesGb = $estateGb - $coveredGb
+
     # Suggest templates that read the table and are neither deployed already
     # nor deprecated, nor shipped only by a deprecated Content Hub solution,
     # highest severity first.
@@ -1346,16 +1399,23 @@ function Test-HighVolumeTableWithoutDetection {
         }, { [string](Get-PropOrDefault $_ 'DisplayName' '') })
         [pscustomobject]@{
             Table              = $name
-            Gb30d              = [math]::Round((_GetBillable30d $table), 1)
+            Gb30d              = [math]::Round((_GetBillable30d $table), 2)
             SuggestedTemplates = @($candidates | ForEach-Object { [string](Get-PropOrDefault $_ 'DisplayName' '') })
         }
     })
-    $totalGb = [math]::Round((($rows | ForEach-Object { $_.Gb30d }) | Measure-Object -Sum).Sum, 1)
+    # Summed unrounded and rounded once, so the total is the tables' true sum.
+    $totalGb = (($uncovered | ForEach-Object { _GetBillable30d $_ }) | Measure-Object -Sum).Sum
     $sample = ($rows | ForEach-Object {
         $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
-        "$($_.Table) $($_.Gb30d) GB$hint"
+        "$($_.Table) $(Format-BlueprintGb $_.Gb30d) GB$hint"
     }) -join '; '
-    return New-Finding -Evidence "$($rows.Count) table(s) ingesting $totalGb GB in the last $(_Days (_Window $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading them: $sample." -Detail @{ Count = $rows.Count; TotalGb30d = $totalGb; Tables = $rows }
+    # Say what the finding covers, and the dashboard's larger figure when
+    # there is one, so the two numbers reconcile.
+    $ofAll = ''
+    if ([math]::Round($allTablesGb, 2) -ne [math]::Round($totalGb, 2)) {
+        $ofAll = ", of $(Format-BlueprintGb $allTablesGb) GB in every table no detection reads (the rest is in smaller tables or Sentinel's own operational tables)"
+    }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $rows.Count 'table') of $(Format-BlueprintCount $threshold) GB a month or more $(_ByCount $rows.Count 'ingests' 'ingest') $(Format-BlueprintGb $totalGb) GB in the last $(_Days (_Window $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading $(_ByCount $rows.Count 'it' 'them')$($ofAll): $sample." -Detail @{ Count = $rows.Count; TotalGb30d = [math]::Round($totalGb, 2); AllTablesGb30d = [math]::Round($allTablesGb, 2); Tables = $rows }
 }
 
 # ------------------------------------------------------------
@@ -1394,9 +1454,10 @@ function Test-SilentTableWithDependentRules {
     $silent = @($rulesByTable.Keys | Where-Object { -not $ingested.ContainsKey($_) -or $ingested[$_] -le 0 } | Sort-Object)
     if ($silent.Count -eq 0) { return $null }
     $sample = ($silent | ForEach-Object {
-        "$_ ($($rulesByTable[$_].Count) rule(s): $(@($rulesByTable[$_]) -join ', '))"
+        "$_ ($(Format-BlueprintPlural ($rulesByTable[$_].Count) 'rule'): $(@($rulesByTable[$_]) -join ', '))"
     }) -join '; '
-    return New-Finding -Evidence "$($silent.Count) table(s) that enabled analytics rules read have ingested nothing in the last $(_Days (_Window $Inventory).RecentDays): $sample. Those rules cannot fire." -Detail @{
+    $dependent = @($silent | ForEach-Object { $rulesByTable[$_] } | Sort-Object -Unique).Count
+    return New-Finding -Evidence "$(Format-BlueprintPlural $silent.Count 'table') that enabled analytics rules read $(_ByCount $silent.Count 'has' 'have') ingested nothing in the last $(_Days (_Window $Inventory).RecentDays): $sample. $(_ByCount $dependent 'That rule cannot' 'Those rules cannot') fire." -Detail @{
         Count  = $silent.Count
         Tables = @($silent | ForEach-Object { [pscustomobject]@{ Table = $_; Rules = @($rulesByTable[$_]) } })
     }
@@ -1414,10 +1475,10 @@ function Test-PlaybookRunFailures {
     if ($failing.Count -eq 0) { return $null }
     $sample = ($failing | ForEach-Object {
         $last = _ToIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
-        $when = if ($last) { ", last $last" } else { '' }
-        "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(_ToInt (Get-PropOrDefault $_ 'Failed7d' 0)) of $(_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) runs failed$when)"
+        $when = if ($last) { ", last $(Format-BlueprintDate $last -Time)" } else { '' }
+        "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(Format-BlueprintCount (_ToInt (Get-PropOrDefault $_ 'Failed7d' 0))) of $(Format-BlueprintPlural (_ToInt (Get-PropOrDefault $_ 'Runs7d' 0)) 'run') failed$when)"
     }) -join '; '
-    return New-Finding -Evidence "$($failing.Count) playbook(s) had failed runs in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'playbook') had failed runs in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
         Count     = $failing.Count
         Playbooks = @($failing | ForEach-Object {
             [pscustomobject]@{
@@ -1455,7 +1516,7 @@ function Test-DeprecatedContentHubSolutions {
     })
     if ($flagged.Count -eq 0) { return $null }
     $sample = ($flagged | ForEach-Object { "$($_.Solution) ($($_.Reason))" }) -join '; '
-    return New-Finding -Evidence "$($flagged.Count) installed Content Hub solution(s) are deprecated or no longer in the catalogue: $sample." -Detail @{ Count = $flagged.Count; Solutions = $flagged }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $flagged.Count 'installed Content Hub solution') $(_ByCount $flagged.Count 'is' 'are') deprecated or no longer in the catalogue: $sample." -Detail @{ Count = $flagged.Count; Solutions = $flagged }
 }
 
 # ------------------------------------------------------------
@@ -1505,8 +1566,8 @@ function Test-AzureFirewallDuplicateLogging {
     $legacyRows = ($legacy | ForEach-Object { _ToInt (Get-PropOrDefault $_ 'LogCount' 0) } | Measure-Object -Sum).Sum
     $categories = @($legacy | ForEach-Object { [string](Get-PropOrDefault $_ 'Category' '') } | Sort-Object -Unique)
     $tables = @($structured | ForEach-Object { [string](Get-PropOrDefault $_ 'DataType' '') } | Sort-Object -Unique)
-    $structuredGb = [math]::Round((($structured | ForEach-Object { _GetBillable30d $_ }) | Measure-Object -Sum).Sum, 1)
-    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $($legacyRows.ToString('N0')) rows in the last $(_Days (_Window $Inventory).Days)) and the resource-specific tables ($($tables -join ', '); $structuredGb GB in the same window). The same events are ingested and billed twice." -Detail @{ LegacyCategories = $categories; LegacyRows7d = $legacyRows; StructuredTables = $tables; StructuredGb30d = $structuredGb }
+    $structuredGb = (($structured | ForEach-Object { _GetBillable30d $_ }) | Measure-Object -Sum).Sum
+    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $(Format-BlueprintPlural $legacyRows 'row') in the last $(_Days (_Window $Inventory).Days)) and the resource-specific tables ($($tables -join ', '); $(Format-BlueprintGb $structuredGb) GB in the same window). The same events are ingested and billed twice." -Detail @{ LegacyCategories = $categories; LegacyRows7d = $legacyRows; StructuredTables = $tables; StructuredGb30d = [math]::Round($structuredGb, 1) }
 }
 
 # ------------------------------------------------------------
@@ -1526,7 +1587,7 @@ function Test-IncidentsClosedUnclassified {
     $unclassified = [int]$bag['Undetermined'] + [int]$bag['Unclassified']
     $ratio = $unclassified / [double]$closed
     if ($ratio -le 0.5) { return $null }
-    return New-Finding -Evidence "$unclassified of $closed closed incidents ($([math]::Round($ratio * 100, 0))%) were closed as Undetermined or with no classification. Without a true or false positive verdict, false-positive rates and rule tuning have nothing to work from." -Detail @{ Closed = $closed; Undetermined = [int]$bag['Undetermined']; Unclassified = [int]$bag['Unclassified']; ByClassification = $bag }
+    return New-Finding -Evidence "$(Format-BlueprintCount $unclassified) of $(Format-BlueprintCount $closed) closed incidents ($([math]::Round($ratio * 100, 0))%) were closed as Undetermined or with no classification. Without a true or false positive verdict, false-positive rates and rule tuning have nothing to work from." -Detail @{ Closed = $closed; Undetermined = [int]$bag['Undetermined']; Unclassified = [int]$bag['Unclassified']; ByClassification = $bag }
 }
 
 # ------------------------------------------------------------
@@ -1563,7 +1624,7 @@ function Test-HuntingActivityRecorded {
     $activity = Get-HuntingActivity -Bookmarks $bookmarkList -BookmarksCount $Inventory.BookmarksCount -BookmarksFromLogs $fromLogs -Hunts @($Inventory.Hunts) -WorkspaceTables @(Get-PropOrDefault $Inventory 'WorkspaceTables' @()) -WindowDays $days -AsOf $asOf
     if ($activity.BookmarksRecent -ne 0 -or $activity.HuntsRecent -ne 0) { return $null }
     $hunts = @($Inventory.Hunts).Count
-    return New-Finding -Evidence "$bookmarkCount bookmark$(if ($bookmarkCount -ne 1) { 's' }) and $hunts hunt$(if ($hunts -ne 1) { 's' }) exist, but none has been created or changed in the last $(_Days $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{ Hunts = $hunts; Bookmarks = $bookmarkCount; RecentHunts = 0; RecentBookmarks = 0; WindowDays = $days }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $bookmarkCount 'bookmark') and $(Format-BlueprintPlural $hunts 'hunt') exist, but none has been created or changed in the last $(_Days $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{ Hunts = $hunts; Bookmarks = $bookmarkCount; RecentHunts = 0; RecentBookmarks = 0; WindowDays = $days }
 }
 
 # ------------------------------------------------------------
@@ -1579,9 +1640,9 @@ function Test-AnalyticsRuleRunFailures {
     $sample = ($failing | ForEach-Object {
         $reason = [string](Get-PropOrDefault $_ 'Reason' '')
         $why = if ($reason) { ": $reason" } else { '' }
-        "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(_ToInt (Get-PropOrDefault $_ 'Failures' 0)) failed run(s)$why)"
+        "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(Format-BlueprintPlural (_ToInt (Get-PropOrDefault $_ 'Failures' 0)) 'failed run')$why)"
     }) -join '; '
-    return New-Finding -Evidence "$($failing.Count) analytics rule(s) had failed runs in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'analytics rule') had failed runs in the last $(_Days (_Window $Inventory).Days): $sample." -Detail @{
         Count = $failing.Count
         Rules = @($failing | ForEach-Object {
             [pscustomobject]@{
@@ -1635,8 +1696,8 @@ function Test-SummaryRulesInUse {
     $volumes = _GetTableVolumes30d $Inventory
     $big = @($volumes.GetEnumerator() | Where-Object { (_Per30 $_.Value $Inventory) -ge $threshold } | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key)
     if ($big.Count -eq 0) { return $null }
-    $names = @($big | ForEach-Object { "$($_.Key) ($([math]::Round($_.Value, 1)) GB)" })
-    return New-Finding -Evidence "No summary rules are configured, while $($big.Count) table(s) ingest $threshold GB or more per 30 days: $($names -join ', ')." -Detail @{ Tables = @($big | ForEach-Object { [pscustomobject]@{ Table = $_.Key; Gb30d = [math]::Round($_.Value, 2) } }) }
+    $names = @($big | ForEach-Object { "$($_.Key) ($(Format-BlueprintGb $_.Value) GB)" })
+    return New-Finding -Evidence "No summary rules are configured, while $(Format-BlueprintPlural $big.Count 'table') $(_ByCount $big.Count 'ingests' 'ingest') $(Format-BlueprintCount $threshold) GB or more per 30 days: $($names -join ', ')." -Detail @{ Tables = @($big | ForEach-Object { [pscustomobject]@{ Table = $_.Key; Gb30d = [math]::Round($_.Value, 2) } }) }
 }
 
 # ------------------------------------------------------------
@@ -1653,8 +1714,8 @@ function Test-RetentionOrder {
         }
     } | Sort-Object Table)
     if ($bad.Count -eq 0) { return $null }
-    $names = @($bad | ForEach-Object { "$($_.Table) (analytics $($_.AnalyticsDays) days, total $($_.TotalDays) days)" })
-    return New-Finding -Evidence "$($bad.Count) table(s) have analytics retention longer than total retention: $($names -join ', ')." -Detail @{ Tables = $bad }
+    $names = @($bad | ForEach-Object { "$($_.Table) (analytics $(Format-BlueprintPlural $_.AnalyticsDays 'day'), total $(Format-BlueprintPlural $_.TotalDays 'day'))" })
+    return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'table') $(_ByCount $bad.Count 'has' 'have') analytics retention longer than total retention: $($names -join ', ')." -Detail @{ Tables = $bad }
 }
 
 # ------------------------------------------------------------
@@ -1696,8 +1757,8 @@ function Test-LongRetentionUsage {
         [pscustomobject]@{ Table = [string]$_.name; TotalDays = _ToInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0); Plan = [string](Get-PropOrDefault $_ 'properties.plan' '') }
     } | Sort-Object Table)
     if ($unused.Count -eq 0) { return $null }
-    $names = @($unused | ForEach-Object { "$($_.Table) ($($_.TotalDays) days total)" })
-    return New-Finding -Evidence "$($unused.Count) table(s) keep data beyond their analytics retention with no enabled rule, summary rule, search or restore job, or audited query reading them: $($names -join ', ')." -Detail @{ Tables = $unused }
+    $names = @($unused | ForEach-Object { "$($_.Table) ($(Format-BlueprintPlural $_.TotalDays 'day') total)" })
+    return New-Finding -Evidence "$(Format-BlueprintPlural $unused.Count 'table') $(_ByCount $unused.Count 'keeps' 'keep') data beyond $(_ByCount $unused.Count 'its' 'their') analytics retention with no enabled rule, summary rule, search or restore job, or audited query reading $(_ByCount $unused.Count 'it' 'them'): $($names -join ', ')." -Detail @{ Tables = $unused }
 }
 
 # ------------------------------------------------------------
@@ -1710,9 +1771,9 @@ function Test-SecurityEventDuplicates {
     if ($hosts.Count -eq 0) { return $null }
     $names = @($hosts | ForEach-Object {
         $n = Get-PropOrDefault $_ 'DuplicateRecords' $null
-        if ($null -ne $n) { "$([string]$_.Computer) ($(_ToInt $n) duplicated events)" } else { [string]$_.Computer }
+        if ($null -ne $n) { "$([string]$_.Computer) ($(Format-BlueprintPlural (_ToInt $n) 'duplicated event'))" } else { [string]$_.Computer }
     })
-    return New-Finding -Evidence "$($hosts.Count) host(s) sent the same SecurityEvent record more than once in the last hour: $($names -join ', ')." -Detail @{ Hosts = @($hosts | ForEach-Object { [string]$_.Computer }) }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $hosts.Count 'host') sent the same SecurityEvent record more than once in the last hour: $($names -join ', ')." -Detail @{ Hosts = @($hosts | ForEach-Object { [string]$_.Computer }) }
 }
 
 # ------------------------------------------------------------
@@ -1726,8 +1787,8 @@ function Test-CefInSyslog {
     $byHost = @($rows | Group-Object { [string]$_.Computer } | ForEach-Object {
         [pscustomobject]@{ Computer = $_.Name; Records = (@($_.Group | ForEach-Object { _ToInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum }
     } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
-    $names = @($byHost | ForEach-Object { "$($_.Computer) ($($_.Records) records)" })
-    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(_Days (_Window $Inventory).Days), from $($byHost.Count) forwarder(s): $($names -join ', ')." -Detail @{ Forwarders = $byHost }
+    $names = @($byHost | ForEach-Object { "$($_.Computer) ($(Format-BlueprintPlural $_.Records 'record'))" })
+    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(_Days (_Window $Inventory).Days), from $(Format-BlueprintPlural $byHost.Count 'forwarder'): $($names -join ', ')." -Detail @{ Forwarders = $byHost }
 }
 
 # ------------------------------------------------------------

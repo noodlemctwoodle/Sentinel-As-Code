@@ -19,7 +19,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -161,7 +161,7 @@ Describe 'Maturity metric bookmarksRecent' {
         $criteria = Get-Content (Join-Path $script:resourcesDir 'maturity-criteria.json') -Raw | ConvertFrom-Json
         $c = @($criteria.criteria) + @($criteria.areas | ForEach-Object { @($_.criteria) }) | Where-Object { $_ -and $_.id -eq 'SAC-HNT-02' } | Select-Object -First 1
         $c.source.path | Should -Be 'bookmarksRecent'
-        $c.evidence.met | Should -Be '{metric} bookmark(s) created or changed in {lookback}.'
+        $c.evidence.met | Should -Be '{metric} {bookmark|bookmarks} created or changed in {lookback}.'
         $c.evidence.gap | Should -Be 'No bookmark created or changed in {lookback}.'
     }
 }

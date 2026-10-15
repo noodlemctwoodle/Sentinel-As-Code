@@ -47,13 +47,20 @@
     When -GapOutcomes is not supplied the engine reads gap-checks.json from
     InputRoot; when neither exists every gapRule criterion is Unknown.
 
+    A criterion's evidence text is a template. {metric} is the metric as a
+    count with thousands separators (a fraction to one place); {metric:gb}
+    is it in GB to two places and {metric:1dp} to one place. {rule|rules}
+    is the singular for a metric of one and the plural otherwise, so a
+    template never writes "rule(s)". {lookback} and {recent} name the
+    run's window.
+
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.4.0
+    Version:      0.5.0
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+
 
@@ -68,6 +75,8 @@
     and the area taxonomy are this project's own.
 #>
 
+# Counts, GB and plurals written as the dashboard writes them.
+. (Join-Path $PSScriptRoot 'Format-BlueprintText.ps1')
 # Recent hunts and bookmarks (metric bookmarksRecent), shared with SAC-HNT-01.
 . (Join-Path $PSScriptRoot 'Get-HuntingActivity.ps1')
 if (-not (Get-Command -Name Get-TableFamily -CommandType Function -ErrorAction SilentlyContinue)) {
@@ -452,6 +461,9 @@ function Test-MaturityCriteriaDocument {
         foreach ($text in @((Get-MaturityPropertyValue $c 'name' ''), (Get-MaturityPropertyValue $c 'impact' ''), (Get-MaturityPropertyValue $c 'guidance' ''))) {
             if ([string]$text -match [char]0x2014) { $problems.Add("$id text contains an em-dash") }
         }
+        foreach ($text in @((Get-MaturityPropertyValue $c 'evidence.met' ''), (Get-MaturityPropertyValue $c 'evidence.gap' ''))) {
+            if ([string]$text -match '\((s|es|ies)\)') { $problems.Add("$id evidence writes a plural as (s); use {singular|plural}") }
+        }
     }
     if ($problems.Count -gt 0) {
         throw "maturity-criteria.json is invalid: $($problems -join '; ')"
@@ -521,7 +533,14 @@ function Resolve-MaturitySource {
 function Format-MaturityEvidence {
     <#
     .SYNOPSIS
-        Fill the {metric} token in an evidence template.
+        Fill the {metric}, {metric:gb} and {metric:1dp} tokens and the
+        {singular|plural} choices in an evidence template.
+
+    .DESCRIPTION
+        {metric} reads as a count (1,512) and a fraction to one place
+        (95.5); {metric:gb} as GB to two places (176,702.70); {metric:1dp}
+        to one place whatever the value (240.0). {rule|rules} picks the
+        singular when the metric is one and the plural otherwise.
     #>
     [CmdletBinding()]
     param(
@@ -529,13 +548,19 @@ function Format-MaturityEvidence {
         [Parameter(Mandatory = $false)] [AllowNull()] $Metric
     )
     if ([string]::IsNullOrWhiteSpace($Template)) { return $null }
-    $text = if ($null -eq $Metric) { 'unknown' }
-            elseif ($Metric -is [bool]) { $(if ($Metric) { 'yes' } else { 'no' }) }
-            else {
-                $n = ConvertTo-MaturityNumber $Metric
-                if ($n -eq [math]::Floor($n)) { ([int64]$n).ToString('N0', [System.Globalization.CultureInfo]::InvariantCulture) } else { $n.ToString('0.0', [System.Globalization.CultureInfo]::InvariantCulture) }
-            }
-    return $Template.Replace('{metric}', $text)
+    $isNumber = ($null -ne $Metric) -and ($Metric -isnot [bool])
+    $n = if ($isNumber) { ConvertTo-MaturityNumber $Metric } else { 0.0 }
+    $text = [regex]::Replace($Template, '\{metric(?::(gb|1dp))?\}', {
+        param($m)
+        if ($null -eq $Metric) { return 'unknown' }
+        if ($Metric -is [bool]) { return $(if ($Metric) { 'yes' } else { 'no' }) }
+        switch ($m.Groups[1].Value) {
+            'gb'    { Format-BlueprintGb $n }
+            '1dp'   { Format-BlueprintNumber $n -Decimals 1 }
+            default { if ($n -eq [math]::Floor($n)) { Format-BlueprintCount $n } else { Format-BlueprintNumber $n -Decimals 1 } }
+        }
+    })
+    return [regex]::Replace($text, '\{([^{}|]+)\|([^{}|]+)\}', { param($m) if ($isNumber -and $n -eq 1) { $m.Groups[1].Value } else { $m.Groups[2].Value } })
 }
 
 function Format-MaturityWindow {

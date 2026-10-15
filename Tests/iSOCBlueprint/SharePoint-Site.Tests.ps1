@@ -2387,6 +2387,38 @@ Describe 'Dashboard figures and labels' {
         $script:dash.Contains('esc(confText(a.confidence))') | Should -BeTrue
     }
 
+    It 'labels the data flow''s source volumes with the window shown, not a fixed 30 days' {
+        $script:dash.Contains("'SOURCE FAMILY (GB / '+WIN.d().toUpperCase()+')'") | Should -BeTrue
+        $script:dash | Should -Not -Match 'SOURCE FAMILY \(GB / 30D\)'
+    }
+
+    It 'says the lifecycle''s GB a day counts billable and free, and splits it' {
+        $script:dash.Contains("fmtGb(avg)+'<small>GB a day</small>'") | Should -BeTrue
+        $script:dash.Contains("fmtGb(avgOf('billable'))+' billable and '+fmtGb(avgOf('free'))+' free</div>'") | Should -BeTrue
+    }
+
+    It 'says which window a re-scoped or fixed figure covers' {
+        # The cost tile follows the slider and says so; the TI card does not and says so.
+        $script:dash.Contains("s:cost? 'projected from the last '+WIN.w() : ''") | Should -BeTrue
+        $script:dash.Contains("', over the collected '+WIN.cw()+': the window slider does not re-scope this card'") | Should -BeTrue
+    }
+
+    It 'writes figures, money, dates and names in one style' {
+        $script:dash.Contains("const fmtGb = n =>") | Should -BeTrue
+        $script:dash.Contains("const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];") | Should -BeTrue
+        $script:dash.Contains("{k:'Generated', v:w.generatedUtc? fmtDate(w.generatedUtc,{time:true}) : 'n/a', cls:'ok'}") | Should -BeTrue
+        $script:dash.Contains("uksouth:'UK South'") | Should -BeTrue
+        $script:dash.Contains("label:apiWords(i.label)") | Should -BeTrue
+        # No currency code before an amount, and no locale-dependent month names.
+        $script:dash | Should -Not -Match "esc\(DL\.cost\.currency\)\+' '"
+        $script:dash | Should -Not -Match "toLocaleDateString\('en-GB'"
+    }
+
+    It 'sorts report tables by date and by amount in any currency' {
+        $script:dash.Contains('const SORT_DATE=/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})(?: (\d{2}):(\d{2}))?(?: UTC)?$/;') | Should -BeTrue
+        $script:dash.Contains('const NUM_PREFIX=/^-?\s*(?:[A-Z]{2,3}\$|[A-Z]{3} |[£$€¥₹₩]|<)\s*/;') | Should -BeTrue
+    }
+
     It 'gives a key/value table no header row to sort by, as the site''s pages do' {
         $script:dash.Contains("const thead=b.headers.every(h=>plain(h)==='')? '' : '<thead><tr>'") | Should -BeTrue
     }

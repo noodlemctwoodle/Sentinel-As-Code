@@ -1,7 +1,7 @@
 /* dashboard-charts.js: the chart web part's renderers (Modules/iSOCBlueprint/WebParts/src/webparts/isocBlueprintChart/charts)
    bundled for the SharePoint dashboard by Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1. Do not edit;
    regenerate after changing the chart sources.
-   sources-sha256: ca949dc175d4b65e34f293213bb9ad9d8a349ee1f685c082efe910115c480247 */
+   sources-sha256: c3965448c6d793c9e74990b6d09128eca201ecfcbc27c839e6992d24e643ee27 */
 (function(){
 'use strict';
  var defs={};
@@ -67,7 +67,7 @@ function band(b, max, theme) {
 // chart builds a string of markup; anything taken from the chart data goes
 // through esc() first.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.setSiteUrl = exports.compact = exports.windowText = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
+exports.tint = exports.niceTicks = exports.legendHtml = exports.marker = exports.rect = exports.r = exports.svgText = exports.svgDoc = exports.nextId = exports.widest = exports.wrapText = exports.textWidth = exports.setTextMeasurer = exports.readableOn = exports.colourFor = exports.safeHref = exports.setSiteUrl = exports.compact = exports.windowText = exports.fmtDay = exports.fmt = exports.esc = exports.list = exports.num = exports.str = exports.isNil = exports.SERIES = exports.FONT = void 0;
 exports.FONT = '"Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 // The dashboard's series colours, so a chart reads the same on both.
 exports.SERIES = [
@@ -113,6 +113,14 @@ function fmt(value) {
     return rounded.toLocaleString('en-GB');
 }
 exports.fmt = fmt;
+// A day as the report pages and the dashboard write it, 15 Oct 2026, in
+// UTC with fixed month names (a browser's en-GB short month can be Sept).
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function fmtDay(time) {
+    const d = new Date(time);
+    return isNaN(d.getTime()) ? '' : d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+exports.fmtDay = fmtDay;
 // A large figure in compact form for a tight space: 2.36M, 236K, 4.1B.
 // "1 day" or "N days" for a window in days, 30 when it is missing.
 function windowText(days) {
@@ -1987,7 +1995,7 @@ function itemCard(p, index, today, theme) {
     const use = p.item.inUse;
     const usage = (0, ChartKit_1.isNil)(use) ? (0, Visual_1.pill)('Not readable from the workspace', Visual_1.NEUTRAL)
         : use ? (0, Visual_1.pill)('In use' + ((0, ChartKit_1.str)(p.item.evidence) ? ': ' + (0, ChartKit_1.str)(p.item.evidence) : ''), Visual_1.BAD) : (0, Visual_1.pill)('Not in use', Visual_1.OK);
-    const date = new Date(p.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const date = (0, ChartKit_1.fmtDay)(p.at);
     return (0, Visual_1.card)('<div style="display:flex;align-items:center;gap:8px">' +
         '<span style="flex:none;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;background:' + c + '">' + (index + 1) + '</span>' +
         '<span style="font-size:12px;font-weight:800;font-variant-numeric:tabular-nums">' + (0, ChartKit_1.esc)(date) + '</span>' +
@@ -2664,7 +2672,7 @@ function renderWorkspaceAge(data, theme) {
     }
     const created = Date.parse((0, ChartKit_1.str)(data.created));
     const today = Date.parse((0, ChartKit_1.str)(data.today)) || Date.now();
-    const fmtDate = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const fmtDate = ChartKit_1.fmtDay;
     const age = (0, ChartKit_1.num)(data.ageDays);
     const ageText = (0, ChartKit_1.isNil)(data.ageDays) ? 'Age unknown' : age >= 730 ? (Math.round(age / 365.25 * 10) / 10) + ' years old' : age >= 60 ? Math.round(age / 30.4) + ' months old' : (0, Visual_1.count)(age) + ' days old';
     const terms = [(0, ChartKit_1.str)(data.sku), (0, ChartKit_1.isNil)(data.retentionDays) ? '' : (0, Visual_1.count)((0, ChartKit_1.num)(data.retentionDays)) + '-day retention'].filter((t) => !!t)

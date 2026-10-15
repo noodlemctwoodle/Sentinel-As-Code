@@ -495,7 +495,7 @@ Describe 'Renderer section model output' {
         $md = Get-Content (Join-Path $dirs.Both '03-whats-new.md') -Raw
         $md | Should -Match '## Retiring and action needed'
         # The soonest deadline first.
-        $md.IndexOf('2026-06-30') | Should -BeLessThan $md.IndexOf('| 2027-03')
+        $md.IndexOf('30 Jun 2026') | Should -BeLessThan $md.IndexOf('| Mar 2027')
         # An item links to the pages and criteria it touches, with this workspace's status.
         $md | Should -Match '\[UEBA\]\(26-ueba\.md\); \[?SAC-COV-05'
         $md | Should -Match '\[Data lake\]\(88-sentinel-data-lake\.md\)'

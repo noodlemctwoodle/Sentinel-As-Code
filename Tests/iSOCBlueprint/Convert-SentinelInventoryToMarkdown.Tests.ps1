@@ -31,8 +31,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.4.1
-    Last Updated: 2026-10-13
+    Version:      0.5.0
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -110,7 +110,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'contains the cost headline currency' {
-            $script:overview | Should -Match 'GBP'
+            $script:overview | Should -Match '\*\*£5,244\*\* for the workspace'
         }
 
         It 'links to the cost-estimate page' {
@@ -155,18 +155,18 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'lists the highest-volume uncovered table first with no suggestion' {
             $script:opp | Should -Match '\| Table \| GB \(30d\) \| Templates \| From solutions \|'
-            $script:opp | Should -Match '\| FirewallLogs_CL \| 2000 \| 0 \|\s+\|'
+            $script:opp | Should -Match '\| FirewallLogs_CL \| 2,000\.00 \| 0 \|\s+\|'
         }
 
         It 'suggests the undeployed template for OfficeActivity and never the deprecated one' {
             # The fixture's packages list no contents, so its templates are built-in.
-            $script:opp | Should -Match '\| OfficeActivity \| 400 \| 1 \| Built-in \(1\) \|'
+            $script:opp | Should -Match '\| OfficeActivity \| 400\.00 \| 1 \| Built-in \(1\) \|'
             $script:opp | Should -Match '\| Data exfiltration \| Built-in \| +\| High \|'
             $script:opp | Should -Not -Match 'Deprecated\] Firewall'
         }
 
         It 'lists the tables no template covers in their own subsection' {
-            $script:opp | Should -Match '## Tables with no template available[\s\S]*\| FirewallLogs_CL \| 2000 \|[\s\S]*\| LegacyCLv1_CL \| 10 \|[\s\S]*## Undeployed templates ready to enable'
+            $script:opp | Should -Match '## Tables with no template available[\s\S]*\| FirewallLogs_CL \| 2,000\.00 \|[\s\S]*\| LegacyCLv1_CL \| 10\.00 \|[\s\S]*## Undeployed templates ready to enable'
             $section = ($script:opp -split '## Tables with no template available')[1] -split '## Undeployed templates' | Select-Object -First 1
             $section | Should -Not -Match '\| OfficeActivity \|'
         }
@@ -268,7 +268,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'points to the rule effectiveness on 21-rule-performance.md, which tables it with the source and the false-positive rate' {
             $script:inc15 | Should -Match '\[21-rule-performance\.md\]\(21-rule-performance\.md\)'
             $script:inc15 | Should -Not -Match '## Rule effectiveness'
-            Get-Content (Join-Path $script:tempWsRoot '21-rule-performance.md') -Raw | Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.2 \|'
+            Get-Content (Join-Path $script:tempWsRoot '21-rule-performance.md') -Raw | Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.20 \|'
         }
     }
 
@@ -339,7 +339,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists the noisy analytics rule (24 closed, 79.2% false positive) on 21' {
-            $script:perfMd | Should -Match '## Noisy rules \(closed mostly as false positive\)[\s\S]*\| Suspicious sign-in from rare country \| 30 \| 24 \| 19 \| 79\.2 \|'
+            $script:perfMd | Should -Match '## Noisy rules \(closed mostly as false positive\)[\s\S]*\| Suspicious sign-in from rare country \| 30 \| 24 \| 19 \| 79\.20 \|'
             ($script:perfMd -split '## Noisy rules')[1] | Should -Not -Match 'Failed logons across multiple accounts'
         }
 
@@ -373,9 +373,9 @@ Describe 'iSOC Blueprint renderer' {
     Context '60-automation-rules-playbooks.md surfaces playbook run health' {
         It 'warns about the failing playbook and tables the runs' {
             $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
-            $md | Should -Match '\*\*1 playbook\(s\) had failed runs in the last 30 days\.\*\*'
+            $md | Should -Match '\*\*1 playbook had failed runs in the last 30 days\.\*\*'
             $md | Should -Match '"Succeeded" : 49'
-            $md | Should -Match '\| IncidentEnrich-IP \| 42 \| 5 \| Failed \| 2026-05-05 22:15 \|'
+            $md | Should -Match '\| IncidentEnrich-IP \| 42 \| 5 \| Failed \| 5 May 2026 22:15 \|'
         }
 
         It 'introduces the alert-to-response chain in plain words' {
@@ -408,14 +408,14 @@ Describe 'iSOC Blueprint renderer' {
     Context '11-sentinel-health.md tables ingestion and schema failures' {
         It 'lists the failed DCR transform from the fixture' {
             $md = Get-Content (Join-Path $script:tempWsRoot '11-sentinel-health.md') -Raw
-            $md | Should -Match '## Ingestion and schema failures \(last 30d\)[\s\S]*Custom-FirewallLogs_CL \| Ingestion \| 14 \| 2026-05-06 07:12 \|'
+            $md | Should -Match '## Ingestion and schema failures \(last 30d\)[\s\S]*Custom-FirewallLogs_CL \| Ingestion \| 14 \| 6 May 2026 07:12 \|'
         }
     }
 
     Context '70-content-hub.md lists the legacy management solutions' {
         It 'shows the OMS SecurityInsights solution with its product and publisher' {
             $md = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
-            $md | Should -Match '## Legacy management solutions[\s\S]*\| SecurityInsights\(law-sentinel-test\) \| OMSGallery/SecurityInsights \| Microsoft \| Succeeded \| 2026-02-06 00:00 \|'
+            $md | Should -Match '## Legacy management solutions[\s\S]*\| SecurityInsights\(law-sentinel-test\) \| OMSGallery/SecurityInsights \| Microsoft \| Succeeded \| 6 Feb 2026 00:00 \|'
         }
     }
 
@@ -459,8 +459,8 @@ Describe 'iSOC Blueprint renderer' {
         It 'marks the tables receiving data and the catalogue-only ones' {
             $md = Get-Content (Join-Path $script:tempWsRoot '14-coverage-breakdowns.md') -Raw
             $md | Should -Match '## Entra ID table presence \(last 7d\)'
-            $md | Should -Match '\| SigninLogs \|[^\n]*\| 25 \| Receiving data \|'
-            $md | Should -Match '\| AuditLogs \| Analytics \| 30 \| 0 \| Catalogue only \|'
+            $md | Should -Match '\| SigninLogs \|[^\n]*\| 25\.00 \| Receiving data \|'
+            $md | Should -Match '\| AuditLogs \| Analytics \| 30 \| 0\.00 \| Catalogue only \|'
             $md | Should -Match '\| AADProvisioningLogs \|[^\n]*\| Not in catalogue \|'
         }
     }
@@ -488,13 +488,13 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'splits silent tables by detection impact' {
             $script:plansMd | Should -Match '1 of these are read by enabled analytics rules'
-            $script:plansMd | Should -Match '\| AuditLogs \| Analytics \| 50 \| 2026-04-25 07:50 \| 11 \| 1 \| Detection outage \|'
+            $script:plansMd | Should -Match '\| AuditLogs \| Analytics \| 50\.00 \| 25 Apr 2026 07:50 \| 11 \| 1 \| Detection outage \|'
         }
 
         It 'inventories the classic (Data Collector API) custom tables' {
             $script:plansMd | Should -Match '## Classic custom tables \(legacy Data Collector API\)'
-            $script:plansMd | Should -Match '\*\*1\*\* classic table\(s\): \*\*1\*\* still ingesting'
-            $script:plansMd | Should -Match '\| LegacyCLv1_CL \| Analytics \| 30 \| 30 \| 30 \| 2026-05-06 07:00 \| Active \(last 24h\) \| 0 \|'
+            $script:plansMd | Should -Match '\*\*1\*\* classic table: \*\*1\*\* still ingesting'
+            $script:plansMd | Should -Match '\| LegacyCLv1_CL \| Analytics \| 30 \| 30 \| 30\.00 \| 6 May 2026 07:00 \| Active \(last 24h\) \| 0 \|'
         }
     }
 
@@ -504,16 +504,16 @@ Describe 'iSOC Blueprint renderer' {
             $md | Should -Match '## Lake usage evidence'
             $md | Should -Match 'No table keeps data in the lake beyond its analytics retention'
             $md | Should -Match '## Analytics tables without extended lake retention'
-            $md | Should -Match '\| SecurityEvent \| 30 \| 30 \| 1500 \| 0 \|'
-            $md | Should -Match '\| AuditLogs \| 30 \| 30 \| 50 \| 1 \|'
+            $md | Should -Match '\| SecurityEvent \| 30 \| 30 \| 1,500\.00 \| 0 \|'
+            $md | Should -Match '\| AuditLogs \| 30 \| 30 \| 50\.00 \| 1 \|'
         }
     }
 
     Context '13-data-source-hygiene.md lists log contributors' {
         It 'shows Syslog contributors by facility and the SecurityEvent hosts' {
             $md = Get-Content (Join-Path $script:tempWsRoot '13-data-source-hygiene.md') -Raw
-            $md | Should -Match '## Syslog contributors \(last 30d\)[\s\S]*\| fw-edge-01 \| local4 \| 182000 \| 540.2 \|'
-            $md | Should -Match '## SecurityEvent hosts \(last 30d\)[\s\S]*\| DC01.example.test \| 410000 \| 1120.5 \|'
+            $md | Should -Match '## Syslog contributors \(last 30d\)[\s\S]*\| fw-edge-01 \| local4 \| 182,000 \| 540\.20 \|'
+            $md | Should -Match '## SecurityEvent hosts \(last 30d\)[\s\S]*\| DC01.example.test \| 410,000 \| 1,120\.50 \|'
         }
     }
 
@@ -521,7 +521,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'shows each custom detection with its tables and state' {
             $md = Get-Content (Join-Path $script:tempWsRoot '20-analytics-rules.md') -Raw
             $md | Should -Match '## Defender XDR custom detections'
-            $md | Should -Match '\| Suspicious LSASS access \| Yes \| high \| 1H \| DeviceProcessEvents, EmailEvents \| 2026-04-02 10:00 \|'
+            $md | Should -Match '\| Suspicious LSASS access \| Yes \| high \| 1H \| DeviceProcessEvents, EmailEvents \| 2 Apr 2026 10:00 \|'
             $md | Should -Match '\| Legacy auth sign-in \(paused\) \| No \| medium \| 24H \| IdentityLogonEvents \|'
         }
     }
@@ -530,7 +530,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'lists the failing rule with its reason' {
             $md = Get-Content (Join-Path $script:tempWsRoot '22-rule-health-quality.md') -Raw
             $md | Should -Match '## Rule run failures \(last 30d\)'
-            $md | Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 2026-05-06 06:15 \| Query execution exceeded the 2 minute timeout. \|'
+            $md | Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 6 May 2026 06:15 \| Query execution exceeded the 2 minute timeout. \|'
         }
     }
 
@@ -539,7 +539,7 @@ Describe 'iSOC Blueprint renderer' {
             $md = Get-Content (Join-Path $script:tempWsRoot '27-threat-intelligence.md') -Raw
             $md | Should -Match '## Indicators by type \(last 30d\)'
             $md | Should -Match 'pie showData title Indicators by type \(last 30d\)[\s\S]*"IP" : 4200'
-            $md | Should -Match '\| Domain \| 1800 \| 1750 \|'
+            $md | Should -Match '\| Domain \| 1,800 \| 1,750 \|'
         }
     }
 
@@ -547,7 +547,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'classifies the titles and maps the phishing title to a response' {
             $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
             $md | Should -Match '## Automation opportunities \(incident titles, last 30d\)'
-            $md | Should -Match '\| Phishing email reported by user \| Medium \| 48 \| 46 \| 22.5 \| 41 \| 30 \| 9 \| Mostly false positive \| Soft-delete similar messages'
+            $md | Should -Match '\| Phishing email reported by user \| Medium \| 48 \| 46 \| 22\.50 \| 41 \| 30 \| 9 \| Mostly false positive \| Soft-delete similar messages'
             $md | Should -Match '\| Brute force attempt against Entra ID \|[^\n]*\| Fast-closing \|[^\n]*\| Disable-AADUser / Confirm-AADRiskyUser \|'
             $md | Should -Match '\| Suspicious sign-in from rare country \|[^\n]*\| Mostly false positive \|'
         }
@@ -557,9 +557,9 @@ Describe 'iSOC Blueprint renderer' {
         It 'marks SigninLogs covered and FirewallLogs_CL uncovered' {
             $md = Get-Content (Join-Path $script:tempWsRoot '81-table-plans-retention.md') -Raw
             $md | Should -Match '## Tables by detection coverage'
-            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6000 \| 0 \| 0 \| None \|'
+            $md | Should -Match '\| FirewallLogs_CL \| Analytics \| 6,000\.00 \| 0 \| 0 \| None \|'
             # AuditLogs is in the fixture catalogue and read by the enabled Scheduled rule
-            $md | Should -Match '\| AuditLogs \| Analytics \| 50 \| 1 \| 0 \| Sentinel rule \|'
+            $md | Should -Match '\| AuditLogs \| Analytics \| 50\.00 \| 1 \| 0 \| Sentinel rule \|'
         }
     }
 
@@ -917,11 +917,11 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'joins Office365 data types to OfficeActivity table with 24h volume' {
-            $script:dcMd | Should -Match '\| Microsoft 365 \(Office 365\) \| sharePoint \| OfficeActivity \|[^|]+\| 14\.5 \|'
+            $script:dcMd | Should -Match '\| Microsoft 365 \(Office 365\) \| sharePoint \| OfficeActivity \|[^|]+\| 14\.50 \|'
         }
 
         It 'joins AzureActiveDirectory signInLogs to SigninLogs table' {
-            $script:dcMd | Should -Match '\| Microsoft Entra ID \| signInLogs \| SigninLogs \|[^|]+\| 3\.6 \|'
+            $script:dcMd | Should -Match '\| Microsoft Entra ID \| signInLogs \| SigninLogs \|[^|]+\| 3\.60 \|'
         }
 
         It 'leaves activity columns blank when no table mapping is known' {
@@ -933,7 +933,7 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'surfaces an Effective connectors synthesised view section' {
             $script:dcMd | Should -Match '## Effective connectors \(synthesised view\)'
-            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| Catalogue connector \| GB \(24h\) \| Last ingested \|'
+            $script:dcMd | Should -Match '\| Source \| Identifier \| Table \| Catalogue connector \| GB \(24h\) \| Last ingested \(UTC\) \|'
         }
 
         It 'attributes Office365 sharePoint to a Classic source in the synthesis' {
@@ -994,11 +994,11 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'renders the PerGB2018 enabled row' {
-            $script:tierMd | Should -Match '\| PerGB2018 \|[^|]*\| True \|'
+            $script:tierMd | Should -Match '\| Pay-as-you-go \(`PerGB2018`\) \|[^|]*\| True \|'
         }
 
         It 'renders the CapacityReservation tier with reservation level' {
-            $script:tierMd | Should -Match '\| CapacityReservation \| 100 \| False \|'
+            $script:tierMd | Should -Match '\| Commitment tier \(`CapacityReservation`\) \| 100 \| False \|'
         }
     }
 
@@ -1012,11 +1012,11 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'renders the Scheduled analytics success row' {
-            $script:healthMd | Should -Match '\| Scheduled analytics \| Success \| 1432 \|'
+            $script:healthMd | Should -Match '\| Scheduled analytics \| Success \| 1,432 \|'
         }
 
         It 'renders the LAQueryLogs activity count' {
-            $script:healthMd | Should -Match '18403 query records'
+            $script:healthMd | Should -Match '18,403 query records'
         }
     }
 
@@ -1044,11 +1044,11 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'renders the 30-day total billable value' {
-            $script:wsUsageMd | Should -Match '\| 82\.4 \| 71\.8 \|'
+            $script:wsUsageMd | Should -Match '\| 82\.40 \| 71\.80 \|'
         }
 
         It 'renders the 14-day billable peak value' {
-            $script:wsUsageMd | Should -Match '\| 4\.6 \| 4\.1 \|'
+            $script:wsUsageMd | Should -Match '\| 4\.60 \| 4\.10 \|'
         }
     }
 
@@ -1139,7 +1139,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'renders the Microsoft Defender source from sourceMetrics' {
-            $script:tiMd | Should -Match '\| Microsoft Defender Threat Intelligence \| 1700 \|'
+            $script:tiMd | Should -Match '\| Microsoft Defender Threat Intelligence \| 1,700 \|'
         }
 
         It 'renders the Open Source row from sourceMetrics' {
@@ -1151,7 +1151,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'renders the ipv4-addr indicator type from threatTypeMetrics' {
-            $script:tiMd | Should -Match '\| ipv4-addr \| 1273 \|'
+            $script:tiMd | Should -Match '\| ipv4-addr \| 1,273 \|'
         }
 
         It 'renders the domain-name indicator type from threatTypeMetrics' {
@@ -1160,11 +1160,11 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'shows the total-indicators headline from sourceMetrics' {
             # 1700 + 270 = 1970 (source totals; the threat-type breakdown also sums to 1970)
-            $script:tiMd | Should -Match 'Total active indicators:\*\* 1970'
+            $script:tiMd | Should -Match 'Total active indicators:\*\* 1,970'
         }
 
         It 'orders metrics rows by IndicatorCount descending (Microsoft Defender first)' {
-            $script:tiMd | Should -Match 'Microsoft Defender Threat Intelligence \| 1700[\s\S]+Open Source \| 270'
+            $script:tiMd | Should -Match 'Microsoft Defender Threat Intelligence \| 1,700[\s\S]+Open Source \| 270'
         }
 
         It 'renders the threat-type breakdown subsection' {
@@ -1179,11 +1179,11 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'reports the Producing data row with the active count' {
             # 1247 + 318 + 0 = 1565
-            $script:uebaMd | Should -Match 'Producing data \| Yes, 1565 rows'
+            $script:uebaMd | Should -Match 'Producing data \| Yes, 1,565 rows'
         }
 
         It 'mentions the number of producing tables (BehaviorAnalytics + IdentityInfo = 2)' {
-            $script:uebaMd | Should -Match '2 UEBA table\(s\)'
+            $script:uebaMd | Should -Match '2 UEBA tables'
         }
 
         It 'renders the per-table breakdown subsection' {
@@ -1191,7 +1191,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists BehaviorAnalytics with its row count' {
-            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 790 \| 1247 \|'
+            $script:uebaMd | Should -Match '\| BehaviorAnalytics \| 790 \| 1,247 \|'
         }
     }
 
@@ -1302,7 +1302,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists the suspicious-sign-in rule as stale (lastModifiedUtc > 1y)' {
-            $script:qualityMd | Should -Match '## Stale rules \(enabled, last modified over a year ago\)[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| High \| 2024-01-15 \|'
+            $script:qualityMd | Should -Match '## Stale rules \(enabled, last modified over a year ago\)[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| High \| 15 Jan 2024 08:00 \|'
         }
 
         It 'shows the suspicious-sign-in rule as behind its template (1.0.0 vs 1.2.0)' {
@@ -1326,7 +1326,7 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'renders AzureActivity subscription rows' {
             $script:covMd | Should -Match '## AzureActivity'
-            $script:covMd | Should -Match '\| 12450 \|'
+            $script:covMd | Should -Match '\| 12,450 \|'
         }
 
         It 'renders AzureDiagnostics provider rows' {
@@ -1335,7 +1335,7 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'renders XDR table presence rows' {
             $script:covMd | Should -Match '## XDR table presence'
-            $script:covMd | Should -Match '\| DeviceEvents \| 28401 \|'
+            $script:covMd | Should -Match '\| DeviceEvents \| 28,401 \|'
         }
     }
 
@@ -1603,7 +1603,7 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
     }
 
     It 'tables the bookmarks newest first with their labels and notes' {
-        $script:bmList | Should -Match '## Bookmarks[\s\S]*\| Lateral movement from VPN \| 2026-09-30[^|]*\| hunt, vpn \| Seen on three hosts \|'
+        $script:bmList | Should -Match '## Bookmarks[\s\S]*\| Lateral movement from VPN \| 30 Sep 2026[^|]*\| hunt, vpn \| Seen on three hosts \|'
         ($script:bmList.IndexOf('Lateral movement from VPN')) | Should -BeLessThan ($script:bmList.IndexOf('Rare parent process'))
     }
 
@@ -1614,7 +1614,7 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
 
     It 'tables the bookmarks from the HuntingBookmark table when the API refused the list' {
         $script:bmLogs | Should -Match '## Bookmarks[\s\S]*refused its list of \*\*350 bookmarks\*\* as too large, so these 2 come from the HuntingBookmark table'
-        $script:bmLogs | Should -Match '\| Beaconing to new domain \| 2026-10-02[^|]*\| c2 \| From the table \|'
+        $script:bmLogs | Should -Match '\| Beaconing to new domain \| 2 Oct 2026[^|]*\| c2 \| From the table \|'
         ($script:bmLogs.IndexOf('Beaconing to new domain')) | Should -BeLessThan ($script:bmLogs.IndexOf('Mailbox rule created'))
     }
 
@@ -1690,7 +1690,7 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
         $hc['85-rbac'] | Should -Match '## Assignments by role[\s\S]*\| Owner \| 1 \| 0 \| 1 \| 0 \|'
         $hc['85-rbac'] | Should -Match '## Microsoft Sentinel role assignments[\s\S]*\| Sentinel SOC Reader \|'
         $hc['85-rbac'] | Should -Match '## Log Analytics and monitoring role assignments\s+_No Log Analytics or monitoring role'
-        $hc['85-rbac'] | Should -Match '## High-privilege assignments[\s\S]*\| ci-deployer-sp \|\s+\| ServicePrincipal \| Contributor \|'
+        $hc['85-rbac'] | Should -Match '## High-privilege assignments[\s\S]*\| ci-deployer-sp \|\s+\| Service principal \| Contributor \|'
     }
 
     It 'shows all three retention checks with their outcome' {
@@ -1709,14 +1709,14 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
         $ti | Should -Match '## Table migration status\s+\*\*Current\.\*\*'
         $ti | Should -Match '\| ThreatIntelligenceIndicator \(retired\) \| 0 \| 0 \|\s+\|\s+\| No data in 30 days \|'
         $ti | Should -Match '## Indicator health \(last 30d\)[\s\S]*\| Revoked \| 12 \|'
-        $ti | Should -Match '## Indicators by source \(last 30d\)[\s\S]*\| Microsoft Defender Threat Intelligence \| 4200 \| 1180 \|'
+        $ti | Should -Match '## Indicators by source \(last 30d\)[\s\S]*\| Microsoft Defender Threat Intelligence \| 4,200 \| 1,180 \|'
         $ti | Should -Match '### TAXII clients[\s\S]*\| Open source feed \| 107 \| OnceAnHour \|'
     }
 
     It 'adds the 7-day incident metrics, incidents by provider and alert volumes by provider' {
         $hc['15-incidents'] | Should -Match '## Incident metrics \(last 7d\)[\s\S]*\| Incidents \| 14 \|[\s\S]*\| Raised through Defender XDR \(unified\) \| 5 \|[\s\S]*\| MTTA \(incidents closed in the window\) \| 60\.5 min \|'
         $hc['15-incidents'] | Should -Match '## Incidents by provider \(last 30d\)[\s\S]*\| Microsoft XDR \| 12 \|'
-        $hc['16-alerts'] | Should -Match '## Alert volumes by provider \(last 7d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 4 \|'
+        $hc['16-alerts'] | Should -Match '## Alert volumes by provider \(last 30d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 18 \| 4 \|'
     }
 
     It 'shows unified incidents and legacy alert paths on the unification table' {
@@ -1725,19 +1725,19 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'lists connectors that reported health failures, with the failure count' {
-        $hc['11-sentinel-health'] | Should -Match '## Connector and DCR health issues \(last 30d\)[\s\S]*\| Office 365 \| Office365 \| 6 \| 2026-05-05 22:00 \|'
+        $hc['11-sentinel-health'] | Should -Match '## Connector and DCR health issues \(last 30d\)[\s\S]*\| Office 365 \| Office365 \| 6 \| 5 May 2026 22:00 \|'
     }
 
     It 'adds AzureDiagnostics by category and both forms of Azure Firewall logging' {
-        $hc['14-coverage-breakdowns'] | Should -Match '## AzureDiagnostics per category \(last 30d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9000 \|'
+        $hc['14-coverage-breakdowns'] | Should -Match '## AzureDiagnostics per category \(last 30d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9,000 \|'
         $hc['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 30d\)\s+\*\*Collected twice\.\*\*'
         $hc['14-coverage-breakdowns'] | Should -Match '\| AZFWNetworkRule \|'
     }
 
     It 'adds the CEF vendor, duplicate record and event record columns to the hygiene page' {
-        $hc['13-data-source-hygiene'] | Should -Match '\| syslog-forwarder-01 \| Palo Alto Networks-PAN-OS \| 2310 \|'
-        $hc['13-data-source-hygiene'] | Should -Match '\| dc01\.contoso\.local \| 310 \| 1248 \|'
-        $hc['13-data-source-hygiene'] | Should -Match '\| 4624 \| An account was successfully logged on \| 612340 \| 18\.234 \|'
+        $hc['13-data-source-hygiene'] | Should -Match '\| syslog-forwarder-01 \| Palo Alto Networks-PAN-OS \| 2,310 \|'
+        $hc['13-data-source-hygiene'] | Should -Match '\| dc01\.contoso\.local \| 310 \| 1,248 \|'
+        $hc['13-data-source-hygiene'] | Should -Match '\| 4624 \| An account was successfully logged on \| 612,340 \| 18\.23 \|'
     }
 
     It 'reports entity analytics beside UEBA' {
@@ -1751,7 +1751,7 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'lists the legacy features still in use on their own page and counts them on the live snapshot' {
-        $hc['02-deprecated-legacy-features'] | Should -Match '## Platform deprecation runway[\s\S]*## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 August 2024 \| In use \| 8 machine'
+        $hc['02-deprecated-legacy-features'] | Should -Match '## Platform deprecation runway[\s\S]*## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 Aug 2024 \| In use \| 8 machine'
         $hc['02-deprecated-legacy-features'] | Should -Match '\| Retired ThreatIntelligenceIndicator table \(ingestion\) \| Not in use \|'
         $hc['01-live-snapshot'] | Should -Match '\| Legacy features still in use \| \d+ of \d+ checked; see \[02-deprecated-legacy-features\.md\]'
         $hc['01-live-snapshot'] | Should -Not -Match '## Legacy features still in use|## Platform deprecation runway'
@@ -1822,7 +1822,7 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
     It 'lists every costed table under the top-ten chart' {
         $md = & $script:widePage '84-cost-estimate'
         foreach ($n in 1..9) { $md | Should -Match "\| WideTable$n`_CL \| Analytics \|" }
-        $md | Should -Match '\| DeviceProcessEvents \| Analytics \| 2100 \|'
+        $md | Should -Match '\| DeviceProcessEvents \| Analytics \| 2,100\.00 \|'
     }
 
     It 'lists every catalogue-only schema by name' {
@@ -1897,12 +1897,12 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
     }
 
     It 'lists deprecated connectors still connected among the legacy features' {
-        & $script:catPage '02-deprecated-legacy-features' | Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector\(s\): AI Analyst Darktrace via AMA \|'
+        & $script:catPage '02-deprecated-legacy-features' | Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector: AI Analyst Darktrace via AMA \|'
     }
 
     It 'names the connector that would fill a catalogue-only schema and the solutions behind tables with no template' {
         & $script:catPage '81-table-plans-retention' | Should -Match '\| Dynamics365Activity \| Dynamics 365 \|'
-        & $script:catPage '28-detection-opportunities' | Should -Match '## Tables with no template available[\s\S]*\| CommonSecurityLog \| 300 \| Shared by \d+ solutions \|'
+        & $script:catPage '28-detection-opportunities' | Should -Match '## Tables with no template available[\s\S]*\| CommonSecurityLog \| 300\.00 \| Shared by \d+ solutions \|'
     }
 
     It 'lists the saved searches that are neither hunting queries nor parsers' {
@@ -1931,12 +1931,12 @@ Describe 'iSOC Blueprint renderer - findings and maturity as one assessment' {
 
     It 'gives the findings summary a Maturity column' {
         $script:gap90 | Should -Match '\| ID \| Severity \| Category \| Title \| Maturity \|'
-        $script:gap90 | Should -Match '\| \[SAC-LOG-03\]\(#sac-log-03\) \| Warning \| Cost \|[^\n]*\| \+0\.075 to LOG \|'
+        $script:gap90 | Should -Match '\| \[SAC-LOG-03\]\(#sac-log-03\) \| Warning \| Cost \|[^\n]*\| \+0\.08 to LOG \|'
         $script:gap90 | Should -Match '\| \[SAC-LOG-07\]\(#sac-log-07\) \|[^\n]*\| Not scored \|'
     }
 
     It 'says on each finding card which criterion it decides and what closing it is worth' {
-        $script:gap90 | Should -Match '\*\*Maturity:\*\* decides \[SAC-LOG-03\]\(91-maturity-assessment\.md#criteria\) A daily cap is set \(Log management and cost\), now Gap; closing it lifts the overall score by \+0\.075\.'
+        $script:gap90 | Should -Match '\*\*Maturity:\*\* decides \[SAC-LOG-03\]\(91-maturity-assessment\.md#criteria\) A daily cap is set \(Log management and cost\), now Gap; closing it lifts the overall score by \+0\.08\.'
         $script:gap90 | Should -Match '\*\*Maturity:\*\* not scored\. This is a hygiene or cost check'
     }
 
@@ -1975,9 +1975,9 @@ Describe '37-search-restore.md lists the search job and restored tables' {
     }
 
     It 'reads them from the table list when the snapshot has neither file' {
-        $script:sr37 | Should -Match '\*\*1\*\* search job and \*\*1\*\* restore'
-        $script:sr37 | Should -Match '\| SigninLogs_1A2B_SRCH \| SigninLogs \| 2025-01-01 00:00 to 2025-03-31 00:00 \| 2026-09-01 10:00 \| 30 days \| `SigninLogs \\\| where ResultType != 0` \|'
-        $script:sr37 | Should -Match '\| Syslog_RST \| Syslog \| 2025-02-01 00:00 to 2025-02-02 00:00 \|'
+        $script:sr37 | Should -Match '\*\*1 search job\*\* and \*\*1 restore\*\*'
+        $script:sr37 | Should -Match '\| SigninLogs_1A2B_SRCH \| SigninLogs \| 1 Jan 2025 00:00 to 31 Mar 2025 00:00 UTC \| 1 Sep 2026 10:00 \| 30 days \| `SigninLogs \\\| where ResultType != 0` \|'
+        $script:sr37 | Should -Match '\| Syslog_RST \| Syslog \| 1 Feb 2025 00:00 to 2 Feb 2025 00:00 UTC \|'
     }
 
     It 'says so plainly when there are none, and no longer dumps raw properties' {
@@ -2038,8 +2038,8 @@ Describe 'Sentinel health statuses read as a plain list' {
             $md = Get-Content (Join-Path $root '11-sentinel-health.md') -Raw
             $md | Should -Match '\| Success, Failure \|'
             $md | Should -Not -Match '\["Success'
-            $md | Should -Match '\| Last event \|'
-            $md | Should -Match '\| Last failure \|'
+            $md | Should -Match '\| Last event \(UTC\) \|'
+            $md | Should -Match '\| Last failure \(UTC\) \|'
         } finally { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue }
     }
 }
@@ -2132,7 +2132,7 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
             $ready | Should -Not -Match 'Low-severity noise'
             $ready | Should -Match 'Data exfiltration'
             $md | Should -Match '## Templates from deprecated solutions[\s\S]*\| Low-severity noise \| Threat Intelligence \| Threat Intelligence \(NEW\) \| SecurityEvent \|'
-            $md | Should -Match '\*\*1\*\* template\(s\) read a table with data but are left out'
+            $md | Should -Match '\*\*1 template\*\* reads a table with data but is left out'
         } finally { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue }
     }
 
@@ -2192,7 +2192,7 @@ Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
     }
 
     It 'marks a stale watchlist an enabled rule reads, first, and keeps Content Hub ones apart' {
-        $script:wl | Should -Match '\| Name \| Freshness \| Age \(days\) \| Updated \| Enabled rules \| Maintained by \| Search key \| Provider \|'
+        $script:wl | Should -Match '\| Name \| Freshness \| Age \(days\) \| Updated \(UTC\) \| Enabled rules \| Maintained by \| Search key \| Provider \|'
         $script:wl | Should -Match '(?s)\| VIP accounts \| Stale, used by rules \| 200 \|.*\| Branch IPs \| Current \| 5 \|.*\| SAP - Systems \| Content Hub \|'
         $script:wl | Should -Match '\*\*1\*\* stale and read by enabled rules'
         $script:wl | Should -Match '## Descriptions[\s\S]*\| VIP accounts \| Executives \|'
@@ -2201,5 +2201,231 @@ Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
     It 'labels daily ingestion by day and month' {
         $md = (Get-ChildItem $script:tempWsRoot -Filter '*.md' | ForEach-Object { Get-Content $_.FullName -Raw }) -join "`n"
         if ($md -match 'Daily ingestion, GB') { $md | Should -Match 'x-axis \["\d{1,2} [A-Z][a-z]{2}"' }
+    }
+}
+
+Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in one style' {
+
+    BeforeAll {
+        $script:styleRoot = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-style-$(New-Guid)"
+        $ws = Join-Path $script:styleRoot 'style'
+        New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
+        Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $ws '_raw')
+        $raw = { param($Name, $Value) ConvertTo-Json -InputObject $Value -Depth 16 | Set-Content (Join-Path $ws "_raw/$Name") }
+        $read = { param($Name) @(Get-Content (Join-Path $ws "_raw/$Name") -Raw | ConvertFrom-Json) }
+
+        # A commitment-tier workspace in UK South, replicated to UK West.
+        $workspace = Get-Content (Join-Path $ws '_raw/workspace.json') -Raw | ConvertFrom-Json
+        $workspace.properties.sku = [pscustomobject]@{ name = 'CapacityReservation'; capacityReservationLevel = 2000 }
+        $workspace.properties.replication = [pscustomobject]@{ enabled = $true; location = 'ukwest' }
+        & $raw 'workspace.json' $workspace
+
+        # A table on the data lake plan, and the lake's share of a large bill.
+        $tables = & $read 'workspace-tables.json'
+        $tables += [pscustomobject]@{ name = 'LakeOnly_CL'; properties = [pscustomobject]@{ plan = 'DataLake'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'CustomLog' } } }
+        & $raw 'workspace-tables.json' $tables
+        $cost = Get-Content (Join-Path $ws '_raw/cost-estimate.json') -Raw | ConvertFrom-Json
+        $cost.MonthlyTotal = 137355.53
+        $cost.ByPlan.Analytics = [pscustomobject]@{ Gb30d = 156409.3663; MonthlyCost = 135854.17 }
+        $cost.ByPlan.DataLake = [pscustomobject]@{ Gb30d = 10426.0977; MonthlyCost = 491.76 }
+        $cost | Add-Member -NotePropertyName CommitmentTier -NotePropertyValue ([pscustomobject]@{ Level = 2000; DailyPrice = 4528.47; EffectivePerGb = 2.2642; DailyAverageGb = 1737.9; Utilisation = 86.9 })
+        & $raw 'cost-estimate.json' $cost
+
+        # Log Analytics hands counts back as text; the page writes them the same way as numbers.
+        & $raw 'cef-devices.json' @(
+            [pscustomobject]@{ DeviceVendor = 'Palo Alto Networks'; DeviceProduct = 'PAN-OS'; LogCount = '13858711766' }
+            [pscustomobject]@{ DeviceVendor = 'Fortinet'; DeviceProduct = 'Fortigate'; LogCount = 92143 }
+        )
+        & $raw 'top-event-ids.json' @(
+            [pscustomobject]@{ TableName = 'SecurityEvent'; EventID = 4624; EventDescription = 'An account was successfully logged on'; BilledSizeGB = '1963.364'; LogCount = '3980413051' }
+            [pscustomobject]@{ TableName = 'Event'; EventID = 1000; EventDescription = 'Application Error'; BilledSizeGB = 0.004; LogCount = 48810 }
+        )
+
+        # Alerts across the lookback; one name with none in it stays out.
+        $volumes = & $read 'analytics-rule-volumes.json'
+        $volumes += [pscustomobject]@{ AlertName = 'Quiet rule'; ProductName = 'Azure Sentinel'; AlertSeverity = 'Low'; Alerts = 0; Alerts7d = 0; ProviderName = 'ASI Scheduled Alerts' }
+        $volumes += [pscustomobject]@{ AlertName = 'Busy rule'; ProductName = 'Azure Sentinel'; AlertSeverity = 'High'; Alerts = 3500; Alerts7d = 12; ProviderName = 'ASI Scheduled Alerts' }
+        $volumes += [pscustomobject]@{ AlertName = 'Older rule'; ProductName = 'Microsoft Defender for Endpoint'; AlertSeverity = 'Medium'; Alerts = 800; Alerts7d = 0; ProviderName = 'MDATP' }
+        & $raw 'analytics-rule-volumes.json' $volumes
+
+        # Two rules modified on days whose text sorts the wrong way round as strings.
+        $rules = & $read 'alert-rules.json'
+        foreach ($d in @(@('Nine Sep rule', '2026-09-09T10:00:00Z'), @('Ten Sep rule', '2026-09-10T10:00:00Z'))) {
+            $rules += [pscustomobject]@{ name = "rule-$($d[0])"; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = $d[0]; severity = 'Low'; enabled = $false; tactics = @('Discovery'); lastModifiedUtc = $d[1] } }
+        }
+        & $raw 'alert-rules.json' $rules
+
+        # An engine that wrote an ISO timestamp into a finding's evidence.
+        $gaps = & $read 'gap-analysis.json'
+        $gaps[0].Evidence = 'Playbook failed, last 2026-10-14T23:16:38Z; retirement 2026-09-14.'
+        & $raw 'gap-analysis.json' $gaps
+
+        & $script:renderer -WorkspaceName 'law-style' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        $script:page = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
+        $script:pages = @(Get-ChildItem $ws -Filter '*.md' | ForEach-Object { [pscustomobject]@{ Name = $_.BaseName; Text = Get-Content $_.FullName -Raw } })
+    }
+
+    AfterAll {
+        if ($script:styleRoot -and (Test-Path $script:styleRoot)) { Remove-Item -Recurse -Force -Path $script:styleRoot -ErrorAction SilentlyContinue }
+    }
+
+    Context 'amounts carry the estimate''s currency' {
+        It 'writes the data lake page''s amounts with the currency symbol, not dollars' {
+            $md = & $script:page '88-sentinel-data-lake'
+            $md | Should -Match 'est\. £491\.76 / month'
+            $md | Should -Match '\| Analytics \| 156,409\.37 \| £135,854 \|'
+            $md | Should -Match '\| DataLake \| 10,426\.10 \| £491\.76 \|'
+            $md | Should -Not -Match '\$\d'
+        }
+
+        It 'writes every cost page figure as the dashboard does' {
+            $overview = & $script:page '00-overview'
+            $overview | Should -Match '\*\*£137,356\*\* for the workspace'
+            $overview | Should -Not -Match 'GBP'
+            (& $script:page '01-live-snapshot') | Should -Match '\| Estimated monthly cost \| £137,356 \|'
+            $cost = & $script:page '84-cost-estimate'
+            $cost | Should -Match '> \*\*Headline\*\* \*\*£137,356\*\* for the workspace'
+            $cost | Should -Match 'on the \*\*2,000 GB a day commitment tier\*\*: £4,528 a day, an effective £2\.2642 per GB\. Analytics ingest averaged 1,737\.90 GB a day'
+            $cost | Should -Match '\| Analytics \| 156,409\.37 \| £135,854 \|'
+            $cost | Should -Match '\| FirewallLogs_CL \| Analytics \| 2,000\.00 \| £4,600 \|'
+            $cost | Should -Match '\| 100 GB a day \| £3,933 \| -£1,311 \|'
+        }
+
+        It 'lists the data caveats one to a line' {
+            (& $script:page '84-cost-estimate') | Should -Match '- Query-time billing for Basic/Auxiliary plans not included\.\r?\n- Search-job and restored-log storage not included\.'
+        }
+    }
+
+    Context 'alert volumes by provider cover the lookback' {
+        It 'titles the table with the lookback and lists the busiest alert first' {
+            $md = & $script:page '16-alerts'
+            $md | Should -Match '## Alert volumes by provider \(last 30d\)'
+            $md | Should -Match 'Every alert name that fired in the last 30 days'
+            $md | Should -Match '\| Provider \| Product \| Alert \| Severity \| Alerts \| Alerts \(7d\) \|'
+            $md | Should -Match '\| ASI Scheduled Alerts \| Azure Sentinel \| Busy rule \| High \| 3,500 \| 12 \|[\s\S]*\| MDATP \| Microsoft Defender for Endpoint \| Older rule \| Medium \| 800 \| 0 \|[\s\S]*\| ASI Scheduled Alerts \| Azure Sentinel \| Suspicious sign-in from rare country \| High \| 412 \| 97 \|'
+        }
+
+        It 'leaves out an alert name that did not fire in the lookback' {
+            $table = ((& $script:page '16-alerts') -split '## Alert volumes by provider')[1]
+            $table | Should -Not -Match 'Quiet rule'
+        }
+
+        It 'omits the recent column when the capture has no recent figure' {
+            $ws = Join-Path $script:styleRoot 'style'
+            $volumes = @(Get-Content (Join-Path $ws '_raw/analytics-rule-volumes.json') -Raw | ConvertFrom-Json)
+            $volumes | ForEach-Object { $_.PSObject.Properties.Remove('Alerts7d') }
+            $alt = Join-Path $script:styleRoot 'no-recent'
+            New-Item -ItemType Directory -Path (Join-Path $alt '_raw') -Force | Out-Null
+            Get-ChildItem -Path (Join-Path $ws '_raw') -File | Copy-Item -Destination (Join-Path $alt '_raw')
+            ConvertTo-Json -InputObject $volumes -Depth 8 | Set-Content (Join-Path $alt '_raw/analytics-rule-volumes.json')
+            & $script:renderer -WorkspaceName 'law-style' -InputRoot $alt -OutputRoot $alt -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            $md = Get-Content (Join-Path $alt '16-alerts.md') -Raw
+            $md | Should -Match '\| Provider \| Product \| Alert \| Severity \| Alerts \|\r?\n'
+            $md | Should -Not -Match 'fired in the last 7 days'
+        }
+    }
+
+    Context 'numbers in tables' {
+        It 'puts thousands separators in counts, whether they arrive as numbers or as text' {
+            $md = & $script:page '13-data-source-hygiene'
+            $md | Should -Match '\| Device vendor \| Device product \| Records \(30d\) \|'
+            $md | Should -Match '\| Palo Alto Networks \| PAN-OS \| 13,858,711,766 \|'
+            $md | Should -Match '\| Fortinet \| Fortigate \| 92,143 \|'
+        }
+
+        It 'writes GB to two decimals with separators, and a trace as <0.01' {
+            $md = & $script:page '13-data-source-hygiene'
+            $md | Should -Match '\| SecurityEvent \| 4624 \| An account was successfully logged on \| 3,980,413,051 \| 1,963\.36 \|'
+            $md | Should -Match '\| Event \| 1000 \| Application Error \| 48,810 \| <0\.01 \|'
+        }
+
+        It 'leaves identifiers alone: an Event ID is never 4,624' {
+            $md = & $script:page '13-data-source-hygiene'
+            $md | Should -Not -Match '4,624'
+            $md | Should -Not -Match '\| 1,000 \|'
+        }
+
+        It 'writes the usage figures and the capacity level with separators' {
+            $md = & $script:page '80-workspace'
+            $md | Should -Match '\| Capacity reservation level \| 2,000 GB a day \|'
+            $md | Should -Match '\| Last 30 days \(sum\) \| 82\.40 \| 71\.80 \|'
+        }
+    }
+
+    Context 'raw API values read as words' {
+        It 'names the SKU as the dashboard does, with the raw value beside it in the identity tables' {
+            (& $script:page '00-overview') | Should -Match '\| SKU \| Commitment tier \(`CapacityReservation`\) \|'
+            (& $script:page '80-workspace') | Should -Match '\| SKU name \| Commitment tier \(`CapacityReservation`\) \|'
+            (& $script:page '01-live-snapshot') | Should -Match '\| Workspace SKU \| Commitment tier \|'
+            (& $script:page '84-cost-estimate') | Should -Match '\| Workspace SKU \| Commitment tier \(`CapacityReservation`\) \|'
+        }
+
+        It 'names the region, with the programmatic name beside it in the identity tables' {
+            (& $script:page '00-overview') | Should -Match '\| Region \| UK South \(`uksouth`\) \|'
+            (& $script:page '80-workspace') | Should -Match '\| Region \| UK South \(`uksouth`\) \|'
+            (& $script:page '80-workspace') | Should -Match '\| Replication location \| UK West \(`ukwest`\) \|'
+            (& $script:page '80-workspace') | Should -Match '\| Workspace replication \| Enabled \(UK West\) \|'
+            (& $script:page '83-data-collection') | Should -Match '\| dce-ingest-uksouth \| UK South \|'
+        }
+
+        It 'writes incident classifications as words' {
+            $md = & $script:page '15-incidents'
+            $md | Should -Match '"Benign positive" : 2'
+            $md | Should -Match '"False positive" : 6'
+            $md | Should -Match '"True positive" : 4'
+            $md | Should -Not -Match '"(BenignPositive|FalsePositive|TruePositive)" :'
+        }
+
+        It 'writes rule tactics by MITRE''s names, one per tactic, as the ATT&CK page does' {
+            $md = & $script:page '20-analytics-rules'
+            $md | Should -Match '\| Scheduled \| Suspicious sign-in from rare country \| High \| Yes \| Initial Access, Credential Access \|'
+            $md | Should -Not -Match 'InitialAccess, CredentialAccess'
+        }
+    }
+
+    Context 'dates' {
+        It 'writes the banner and the tables in the dashboard''s date style' {
+            (& $script:page '00-overview') | Should -Match '\*\*Generated\*\* 6 May 2026 08:00 UTC'
+            (& $script:page '80-workspace') | Should -Match '\| Created \| 15 Feb 2024 10:00 UTC \|'
+            (& $script:page '80-workspace') | Should -Match '15 Feb 2024 : Workspace created \(Commitment tier, 30-day retention\)'
+            (& $script:page '22-rule-health-quality') | Should -Match '\| Name \| Kind \| Severity \| Last modified \(UTC\) \|'
+        }
+
+        It 'sorts a table of dates by time, not by their text' {
+            $md = & $script:page '20-analytics-rules'
+            $md.IndexOf('| Ten Sep rule | Scheduled | 10 Sep 2026 10:00 |') | Should -BeGreaterThan 0
+            $md.IndexOf('| Ten Sep rule | Scheduled | 10 Sep 2026 10:00 |') | Should -BeLessThan $md.IndexOf('| Nine Sep rule | Scheduled | 9 Sep 2026 10:00 |')
+        }
+
+        It 'writes a retirement date in short month names' {
+            (& $script:page '02-deprecated-legacy-features') | Should -Match 'retired 31 Aug 2024'
+            (& $script:page '02-deprecated-legacy-features') | Should -Match 'retiring 14 Sep 2026'
+        }
+
+        It 'reads an ISO date or timestamp in an engine''s evidence in the same style' {
+            $md = & $script:page '90-gap-analysis'
+            $md | Should -Match 'Playbook failed, last 14 Oct 2026 23:16 UTC; retirement 14 Sep 2026\.'
+            $md | Should -Not -Match '2026-10-14T23:16:38Z'
+        }
+
+        It 'uses no long month name or "Sept" in the pages'' own text' {
+            foreach ($pg in $script:pages | Where-Object { $_.Name -notin '03-whats-new', '99-references' }) {
+                ($pg.Text -split "`n" | Where-Object { $_ -notmatch '^\s*(%%|<!--)' -and $_ -notmatch 'learn\.microsoft\.com' }) -join "`n" |
+                    Should -Not -Match '\b\d{1,2} (January|February|March|April|June|July|August|September|October|November|December|Sept)\b'
+            }
+        }
+    }
+
+    Context 'plurals' {
+        It 'never writes (s) as a plural in the pages the renderer words' {
+            foreach ($pg in $script:pages | Where-Object { $_.Name -notin '00-overview', '90-gap-analysis', '91-maturity-assessment', '99-references' }) {
+                $pg.Text | Should -Not -Match '[a-z]\((s|es|ies)\)'
+            }
+        }
+
+        It 'says one table, three tables' {
+            (& $script:page '81-table-plans-retention') | Should -Match 'Total: \*\*\d+ tables?\*\*\.'
+            (& $script:page '00-overview') | Should -Match 'All 2 findings, each with what was found and how to fix it'
+        }
     }
 }

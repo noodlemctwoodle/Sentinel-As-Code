@@ -61,6 +61,14 @@ export function fmt(value: number): string {
   return rounded.toLocaleString('en-GB');
 }
 
+// A day as the report pages and the dashboard write it, 15 Oct 2026, in
+// UTC with fixed month names (a browser's en-GB short month can be Sept).
+const MONTHS: string[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export function fmtDay(time: number): string {
+  const d: Date = new Date(time);
+  return isNaN(d.getTime()) ? '' : d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+
 // A large figure in compact form for a tight space: 2.36M, 236K, 4.1B.
 // "1 day" or "N days" for a window in days, 30 when it is missing.
 export function windowText(days: unknown): string {

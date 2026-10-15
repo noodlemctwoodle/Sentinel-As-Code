@@ -87,8 +87,19 @@ carries the health-check views the Blueprint computes:
 The glance tiles name the pricing tier in words with the API's SKU under
 it (Pay-as-you-go over `PerGB2018`), or on a commitment tier or dedicated
 cluster its size ("Commitment tier", "2,000 GB a day", from the
-workspace's `sku.capacityReservationLevel`), and show money in its
-currency with thousands separators ("£70,575").
+workspace's `sku.capacityReservationLevel`), the region by the portal's
+name with the programmatic one under it (UK South over `uksouth`), and
+show money in its currency with thousands separators ("£70,575"). The
+monthly cost says which window it is projected from, as it follows the
+window slider while the Report tab's cost page keeps the collected window.
+
+Figures, money and dates are written as the report pages write them (see
+[Writing figures](Blueprint-Renderer-Design.md#writing-figures)): GB to two
+places ("56,941.81 GB"), amounts with the currency's symbol, dates as
+"15 Oct 2026" (with "21:03 UTC" where the time matters), API values in
+words ("Benign positive"). The alert lifecycle's GB a day counts billable
+and free data, with the split under it, since the findings and the
+Progress tab quote the billable figure.
 
 Under the glance tiles, the **alert lifecycle** follows the light or dark theme
 (dark keeps a black "screen" behind the glow):
@@ -330,6 +341,8 @@ page's own order; a small arrow shows which. A column of numbers sorts by
 value, units included (sizes from KB to TB are scaled, so 512 MB sorts
 below 65 GB, and days, percentages and currency read as numbers), and any
 other column in natural order (Rule 2 before Rule 10); empty cells go last.
+A date ("15 Oct 2026 21:03 UTC") sorts by time, an amount by value in any
+currency (£, US$, SEK) and a trace ("<0.01") as its bound.
 A key/value table (a Headline or Summary table with no column titles) has
 no header row to sort by, as on the site's pages.
 Sorting and the row filter work together. No page runs past the bottom
@@ -697,8 +710,10 @@ the collector that writes the series); otherwise they keep the collected
 window. Every label names the window shown.
 
 What does not count activity keeps the window that was collected, and says
-so: configuration and inventory, threat intelligence, the findings, the
-maturity score, and the Report tab's pages, which are the rendered report.
+so: configuration and inventory, threat intelligence (its Insights card
+says the slider does not re-scope it), the findings, the maturity score,
+the Report tab's pages, which are the rendered report, and the Progress
+tab, which compares each run's own collected figures.
 A run collected before the daily series has no slider and shows its
 collected window. With the window at the collected number of days the
 dashboard shows the collected figures unchanged.

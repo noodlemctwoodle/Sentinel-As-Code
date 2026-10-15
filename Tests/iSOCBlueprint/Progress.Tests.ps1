@@ -237,6 +237,12 @@ Describe 'The dashboard''s Progress tab' {
         $script:html.Contains("+','+y(lo).toFixed(1)+' L'+x(0).toFixed(1)+','+y(lo).toFixed(1)+' Z'") | Should -BeTrue
     }
 
+    It 'keeps a tile''s value in line when its label wraps, and dates its window' {
+        $script:html.Contains('.pgtiles .pill .k{line-height:1.35;min-height:2.7em}') | Should -BeTrue
+        $script:html.Contains("' Activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), whatever the window slider shows.'") | Should -BeTrue
+        $script:html.Contains('const short=d=>fmtDate(d,{year:false});') | Should -BeTrue
+    }
+
     It 'says so when a snapshot predates progress tracking' {
         $script:html | Should -Match 'This snapshot was built before progress tracking'
     }

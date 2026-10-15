@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.2.1
-    Last Updated: 2026-10-13
+    Version:      0.3.0
+    Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -487,7 +487,7 @@ Describe 'Get-FindingMaturityLink' {
         $l.Status | Should -Be 'Gap'
         $l.Lift | Should -BeGreaterThan 0
         $l.Shared | Should -BeFalse
-        Format-FindingMaturityShort @($script:links['SAC-LOG-03']) | Should -Be '+0.075 to LOG'
+        Format-FindingMaturityShort @($script:links['SAC-LOG-03']) | Should -Be '+0.08 to LOG'
     }
 
     It 'marks a criterion several findings decide together as shared' {
@@ -500,5 +500,57 @@ Describe 'Get-FindingMaturityLink' {
         $bare = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $null
         @($bare['SAC-LOG-03'])[0].Status | Should -BeNullOrEmpty
         Format-FindingMaturityShort @($bare['SAC-LOG-03']) | Should -Be 'LOG'
+    }
+}
+
+Describe 'Maturity evidence text' {
+    It 'writes {metric} as a count with thousands separators and a fraction to one place' {
+        Format-MaturityEvidence -Template '{metric} rows' -Metric 3343 | Should -Be '3,343 rows'
+        Format-MaturityEvidence -Template '{metric} rows' -Metric '13858711766' | Should -Be '13,858,711,766 rows'
+        Format-MaturityEvidence -Template '{metric} minutes' -Metric 95.5 | Should -Be '95.5 minutes'
+    }
+
+    It 'writes {metric:gb} as GB to two places and {metric:1dp} to one place' {
+        Format-MaturityEvidence -Template '{metric:gb} billable GB' -Metric 176702.7 | Should -Be '176,702.70 billable GB'
+        Format-MaturityEvidence -Template '{metric:1dp} minutes' -Metric 240 | Should -Be '240.0 minutes'
+    }
+
+    It 'picks the singular for a metric of one and the plural for any other count' {
+        Format-MaturityEvidence -Template '{metric} enabled {rule|rules}.' -Metric 1 | Should -Be '1 enabled rule.'
+        Format-MaturityEvidence -Template '{metric} enabled {rule|rules}.' -Metric 2 | Should -Be '2 enabled rules.'
+        Format-MaturityEvidence -Template '{metric} enabled {rule|rules}.' -Metric 0 | Should -Be '0 enabled rules.'
+        Format-MaturityEvidence -Template '{metric} of 14 tactics {has|have} a rule.' -Metric 1 | Should -Be '1 of 14 tactics has a rule.'
+    }
+
+    It 'leaves {lookback} and {recent} for the window step' {
+        Format-MaturityEvidence -Template '{metric} {row|rows} in {lookback}, {recent}.' -Metric 1 | Should -Be '1 row in {lookback}, {recent}.'
+    }
+
+    It 'reads a yes/no metric and a missing metric as words' {
+        Format-MaturityEvidence -Template 'Connector: {metric}.' -Metric $true | Should -Be 'Connector: yes.'
+        Format-MaturityEvidence -Template 'Connector: {metric}.' -Metric $false | Should -Be 'Connector: no.'
+        Format-MaturityEvidence -Template '{metric} {row|rows}.' -Metric $null | Should -Be 'unknown rows.'
+    }
+
+    It 'writes the fixture evidence with separators, two-place GB and the right singular' {
+        $criterionById['SAC-COV-01'].evidence | Should -Match '^\d{1,3}(,\d{3})*\.\d{2} billable GB ingested in 30 days\.$'
+        $criterionById['SAC-COV-02'].evidence | Should -Be '1 Entra ID table ingesting in the last 7 days.'
+        $criterionById['SAC-GOV-02'].evidence | Should -Be '1 Microsoft Sentinel role assignment at workspace scope.'
+        $criterionById['SAC-GOV-01'].evidence | Should -Be '2 Owner or Contributor assignments at workspace scope.'
+        $criterionById['SAC-MON-03'].evidence | Should -Be 'Only 2 of 14 MITRE tactics have an enabled rule.'
+    }
+
+    It 'writes no plural as (s) in any criterion''s evidence' {
+        $doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
+        foreach ($c in $doc.criteria) {
+            foreach ($text in @($c.evidence.met, $c.evidence.gap)) { [string]$text | Should -Not -Match '\((s|es|ies)\)' -Because $c.id }
+        }
+    }
+
+    It 'rejects a criteria document whose evidence writes a plural as (s)' {
+        $doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
+        ($doc.criteria | Where-Object id -eq 'SAC-DET-01').evidence.met = '{metric} enabled rule(s).'
+        $metricNames = @((New-MaturityMetrics -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
+        { Test-MaturityCriteriaDocument -Document $doc -MetricNames $metricNames } | Should -Throw -ExpectedMessage '*SAC-DET-01 evidence writes a plural as (s)*'
     }
 }

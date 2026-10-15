@@ -19,7 +19,7 @@ and the gap-rule resources.
 
 <!-- bp:tone warning -->
 
-> **Azure portal retirement** Microsoft Sentinel in the Azure portal **retires 2027-03-31** in favour of
+> **Azure portal retirement** Microsoft Sentinel in the Azure portal **retires on 31 Mar 2027** in favour of
 > the unified Defender XDR experience. Track the migration timeline at
 > <https://learn.microsoft.com/azure/sentinel/move-to-defender>.
 

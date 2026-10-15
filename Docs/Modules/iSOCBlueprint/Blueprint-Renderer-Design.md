@@ -199,6 +199,10 @@ External helpers used by the renderer:
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-Raw`.
 - `Get-SentinelGap` + `GapChecks.ps1`, also exporter-side; produces
   `_raw/gap-analysis.json`.
+- The `Format-Blueprint*` helpers,
+  [`Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1),
+  shared with the gap checks and the maturity evidence: see
+  [Writing figures](#writing-figures).
 
 ## Cross-section hoisted globals
 
@@ -429,6 +433,28 @@ reads Monthly cost), and a name with a space, or in one word, as it is.
 Cells still come from the named properties. Prose that names a column
 uses its header text.
 
+## Writing figures
+
+The report pages, the findings and the dashboard write a figure one way,
+so a number reads the same wherever it appears. The page text and the
+findings use the helpers in `Private/Format-BlueprintText.ps1`; the
+dashboard's `fmtN`, `fmtGb`, `fmtMoney` and `fmtDate` follow the same rules:
+
+| What | Written | Helper |
+|---|---|---|
+| A count | `13,858,711,766` | `Format-BlueprintCount` |
+| GB | two places with separators, `56,941.81`; `<0.01` for a trace | `Format-BlueprintGb` (the caller adds ` GB`) |
+| Money | the currency's symbol, whole units from 1,000 and two places below: `£137,356`, `£491.76`, `US$4,528`; an unknown currency as its code, `SEK 12.50` | `Format-BlueprintMoney` |
+| A date | `15 Oct 2026`, or `15 Oct 2026 21:03 UTC` with the time; invariant month names (Sep, never Sept) | `Format-BlueprintDate` |
+| A plural | `1 table`, `3 tables`, never `table(s)` | `Format-BlueprintPlural` |
+| An API value | in words: `CredentialAccess` reads Credential access, `BenignPositive` Benign positive | `ConvertTo-BlueprintWords` |
+| A region or workspace SKU | by the portal's name: `uksouth` reads UK South, `CapacityReservation` Commitment tier (identity tables keep the raw name in a code span after it) | `Get-BlueprintRegionName`, `Get-BlueprintSkuName` |
+
+The machine-readable blocks (`%% visual` payloads, Mermaid data lines,
+KQL) keep raw invariant numbers: only text a reader sees is formatted.
+The dashboard's table sort reads every one of these back as a value:
+an amount in any currency, a trace, and a date.
+
 ## Mermaid PNG pre-render (ADO only)
 
 The renderer always ships raw ` ```mermaid ` fences. GitHub renders those
@@ -509,6 +535,8 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1`](../../../Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1) | The summary `New-iSOCBlueprint` prints when a run ends |
 | [`Tests/iSOCBlueprint/Run-Summary.Tests.ps1`](../../../Tests/iSOCBlueprint/Run-Summary.Tests.ps1) | What a run prints as it ends: the three outcomes, their colours and the summaries (29 tests) |
 | [`Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1`](../../../Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1) | The bookmarks capture's fallback to the HuntingBookmark table (9 tests) |
+| [`Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1) | Counts, GB, money, dates, plurals and API names written as the dashboard writes them, for the pages, the findings and the maturity evidence |
+| [`Tests/iSOCBlueprint/Format-BlueprintText.Tests.ps1`](../../../Tests/iSOCBlueprint/Format-BlueprintText.Tests.ps1) | The formatting helpers and their parity with the dashboard's region and SKU names (14 tests) |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1) | Hunts and bookmarks created or changed within the lookback, for SAC-HNT-01 and the maturity metric `bookmarksRecent` |
 | [`Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1`](../../../Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1) | Recent hunting activity: the helper, SAC-HNT-01 and `bookmarksRecent` (14 tests) |
 | `Tests/iSOCBlueprint/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |

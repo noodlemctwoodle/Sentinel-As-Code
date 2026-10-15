@@ -567,11 +567,11 @@ Every rule that had a `SENT-NNN` id, with the id it carries now
 | SENT-011 | SAC-AUT-05 | Playbook managed identity lacks the Microsoft Sentinel Responder role |
 | SENT-012 | SAC-LOG-09 | DCR transform missing on noisy custom tables |
 | SENT-013 | SAC-DET-07 | Content Hub solution updates available |
-| SENT-014 | SAC-PLT-11 | Sentinel still on the Azure portal: Defender XDR migration deadline 2027-03-31 |
+| SENT-014 | SAC-PLT-11 | Sentinel still on the Azure portal: Defender XDR migration deadline 31 Mar 2027 |
 | SENT-015 | SAC-LOG-10 | Workspace on PerGB2018 while sustained ingest exceeds the next commitment-tier break-even |
 | SENT-016 | SAC-LOG-02 | High-volume Analytics-plan table is a Basic/Auxiliary candidate |
 | SENT-017 | SAC-LOG-11 | Long-term data on Analytics interactive retention rather than archive |
-| SENT-018 | SAC-LOG-12 | Total ingest > 500 GB/day but no dedicated cluster |
+| SENT-018 | SAC-LOG-12 | Total ingest over 500 GB a day but no dedicated cluster |
 | SENT-019 | SAC-LOG-13 | Sentinel free benefit not detected on a workspace with eligible Defender plans |
 | SENT-020 | SAC-PLT-05 | Workspace replication disabled in a paired-region production tenant |
 | SENT-021 | SAC-PLT-06 | Public network access enabled for ingestion or query (no AMPLS) |
@@ -600,9 +600,9 @@ Every rule that had a `SENT-NNN` id, with the id it carries now
 | SENT-044 | SAC-LOG-16 | Syslog volume warrants a facility-based DCR filter or _CL split |
 | SENT-045 | SAC-LOG-17 | SecurityEvent or WindowsEvent volume warrants an XPath filter on the AMA DCR |
 | SENT-046 | SAC-LOG-18 | AzureDiagnostics carrying multiple resource providers: switch to resource-specific tables |
-| SENT-047 | SAC-PLT-02 | Custom log table still using the HTTP Data Collector API (CLv1): retirement 2026-09-14 |
-| SENT-048 | SAC-PLT-03 | Legacy Log Analytics agent (MMA / OMS) still heartbeating: retired 2024-08-31 |
-| SENT-049 | SAC-TI-01 | Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table: stopped 2025-07-31 |
+| SENT-047 | SAC-PLT-02 | Custom log table still using the HTTP Data Collector API (CLv1): retired 14 Sep 2026 |
+| SENT-048 | SAC-PLT-03 | Legacy Log Analytics agent (MMA / OMS) still heartbeating: retired 31 Aug 2024 |
+| SENT-049 | SAC-TI-01 | Threat intelligence ingestion still on the legacy ThreatIntelligenceIndicator table: stopped 31 Jul 2025 |
 | SENT-050 | SAC-TI-02 | Enabled analytics rule queries the retired ThreatIntelligenceIndicator table |
 | SENT-051 | SAC-MON-05 | High-volume table with no enabled analytics rule reading it |
 | SENT-052 | SAC-MON-06 | Table that enabled analytics rules depend on has gone silent |
@@ -644,11 +644,12 @@ checks from the Sentinel health-check script contributed to the project:
 | Rule | What it reads | Fires when |
 |---|---|---|
 | SAC-DET-06 Noisy rule | `rule-effectiveness.json` | a Sentinel analytics rule (rows with a rule id; other products' alerts are tuned in their own portal) with 20+ closed incidents and more than 70% false positive |
+| SAC-DET-12 Silent rule | `alert-rules.json`, `rules-fired.json` (`analytics-rule-volumes.json` when it was not captured) | an enabled Scheduled/NRT rule fired no alert in the lookback, matched by rule id as the dashboard's Data flow ring counts the rules that fired, so the two add up to the enabled rules |
 | SAC-DET-03 No entity mappings | `alert-rules.json` | an enabled Scheduled/NRT rule has no `entityMappings` |
 | SAC-MON-01 Alert-only rule | `alert-rules.json` | `incidentConfiguration.createIncident` is explicitly false |
 | SAC-DET-08 Legacy incident creation | `alert-rules.json`, `data-connectors-classic.json` | a `MicrosoftSecurityIncidentCreation` rule is enabled; the evidence says whether XDR already syncs incidents |
 | SAC-TI-02 Rule on the retired TI table | `rule-table-references.json` | an enabled rule reads `ThreatIntelligenceIndicator` |
-| SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule; suggests every undeployed, non-deprecated template per table, leaving out a template only a deprecated Content Hub solution ships (the catalogue's `isDeprecated`; `content-packages.json`, `content-product-packages.json`) |
+| SAC-MON-05 Table nobody detects on | `rule-table-references.json`, `template-table-references.json`, `tables-with-data.json` | a table at 5 GB or more in 30 days is read by no enabled rule (the evidence also gives the GB of every table no detection reads, as the dashboard's Data flow and Progress tabs do, so the two figures reconcile); suggests every undeployed, non-deprecated template per table, leaving out a template only a deprecated Content Hub solution ships (the catalogue's `isDeprecated`; `content-packages.json`, `content-product-packages.json`) |
 | SAC-MON-06 Silent dependency | `rule-table-references.json`, `workspace-tables.json`, `tables-with-data.json` | a table an enabled rule reads ingested nothing in 7 days |
 | SAC-DET-15 Stale watchlist read by rules | `watchlists.json`, `alert-rules.json` | a watchlist maintained in the workspace (not shipped by Content Hub) has not been updated in 90 days and an enabled analytics rule reads it |
 | SAC-AUT-02 Playbook failures | `playbook-runs.json` | any playbook failed a run in 7 days |
@@ -731,7 +732,7 @@ In short:
 6. The commitment-tier "what-if" prices every published tier against the window's
    Analytics ingest and reports the cheapest when it beats the current cost.
 7. The dedicated-cluster candidate flag is set purely on volume, when the average
-   daily ingest exceeds 500 GB/day; it does **not** check whether a dedicated
+   daily ingest exceeds 500 GB a day; it does **not** check whether a dedicated
    cluster is already linked.
 
 The figures are public list prices: they do not include any discount or

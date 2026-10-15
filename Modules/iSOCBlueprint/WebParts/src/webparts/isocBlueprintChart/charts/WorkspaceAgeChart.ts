@@ -1,5 +1,5 @@
 import { type IWorkspaceAgeData } from './ChartTypes';
-import { type IChartTheme, esc, isNil, num, str, tint } from './ChartKit';
+import { type IChartTheme, esc, fmtDay, isNil, num, str, tint } from './ChartKit';
 import { card, chip, count, eyebrow, figure, sub } from './Visual';
 
 // The workspace's own history: when it was created and on what terms, how
@@ -10,7 +10,7 @@ export function renderWorkspaceAge(data: IWorkspaceAgeData, theme: IChartTheme):
   if (!data) { return ''; }
   const created: number = Date.parse(str(data.created));
   const today: number = Date.parse(str(data.today)) || Date.now();
-  const fmtDate: (t: number) => string = (t: number): string => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const fmtDate: (t: number) => string = fmtDay;
   const age: number = num(data.ageDays);
   const ageText: string = isNil(data.ageDays) ? 'Age unknown' : age >= 730 ? (Math.round(age / 365.25 * 10) / 10) + ' years old' : age >= 60 ? Math.round(age / 30.4) + ' months old' : count(age) + ' days old';
   const terms: string = [str(data.sku), isNil(data.retentionDays) ? '' : count(num(data.retentionDays)) + '-day retention'].filter((t: string): boolean => !!t)

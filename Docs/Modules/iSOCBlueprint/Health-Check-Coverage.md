@@ -136,7 +136,7 @@ too.
 | Operations: SentinelHealth operations | `11-sentinel-health.md`, "Operations summary" | |
 | Operations: LAQueryLogs audit | `11-sentinel-health.md`, "Query logging activity" | SAC-PLT-12 (new) |
 | Operations: incident metrics (7d) | `15-incidents.md`, "Incident metrics (last 7d)" (new) | SAC-INC-05, SAC-INC-06, SAC-INC-02 |
-| Operations: alert volumes by provider | `16-alerts.md`, "Alert volumes by provider (last 7d)" (new, every alert name that fired rather than the top 25) | |
+| Operations: alert volumes by provider | `16-alerts.md`, "Alert volumes by provider (last 90d)" (every alert name that fired in the lookback rather than the top 25, with its last 7 days beside it) | |
 | Operations: legacy Microsoft incident creation rules | `20-analytics-rules.md`, "MS Incident Creation rules" | SAC-DET-08 |
 | Operations: threat intelligence table version usage | `20-analytics-rules.md` and `27-threat-intelligence.md` | SAC-TI-02 |
 | Operations: analytics rule complexity | `22-rule-health-quality.md`, "Rule complexity" | |

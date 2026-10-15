@@ -79,7 +79,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.7.9
+    Version:        0.8.0
     Last Updated:   2026-10-15
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
@@ -145,6 +145,7 @@ if (-not (Test-Path $OutputRoot)) {
 }
 
 # Dot-source private helpers.
+. (Join-Path $PSScriptRoot 'Private/Format-BlueprintText.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-EffectiveConnectors.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-TableFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-AttackCoverage.ps1')
@@ -432,38 +433,88 @@ function Write-SectionModel([string]$FileName, [string]$Markdown) {
     Write-Verbose "rendered sections/$id.json"
 }
 
-function Format-DateUtc {
-    # Renders any datetime-ish input (string ISO, [datetime]) as
-    # `yyyy-MM-dd HH:mm` — locale-invariant, seconds dropped to reduce
-    # column width. Empty / null / unparseable inputs return ''.
+function ConvertTo-UtcDateTime {
+    # The UTC [datetime] of a date-ish value, or $null when it is not one:
+    # the sort key to keep beside Format-DateUtc text, which does not sort
+    # as time ("9 Oct" falls after "15 Oct").
+    param($Value)
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [datetime]) { return $Value.ToUniversalTime() }
+    $parsed = [datetime]::MinValue
+    if ([datetime]::TryParse([string]$Value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+        return $parsed.ToUniversalTime()
+    }
+    return $null
+}
+
+function Get-IsoDay {
+    # yyyy-MM-dd (UTC) of a date-ish value: the form a sort or a
+    # machine-readable field wants, never page text. Unparseable inputs
+    # come back as given.
     param($Value)
     if ($null -eq $Value) { return '' }
+    $utc = ConvertTo-UtcDateTime $Value
+    if ($null -eq $utc) { return [string]$Value }
+    return $utc.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Format-DateUtc {
+    # Renders any datetime-ish input (string ISO, [datetime]) as
+    # `15 Oct 2026 21:03`: the dashboard's date style, invariant month
+    # names, seconds dropped to reduce column width. Always UTC, but the
+    # zone is the caller's to name (a "UTC" after it, or a column header
+    # that says so). Empty / null inputs return ''; an unparseable string
+    # comes back as given.
+    param($Value)
+    if ($null -eq $Value) { return '' }
+    $inv = [System.Globalization.CultureInfo]::InvariantCulture
     if ($Value -is [datetime]) {
-        return $Value.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+        return $Value.ToUniversalTime().ToString('d MMM yyyy HH:mm', $inv)
     }
     $s = [string]$Value
     if ([string]::IsNullOrWhiteSpace($s)) { return '' }
     $parsed = [datetime]::MinValue
-    if ([datetime]::TryParse($s, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
-        return $parsed.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+    if ([datetime]::TryParse($s, $inv, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+        return $parsed.ToUniversalTime().ToString('d MMM yyyy HH:mm', $inv)
     }
     return $s
 }
 
+# Dates inside the text the engines wrote (a finding's evidence, a remediation
+# step, a criterion's note) read as they do everywhere else: 2026-10-14T23:16:38Z
+# reads "14 Oct 2026 23:16 UTC", 2026-09-14 reads "14 Sep 2026" and 14 September
+# 2026 reads "14 Sep 2026". Code spans stay as written.
+$script:ShortMonth = @{
+    January = 'Jan'; February = 'Feb'; March = 'Mar'; April = 'Apr'; June = 'Jun'; July = 'Jul'
+    August = 'Aug'; September = 'Sep'; Sept = 'Sep'; October = 'Oct'; November = 'Nov'; December = 'Dec'
+}
+function Format-DatesInText([string]$Text) {
+    if (-not $Text) { return $Text }
+    $parts = [regex]::Split($Text, '(`[^`]*`)')
+    $isoRx = '(?<![\w.:/-])(\d{4})-(\d{2})-(\d{2})(?<time>[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]00:?00)?)?(?![\w:-])'
+    $longRx = '\b(\d{1,2}) (January|February|March|April|June|July|August|September|Sept|October|November|December)\b'
+    for ($i = 0; $i -lt $parts.Count; $i++) {
+        if ($parts[$i].StartsWith('`')) { continue }
+        $parts[$i] = [regex]::Replace($parts[$i], $isoRx, {
+            param($m)
+            $month = [int]$m.Groups[2].Value; $day = [int]$m.Groups[3].Value
+            if ($month -lt 1 -or $month -gt 12 -or $day -lt 1 -or $day -gt 31) { return $m.Value }
+            if ($m.Groups['time'].Success) { return Format-BlueprintDate $m.Value -Time }
+            Format-BlueprintDate $m.Value
+        })
+        $parts[$i] = [regex]::Replace($parts[$i], $longRx, { param($m) "$($m.Groups[1].Value) $($script:ShortMonth[$m.Groups[2].Value])" })
+    }
+    return -join $parts
+}
+
 function Format-Gb {
-    # Renders any numeric-ish input as a GB value to 3 decimal places.
-    # Values below 0.001 GB render as `<0.001` so a meaningful "non-zero
-    # but tiny" signal isn't lost to rounding. Empty / null / non-numeric
-    # inputs return ''.
+    # Renders any numeric-ish input as a GB value the way the dashboard
+    # does: two decimals with thousands separators (56,941.81), `<0.01`
+    # for a tiny non-zero value (Format-BlueprintGb). Empty / null inputs
+    # return ''; a non-numeric string comes back as given.
     param($Value)
-    if ($null -eq $Value) { return '' }
-    $s = [string]$Value
-    if ([string]::IsNullOrWhiteSpace($s)) { return '' }
-    $d = 0.0
-    if (-not [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $s }
-    if ($d -eq 0) { return '0' }
-    if ($d -gt 0 -and $d -lt 0.001) { return '<0.001' }
-    return $d.ToString('0.###', [System.Globalization.CultureInfo]::InvariantCulture)
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) { return '' }
+    return Format-BlueprintGb $Value
 }
 
 function Format-Banner {
@@ -483,7 +534,7 @@ function Format-Banner {
 # its text.
 $script:ColumnLabels = @{
     Gb30d = 'GB ({lookback-d})'; Gb7d = 'GB ({recent-d})'; Gb90d = 'GB ({lookback-d})'; GbRead = 'GB read'; Last24hGB = 'GB (24h)'
-    BillableLast24hGB = 'Billable GB (24h)'; BilledSizeGB = 'Billed GB'; SizeMB = 'Size (MB)'
+    BillableLast24hGB = 'Billable GB (24h)'; BilledSizeGB = 'Billed GB ({lookback-d})'; SizeMB = 'Size (MB, {lookback-d})'
     Data7d = 'Data ({recent-d})'; Failed7d = 'Failed ({lookback-d})'; Records30d = 'Records ({lookback-d})'; Records7d = 'Records ({recent-d})'
     Rows7d = 'Rows ({recent-d})'; Rows12d = 'Rows ({lookback-d})'; Rows14d = 'Rows ({lookback-d})'; Runs7d = 'Runs ({lookback-d})'; Last24h = 'Last 24h'
     FPRate = 'FP rate'; LastFailureUtc = 'Last failure (UTC)'; EventID = 'Event ID'; OSType = 'OS type'; OSVersion = 'OS version'
@@ -494,6 +545,9 @@ $script:ColumnLabels = @{
     DuplicateEventIds = 'Duplicate event IDs'; FirstPartyAlerts = 'First-party alerts'; LakeOnlyDays = 'Lake-only days'
     AnalyticsDays = 'Analytics days'; RetentionDays = 'Retention (days)'; TotalDays = 'Total days'; HasTransform = 'Transform'
     MonthlyCost = 'Monthly cost'; ProjectedMonthlyCost = 'Projected monthly cost'
+    Alerts7d = 'Alerts ({recent-d})'; LogCount = 'Records ({lookback-d})'; RecordCount = 'Records ({lookback-d})'; Events = 'Events ({lookback-d})'
+    LastIngested = 'Last ingested (UTC)'; Created = 'Created (UTC)'; Updated = 'Updated (UTC)'; LastModified = 'Last modified (UTC)'
+    FirstSeen = 'First seen (UTC)'; LastSeen = 'Last seen (UTC)'
 }
 function Format-ColumnLabel([string]$Name) {
     if ($script:ColumnLabels.ContainsKey($Name)) { return $script:ColumnLabels[$Name] }
@@ -503,9 +557,44 @@ function Format-ColumnLabel([string]$Name) {
     return (@($words[0]) + $rest) -join ' '
 }
 
+# A column holding an identifier or a code (Event ID, Port, Version, Year),
+# not a quantity: its numbers are printed as they are, so 4624 is never
+# 4,624 and 1.5 never 1.50. Judged on the header's last word.
+function Test-IdentifierColumn([string]$Name) {
+    $last = @((Format-ColumnLabel $Name) -split '[\s_-]+')[-1]
+    return $last -in 'id', 'ids', 'port', 'ports', 'version', 'year', 'code', 'level', 'pid'
+}
+
+# A volume column (its header says GB): every cell is a GB figure as the
+# dashboard writes it, 56,941.81, whether the value arrived as a number or
+# as the text a KQL result gives.
+function Test-GbColumn([string]$Name) {
+    return (Format-ColumnLabel $Name) -cmatch '\bGB\b'
+}
+
+# A number cell the way every other figure on the page is written: a whole
+# number with thousands separators, a fraction to two decimals. Only a .NET
+# numeric type is formatted (text, already formatted or an identifier, passes
+# through as it is), except in a GB column, which formats numeric text too.
+function Format-TableCell($Value, [bool]$Identifier, [bool]$Gb = $false) {
+    if ($null -eq $Value) { return '' }
+    if ($Value -is [datetime]) { return Format-DateUtc $Value }
+    if ($Gb -and -not $Identifier -and $Value -isnot [bool]) { return Format-BlueprintGb $Value }
+    $isNumber = ($Value -is [decimal]) -or ($Value.GetType().IsPrimitive -and $Value -isnot [bool] -and $Value -isnot [char] -and $Value -isnot [IntPtr] -and $Value -isnot [UIntPtr])
+    if ($isNumber -and -not $Identifier) {
+        $d = [double]$Value
+        if ([double]::IsNaN($d) -or [double]::IsInfinity($d)) { return [string]$Value }
+        if ($d -eq [math]::Truncate($d)) { return Format-BlueprintCount $d }
+        return Format-BlueprintNumber -Value $d -Decimals 2
+    }
+    return [string]$Value
+}
+
 function Format-Table {
     <# Render an array of [pscustomobject] as a Markdown table. Headers come from -Columns,
        read as words through Format-ColumnLabel; cells still come from the named properties.
+       A cell holding a .NET number is written with thousands separators (Format-TableCell),
+       except under an identifier-like column; text cells are written as given.
        -Items is intentionally non-mandatory because callers commonly pipe empty arrays
        through ForEach-Object — a null reaching this function is the empty case, not an
        error. #>
@@ -519,12 +608,14 @@ function Format-Table {
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine('| ' + (@($Columns | ForEach-Object { Format-ColumnLabel $_ }) -join ' | ') + ' |')
     [void]$sb.AppendLine('|' + (($Columns | ForEach-Object { '---' }) -join '|') + '|')
+    $identifierColumn = @{}; $gbColumn = @{}
+    foreach ($col in $Columns) { $identifierColumn[$col] = Test-IdentifierColumn $col; $gbColumn[$col] = Test-GbColumn $col }
     foreach ($item in $Items) {
         $row = foreach ($col in $Columns) {
             $val = $null
             if ($item -is [hashtable] -and $item.ContainsKey($col)) { $val = $item[$col] }
             elseif ($item.PSObject.Properties.Name -contains $col) { $val = $item.$col }
-            $cell = if ($null -eq $val) { '' } else { ([string]$val) -replace '\|','\|' -replace '[\r\n]+',' ' }
+            $cell = if ($null -eq $val) { '' } else { (Format-TableCell $val $identifierColumn[$col] $gbColumn[$col]) -replace '\|','\|' -replace '[\r\n]+',' ' }
             $cell
         }
         [void]$sb.AppendLine('| ' + ($row -join ' | ') + ' |')
@@ -559,6 +650,58 @@ function Format-XyFullLabels { param([string[]]$Labels)
 # draw the graphic made for that kind instead of the Mermaid.
 function Format-VisualLine { param([string]$Kind, $Data)
     return "    %% visual $Kind " + ($Data | ConvertTo-Json -Compress -Depth 8)
+}
+
+# The region and the SKU as the portal and the dashboard name them. WithCode
+# keeps the programmatic name beside it, in a code span, for the identity
+# tables where someone may need to match it to the API or a template.
+function Format-WorkspaceRegion {
+    param($Region, [switch]$WithCode)
+    $r = [string]$Region
+    if (-not $r) { return '' }
+    $name = Get-BlueprintRegionName $r
+    if ($WithCode -and $name -cne $r) { return "$name (``$r``)" }
+    if ($WithCode) { return "``$r``" }
+    return $name
+}
+function Format-WorkspaceSku {
+    param($Sku, [switch]$WithCode)
+    $k = [string]$Sku
+    if (-not $k) { return '' }
+    $name = Get-BlueprintSkuName $k
+    if ($WithCode -and $name -cne $k) { return "$name (``$k``)" }
+    if ($WithCode) { return "``$k``" }
+    return $name
+}
+
+# The lead of the top-findings sentence: how many of how many are shown.
+function Format-TopFindingsLead([int]$Shown, [int]$Total) {
+    $of = Format-BlueprintPlural $Total 'finding'
+    if ($Total -eq 1) { return 'The one finding,' }
+    if ($Shown -ge $Total) { return "All $of, each" }
+    if ($Shown -eq 1) { return "The most severe of $of," }
+    return "The $Shown most severe of $of, each"
+}
+
+# A tactic as the Sentinel API returns it (CredentialAccess) by MITRE's own
+# name (Credential Access, Command and Control), as the ATT&CK page and the
+# dashboard write it: each word capitalised but 'and'.
+function Format-TacticName([string]$Tactic) {
+    $words = ConvertTo-BlueprintWords $Tactic.Trim()
+    if ($words -eq $Tactic.Trim() -and $words -notmatch '\s') { return $words }
+    (@($words -split ' ' | ForEach-Object { if ($_ -ceq 'and') { $_ } else { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) } }) -join ' ')
+}
+function Format-TacticList($Tactics, [string]$Separator = ', ') {
+    return (@($Tactics | Where-Object { $_ } | ForEach-Object { Format-TacticName ([string]$_) }) -join $Separator)
+}
+
+# A unit price (per GB) keeps the fourth decimal that Format-BlueprintMoney
+# rounds away below 1,000: £2.2642.
+function Format-UnitPrice($Amount, [string]$Currency) {
+    $d = ConvertTo-BlueprintDouble $Amount
+    if ($null -eq $d) { return '' }
+    $prefix = (Format-BlueprintMoney 0 $Currency) -replace '0\.00$', ''
+    return $prefix + [math]::Round($d, 4).ToString('#,0.00##', [System.Globalization.CultureInfo]::InvariantCulture)
 }
 
 # Workspace feature-flag boolean → display string. The Sentinel API omits
@@ -600,6 +743,11 @@ $workspaceTables    = Read-RawArray 'workspace-tables.json'
 $watchlists         = Read-RawArray 'watchlists.json'
 $autoRules          = Read-RawArray 'automation-rules.json'
 $gapFindings        = Read-RawArray 'gap-analysis.json'
+foreach ($gf in @($gapFindings)) {
+    foreach ($field in 'Title', 'Evidence', 'Remediation') {
+        if ($gf -and $gf.PSObject.Properties[$field] -and $gf.$field -is [string]) { $gf.$field = Format-DatesInText $gf.$field }
+    }
+}
 # Ids that fired in this run, so the maturity page links only the criterion
 # ids that have a finding (and an anchor) on 90-gap-analysis.md.
 $script:FiredFindingIds = @{}
@@ -671,6 +819,15 @@ $ruleVolumesAll    = Read-RawArray 'analytics-rule-volumes.json'
 $customDetectionsRaw = Read-RawArray 'defender-custom-detections.json'
 $usageDaily        = Read-RawArray 'workspace-usage-daily.json'
 $maturity          = Read-Raw 'maturity.json'
+if ($maturity) {
+    $maturityNotes = @(@(_RProp $maturity 'roadmap' @()) + @(_RProp $maturity 'quickWins' @()))
+    foreach ($mArea in @(_RProp $maturity 'areas' @())) { $maturityNotes += @(_RProp $mArea 'criteria' @()) }
+    foreach ($note in $maturityNotes) {
+        foreach ($field in 'name', 'evidence', 'impact', 'guidance') {
+            if ($note -and $note.PSObject.Properties[$field] -and $note.$field -is [string]) { $note.$field = Format-DatesInText $note.$field }
+        }
+    }
+}
 # A Gap criterion whose id is a finding id means that finding fired, so
 # the maturity page can link it even when gap-analysis.json is partial.
 if ($maturity) {
@@ -826,26 +983,26 @@ function Format-EstateFamilyTable {
     foreach ($p in @($Estate.ProductAlerts)) {
         $fam = [string]$p.Family
         if (-not $alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] = New-Object System.Collections.Generic.List[string] }
-        $alertsByFamily[$fam].Add("$($p.Product) $($p.Alerts)")
+        $alertsByFamily[$fam].Add("$($p.Product) $(Format-BlueprintCount $p.Alerts)")
     }
     $rows = @($Estate.Sources | ForEach-Object {
         $fam = [string]$_.Category
         [pscustomobject]@{
             Family           = $fam
             Tables           = $_.Tables
-            Gb30d            = [math]::Round($_.Gb, 2)
+            Gb30d            = Format-BlueprintGb $_.Gb
             TablesRead       = $_.Covered
-            GbRead           = [math]::Round($_.CoveredGb, 2)
+            GbRead           = Format-BlueprintGb $_.CoveredGb
             FirstPartyAlerts = $(if ($alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] -join '; ' } else { '' })
         }
     })
     foreach ($fam in @($alertsByFamily.Keys | Sort-Object)) {
         if (-not @($rows | Where-Object { $_.Family -eq $fam }).Count) {
-            $rows += [pscustomobject]@{ Family = $fam; Tables = 0; Gb30d = 0; TablesRead = 0; GbRead = 0; FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ') }
+            $rows += [pscustomobject]@{ Family = $fam; Tables = 0; Gb30d = Format-BlueprintGb 0; TablesRead = 0; GbRead = Format-BlueprintGb 0; FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ') }
         }
     }
     $customLine = if ($Estate.CustomDetectionsCaptured) {
-        "**Defender XDR custom detections:** $($Estate.CustomDetectionsEnabled) enabled of $($Estate.CustomDetectionsTotal) defined; the tables they read count as covered above."
+        "**Defender XDR custom detections:** $(Format-BlueprintCount $Estate.CustomDetectionsEnabled) enabled of $(Format-BlueprintCount $Estate.CustomDetectionsTotal) defined; the tables they read count as covered above."
     } else {
         '**Defender XDR custom detections:** not captured in this run (the identity needs the Microsoft Graph permission CustomDetection.Read.All), so coverage counts Sentinel rules only.'
     }
@@ -877,9 +1034,9 @@ function Format-EstateSankey {
     }
     $covered = _Gb $Estate.CoveredGb
     if ($covered) {
-        $det = "Detection ($($Estate.RulesEnabled) enabled rules)"
-        $al  = "Alerts ($($Estate.Alerts) in {lookback-d})"
-        $inc = "Incidents ($($Estate.Incidents) in {lookback-d})"
+        $det = "Detection ($(Format-BlueprintPlural $Estate.RulesEnabled 'enabled rule'))"
+        $al  = "Alerts ($(Format-BlueprintCount $Estate.Alerts) in {lookback-d})"
+        $inc = "Incidents ($(Format-BlueprintCount $Estate.Incidents) in {lookback-d})"
         $rows.Add("`"Ingestion`",`"$det`",$covered")
         $rows.Add("`"$det`",`"$al`",$covered")
         $rows.Add("`"$al`",`"$inc`",$covered")
@@ -887,8 +1044,8 @@ function Format-EstateSankey {
             $closedShare = [double]$Estate.CoveredGb * $Estate.IncidentsClosed / $Estate.Incidents
             $c2 = _Gb $closedShare
             $o2 = _Gb ($Estate.CoveredGb - $closedShare)
-            if ($c2) { $rows.Add("`"$inc`",`"Closed ($($Estate.IncidentsClosed))`",$c2") }
-            if ($o2) { $rows.Add("`"$inc`",`"Open ($($Estate.IncidentsOpen))`",$o2") }
+            if ($c2) { $rows.Add("`"$inc`",`"Closed ($(Format-BlueprintCount $Estate.IncidentsClosed))`",$c2") }
+            if ($o2) { $rows.Add("`"$inc`",`"Open ($(Format-BlueprintCount $Estate.IncidentsOpen))`",$o2") }
         }
     }
     if ($rows.Count -eq 0) { return '_Nothing to draw._' }
@@ -903,7 +1060,7 @@ function Format-EstateSankey {
         coveredGb = [math]::Round([double]$Estate.CoveredGb, 2)
         sources   = @($Estate.Sources | Sort-Object { -[double]$_.Gb } | ForEach-Object { [ordered]@{ name = [string]$_.Category; gb = [math]::Round([double]$_.Gb, 2); coveredGb = [math]::Round([double]$_.CoveredGb, 2); tables = [int]$_.Tables; covered = [int]$_.Covered } })
         stages    = @(
-            [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables with data in {lookback} still receiving data in the last {recent}'; detail = "$([math]::Round([double]$Estate.TotalGb, 1)) GB in {lookback}" }
+            [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables with data in {lookback} still receiving data in the last {recent}'; detail = "$(Format-BlueprintGb $Estate.TotalGb) GB in {lookback}" }
             [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$(& $n0 $Estate.RulesEnabled) enabled rules" }
             [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$(& $n0 $Estate.RuleAlerts) Sentinel alerts$(if ([long]$Estate.XdrAlerts -gt 0) { " and $(& $n0 $Estate.XdrAlerts) Defender XDR alerts" }) in {lookback}" }
             [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$(& $n0 $Estate.IncidentsOpen) still open" }
@@ -931,10 +1088,10 @@ function Format-EstateRingsTable {
     # reader does not have to do the division: 80%+ strong, 65%+ fair.
     param($Estate)
     function _Row([string]$Stage, [int]$Value, [int]$Of) {
-        if ($Of -le 0) { return "| $Stage | $Value | $Of | _n/a_ | _n/a_ |" }
+        if ($Of -le 0) { return "| $Stage | $(Format-BlueprintCount $Value) | $(Format-BlueprintCount $Of) | _n/a_ | _n/a_ |" }
         $pct = [int][math]::Round(100.0 * $Value / $Of, 0)
         $badge = if ($pct -ge 80) { 'Strong' } elseif ($pct -ge 65) { 'Fair' } else { 'Weak' }
-        return "| $Stage | $Value | $Of | $pct% | $badge |"
+        return "| $Stage | $(Format-BlueprintCount $Value) | $(Format-BlueprintCount $Of) | $pct% | $badge |"
     }
     @"
 | Stage | In use | Of | Share | Rating |
@@ -976,12 +1133,12 @@ _No billable ingestion in the last {lookback}, so there is no flow to draw._$fam
 }
 
 $maturityHeadline = if ($maturityOk -and $null -ne $maturity.overall.score) {
-    "**Maturity:** $($maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count)`n`nScored from the Sentinel workspace only: people and processes were not assessed. Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
+    "**Maturity:** $(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count)`n`nScored from the Sentinel workspace only: people and processes were not assessed. Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
 } elseif ($maturityOk) {
     "_Maturity not assessed: no criterion could be evaluated in this run._ See [91-maturity-assessment.md](91-maturity-assessment.md)."
 } else { '_Maturity assessment not available for this run._' }
 $maturityCell = if ($maturityOk -and $null -ne $maturity.overall.score) {
-    "$($maturity.overall.score) / $($maturity.targetLevel) ($($maturity.overall.levelName), target $($maturity.targetLevelName))"
+    "$(Format-BlueprintNumber $maturity.overall.score) / $($maturity.targetLevel) ($($maturity.overall.levelName), target $($maturity.targetLevelName))"
 } else { '_not assessed_' }
 
 $usageTrendBlock = if ($usageDaily.Count -ge 2) {
@@ -1066,17 +1223,17 @@ pie showData title Open findings by severity
     "Info"     : $($gapBySeverity.Info)
 ``````
 
-$($gapFindings.Count) open findings against the best-practice catalogue. Drill into [90-gap-analysis.md](90-gap-analysis.md) for the per-category breakdown.
+$(Format-BlueprintPlural $gapFindings.Count 'open finding') against the best-practice catalogue. Drill into [90-gap-analysis.md](90-gap-analysis.md) for the per-category breakdown.
 
 ## Headline
 
 | | |
 |---|---|
 | Workspace ID | ``$($workspace.properties.customerId)`` |
-| Region | ``$($workspace.location)`` |
-| SKU | ``$($workspace.properties.sku.name)`` |
-| Default retention | $($workspace.properties.retentionInDays) days |
-| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+| Region | $(Format-WorkspaceRegion $workspace.location -WithCode) |
+| SKU | $(Format-WorkspaceSku $workspace.properties.sku.name -WithCode) |
+| Default retention | $(Format-BlueprintPlural $workspace.properties.retentionInDays 'day') |
+| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$(Format-BlueprintGb $workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
 | Replication | $(if ($workspace.properties.replication.enabled) { 'Enabled' } else { 'Disabled' }) |
 | Public network access (ingestion) | ``$($workspace.properties.publicNetworkAccessForIngestion)`` |
 | Public network access (query) | ``$($workspace.properties.publicNetworkAccessForQuery)`` |
@@ -1085,15 +1242,15 @@ $($gapFindings.Count) open findings against the best-practice catalogue. Drill i
 
 | Artefact | Count |
 |---|---:|
-| Data connectors | $($connectors.Count) |
-| Analytics rules | $($rules.Count) (enabled: $($enabledRules.Count)) |
-| Automation rules | $($autoRules.Count) |
-| Watchlists | $($watchlists.Count) |
-| Workbooks | $($workbooksSaved.Count) |
-| Data Collection Rules | $($dcrs.Count) |
-| Tables operational (populated + custom logs) | $($operationalTables.Count) |
-| Tables receiving data ({lookback-d}) | $($populatedTables.Count) |
-| Catalogue-only Microsoft schemas (never ingested) | $catalogueOnlyCount |
+| Data connectors | $(Format-BlueprintCount $connectors.Count) |
+| Analytics rules | $(Format-BlueprintCount $rules.Count) (enabled: $(Format-BlueprintCount $enabledRules.Count)) |
+| Automation rules | $(Format-BlueprintCount $autoRules.Count) |
+| Watchlists | $(Format-BlueprintCount $watchlists.Count) |
+| Workbooks | $(Format-BlueprintCount $workbooksSaved.Count) |
+| Data Collection Rules | $(Format-BlueprintCount $dcrs.Count) |
+| Tables operational (populated + custom logs) | $(Format-BlueprintCount $operationalTables.Count) |
+| Tables receiving data ({lookback-d}) | $(Format-BlueprintCount $populatedTables.Count) |
+| Catalogue-only Microsoft schemas (never ingested) | $(Format-BlueprintCount $catalogueOnlyCount) |
 $estateBlock
 
 ## Maturity
@@ -1103,12 +1260,12 @@ $maturityHeadline
 ## Estimated monthly cost
 
 $(if ($cost) {
-"**$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, computed from the last {lookback} of `Usage` against the Azure Retail Prices API on $(Format-DateUtc $cost.AsOfUtc). See [84-cost-estimate.md](84-cost-estimate.md) for breakdown and methodology."
+"**$(Format-BlueprintMoney $cost.MonthlyTotal $cost.Currency)** for the workspace, computed from the last {lookback} of `Usage` against the Azure Retail Prices API on $(Format-BlueprintDate $cost.AsOfUtc -Time). See [84-cost-estimate.md](84-cost-estimate.md) for breakdown and methodology."
 } else { '_Cost estimate not available._' })
 
 ## Top findings
 
-$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s), each with what was found and how to fix it; [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n$topFindingsVisual`n`n<!-- bp:shown-in-graphic -->`n`n" })$(if ($top5Findings.Count -gt 0) {
+$(if ($top5Findings.Count -gt 0) { "$(Format-TopFindingsLead $top5Findings.Count $gapFindings.Count) with what was found and how to fix it; [90-gap-analysis.md](90-gap-analysis.md) lists every one.`n`n$topFindingsVisual`n`n<!-- bp:shown-in-graphic -->`n`n" })$(if ($top5Findings.Count -gt 0) {
 ($top5Findings | ForEach-Object {
     "- **$($_.Severity)** [$($_.Id)] $($_.Title) - $($_.Evidence) [Learn]($($_.Learn))"
 }) -join [Environment]::NewLine
@@ -1399,7 +1556,7 @@ $onboardingRow = @(Read-RawArray 'onboarding-state.json' | Where-Object { $_ }) 
 # XDR alerts in SecurityAlert, and alerts still labelled with the retired
 # Azure Security Center product name.
 $unifiedIncidents = if ($incSummary -and $incSummary.PSObject.Properties['Unified7d']) {
-    "$([int](_RendererNumber $incSummary.Unified7d)) of $([int](_RendererNumber (_RProp $incSummary 'Count7d' 0)))"
+    "$(Format-BlueprintCount (_RendererNumber $incSummary.Unified7d)) of $(Format-BlueprintCount (_RendererNumber (_RProp $incSummary 'Count7d' 0)))"
 } else { 'Not captured' }
 $alertVolumes10 = @(Read-RawArray 'analytics-rule-volumes.json' | Where-Object { $_ })
 $xdrAlerts30d = [long](@($alertVolumes10 | Where-Object { [string]$_.ProductName -match 'Microsoft 365 Defender|Microsoft Defender XDR' } | ForEach-Object { _RendererNumber $_.Alerts }) | Measure-Object -Sum).Sum
@@ -1429,7 +1586,7 @@ pie showData title Connectors by kind
 $($kindPieRows -join [Environment]::NewLine)
 ``````
 
-$($connectors.Count) connector(s) deployed across $($kindCounts.Count) distinct kinds.
+$(Format-BlueprintPlural $connectors.Count 'connector') deployed across $(Format-BlueprintPlural $kindCounts.Count 'distinct kind').
 
 ## Classic connectors
 
@@ -1457,7 +1614,7 @@ $(Format-Table -Items $effectiveRows -Columns 'Source','Identifier','Table','Cat
 
 ## Connected connectors against the catalogue
 
-Each data connector in the workspace matched to the connector catalogue: the Content Hub data connectors and the tables each one writes, taken from the Azure-Sentinel repository (catalogue of $(if ($connectorCatalogue) { $connectorCatalogue.Version } else { 'n/a' })). **Silent** means none of the tables the catalogue lists for the connector received data in the last {recent}, free tables included ([SAC-PLT-10]). The catalogue takes a connector's tables from the connector's own mapping where Microsoft publishes one, otherwise from every table its solution's content reads, so a quiet table in the list is not always one the connector writes; a connector with data in any of its tables counts as receiving data.
+Each data connector in the workspace matched to the connector catalogue: the Content Hub data connectors and the tables each one writes, taken from the Azure-Sentinel repository (catalogue of $(if ($connectorCatalogue) { Format-BlueprintDate $connectorCatalogue.Version } else { 'n/a' })). **Silent** means none of the tables the catalogue lists for the connector received data in the last {recent}, free tables included ([SAC-PLT-10]). The catalogue takes a connector's tables from the connector's own mapping where Microsoft publishes one, otherwise from every table its solution's content reads, so a quiet table in the list is not always one the connector writes; a connector with data in any of its tables counts as receiving data.
 
 $catalogueBlock
 
@@ -1487,7 +1644,7 @@ $ruleRows = $rules | ForEach-Object {
         Name     = $_.properties.displayName
         Severity = $_.properties.severity
         Enabled  = if ($_.properties.enabled) { 'Yes' } else { 'No' }
-        Tactics  = ($_.properties.tactics -join ', ')
+        Tactics  = (Format-TacticList $_.properties.tactics)
     }
 }
 
@@ -1510,7 +1667,7 @@ $mouldyRows = $rules | Where-Object {
         Name         = $_.properties.displayName
         Kind         = $_.kind
         Severity     = $_.properties.severity
-        LastModified = ([datetime]$_.properties.lastModifiedUtc).ToString('yyyy-MM-dd')
+        LastModified = Format-DateUtc $_.properties.lastModifiedUtc
     }
 }
 
@@ -1707,7 +1864,7 @@ $correlationState
 
 | Total | Enabled | Disabled | Scheduled-Enabled | Scheduled-Disabled | NRT-Enabled | NRT-Disabled |
 |---:|---:|---:|---:|---:|---:|---:|
-| $($rules.Count) | $($enabledRules.Count) | $($rules.Count - $enabledRules.Count) | $schedEnabled | $schedDisabled | $nrtEnabled | $nrtDisabled |
+| $(Format-BlueprintCount $rules.Count) | $(Format-BlueprintCount $enabledRules.Count) | $(Format-BlueprintCount ($rules.Count - $enabledRules.Count)) | $(Format-BlueprintCount $schedEnabled) | $(Format-BlueprintCount $schedDisabled) | $(Format-BlueprintCount $nrtEnabled) | $(Format-BlueprintCount $nrtDisabled) |
 
 The Microsoft-managed rules, recent modifications, the Content Hub solution breakdown and the Defender XDR custom detections follow below on this page. Alert volume and incident outcomes per rule are in [21-rule-performance.md](21-rule-performance.md); run failures, complexity, stale rules, template drift and the entity-mapping and incident-creation anti-patterns are in [22-rule-health-quality.md](22-rule-health-quality.md); tables no enabled rule reads, with the templates that would cover them, are in [28-detection-opportunities.md](28-detection-opportunities.md).
 
@@ -1824,7 +1981,7 @@ $ruleAttackRows = @($attackCoverage.Rules | Sort-Object @{ Expression = { -not $
         [pscustomobject]@{
             'Rule'           = $_.Name
             'Status'         = $(if ($_.Enabled) { 'Enabled' } else { 'Disabled' })
-            'Tactics'        = $(if ($_.Tactics.Count) { ($_.Tactics | ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { $_ -creplace '([a-z])([A-Z])', '$1 $2' } }) -join ', ' } else { 'None' })
+            'Tactics'        = $(if ($_.Tactics.Count) { ($_.Tactics | ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { Format-TacticName ([string]$_) } }) -join ', ' } else { 'None' })
             'Techniques'     = $(if ($_.Techniques.Count) { $_.Techniques -join ', ' } else { 'None' })
             'Sub-techniques' = $(if ($_.SubTechniques.Count) { $_.SubTechniques -join ', ' } else { 'None' })
         }
@@ -1985,7 +2142,7 @@ foreach ($h in $hunting) {
     foreach ($t in $huntTacticTags) {
         # tactics tag can be a comma-separated list
         foreach ($tac in ($t -split ',')) {
-            $key = $tac.Trim()
+            $key = $(if ($tac.Trim()) { Format-TacticName $tac } else { '' })
             if (-not $key) { continue }
             if (-not $huntByTactic.ContainsKey($key)) { $huntByTactic[$key] = 0 }
             $huntByTactic[$key]++
@@ -2003,7 +2160,7 @@ pie showData title Hunting queries by MITRE tactic
 $($huntPieRows -join [Environment]::NewLine)
 ``````
 
-$($hunting.Count) hunting query(ies). Tactic distribution reveals where the SOC's free-form investigation library is strongest and where the gaps live.
+$(Format-BlueprintPlural $hunting.Count 'hunting query' 'hunting queries'). Tactic distribution reveals where the SOC's free-form investigation library is strongest and where the gaps live.
 "@
 } else { '' }
 
@@ -2020,21 +2177,22 @@ $bookmarkRows = @($bookmarksListed | ForEach-Object {
     $p = _RProp $_ 'properties' $null
     $created = [string](_RProp $p 'created' '')
     [pscustomobject]@{
-        Name    = [string](_RProp $p 'displayName' (_RProp $_ 'name' ''))
-        Created = $(if ($created) { try { Format-DateUtc $created } catch { $created } } else { '' })
-        Labels  = (@(_RProp $p 'labels' @()) -join ', ')
-        Notes   = [string](_RProp $p 'notes' '')
+        Name      = [string](_RProp $p 'displayName' (_RProp $_ 'name' ''))
+        Created   = $(if ($created) { try { Format-DateUtc $created } catch { $created } } else { '' })
+        CreatedAt = $(if ($created) { try { ([datetime]$created).ToUniversalTime() } catch { [datetime]::MinValue } } else { [datetime]::MinValue })
+        Labels    = (@(_RProp $p 'labels' @()) -join ', ')
+        Notes     = [string](_RProp $p 'notes' '')
     }
 })
 $bookmarkBlock = if ($bookmarkRows.Count -gt 0) {
     $bookmarkIntro = if ($bookmarksFromTable) {
-        $refused = if ($bookmarkServiceCount -gt 0) { "The bookmarks API refused its list of **$bookmarkServiceCount bookmarks** as too large" } else { 'The bookmarks API refused its list as too large' }
-        $held = if ($bookmarkServiceCount -gt $bookmarkRows.Count) { " The table holds $($bookmarkRows.Count) of the ${bookmarkServiceCount}: it keeps entries only for its retention period, so a bookmark not changed within that period is not in it." } else { '' }
-        "$refused, so these $($bookmarkRows.Count) come from the HuntingBookmark table, where Microsoft Sentinel logs every bookmark, newest first.$held Their labels are the analyst's own tags."
+        $refused = if ($bookmarkServiceCount -gt 0) { "The bookmarks API refused its list of **$(Format-BlueprintPlural $bookmarkServiceCount 'bookmark')** as too large" } else { 'The bookmarks API refused its list as too large' }
+        $held = if ($bookmarkServiceCount -gt $bookmarkRows.Count) { " The table holds $(Format-BlueprintCount $bookmarkRows.Count) of the $(Format-BlueprintCount $bookmarkServiceCount): it keeps entries only for its retention period, so a bookmark not changed within that period is not in it." } else { '' }
+        "$refused, so these $(Format-BlueprintCount $bookmarkRows.Count) come from the HuntingBookmark table, where Microsoft Sentinel logs every bookmark, newest first.$held Their labels are the analyst's own tags."
     } else {
         "Bookmarks saved from hunting and investigation, newest first. Their labels are the analyst's own tags."
     }
-    "$bookmarkIntro`n`n" + (Format-Table -Items @($bookmarkRows | Sort-Object Created -Descending) -Columns 'Name','Created','Labels','Notes')
+    "$bookmarkIntro`n`n" + (Format-Table -Items @($bookmarkRows | Sort-Object CreatedAt -Descending) -Columns 'Name','Created','Labels','Notes')
 } elseif ($bookmarkServiceCount -gt 0) {
     # bookmarks-from-logs.json present but empty: the table was read and
     # holds none of them; absent: the table could not be read.
@@ -2044,12 +2202,12 @@ $bookmarkBlock = if ($bookmarkRows.Count -gt 0) {
         $hbTable = @($workspaceTables | Where-Object { $_ -and [string](_RProp $_ 'name' '') -eq 'HuntingBookmark' }) | Select-Object -First 1
         $hbDays = if ($hbTable) { [int](_RendererNumber (_RProp (_RProp $hbTable 'properties' $null) 'retentionInDays' 0)) } else { 0 }
         if ($hbDays -gt 0) {
-            "**$bookmarkServiceCount bookmarks** exist, and none has been created, changed or deleted in the last $hbDays days: the HuntingBookmark table, which logs every bookmark change and keeps $hbDays days, holds no entries. The bookmarks API refused its list as too large, so only the count was captured."
+            "**$(Format-BlueprintCount $bookmarkServiceCount) bookmarks** exist, and none has been created, changed or deleted in the last $(Format-BlueprintPlural $hbDays 'day'): the HuntingBookmark table, which logs every bookmark change and keeps $(Format-BlueprintPlural $hbDays 'day'), holds no entries. The bookmarks API refused its list as too large, so only the count was captured."
         } else {
-            "**$bookmarkServiceCount bookmarks** exist. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them, so only the count was captured."
+            "**$(Format-BlueprintCount $bookmarkServiceCount) bookmarks** exist. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them, so only the count was captured."
         }
     } else {
-        "**$bookmarkServiceCount bookmarks** exist. The list was too large for the API to return and the HuntingBookmark table could not be read, so only the count was captured."
+        "**$(Format-BlueprintCount $bookmarkServiceCount) bookmarks** exist. The list was too large for the API to return and the HuntingBookmark table could not be read, so only the count was captured."
     }
 } else { '_None._' }
 $huntRows = @($hunts | ForEach-Object {
@@ -2063,7 +2221,7 @@ $huntRows = @($hunts | ForEach-Object {
         Name       = if ($p.PSObject.Properties['displayName']) { $p.displayName } elseif ($_.PSObject.Properties['name']) { $_.name } else { '' }
         Status     = if ($p.PSObject.Properties['status']) { $p.status } else { '' }
         Hypothesis = if ($p.PSObject.Properties['hypothesisStatus']) { $p.hypothesisStatus } else { '' }
-        Tactics    = if ($p.PSObject.Properties['attackTactics']) { @($p.attackTactics) -join ', ' } else { '' }
+        Tactics    = if ($p.PSObject.Properties['attackTactics']) { Format-TacticList $p.attackTactics } else { '' }
         Owner      = $owner
     }
 })
@@ -2113,7 +2271,7 @@ pie showData title Parsers and functions by category
 $($parserPieRows -join [Environment]::NewLine)
 ``````
 
-$($parserRows.Count) parser(s) / function(s). Each entry is a `let`-style KQL definition reusable across rules and hunting queries.
+$(Format-BlueprintPlural $parserRows.Count 'parser or function' 'parsers and functions'). Each entry is a `let`-style KQL definition reusable across rules and hunting queries.
 "@
 } else { '' }
 
@@ -2163,7 +2321,7 @@ pie showData title Workbook coverage
     "Available templates not deployed" : $wbUnsaved
 ``````
 
-$($workbooksSaved.Count) of $($workbookTemplates.Count) available templates deployed in this workspace. The "templates not deployed" gap is where new visibility opportunities live.
+$(Format-BlueprintCount $workbooksSaved.Count) of $(Format-BlueprintCount $workbookTemplates.Count) available templates deployed in this workspace. The "templates not deployed" gap is where new visibility opportunities live.
 
 ## Saved workbooks
 
@@ -2171,7 +2329,7 @@ $(Format-Table -Items $wbRows -Columns 'Name','Category')
 
 ## Templates available (Content Hub)
 
-Total available: $($workbookTemplates.Count)
+Total available: $(Format-BlueprintCount $workbookTemplates.Count)
 "@)
 
 # Freshness from the shared helper (the gap check SAC-DET-15 reads the
@@ -2272,7 +2430,7 @@ $brokenRefsBlock = if ($brokenWatchlistRefs.Count -gt 0) { @"
 
 ## Broken watchlist references
 
-Analytics rule(s) reference watchlist aliases that don't exist in this workspace. These rule queries will fail at runtime: investigate whether the watchlist was deleted or the alias is mistyped.
+The analytics rules below reference watchlist aliases that don't exist in this workspace. These rule queries will fail at runtime: investigate whether the watchlist was deleted or the alias is mistyped.
 
 $(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','Rules')
 "@ } else { '' }
@@ -2280,9 +2438,9 @@ $(Format-Table -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','
 Write-Section '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")
 $wlChartBlock
-**$($wlRows.Count)** watchlists  ·  **$wlOwn** maintained in the workspace  ·  **$wlStale** stale (not updated in $($script:WatchlistStaleDays) days)  ·  **$wlStaleUsed** stale and read by enabled rules  ·  **$wlHub** shipped by Content Hub solutions
+**$(Format-BlueprintPlural $wlRows.Count 'watchlist')**  ·  **$(Format-BlueprintCount $wlOwn)** maintained in the workspace  ·  **$(Format-BlueprintCount $wlStale)** stale (not updated in $(Format-BlueprintPlural $script:WatchlistStaleDays 'day'))  ·  **$(Format-BlueprintCount $wlStaleUsed)** stale and read by enabled rules  ·  **$(Format-BlueprintCount $wlHub)** shipped by Content Hub solutions
 
-A watchlist is reference data (assets, VIPs, allow-lists, IP ranges) that analytics rules and hunting queries look up with ``_GetWatchlist()``, and someone has to keep it current. **Freshness** is Stale when a watchlist maintained in the workspace has not been updated in $($script:WatchlistStaleDays) days, and **Stale, used by rules** when an enabled analytics rule still reads it: that rule is detecting against data that may be out of date ([SAC-DET-15]). Watchlists a Content Hub solution ships are its reference data, kept current by updating the solution. Item bodies are not captured; the source of truth for their contents is the IaC repository (``Watchlists/*.csv``).
+A watchlist is reference data (assets, VIPs, allow-lists, IP ranges) that analytics rules and hunting queries look up with ``_GetWatchlist()``, and someone has to keep it current. **Freshness** is Stale when a watchlist maintained in the workspace has not been updated in $(Format-BlueprintPlural $script:WatchlistStaleDays 'day'), and **Stale, used by rules** when an enabled analytics rule still reads it: that rule is detecting against data that may be out of date ([SAC-DET-15]). Watchlists a Content Hub solution ships are its reference data, kept current by updating the solution. Item bodies are not captured; the source of truth for their contents is the IaC repository (``Watchlists/*.csv``).
 
 $(Format-Table -Items $wlRows -Columns 'Name','Freshness','Age (days)','Updated','Enabled rules','Maintained by','Search key','Provider')
 
@@ -2353,7 +2511,7 @@ $pbRunsTotal = 0; $pbFailedTotal = 0
 foreach ($r in $pbRunRows) { $pbRunsTotal += $r.Runs7d; $pbFailedTotal += $r.Failed7d }
 $pbFailingCount = @($pbRunRows | Where-Object { $_.Failed7d -gt 0 }).Count
 $pbRunsWarning = if ($pbFailingCount -gt 0) {
-    "> **$pbFailingCount playbook(s) had failed runs in the last {lookback}.** A failing playbook is a response step that is quietly not happening; [SAC-AUT-02] carries the detail.`n"
+    "> **$(Format-BlueprintPlural $pbFailingCount 'playbook') had failed runs in the last {lookback}.** A failing playbook is a response step that is quietly not happening; [SAC-AUT-02] carries the detail.`n"
 } else { '' }
 $pbRunsPie = if ($pbRunsTotal -gt 0) {
 @"
@@ -2390,7 +2548,7 @@ $autoOppRows = @(Read-RawArray 'incident-title-stats.json' | Where-Object { $_ }
     $match = $autoPlaybookMap | Where-Object { $title -match $_.Pattern } | Select-Object -First 1
     [pscustomobject]@{
         Title = $title; Severity = [string](_RProp $_ 'Severity' ''); Total = [int]$total; Closed = [int]$closed
-        AvgMinsToClose = _RProp $_ 'AvgMinsToClose' ''; ClosedWithinHour = [int]$fast; FP = [int]$fp; TP = [int](_RendererNumber (_RProp $_ 'TP' 0))
+        AvgMinsToClose = Format-BlueprintNumber (_RProp $_ 'AvgMinsToClose' ''); ClosedWithinHour = [int]$fast; FP = [int]$fp; TP = [int](_RendererNumber (_RProp $_ 'TP' 0))
         Signal = $signal
         SuggestedAutomation = if ($match) { $match.Action } elseif ($signal -eq 'Mostly false positive') { 'Tune the rule or auto-close with a classification and comment through an automation rule' } else { 'Automation rule to assign, tag and enrich (TI, watchlists), then close on a verified benign pattern' }
         Playbook = if ($match) { $match.Playbook } else { 'Generic-Enrich-And-Close' }
@@ -2408,13 +2566,13 @@ $chainStep = { param([int]$N, [string]$Actor, [string]$Target, [string]$Action, 
 }
 $aut01 = & $chainState 'SAC-AUT-01' 'missing'
 $responseChainVisualLine = Format-VisualLine -Kind 'response-chain' -Data ([ordered]@{ phases = @(
-    [ordered]@{ name = 'Ingest'; figure = "$(@($connectors).Count) data connectors"; steps = @(
+    [ordered]@{ name = 'Ingest'; figure = (Format-BlueprintPlural @($connectors).Count 'data connector'); steps = @(
         (& $chainStep 1 'Data source' 'DCR / Logs Ingestion' 'Event sent' $null),
         (& $chainStep 2 'DCR / Logs Ingestion' 'Workspace table' 'Ingested after transform, about 5 minutes' $null)) }
-    [ordered]@{ name = 'Detect'; figure = "$($enabledRules.Count) enabled analytics rules"; steps = @(
+    [ordered]@{ name = 'Detect'; figure = (Format-BlueprintPlural $enabledRules.Count 'enabled analytics rule'); steps = @(
         (& $chainStep 3 'Analytics rule' 'Workspace table' 'KQL query on a schedule' $null),
         (& $chainStep 4 'Analytics rule' 'Incident' 'Incident created' $null)) }
-    [ordered]@{ name = 'Automate'; figure = "$autoCount automation rules, $pbCount playbooks"; steps = @(
+    [ordered]@{ name = 'Automate'; figure = "$(Format-BlueprintPlural $autoCount 'automation rule'), $(Format-BlueprintPlural $pbCount 'playbook')"; steps = @(
         (& $chainStep 5 'Incident' 'Automation rule' 'Trigger: incident created' $null),
         (& $chainStep 6 'Automation rule' 'Incident' 'Assign owner, tag tactic, set Active' $aut01),
         (& $chainStep 7 'Automation rule' 'Playbook' 'Run playbook' $aut01),
@@ -2428,7 +2586,7 @@ $responseChainVisualLine = Format-VisualLine -Kind 'response-chain' -Data ([orde
 Write-Section '60-automation-rules-playbooks.md' (@"
 $(Format-Banner -Title "Automation Rules and Playbooks")
 
-**$autoCount automation rule(s) · $pbCount playbook(s)** on this workspace.
+**$(Format-BlueprintPlural $autoCount 'automation rule') · $(Format-BlueprintPlural $pbCount 'playbook')** on this workspace.
 
 ## Alert-to-response chain: the target shape
 
@@ -2475,7 +2633,7 @@ $(Format-Table -Items $pbRows -Columns 'Name','State','WorkspaceRoles')
 $pbRunsWarning
 $pbRunsPie
 
-$(if ($pbUnavailable -gt 0) { "_Run history could not be read for $pbUnavailable playbook(s) (LastRunStatus 'Unavailable'); their counts are not zero, they are unknown._`n" })
+$(if ($pbUnavailable -gt 0) { "_Run history could not be read for $(Format-BlueprintPlural $pbUnavailable 'playbook') (LastRunStatus 'Unavailable'); their counts are not zero, they are unknown._`n" })
 $(Format-Table -Items $pbRunRows -Columns 'Playbook','Runs7d','Failed7d','LastRunStatus','LastFailureUtc','Note')
 
 ## Automation opportunities (incident titles, last {lookback-d})
@@ -2587,7 +2745,7 @@ $($sourcePieRows -join [Environment]::NewLine)
 
 <!-- bp:shown-in-graphic -->
 
-**$($cpRows.Count)** Content Hub package(s) installed  ·  **$cpUpdates** with an update available  ·  **$cpRetired** deprecated or no longer listed  ·  **$($sourceCounts.Count)** source kind(s)
+**$(Format-BlueprintCount $cpRows.Count)** Content Hub $(Format-BlueprintPlural $cpRows.Count 'package' -NoCount) installed  ·  **$(Format-BlueprintCount $cpUpdates)** with an update available  ·  **$(Format-BlueprintCount $cpRetired)** deprecated or no longer listed  ·  **$(Format-BlueprintCount $sourceCounts.Count)** source $(Format-BlueprintPlural $sourceCounts.Count 'kind' -NoCount)
 
 ## Solutions installed
 
@@ -2624,9 +2782,9 @@ if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollect
     $wsDefaultDcr = $workspace.properties.defaultDataCollectionRuleResourceId
 }
 # Timeline-line dates. wsCreatedShort = yyyy-MM-dd for the workspace
-# creation event in the timeline diagram. Format-DateUtc returns
-# "yyyy-MM-dd HH:mm" — the timeline expects just date so we split on space.
-$wsCreatedShort = if ($wsCreated) { (Format-DateUtc $wsCreated).Split(' ')[0] } else { 'unknown' }
+# creation event in the timeline diagram: the sort key and the visual's
+# machine-readable date; the timeline prints it as "14 Jun 2026".
+$wsCreatedShort = if ($wsCreated) { Get-IsoDay $wsCreated } else { 'unknown' }
 $todayShort = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
 
 # Build the workspace + platform history timeline as a sorted list.
@@ -2642,7 +2800,7 @@ $timelineEvents = @()
 $timelineEvents += [pscustomobject]@{
     Date  = $wsCreatedShort
     Lines = @(
-        "Workspace created ($($workspace.properties.sku.name), $($workspace.properties.retentionInDays)d retention)",
+        "Workspace created ($(Format-WorkspaceSku $workspace.properties.sku.name), $($workspace.properties.retentionInDays)-day retention)",
         "First captured connector inventory"
     )
 }
@@ -2654,8 +2812,8 @@ $timelineEvents += [pscustomobject]@{
 $timelineEvents += [pscustomobject]@{
     Date  = $todayShort
     Lines = @(
-        "This documentation generated ($wsAgeDays-day-old workspace)",
-        "$($enabledRules.Count) rules enabled · $($connectors.Count) connectors · $($operationalTables.Count) tables receiving data ($($workspaceTables.Count) in catalogue)"
+        "This documentation generated ($(Format-BlueprintCount $wsAgeDays)-day-old workspace)",
+        "$(Format-BlueprintPlural $enabledRules.Count 'rule') enabled · $(Format-BlueprintPlural $connectors.Count 'connector') · $(Format-BlueprintPlural $operationalTables.Count 'table') receiving data ($(Format-BlueprintCount $workspaceTables.Count) in catalogue)"
     )
 }
 
@@ -2666,7 +2824,7 @@ $timelineEvents = @($timelineEvents | Sort-Object Date)
 
 $timelineBody = ($timelineEvents | ForEach-Object {
     $lines = @($_.Lines)
-    $first = "    $($_.Date) : $($lines[0])"
+    $first = "    $(Format-BlueprintDate $_.Date) : $($lines[0])"
     if ($lines.Count -gt 1) {
         $rest = @($lines[1..($lines.Count - 1)] | ForEach-Object { "                    : $_" })
         ($first + [Environment]::NewLine + ($rest -join [Environment]::NewLine))
@@ -2679,7 +2837,7 @@ $workspaceAgeVisualLine = Format-VisualLine -Kind 'workspace-age' -Data ([ordere
     created         = $(if ($wsCreatedShort -ne 'unknown') { $wsCreatedShort } else { $null })
     today           = $todayShort
     ageDays         = $(if ($null -ne $wsAgeDays) { [int]$wsAgeDays } else { $null })
-    sku             = [string]$workspace.properties.sku.name
+    sku             = (Get-BlueprintSkuName ([string]$workspace.properties.sku.name))
     retentionDays   = [int]$workspace.properties.retentionInDays
     rulesEnabled    = $enabledRules.Count
     connectors      = @($connectors).Count
@@ -2706,26 +2864,27 @@ When the workspace was created and on what terms, and what it holds today. Platf
 | Property | Value |
 |---|---|
 | Resource ID | ``$($workspace.id)`` |
-| Created | $(Format-DateUtc $wsCreated) |
-| Age | $(if ($null -ne $wsAgeDays) { "$wsAgeDays days$wsAgeWarning" } else { '_(unknown)_' }) |
+| Region | $(Format-WorkspaceRegion $workspace.location -WithCode) |
+| Created | $(Format-BlueprintDate $wsCreated -Time) |
+| Age | $(if ($null -ne $wsAgeDays) { "$(Format-BlueprintPlural $wsAgeDays 'day')$wsAgeWarning" } else { '_(unknown)_' }) |
 | Default DCR | $(if ($wsDefaultDcr) { "``$wsDefaultDcr``" } else { '_(none set on the workspace)_' }) |
 
 ## SKU and pricing
 
 | Property | Value |
 |---|---|
-| SKU name | ``$($workspace.properties.sku.name)`` |
+| SKU name | $(Format-WorkspaceSku $workspace.properties.sku.name -WithCode) |
 | Microsoft Sentinel pricing | $sentinelPricingText |
-| Capacity reservation level | $(if ($workspace.properties.sku.capacityReservationLevel) { "$($workspace.properties.sku.capacityReservationLevel) GB/day" } else { '_(n/a)_' }) |
-| Default retention | $($workspace.properties.retentionInDays) days |
-| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1 -or $null -eq $workspace.properties.workspaceCapping.dailyQuotaGb) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+| Capacity reservation level | $(if ($workspace.properties.sku.capacityReservationLevel) { "$(Format-BlueprintCount $workspace.properties.sku.capacityReservationLevel) GB a day" } else { '_(n/a)_' }) |
+| Default retention | $(Format-BlueprintPlural $workspace.properties.retentionInDays 'day') |
+| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1 -or $null -eq $workspace.properties.workspaceCapping.dailyQuotaGb) { 'Unlimited' } else { "$(Format-BlueprintGb $workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
 
 ### Available service tiers
 
 $( $availableTiers = Read-RawArray 'available-service-tiers.json'
    $tierRows = $availableTiers | ForEach-Object {
        [pscustomobject]@{
-           SkuName            = $_.serviceTier
+           SkuName            = Format-WorkspaceSku $_.serviceTier -WithCode
            CapacityReservation = if ($_.PSObject.Properties.Name -contains 'capacityReservationLevel') { $_.capacityReservationLevel } else { '' }
            Enabled            = $_.enabled
        }
@@ -2739,9 +2898,9 @@ $( $usage = Read-RawArray 'workspace-usage.json' | Select-Object -First 1
 @"
 | Window | Total GB | Billable GB |
 |---|---:|---:|
-| Last {lookback} (sum) | $($usage.TotalGB) | $($usage.BillableTotalGB) |
-| Last {lookback} (peak day) | $($usage.PeakDailyGB) | $($usage.BillablePeakDailyGB) |
-| Last {lookback} (avg/day) | _(n/a)_ | $($usage.BillableAvgDailyGB) |
+| Last {lookback} (sum) | $(Format-BlueprintGb $usage.TotalGB) | $(Format-BlueprintGb $usage.BillableTotalGB) |
+| Last {lookback} (peak day) | $(Format-BlueprintGb $usage.PeakDailyGB) | $(Format-BlueprintGb $usage.BillablePeakDailyGB) |
+| Last {lookback} (average a day) | _(n/a)_ | $(Format-BlueprintGb $usage.BillableAvgDailyGB) |
 "@
    } else { '_No usage telemetry captured._' } )
 $usageTrendBlock
@@ -2753,7 +2912,7 @@ $usageTrendBlock
 | Public ingestion | ``$($workspace.properties.publicNetworkAccessForIngestion)`` |
 | Public query | ``$($workspace.properties.publicNetworkAccessForQuery)`` |
 | Replication enabled | $(if ($null -eq $workspace.properties.replication -or $null -eq $workspace.properties.replication.enabled) { 'False (not configured)' } else { [string]$workspace.properties.replication.enabled }) |
-| Replication location | $(if ($workspace.properties.replication -and $workspace.properties.replication.location) { "``$($workspace.properties.replication.location)``" } else { '_(n/a)_' }) |
+| Replication location | $(if ($workspace.properties.replication -and $workspace.properties.replication.location) { Format-WorkspaceRegion $workspace.properties.replication.location -WithCode } else { '_(n/a)_' }) |
 
 ## Resilience summary
 
@@ -2767,13 +2926,13 @@ $( $wsProps80 = _RProp $workspace 'properties'
    $cmk80 = _RProp (_RProp $onb80 'properties') 'customerManagedKey'
    $locks80 = @(Read-RawArray 'workspace-locks.json' | Where-Object { $_ }).Count
    $resRows = @(
-       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { "Enabled (" + [string](_RProp $repl 'location' '?') + ")" } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SAC-PLT-05]' }
-       [pscustomobject]@{ Control = 'Private Link scoped resources'; State = $(if ($plsr -gt 0) { "$plsr linked" } else { 'None' }); Note = 'AMPLS links on the workspace; [SAC-PLT-06] covers public access' }
+       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { "Enabled (" + (Get-BlueprintRegionName ([string](_RProp $repl 'location' '?'))) + ")" } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SAC-PLT-05]' }
+       [pscustomobject]@{ Control = 'Private Link scoped resources'; State = $(if ($plsr -gt 0) { "$(Format-BlueprintCount $plsr) linked" } else { 'None' }); Note = 'AMPLS links on the workspace; [SAC-PLT-06] covers public access' }
        [pscustomobject]@{ Control = 'Public ingestion / query'; State = "$(_RProp $wsProps80 'publicNetworkAccessForIngestion' 'Enabled') / $(_RProp $wsProps80 'publicNetworkAccessForQuery' 'Enabled')"; Note = 'Disabled on both means every path goes through Private Link' }
        [pscustomobject]@{ Control = 'Customer-managed key'; State = $(if ($null -eq $cmk80) { 'Unknown (onboarding state not captured)' } elseif ($cmk80) { 'Yes' } else { 'No (platform-managed keys)' }); Note = 'From the Sentinel onboarding state; CMK also needs a dedicated cluster' }
        [pscustomobject]@{ Control = 'Managed identity'; State = $identityType; Note = 'Identity on the workspace resource itself' }
-       [pscustomobject]@{ Control = 'Daily cap'; State = $(if ($null -eq $capGb -or [double]$capGb -eq -1) { 'Unlimited' } else { "$capGb GB / day" }); Note = 'A cap protects spend and drops data once hit; [SAC-LOG-03]' }
-       [pscustomobject]@{ Control = 'Resource locks'; State = $(if ($locks80 -gt 0) { "$locks80 lock(s)" } else { 'None' }); Note = 'CanNotDelete on the workspace; [SAC-GOV-03]' }
+       [pscustomobject]@{ Control = 'Daily cap'; State = $(if ($null -eq $capGb -or [double]$capGb -eq -1) { 'Unlimited' } else { "$(Format-BlueprintGb $capGb) GB a day" }); Note = 'A cap protects spend and drops data once hit; [SAC-LOG-03]' }
+       [pscustomobject]@{ Control = 'Resource locks'; State = $(if ($locks80 -gt 0) { Format-BlueprintPlural $locks80 'lock' } else { 'None' }); Note = 'CanNotDelete on the workspace; [SAC-GOV-03]' }
    )
    Format-Table -Items $resRows -Columns 'Control','State','Note' )
 
@@ -2919,7 +3078,7 @@ $silentRows = @($silent | ForEach-Object {
 $silentWithRules = @($silentRows | Where-Object { $_.Rules -gt 0 })
 $silentDetail = if ($silentRows.Count -eq 0) { '' } else { @"
 
-$($silentWithRules.Count) of these are read by enabled analytics rules; those rules still run on schedule and return nothing, so the detection has gone dark without an alert. The rest are cost-only questions: confirm the source was retired on purpose, then stop the collection or delete the table.
+$(Format-BlueprintCount $silentWithRules.Count) of these are read by enabled analytics rules; those rules still run on schedule and return nothing, so the detection has gone dark without an alert. The rest are cost-only questions: confirm the source was retired on purpose, then stop the collection or delete the table.
 
 $(Format-Table -Items $silentRows -Columns 'Name','Plan','Gb90d','LastIngested','DaysSilent','Rules','Impact')
 "@ }
@@ -2945,9 +3104,9 @@ $classicRows = @($classicTables | ForEach-Object {
 $classicActiveCount = @($classicRows | Where-Object { $_.Status -like 'Active*' }).Count
 $classicDormantCount = @($classicRows | Where-Object { $_.Status -in @('Stale', 'No data in {lookback-d}') }).Count
 $classicBlock = if ($classicRows.Count -eq 0) {
-    "_No classic custom tables: every custom table in this workspace is DCR-based ($dcrBasedCustom table(s)), so nothing is exposed to the Data Collector API retirement._"
+    "_No classic custom tables: every custom table in this workspace is DCR-based ($(Format-BlueprintPlural $dcrBasedCustom 'table')), so nothing is exposed to the Data Collector API retirement._"
 } else { @"
-**$($classicRows.Count)** classic table(s): **$classicActiveCount** still ingesting, **$classicDormantCount** stale or empty, beside **$dcrBasedCustom** DCR-based custom table(s). [SAC-PLT-02] fires for the ones still receiving data.
+**$(Format-BlueprintCount $classicRows.Count)** classic $(Format-BlueprintPlural $classicRows.Count 'table' -NoCount): **$(Format-BlueprintCount $classicActiveCount)** still ingesting, **$(Format-BlueprintCount $classicDormantCount)** stale or empty, beside **$(Format-BlueprintCount $dcrBasedCustom)** DCR-based custom $(Format-BlueprintPlural $dcrBasedCustom 'table' -NoCount). [SAC-PLT-02] fires for the ones still receiving data.
 
 $(Format-Table -Items $classicRows -Columns 'Name','Plan','Interactive','Total','Gb90d','LastIngested','Status','Rules','Action')
 "@ }
@@ -2978,9 +3137,9 @@ The workspace catalogue carries every Microsoft-defined table schema regardless 
 
 | | |
 |---|---:|
-| Operational tables shown below | $($tableRows.Count) |
-| Catalogue-only Microsoft schemas (never ingested, hidden) | $($catalogueOnly.Count) |
-| Total tables in workspace | $($workspaceTables.Count) |
+| Operational tables shown below | $(Format-BlueprintCount $tableRows.Count) |
+| Catalogue-only Microsoft schemas (never ingested, hidden) | $(Format-BlueprintCount $catalogueOnly.Count) |
+| Total tables in workspace | $(Format-BlueprintCount $workspaceTables.Count) |
 
 ## Summary by plan
 
@@ -2992,26 +3151,26 @@ $(Format-Table -Items ($tableRows | Sort-Object -Property Gb90d -Descending) -Co
 
 ## Active (received data in last 24h)
 
-Total: **$($active.Count)** table(s).
+Total: **$(Format-BlueprintPlural $active.Count 'table')**.
 
 ## Silent (had data in {lookback-d}, nothing in last 24h)
 
-Total: **$($silent.Count)** table(s), likely connector breakage.
+Total: **$(Format-BlueprintPlural $silent.Count 'table')**, likely connector breakage.
 $silentDetail
 
 ## Orphan custom tables (no data in {lookback-d})
 
-Total: **$($orphans.Count)** custom ``_CL`` table(s): delete candidates or never-onboarded sources. Microsoft pre-defined tables without data are catalogue entries, not orphans, and are excluded from this list.
+Total: **$(Format-BlueprintCount $orphans.Count)** custom ``_CL`` $(Format-BlueprintPlural $orphans.Count 'table' -NoCount): delete candidates or never-onboarded sources. Microsoft pre-defined tables without data are catalogue entries, not orphans, and are excluded from this list.
 
 ## Catalogue-only Microsoft schemas
 
-$($catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last {lookback}. These are part of every workspace's table catalogue and don't represent a deployment problem. ``Connector`` is the data connector that would fill the table, from the connector catalogue (see [10-data-connectors.md](10-data-connectors.md)): the connectors that list it when there are at most three, otherwise how many share it; blank for a table no Content Hub connector writes.
+$(Format-BlueprintCount $catalogueOnly.Count) Microsoft pre-defined table schemas never received data in the last {lookback}. These are part of every workspace's table catalogue and don't represent a deployment problem. ``Connector`` is the data connector that would fill the table, from the connector catalogue (see [10-data-connectors.md](10-data-connectors.md)): the connectors that list it when there are at most three, otherwise how many share it; blank for a table no Content Hub connector writes.
 
 $(Format-Table -Items $catalogueOnlyRows -Columns 'Table','Connector')
 
 ## Classic custom tables (legacy Data Collector API)
 
-Custom tables created through the HTTP Data Collector API or the Microsoft Monitoring Agent custom-log path (``tableSubType = Classic``) rather than a data collection rule. The Data Collector API retires on 14 September 2026; a classic table that still receives data needs a DCR and the Logs Ingestion API before then, and one that rules depend on is a detection outage waiting to happen.
+Custom tables created through the HTTP Data Collector API or the Microsoft Monitoring Agent custom-log path (``tableSubType = Classic``) rather than a data collection rule. The Data Collector API retires on 14 Sep 2026; a classic table that still receives data needs a DCR and the Logs Ingestion API before then, and one that rules depend on is a detection outage waiting to happen.
 
 $classicBlock
 
@@ -3040,13 +3199,13 @@ $(Format-Banner -Title "Dedicated Cluster")
 | Property | Value |
 |---|---|
 | Name | ``$($cluster.name)`` |
-| Capacity reservation | $($cluster.properties.sku.capacity) GB/day |
+| Capacity reservation | $(Format-BlueprintCount $cluster.properties.sku.capacity) GB a day |
 | Billing type | $($cluster.properties.billingType) |
 | Double encryption | $($cluster.properties.isDoubleEncryptionEnabled) |
 | Availability zones | $($cluster.properties.isAvailabilityZonesEnabled) |
 | CMK key vault | ``$($cluster.properties.keyVaultProperties.keyVaultUri)`` |
 | Identity type | $($cluster.identity.type) |
-| Associated workspaces | $(($cluster.properties.associatedWorkspaces | Measure-Object).Count) |
+| Associated workspaces | $(Format-BlueprintCount ($cluster.properties.associatedWorkspaces | Measure-Object).Count) |
 
 [Dedicated clusters (Microsoft Learn)](https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters) · [Customer-managed keys](https://learn.microsoft.com/azure/azure-monitor/logs/customer-managed-keys)
 "@
@@ -3057,7 +3216,7 @@ $(Format-Banner -Title "Dedicated Cluster")
 
 _No dedicated cluster linked to this workspace._
 
-For workspaces sustaining > 500 GB/day, [a dedicated cluster](https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters) unlocks cluster-level commitment pricing, customer-managed keys and availability-zone redundancy.
+For workspaces sustaining more than 500 GB a day, [a dedicated cluster](https://learn.microsoft.com/azure/azure-monitor/logs/logs-dedicated-clusters) unlocks cluster-level commitment pricing, customer-managed keys and availability-zone redundancy.
 "@)
 }
 
@@ -3118,7 +3277,7 @@ $dcrOutOfScopeRows = $dcrsOutOfScope | ForEach-Object {
 }
 
 $dceRows = $dces | ForEach-Object {
-    [pscustomobject]@{ Name = $_.name; Location = $_.location }
+    [pscustomobject]@{ Name = $_.name; Location = Get-BlueprintRegionName ([string]$_.location) }
 }
 # Topology flowchart — sourced from the synthesised $effective view
 # rather than $connectors alone, so DCR-driven and diagnostic-settings-
@@ -3177,14 +3336,14 @@ $srcLines = foreach ($b in $displayBuckets) {
     $srcIdx++
     $shortId = "S$srcIdx"
     $sourceEdges += "    $shortId --> WS"
-    $label = if ($b.Count -gt 1) { "$($b.Name) · $($b.Count)" } else { $b.Name }
+    $label = if ($b.Count -gt 1) { "$($b.Name) · $(Format-BlueprintCount $b.Count)" } else { $b.Name }
     # Wrap label in double quotes — Mermaid flowchart treats `(` as a
     # node-shape directive, so unquoted labels containing parens parse-
     # error with "Expecting SQE/PE/STADIUMEND etc.".
     "    $shortId[`"$label`"]"
 }
 if ($overflowBuckets.Count -gt 0) {
-    $srcLines += "    S99[`"Other sources · $overflowTotal`"]"
+    $srcLines += "    S99[`"Other sources · $(Format-BlueprintCount $overflowTotal)`"]"
     $sourceEdges += "    S99 --> WS"
 }
 
@@ -3228,12 +3387,12 @@ $hasAuxiliary = $plansInUse.ContainsKey('Auxiliary')
 $hasDataLake  = $plansInUse.ContainsKey('DataLake') -or @($sentinelDataLake).Count -gt 0 -or $unifiedBilling
 $hasArchive   = $archiveTables -gt 0
 
-$wspNodes = @('        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $($enabledRules.Count)]", '        INC[Incidents]')
+$wspNodes = @('        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $(Format-BlueprintCount $enabledRules.Count)]", '        INC[Incidents]')
 $wspEdges = @('    WS --> RUL', '    RUL --> INC')
 if ($hasBasic)     { $wspNodes += '        BAS[Basic plan tables]';     $wspEdges += '    WS --> BAS' }
 if ($hasAuxiliary) { $wspNodes += '        AUX[Auxiliary plan tables]'; $wspEdges += '    WS --> AUX' }
 if ($hasDataLake)  { $wspNodes += '        DL[(Sentinel Data Lake)]';   $wspEdges += '    WS --> DL' }
-if ($hasArchive)   { $wspNodes += "        ARC[(Long-term archive · $archiveTables tables)]"; $wspEdges += '    WS --> ARC' }
+if ($hasArchive)   { $wspNodes += "        ARC[(Long-term archive · $(Format-BlueprintPlural $archiveTables 'table'))]"; $wspEdges += '    WS --> ARC' }
 
 # Downstream — render only the destinations the capture supports.
 $dataExports = Read-RawArray 'data-exports.json'
@@ -3247,17 +3406,17 @@ if ($m365DefenderConnected) {
     $dstEdges += '    INC --> XDR'
 }
 if ($hasPlaybooks) {
-    $dstNodes += "        PB[Playbooks · $(@($playbooks).Count)]"
+    $dstNodes += "        PB[Playbooks · $(Format-BlueprintCount @($playbooks).Count)]"
     $dstEdges += '    INC --> PB'
 }
 if ($dataExportCount -gt 0) {
-    $dstNodes += "        EXP[Data export · $dataExportCount destination(s)]"
+    $dstNodes += "        EXP[Data export · $(Format-BlueprintPlural $dataExportCount 'destination')]"
     $dstEdges += '    WS --> EXP'
 }
 # Always-on destination — workbooks consume workspace data regardless
 # of incidents. Surface it so the topology shows the reporting flow.
 if (@($workbooksSaved).Count -gt 0) {
-    $dstNodes += "        WB[Workbooks · $(@($workbooksSaved).Count)]"
+    $dstNodes += "        WB[Workbooks · $(Format-BlueprintCount @($workbooksSaved).Count)]"
     $dstEdges += '    WS --> WB'
 }
 $hasDownstream = $dstNodes.Count -gt 0
@@ -3279,9 +3438,9 @@ $topologyVisualLine = Format-VisualLine -Kind 'topology' -Data ([ordered]@{
     )
     downstream  = @(
         [ordered]@{ name = 'Defender XDR portal'; inUse = [bool]$m365DefenderConnected; detail = 'Connected' }
-        [ordered]@{ name = 'Playbooks'; inUse = $hasPlaybooks; detail = "$(@($playbooks).Count)" }
+        [ordered]@{ name = 'Playbooks'; inUse = $hasPlaybooks; detail = (Format-BlueprintCount @($playbooks).Count) }
         [ordered]@{ name = 'Data export'; inUse = ($dataExportCount -gt 0); detail = "$dataExportCount destination$(if ($dataExportCount -ne 1) { 's' })" }
-        [ordered]@{ name = 'Workbooks'; inUse = (@($workbooksSaved).Count -gt 0); detail = "$(@($workbooksSaved).Count)" }
+        [ordered]@{ name = 'Workbooks'; inUse = (@($workbooksSaved).Count -gt 0); detail = (Format-BlueprintCount @($workbooksSaved).Count) }
     )
 })
 $dstClassLine = ''
@@ -3361,6 +3520,8 @@ _Cost estimate not available. Confirm Export-SentinelInventory.ps1 ran with reta
 $planRows = $cost.ByPlan.PSObject.Properties | ForEach-Object {
     [pscustomobject]@{ Plan = $_.Name; Gb30d = [math]::Round($_.Value.Gb30d, 2); MonthlyCost = $_.Value.MonthlyCost }
 }
+# The same rows for the table: the amounts as the dashboard writes them.
+$planTableRows = @($planRows | ForEach-Object { [pscustomobject]@{ Plan = $_.Plan; Gb30d = $_.Gb30d; MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency) } })
 # How the workspace is priced, its commitment tier, and the data grants
 # that may cover part of it; an estimate from before these were reported
 # has none of them.
@@ -3371,8 +3532,7 @@ $costMethodV2 = $false
 try { $costMethodV2 = [version][string](& $costField 'MethodologyVersion') -ge [version]'2.0.0' } catch { $costMethodV2 = $false }
 $costPricing = [string](& $costField 'PricingModel')
 $costTierText = if ($costTier) {
-    $ic = [System.Globalization.CultureInfo]::InvariantCulture
-    "The workspace is on the **$(([double]$costTier.Level).ToString('N0', $ic)) GB a day commitment tier**: $(([double]$costTier.DailyPrice).ToString('N2', $ic)) $($cost.Currency) a day, an effective $(([double]$costTier.EffectivePerGb).ToString('N4', $ic)) $($cost.Currency) per GB. Analytics ingest averaged $(([double]$costTier.DailyAverageGb).ToString('N1', $ic)) GB a day, $($costTier.Utilisation)% of the tier: the tier is paid in full below it, and use above it is billed at its effective rate."
+    "The workspace is on the **$(Format-BlueprintCount $costTier.Level) GB a day commitment tier**: $(Format-BlueprintMoney $costTier.DailyPrice $cost.Currency) a day, an effective $(Format-UnitPrice $costTier.EffectivePerGb $cost.Currency) per GB. Analytics ingest averaged $(Format-BlueprintGb $costTier.DailyAverageGb) GB a day, $($costTier.Utilisation)% of the tier: the tier is paid in full below it, and use above it is billed at its effective rate."
 } elseif ($costPricing -eq 'Simplified') {
     'The workspace is on pay-as-you-go, priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion as well.'
 } elseif ($costPricing -eq 'Classic') {
@@ -3380,12 +3540,12 @@ $costTierText = if ($costTier) {
 } else { '' }
 $costCurrencySource = [string](& $costField 'CurrencySource')
 $costCurrencyText = switch ($costCurrencySource) {
-    'Region'    { "Prices are in $($cost.Currency), taken from the workspace's region (``$($cost.Region)``); billing currency follows the billing account, so set the collector's ``-Currency`` (the pipelines' currency setting) when that is wrong." }
+    'Region'    { "Prices are in $($cost.Currency), taken from the workspace's region ($(Get-BlueprintRegionName $cost.Region)); billing currency follows the billing account, so set the collector's ``-Currency`` (the pipelines' currency setting) when that is wrong." }
     'Parameter' { "Prices are in $($cost.Currency), as the run's ``-Currency`` setting asked." }
     default     { '' }
 }
 $grantRows = @(@(& $costField 'BenefitEligible') | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ Grant = [string]$_.Benefit; Allowance = [string]$_.Allowance; Gb30d = $_.Gb30d; MonthlyCost = $_.MonthlyCost; Tables = [string]$_.Tables }
+    [pscustomobject]@{ Grant = [string]$_.Benefit; Allowance = [string]$_.Allowance; Gb30d = $_.Gb30d; MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency); Tables = [string]$_.Tables }
 })
 
 # ---------------------------------------------------------------------
@@ -3539,7 +3699,7 @@ $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
 @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
-> **Headline** **$($cost.MonthlyTotal) $($cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for ``$($cost.Region)`` as of ``$(Format-DateUtc $cost.AsOfUtc)``.
+> **Headline** **$(Format-BlueprintMoney $cost.MonthlyTotal $cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for $(Get-BlueprintRegionName $cost.Region) as of $(Format-BlueprintDate $cost.AsOfUtc -Time).
 $(if ($costTierText) { "`n$costTierText`n" })$(if ($costCurrencyText) { "`n$costCurrencyText`n" })
 <!-- bp:tone warning -->
 
@@ -3547,7 +3707,7 @@ $(if ($costTierText) { "`n$costTierText`n" })$(if ($costCurrencyText) { "`n$cost
 
 ## By plan
 
-$(Format-Table -Items $planRows -Columns 'Plan','Gb30d','MonthlyCost')
+$(Format-Table -Items $planTableRows -Columns 'Plan','Gb30d','MonthlyCost')
 
 ## Tables by cost
 
@@ -3571,7 +3731,7 @@ $(Format-XyFullLabels @($cost.Top10TablesByCost | ForEach-Object { $_.Table }))
 
 Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables; the table below lists every table with its full name.
 
-$(Format-Table -Items @($allTables | ForEach-Object { [pscustomobject]@{ Table = $_.Table; Plan = $_.Plan; Gb30d = $_.Gb30d; MonthlyCost = $_.MonthlyCost; Grant = $(if ($_.PSObject.Properties.Name -contains 'Benefit') { [string]$_.Benefit } else { '' }) } }) -Columns 'Table','Plan','Gb30d','MonthlyCost','Grant')
+$(Format-Table -Items @($allTables | ForEach-Object { [pscustomobject]@{ Table = $_.Table; Plan = $_.Plan; Gb30d = $_.Gb30d; MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency); Grant = $(if ($_.PSObject.Properties.Name -contains 'Benefit') { [string]$_.Benefit } else { '' }) } }) -Columns 'Table','Plan','Gb30d','MonthlyCost','Grant')
 
 ## Cost by source and plan
 
@@ -3598,7 +3758,9 @@ Where the billable data comes from, by source family and table, and the rate eac
 ## Commitment-tier what-if
 
 $(if ($cost.CommitmentTierWhatIf.Count -gt 0) {
-    Format-Table -Items $cost.CommitmentTierWhatIf -Columns 'Rung','ProjectedMonthlyCost','DeltaVsCurrent'
+    Format-Table -Items @($cost.CommitmentTierWhatIf | ForEach-Object {
+        [pscustomobject]@{ Rung = "$(Format-BlueprintCount $_.Rung) GB a day"; ProjectedMonthlyCost = (Format-BlueprintMoney $_.ProjectedMonthlyCost $cost.Currency); DeltaVsCurrent = (Format-BlueprintMoney $_.DeltaVsCurrent $cost.Currency) }
+    }) -Columns 'Rung','ProjectedMonthlyCost','DeltaVsCurrent'
 } else { '_No commitment tier would cost less than the current pricing for this ingest, so no change is suggested._' })
 $(if ($grantRows.Count -gt 0) { @"
 
@@ -3614,23 +3776,23 @@ $(Format-Table -Items $grantRows -Columns 'Grant','Allowance','Gb30d','MonthlyCo
 1. Source of truth for ingestion: `Usage` table over the last {lookback}, `IsBillable` honoured, projected to 30 days for the monthly figures.
 2. Plan attribution: each table's current `plan` decides which meter applies (Analytics / Basic / Auxiliary / DataLake).
 $(if ($costMethodV2) { @"
-3. Unit price: the public prices from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at run-time. Analytics-plan tables are priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion (an older price list falls back to the classic Log Analytics and Sentinel pair); Basic tables at the Basic logs rate; tables on the data lake tier only at data lake ingestion plus data processing, and Auxiliary tables the same once the workspace is onboarded to the data lake.
+3. Unit price: the public prices from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for $(Get-BlueprintRegionName $cost.Region) at run-time. Analytics-plan tables are priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion (an older price list falls back to the classic Log Analytics and Sentinel pair); Basic tables at the Basic logs rate; tables on the data lake tier only at data lake ingestion plus data processing, and Auxiliary tables the same once the workspace is onboarded to the data lake.
 4. Commitment tier: a workspace on a tier pays its price a day for its GB, and the Analytics GB above it at the tier's effective rate (the price over the GB), as Microsoft bills it; the cost is shared over the Analytics tables by their GB.
 5. Data grants: the tables in `Private/Resources/sentinel-benefit-tables.json` are priced at list and reported under Data grants, not deducted, since their allowances depend on licence and server counts.
 6. Commitment-tier what-if: every published tier priced against the window's Analytics ingest; the cheapest is shown when it beats the current cost.
-7. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
+7. Dedicated cluster break-even: candidate flag set when daily ingest is above 500 GB and no cluster exists.
 "@ } else { @"
-3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for ``$($cost.Region)`` at collection.
+3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for $(Get-BlueprintRegionName $cost.Region) at collection.
 4. Sentinel free benefit: the tables then listed in `Private/Resources/sentinel-benefit-tables.json` were priced at zero on the assumption the benefit was active.
 5. Commitment-tier projection: illustrative, as actual discounts depend on published rates.
-6. Dedicated cluster break-even: candidate flag set when daily ingest > 500 GB and no cluster exists.
+6. Dedicated cluster break-even: candidate flag set when daily ingest is above 500 GB and no cluster exists.
 
 This estimate was worked out at collection with that earlier method; the next collection prices with the current one.
 "@ })
 
 ## Caveats: explicitly NOT priced
 
-$($cost.Caveats | ForEach-Object { "- $_" }) -join "`n")
+$(($cost.Caveats | ForEach-Object { "- $_" }) -join [Environment]::NewLine)
 
 [Sentinel billing (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/billing) · [Reduce costs](https://learn.microsoft.com/azure/sentinel/billing-reduce-costs) · [Cost logs](https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs)
 "@
@@ -3642,8 +3804,8 @@ $wsSkuName = [string](_RProp (_RProp (_RProp $workspace 'properties' $null) 'sku
 $wsSkuLevel = _RProp (_RProp (_RProp $workspace 'properties' $null) 'sku' $null) 'capacityReservationLevel' $null
 $billingRows = @(
     [pscustomobject]@{ Setting = 'Microsoft Sentinel pricing'; Value = $sentinelPricingText }
-    [pscustomobject]@{ Setting = 'Workspace SKU'; Value = $(if ($wsSkuName) { "``$wsSkuName``" } else { '_(not captured)_' }) }
-    [pscustomobject]@{ Setting = 'Commitment tier'; Value = $(if ($wsSkuLevel) { "$(([double]$wsSkuLevel).ToString('N0', [System.Globalization.CultureInfo]::InvariantCulture)) GB a day" } else { 'None (pay-as-you-go)' }) }
+    [pscustomobject]@{ Setting = 'Workspace SKU'; Value = $(if ($wsSkuName) { Format-WorkspaceSku $wsSkuName -WithCode } else { '_(not captured)_' }) }
+    [pscustomobject]@{ Setting = 'Commitment tier'; Value = $(if ($wsSkuLevel) { "$(Format-BlueprintCount $wsSkuLevel) GB a day" } else { 'None (pay-as-you-go)' }) }
 )
 $costBody += @"
 
@@ -3675,7 +3837,7 @@ function _RbacPrincipal {
     return '_(unknown)_'
 }
 $wsRows = $rbacWs | ForEach-Object {
-    [pscustomobject]@{ Principal = (_RbacPrincipal $_); SignIn = [string](_RProp $_ 'SignInName' ''); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
+    [pscustomobject]@{ Principal = (_RbacPrincipal $_); SignIn = [string](_RProp $_ 'SignInName' ''); Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType)); Role = $_.RoleDefinitionName }
 }
 # Counts per role by principal type, and the three views the access review
 # starts from: Sentinel roles, Log Analytics and monitoring roles, and the
@@ -3693,7 +3855,7 @@ $sentinelRoleRows = @($wsRows | Where-Object { $_.Role -match 'Sentinel' })
 $lawRoleRows = @($wsRows | Where-Object { $_.Role -match 'Log Analytics|Monitoring (Reader|Contributor)' })
 $highPrivRows = @($wsRows | Where-Object { $_.Role -in @('Owner', 'Contributor', 'User Access Administrator') })
 $rgRows = $rbacRg | ForEach-Object {
-    [pscustomobject]@{ Principal = (_RbacPrincipal $_); Type = $_.ObjectType; Role = $_.RoleDefinitionName }
+    [pscustomobject]@{ Principal = (_RbacPrincipal $_); Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType)); Role = $_.RoleDefinitionName }
 }
 
 # Build the RBAC flowchart. Group principals by role to keep the flow readable.
@@ -3732,7 +3894,7 @@ foreach ($role in $rolesSeen) {
         if ($n -eq 0) { continue }
         $prinIdx++
         $prinId = "P$prinIdx"
-        $principalNodes += "        $prinId[$n $t$(if ($n -gt 1) { 's' })]"
+        $principalNodes += "        $prinId[$(Format-BlueprintCount $n) $(Format-BlueprintPlural $n (ConvertTo-BlueprintWords $t).ToLowerInvariant() -NoCount)]"
         if ($role -in @('Owner', 'Contributor')) {
             $sentId = if ($t -eq 'ServicePrincipal') { 'sac-gov-05' } else { 'sac-gov-06' }
             $principalEdges += "    $prinId -.->|broad| $($roleIdMap[$role])"
@@ -3782,11 +3944,11 @@ $rbacUnnamed = @($rbacPrincipals | Where-Object { -not (_RProp $_.Group[0] 'Disp
 Write-Section '85-rbac.md' (@"
 $(Format-Banner -Title "Access Control (RBAC)")
 
-$($rbacWs.Count) workspace-scope assignment(s) across $($rolesSeen.Count) distinct role(s). Broad roles (Owner and Contributor) are marked out below; see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
+$(Format-BlueprintPlural $rbacWs.Count 'workspace-scope assignment') across $(Format-BlueprintPlural $rolesSeen.Count 'distinct role'). Broad roles (Owner and Contributor) are marked out below; see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
 
-**$($rbacValid.Count)** assignments at workspace scope  ·  **$(@($rbacRg | Where-Object { $_ }).Count)** at resource-group scope  ·  **$($rbacPrincipals.Count)** distinct principals  ·  **$(& $rbacOfType 'User')** users  ·  **$(& $rbacOfType 'Group')** groups  ·  **$(& $rbacOfType 'ServicePrincipal')** service principals
+**$(Format-BlueprintCount $rbacValid.Count)** assignments at workspace scope  ·  **$(Format-BlueprintCount @($rbacRg | Where-Object { $_ }).Count)** at resource-group scope  ·  **$(Format-BlueprintCount $rbacPrincipals.Count)** distinct principals  ·  **$(Format-BlueprintCount (& $rbacOfType 'User'))** users  ·  **$(Format-BlueprintCount (& $rbacOfType 'Group'))** groups  ·  **$(Format-BlueprintCount (& $rbacOfType 'ServicePrincipal'))** service principals
 
-**$rbacHigh** high-privilege assignments  ·  **$rbacHighPct%** of assignments high-privilege  ·  **$rbacOwners** Owner assignments  ·  **$rbacSentinel** Microsoft Sentinel role assignments  ·  **$rbacGuests** guest accounts  ·  **$rbacUnnamed** principals with no name (deleted or not readable)
+**$(Format-BlueprintCount $rbacHigh)** high-privilege assignments  ·  **$rbacHighPct%** of assignments high-privilege  ·  **$(Format-BlueprintCount $rbacOwners)** Owner assignments  ·  **$(Format-BlueprintCount $rbacSentinel)** Microsoft Sentinel role assignments  ·  **$(Format-BlueprintCount $rbacGuests)** guest accounts  ·  **$(Format-BlueprintCount $rbacUnnamed)** principals with no name (deleted or not readable)
 
 ## Who-grants-what-to-whom
 
@@ -3949,7 +4111,7 @@ function _FormatFindingMaturity([string]$Id) {
     return ((@($links | ForEach-Object {
         $state = if ($_.Status) { ", now $($_.Status)" } else { '' }
         $gain = if ($null -ne $_.Lift -and $_.Lift -gt 0) {
-            $by = ([double]$_.Lift).ToString('0.###', [System.Globalization.CultureInfo]::InvariantCulture)
+            $by = Format-BlueprintNumber $_.Lift
             if ($_.Shared) { "; closing all of its findings lifts the overall score by +$by" } else { "; closing it lifts the overall score by +$by" }
         } else { '' }
         $how = if ($_.Shared) { 'one of the findings behind' } else { 'decides' }
@@ -4061,7 +4223,7 @@ xychart-beta
     bar "Info"    [$catInfo]
 ``````
 
-**$($gapFindings.Count) findings.** Categories sorted worst-first (Critical → Warning → Info weighting). Each bar is a category; adjacent Warning + Info bars per category make the severity mix visible at a glance.
+**$(Format-BlueprintPlural $gapFindings.Count 'finding').** Categories sorted worst-first (Critical → Warning → Info weighting). Each bar is a category; adjacent Warning + Info bars per category make the severity mix visible at a glance.
 
 ## Findings summary
 
@@ -4163,14 +4325,14 @@ $fwLegacy01 = [long](@(Read-RawArray 'azure-firewall-categories.json' | Where-Ob
 $has01 = { param($f) Test-Path (Join-Path $rawRoot $f) }
 $deprecatedConnectors01 = @($catalogueStatus | Where-Object Deprecated | ForEach-Object Connector | Sort-Object -Unique)
 $legacyRows = @(
-    _LegacyRow 'Deprecated data connectors still connected' $deprecatedConnectors01.Count ([bool]$connectorCatalogue -and (& $has01 'data-connectors-classic.json')) "$($deprecatedConnectors01.Count) connector(s)$(if ($deprecatedConnectors01.Count) { ': ' + ($deprecatedConnectors01 -join '; ') })" '[10-data-connectors.md](10-data-connectors.md)'
-    _LegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 August 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') "$mmaMachines01 machine(s) still heartbeating through it in {lookback}" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
-    _LegacyRow 'Classic custom tables (HTTP Data Collector API), retiring 14 September 2026' $classicTables01.Count (& $has01 'workspace-tables.json') "$($classicTables01.Count) table(s) with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
-    _LegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') "$tiLegacyRows01 record(s) in {lookback}" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
-    _LegacyRow 'Retired ThreatIntelligenceIndicator table (rules reading it)' $tiLegacyRules01 (& $has01 'alert-rules.json') "$tiLegacyRules01 enabled rule(s) query it" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-TI-02]'
-    _LegacyRow 'Microsoft incident-creation rules (pre-unification)' $msIncidentRules01 (& $has01 'alert-rules.json') "$msIncidentRules01 enabled rule(s)" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-DET-08]'
-    _LegacyRow 'Azure Security Center alert path (replaced by Defender for Cloud)' $ascAlerts01 (& $has01 'analytics-rule-volumes.json') "$ascAlerts01 alert(s) in {lookback}" '[10-data-connectors.md](10-data-connectors.md)'
-    _LegacyRow 'Azure Firewall legacy AzureDiagnostics categories' $fwLegacy01 (& $has01 'azure-firewall-categories.json') "$fwLegacy01 row(s) in {lookback}" '[14-coverage-breakdowns.md](14-coverage-breakdowns.md), [SAC-LOG-06]'
+    _LegacyRow 'Deprecated data connectors still connected' $deprecatedConnectors01.Count ([bool]$connectorCatalogue -and (& $has01 'data-connectors-classic.json')) "$(Format-BlueprintPlural $deprecatedConnectors01.Count 'connector')$(if ($deprecatedConnectors01.Count) { ': ' + ($deprecatedConnectors01 -join '; ') })" '[10-data-connectors.md](10-data-connectors.md)'
+    _LegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 Aug 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') "$(Format-BlueprintPlural $mmaMachines01 'machine') still heartbeating through it in {lookback}" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
+    _LegacyRow 'Classic custom tables (HTTP Data Collector API), retiring 14 Sep 2026' $classicTables01.Count (& $has01 'workspace-tables.json') "$(Format-BlueprintPlural $classicTables01.Count 'table') with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
+    _LegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') "$(Format-BlueprintPlural $tiLegacyRows01 'record') in {lookback}" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
+    _LegacyRow 'Retired ThreatIntelligenceIndicator table (rules reading it)' $tiLegacyRules01 (& $has01 'alert-rules.json') "$(Format-BlueprintPlural $tiLegacyRules01 'enabled rule') $(if ($tiLegacyRules01 -eq 1) { 'queries' } else { 'query' }) it" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-TI-02]'
+    _LegacyRow 'Microsoft incident-creation rules (pre-unification)' $msIncidentRules01 (& $has01 'alert-rules.json') (Format-BlueprintPlural $msIncidentRules01 'enabled rule') '[20-analytics-rules.md](20-analytics-rules.md), [SAC-DET-08]'
+    _LegacyRow 'Azure Security Center alert path (replaced by Defender for Cloud)' $ascAlerts01 (& $has01 'analytics-rule-volumes.json') "$(Format-BlueprintPlural $ascAlerts01 'alert') in {lookback}" '[10-data-connectors.md](10-data-connectors.md)'
+    _LegacyRow 'Azure Firewall legacy AzureDiagnostics categories' $fwLegacy01 (& $has01 'azure-firewall-categories.json') "$(Format-BlueprintPlural $fwLegacy01 'row') in {lookback}" '[14-coverage-breakdowns.md](14-coverage-breakdowns.md), [SAC-LOG-06]'
 )
 
 $execBody = @"
@@ -4182,14 +4344,14 @@ $(Format-Banner -Title "Live snapshot")
 
 | Indicator | Value |
 |---|---:|
-| Workspace SKU | ``$($workspace.properties.sku.name)`` |
-| Default retention | $($workspace.properties.retentionInDays) days |
-| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$($workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
-| Estimated monthly cost | $(if ($cost) { "$($cost.MonthlyTotal) $($cost.Currency)" } else { 'n/a' }) |
-| Data connectors | $($connectors.Count) |
-| Analytics rules (enabled / total) | $($enabledRules.Count) / $($rules.Count) |
+| Workspace SKU | $(Format-WorkspaceSku $workspace.properties.sku.name) |
+| Default retention | $(Format-BlueprintPlural $workspace.properties.retentionInDays 'day') |
+| Daily cap | $(if ($workspace.properties.workspaceCapping.dailyQuotaGb -eq -1) { 'Unlimited' } else { "$(Format-BlueprintGb $workspace.properties.workspaceCapping.dailyQuotaGb) GB" }) |
+| Estimated monthly cost | $(if ($cost) { Format-BlueprintMoney $cost.MonthlyTotal $cost.Currency } else { 'n/a' }) |
+| Data connectors | $(Format-BlueprintCount $connectors.Count) |
+| Analytics rules (enabled / total) | $(Format-BlueprintCount $enabledRules.Count) / $(Format-BlueprintCount $rules.Count) |
 | MITRE tactics: Covered / Thin / None | $tacticsCoveredFull / $tacticsThin / $tacticsNone of $tacticsTotal$mitreSuffix |
-| Tables receiving data ({lookback-d}) | $($populatedTables.Count) populated · $($operationalTables.Count) operational · $($workspaceTables.Count) catalogue |
+| Tables receiving data ({lookback-d}) | $(Format-BlueprintCount $populatedTables.Count) populated · $(Format-BlueprintCount $operationalTables.Count) operational · $(Format-BlueprintCount $workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 | Maturity (overall / target) | $maturityCell |
 | Legacy features still in use | $(@($legacyRows | Where-Object Status -eq 'In use').Count) of $(@($legacyRows | Where-Object Status -ne 'Not captured').Count) checked; see [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
@@ -4198,7 +4360,7 @@ The findings by severity and the estate flow, from source families through detec
 
 ## Top recommendations
 
-$(if ($top5Findings.Count -gt 0) { "The $($top5Findings.Count) most severe of $($gapFindings.Count) finding(s), each with what was found and how to fix it, are on [00-overview.md](00-overview.md); [90-gap-analysis.md](90-gap-analysis.md) lists every one." } else { '_No findings: a clean run._' })
+$(if ($top5Findings.Count -gt 0) { "$(Format-TopFindingsLead $top5Findings.Count $gapFindings.Count) with what was found and how to fix it, $(if ($top5Findings.Count -gt 1) { 'are' } else { 'is' }) on [00-overview.md](00-overview.md); [90-gap-analysis.md](90-gap-analysis.md) lists every one." } else { '_No findings: a clean run._' })
 
 ## Where to read more
 
@@ -4226,10 +4388,10 @@ $mmaCaptured = & $has01 'ama-mma-migration.json'
 $tiCaptured = (& $has01 'threat-intel-tables.json') -or (& $has01 'alert-rules.json')
 $tipConnectors = @($connectors | Where-Object { $_ -and [string]$_.kind -eq 'ThreatIntelligence' }).Count
 $runwayVisualLine = Format-VisualLine -Kind 'runway' -Data ([ordered]@{ today = $today; items = @(
-    [ordered]@{ label = 'MMA / OMS agent retired'; date = '2024-08-31'; state = 'done'; inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0)); evidence = "$mmaMachines01 machine$(if ($mmaMachines01 -ne 1) { 's' })" }
-    [ordered]@{ label = 'MMA ingestion degraded'; date = '2025-02-01'; state = 'done'; inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0)); evidence = "$mmaMachines01 machine$(if ($mmaMachines01 -ne 1) { 's' })" }
-    [ordered]@{ label = 'Legacy threat intelligence ingestion stopped'; date = '2025-07-31'; state = 'done'; inUse = (& $runwayUse $tiCaptured ($tiLegacyRows01 -gt 0 -or $tiLegacyRules01 -gt 0)); evidence = "$tiLegacyRows01 records, $tiLegacyRules01 rules" }
-    [ordered]@{ label = 'HTTP Data Collector API retires'; date = '2026-09-14'; state = 'crit'; inUse = (& $runwayUse (& $has01 'workspace-tables.json') ($classicTables01.Count -gt 0)); evidence = "$($classicTables01.Count) classic table$(if ($classicTables01.Count -ne 1) { 's' })" }
+    [ordered]@{ label = 'MMA / OMS agent retired'; date = '2024-08-31'; state = 'done'; inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0)); evidence = (Format-BlueprintPlural $mmaMachines01 'machine') }
+    [ordered]@{ label = 'MMA ingestion degraded'; date = '2025-02-01'; state = 'done'; inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0)); evidence = (Format-BlueprintPlural $mmaMachines01 'machine') }
+    [ordered]@{ label = 'Legacy threat intelligence ingestion stopped'; date = '2025-07-31'; state = 'done'; inUse = (& $runwayUse $tiCaptured ($tiLegacyRows01 -gt 0 -or $tiLegacyRules01 -gt 0)); evidence = "$(Format-BlueprintPlural $tiLegacyRows01 'record'), $(Format-BlueprintPlural $tiLegacyRules01 'rule')" }
+    [ordered]@{ label = 'HTTP Data Collector API retires'; date = '2026-09-14'; state = 'crit'; inUse = (& $runwayUse (& $has01 'workspace-tables.json') ($classicTables01.Count -gt 0)); evidence = (Format-BlueprintPlural $classicTables01.Count 'classic table') }
     [ordered]@{ label = 'Sentinel in the Azure portal retires (move to the Defender portal)'; date = '2027-03-31'; state = 'crit'; inUse = $null; evidence = '' }
     [ordered]@{ label = 'Legacy threat intelligence platform connector deprecates'; date = '2027-06-30'; state = 'active'; inUse = (& $runwayUse (& $has01 'data-connectors-classic.json') ($tipConnectors -gt 0)); evidence = 'connector connected' }
 ) })
@@ -4313,7 +4475,17 @@ $wnFirstSentence = { param([string]$T)
 }
 # A deadline that has gone by says so.
 $wnToday = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
-$wnDeadline = { param([string]$D) if (-not $D) { '' } elseif ([string]::CompareOrdinal($D, $wnToday.Substring(0, $D.Length)) -lt 0) { "$D (passed)" } else { $D } }
+# The deadline reads as a date ("30 Jun 2026", or "Jun 2026" for a month), and
+# a Deadline that has gone by says so. Rows sort on the ISO text in DeadlineKey.
+$wnDeadline = { param([string]$D)
+    if (-not $D) { return '' }
+    $shown = $D
+    $inv = [System.Globalization.CultureInfo]::InvariantCulture
+    $parsed = [datetime]::MinValue
+    if ($D -match '^\d{4}-\d{2}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM-dd', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) { $shown = $parsed.ToString('d MMM yyyy', $inv) }
+    elseif ($D -match '^\d{4}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) { $shown = $parsed.ToString('MMM yyyy', $inv) }
+    if ($D.Length -le $wnToday.Length -and [string]::CompareOrdinal($D, $wnToday.Substring(0, $D.Length)) -lt 0) { "$shown (passed)" } else { $shown }
+}
 $wnMonth = { param([string]$M) try { ([datetime]::ParseExact($M, 'yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)).ToString('MMM yyyy', [System.Globalization.CultureInfo]::InvariantCulture) } catch { $M } }
 $wnRows = @($wnItems | ForEach-Object {
     $rel = Get-WhatsNewRelations -Item $_
@@ -4324,13 +4496,14 @@ $wnRows = @($wnItems | ForEach-Object {
         Item      = "[$(([string]$_.Title) -replace '\|', '/')]($([string]$_.Link))"
         Summary   = ((& $wnFirstSentence ([string]$_.Summary)) -replace '\|', '/')
         Deadline  = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { & $wnDeadline ([string]$_.Deadline) } else { '' })
+        DeadlineKey = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { [string]$_.Deadline } else { '' })
         'Relates to here' = $rel
         Gap       = [bool]($rel -match '\b(gap|unknown)\b')
     }
 })
 $wnStatusOrder = 'Action needed', 'Retiring', 'Generally available', 'Preview', 'Update'
 $wnCount = { param([string]$S, [string]$P) @($wnRows | Where-Object { $_.Status -eq $S -and (-not $P -or $_.Product -eq $P) }).Count }
-$wnActionRows = @($wnRows | Where-Object { $_.Status -in 'Action needed', 'Retiring' } | Sort-Object @{ Expression = { if ($_.Deadline) { $_.Deadline } else { '9999' } } })
+$wnActionRows = @($wnRows | Where-Object { $_.Status -in 'Action needed', 'Retiring' } | Sort-Object @{ Expression = { if ($_.DeadlineKey) { $_.DeadlineKey } else { '9999' } } })
 $wnGapCount = @($wnRows | Where-Object Gap).Count
 $wnTone = @{ 'Action needed' = 'warn'; 'Retiring' = 'bad'; 'Generally available' = 'ok'; 'Preview' = 'info'; 'Update' = 'neutral' }
 $wnVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{
@@ -4343,7 +4516,7 @@ $wnVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{
     )
 })
 $wnSources = @(if ($whatsNew -and $whatsNew.PSObject.Properties['Sources']) { @($whatsNew.Sources) })
-$wnFetched = if ($whatsNew -and $whatsNew.PSObject.Properties['FetchedUtc']) { Format-DateUtc $whatsNew.FetchedUtc } else { '' }
+$wnFetched = if ($whatsNew -and $whatsNew.PSObject.Properties['FetchedUtc']) { Format-BlueprintDate $whatsNew.FetchedUtc -Time } else { '' }
 $wnPages = if ($wnSources.Count) { $wnSources } else {
     @([pscustomobject]@{ Product = 'Microsoft Sentinel'; Url = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new' }
       [pscustomobject]@{ Product = 'Microsoft Defender XDR'; Url = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new' })
@@ -4377,7 +4550,7 @@ $(($wnStatusOrder | ForEach-Object { $n = (& $wnCount $_ ''); if ($n -gt 0) { " 
 
 <!-- bp:shown-in-graphic -->
 
-**$($wnRows.Count)** items  ·  **$(& $wnCount 'Generally available' '')** generally available  ·  **$(& $wnCount 'Preview' '')** in preview  ·  **$($wnActionRows.Count)** retiring or needing action  ·  **$wnGapCount** touching a criterion not met here
+**$(Format-BlueprintCount $wnRows.Count)** items  ·  **$(Format-BlueprintCount (& $wnCount 'Generally available' ''))** generally available  ·  **$(Format-BlueprintCount (& $wnCount 'Preview' ''))** in preview  ·  **$(Format-BlueprintCount $wnActionRows.Count)** retiring or needing action  ·  **$(Format-BlueprintCount $wnGapCount)** touching a criterion not met here
 
 ## Retiring and action needed
 
@@ -4419,19 +4592,19 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
         [pscustomobject]@{
             Id          = $_.id
             Area        = $_.name
-            Score       = if ($null -eq $_.score) { 'n/a' } else { $_.score }
+            Score       = if ($null -eq $_.score) { 'n/a' } else { Format-BlueprintNumber $_.score }
             Level       = if ($null -eq $_.level) { 'Not assessed' } else { "$($_.level) $($_.levelName)" }
             Evaluated   = "$($_.met) met of $($_.evaluated)"
             Unknown     = $_.unknown
             Confidence  = $_.confidence
-            GapToTarget = if ($null -eq $_.score) { 'n/a' } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { [math]::Round($maturity.targetLevel - $_.score, 2) }
+            GapToTarget = if ($null -eq $_.score) { 'n/a' } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { Format-BlueprintNumber ($maturity.targetLevel - $_.score) }
         }
     })
     $roadmapRows = @(@($maturity.roadmap) | ForEach-Object {
-        [pscustomobject]@{ Priority = $_.priority; Criterion = "$($_.criterionId) $($_.name)"; Area = $_.area; Effort = $_.effort; Lift = $_.overallLift; Projected = $_.projectedScore; Guidance = $_.guidance }
+        [pscustomobject]@{ Priority = $_.priority; Criterion = "$($_.criterionId) $($_.name)"; Area = $_.area; Effort = $_.effort; Lift = (Format-BlueprintNumber $_.overallLift); Projected = (Format-BlueprintNumber $_.projectedScore); Guidance = $_.guidance }
     })
     $quickWinLines = if (@($maturity.quickWins).Count -gt 0) {
-        (@($maturity.quickWins) | ForEach-Object { "- **$($_.criterionId)** $($_.name) ($($_.area), lift $($_.overallLift)): $($_.guidance)" }) -join [Environment]::NewLine
+        (@($maturity.quickWins) | ForEach-Object { "- **$($_.criterionId)** $($_.name) ($($_.area), lift $(Format-BlueprintNumber $_.overallLift)): $($_.guidance)" }) -join [Environment]::NewLine
     } else { '_No Low-effort gaps remain; the rest of the roadmap is Medium or High effort._' }
     $csfRows = @(@($maturity.csf.functions) | ForEach-Object {
         [pscustomobject]@{ Function = "$($_.id) $($_.name)"; Criteria = $_.criteria; Met = $_.met; Gap = $_.gap; Unknown = $_.unknown }
@@ -4460,7 +4633,7 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
             [pscustomobject]@{ Id = $_.id; Area = $areaId; Criterion = $_.name; Effort = $_.effort; Impact = $_.impact; Guidance = $_.guidance }
         }
     })
-    $overallText = if ($null -eq $maturity.overall.score) { 'not assessed' } else { "$($maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
+    $overallText = if ($null -eq $maturity.overall.score) { 'not assessed' } else { "$(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
 @"
 $(Format-Banner -Title "Maturity Assessment")
 
@@ -4543,10 +4716,10 @@ $healthRows = $health | ForEach-Object {
         Resource = $_.SentinelResourceName
         Kind     = $_.SentinelResourceKind
         Type     = $_.SentinelResourceType
-        Events   = $_.Events
-        Failures = _RProp $_ 'Failures' ''
+        Events   = Format-BlueprintCount $_.Events
+        Failures = Format-BlueprintCount (_RProp $_ 'Failures' '')
         Statuses = ((_RList (_RProp $_ 'Statuses')) -join ', ')
-        'Last event' = Format-DateUtc $_.LastEvent
+        'Last event (UTC)' = Format-DateUtc $_.LastEvent
     }
 }
 # Data connectors that reported a failure. Failures arrived after the first
@@ -4560,20 +4733,20 @@ $connectorHealthRows = @($health | Where-Object {
         Connector   = $_.SentinelResourceName
         Kind        = $_.SentinelResourceKind
         Failures    = _RProp $_ 'Failures' 'not captured'
-        'Last failure' = Format-DateUtc (_RProp $_ 'LastFailure')
+        'Last failure (UTC)' = Format-DateUtc (_RProp $_ 'LastFailure')
         Statuses    = ((_RList (_RProp $_ 'Statuses')) -join ', ')
     }
-} | Sort-Object @{ Expression = { _RendererNumber $_.Failures }; Descending = $true }, Connector)
+} | Sort-Object @{ Expression = { _RendererNumber $_.Failures }; Descending = $true }, Connector | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
 $healthSummary = Read-RawArray 'sentinel-health-summary.json'
 $healthSummaryRows = $healthSummary | ForEach-Object {
-    [pscustomobject]@{ OperationName = $_.OperationName; Status = $_.Status; LogCount = $_.LogCount }
+    [pscustomobject]@{ OperationName = $_.OperationName; Status = $_.Status; Events = Format-BlueprintCount $_.LogCount }
 }
 $laQueryLogs = Read-RawArray 'la-query-logs.json' | Select-Object -First 1
 $ingestionFailureRows = @(Read-RawArray 'ingestion-latency.json' | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ OperationKey = $_.OperationKey; Resource = $_.Resource; Failures = $_.Failures; Last = Format-DateUtc $_.Last }
-} | Sort-Object { _RendererNumber $_.Failures } -Descending)
+    [pscustomobject]@{ OperationKey = $_.OperationKey; Resource = $_.Resource; Failures = $_.Failures; 'Last failure (UTC)' = Format-DateUtc $_.Last }
+} | Sort-Object { _RendererNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
 $laQueryLine = if ($laQueryLogs -and $laQueryLogs.QueryCount) {
-    "**LAQueryLogs activity ({lookback-d}):** $($laQueryLogs.QueryCount) query records (query logging is active)."
+    "**LAQueryLogs activity ({lookback-d}):** $(Format-BlueprintCount $laQueryLogs.QueryCount) query records (query logging is active)."
 } elseif ($laQueryLogs) {
     '_LAQueryLogs table is present but empty for the last {lookback}; query logging may be off._'
 } else {
@@ -4609,23 +4782,23 @@ $(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
 Health events are pulled from the workspace's ``SentinelHealth`` table for the last {lookback}, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled: [turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 $healthChartBlock
 
-$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Failures','Statuses','Last event')
+$(Format-Table -Items $healthRows -Columns 'Resource','Kind','Type','Events','Failures','Statuses','Last event (UTC)')
 
 ## Connector and DCR health issues (last {lookback-d})
 
 Data connectors whose health events reported a failure in the last {lookback}, most failures first. A failing connector silently stops feeding the tables its rules read; [83-data-collection.md](83-data-collection.md) lists the DCRs behind it.
 
-$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','Last failure','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last {lookback} (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last {lookback}._' }))
+$(Format-Table -Items $connectorHealthRows -Columns 'Connector','Kind','Failures','Last failure (UTC)','Statuses' -EmptyMessage $(if ($health.Count -eq 0) { '_No connector health events in the last {lookback} (connector health diagnostics may be off)._' } else { '_No connector reported a failure in the last {lookback}._' }))
 
 ## Operations summary (per OperationName + Status)
 
-$(Format-Table -Items $healthSummaryRows -Columns 'OperationName','Status','LogCount')
+$(Format-Table -Items $healthSummaryRows -Columns 'OperationName','Status','Events')
 
 ## Ingestion and schema failures (last {lookback-d})
 
 Failed ingestion and schema operations from the ``Operation`` table, grouped by operation detail and category. A row here is a broken pipeline: a DCR transform that rejects records, a custom table whose schema no longer matches what is sent, or a connector writing to a table that cannot accept it. Empty means every ingestion and schema operation in the last {lookback} succeeded.
 
-$(Format-Table -Items $ingestionFailureRows -Columns 'OperationKey','Resource','Failures','Last')
+$(Format-Table -Items $ingestionFailureRows -Columns 'OperationKey','Resource','Failures','Last failure (UTC)')
 
 ## Query logging activity
 
@@ -4681,7 +4854,7 @@ pie showData title SOC Optimization recommendations by category
 $($socPieRows -join [Environment]::NewLine)
 ``````
 
-$socTotal recommendations grouped by what action they drive. Coverage = onboard content; Data Value = tune ingestion; Other = MITRE tagging, UEBA, customers-like-me.
+$(Format-BlueprintCount $socTotal) recommendations grouped by what action they drive. Coverage = onboard content; Data Value = tune ingestion; Other = MITRE tagging, UEBA, customers-like-me.
 "@
 } else { '' }
 
@@ -4719,16 +4892,16 @@ $secEvtDupes = Read-RawArray 'security-event-duplicates.json'
 $topEventIds = Read-RawArray 'top-event-ids.json'
 
 $cefDevRows = $cefDevices | ForEach-Object {
-    [pscustomobject]@{ DeviceVendor = $_.DeviceVendor; DeviceProduct = $_.DeviceProduct; LogCount = $_.LogCount }
+    [pscustomobject]@{ DeviceVendor = $_.DeviceVendor; DeviceProduct = $_.DeviceProduct; LogCount = Format-BlueprintCount $_.LogCount }
 }
 $cefSyslogRows = $cefInSyslog | ForEach-Object {
-    [pscustomobject]@{ Computer = $_.Computer; ProductVendor = _RProp $_ 'ProductVendor' ''; LogCount = $_.LogCount }
+    [pscustomobject]@{ Computer = $_.Computer; ProductVendor = _RProp $_ 'ProductVendor' ''; LogCount = Format-BlueprintCount $_.LogCount }
 }
 $secEvtDupeRows = $secEvtDupes | ForEach-Object {
-    [pscustomobject]@{ Computer = $_.Computer; DuplicateRecords = _RProp $_ 'DuplicateRecords' ''; Copies = $_.LogCount; DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ') }
+    [pscustomobject]@{ Computer = $_.Computer; DuplicateRecords = Format-BlueprintCount (_RProp $_ 'DuplicateRecords' ''); Copies = Format-BlueprintCount $_.LogCount; DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ') }
 }
 $topEventIdRows = $topEventIds | ForEach-Object {
-    [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; LogCount = _RProp $_ 'LogCount' ''; BilledSizeGB = $_.BilledSizeGB }
+    [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; LogCount = Format-BlueprintCount (_RProp $_ 'LogCount' ''); BilledSizeGB = $_.BilledSizeGB }
 }
 
 # Aggregate CEF logs by DeviceVendor for the headline pie.
@@ -4755,10 +4928,10 @@ A single vendor dominating means CEF ingestion is mostly that source, likely a c
 
 # Log composition by host: who writes Syslog (by facility) and SecurityEvent.
 $syslogContribRows = @(Read-RawArray 'syslog-contributors.json' | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ Computer = $_.Computer; Facility = $_.Facility; LogCount = $_.LogCount; SizeMB = $_.SizeMB }
+    [pscustomobject]@{ Computer = $_.Computer; Facility = $_.Facility; LogCount = Format-BlueprintCount $_.LogCount; SizeMB = Format-BlueprintNumber $_.SizeMB }
 })
 $secEventHostRows = @(Read-RawArray 'securityevent-top-hosts.json' | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ Computer = $_.Computer; LogCount = $_.LogCount; SizeMB = $_.SizeMB }
+    [pscustomobject]@{ Computer = $_.Computer; LogCount = Format-BlueprintCount $_.LogCount; SizeMB = Format-BlueprintNumber $_.SizeMB }
 })
 Write-Section '13-data-source-hygiene.md' (@"
 $(Format-Banner -Title "Data Source Hygiene")
@@ -4811,10 +4984,10 @@ $azDiag = Read-RawArray 'azure-diagnostics-providers.json'
 $xdrPres = Read-RawArray 'xdr-table-presence.json'
 
 $azActRows = $azAct | ForEach-Object {
-    [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; LogCount = $_.LogCount }
+    [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; LogCount = Format-BlueprintCount $_.LogCount }
 }
 $azDiagRows = $azDiag | ForEach-Object {
-    [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; LogCount = $_.LogCount }
+    [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; LogCount = Format-BlueprintCount $_.LogCount }
 }
 # Entra ID tables: which of the well-known identity tables exist in the
 # catalogue and which received data in the last 7 days.
@@ -4872,13 +5045,13 @@ A short bar means that XDR surface (email / device / identity / cloud-app) isn't
 # AzureDiagnostics by category, and Azure Firewall in both its forms: the
 # legacy AzureDiagnostics categories and the resource-specific AZFW* tables.
 $azDiagCategoryRows = @(Read-RawArray 'azure-diagnostics-categories.json' | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; Category = $_.Category; LogCount = $_.LogCount }
+    [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; Category = $_.Category; LogCount = Format-BlueprintCount $_.LogCount }
 })
 $fwCategoryRows = @(Read-RawArray 'azure-firewall-categories.json' | Where-Object { $_ } | ForEach-Object {
     [pscustomobject]@{
         Category = $_.Category
         Form     = $(if ([string]$_.Category -like 'AZFW*') { 'Resource-specific category' } else { 'Legacy category' })
-        LogCount = $_.LogCount
+        LogCount = Format-BlueprintCount $_.LogCount
     }
 })
 $fwTableRows = @($tablesWithData | Where-Object { $_ -and [string](_RProp $_ 'DataType' '') -like 'AZFW*' } | ForEach-Object {
@@ -4930,7 +5103,7 @@ $(Format-Table -Items $fwTableRows -Columns 'Table','Gb7d','LastIngested')
 
 Subset of well-known Defender XDR tables that have received data in the last {lookback}. Empty rows would suggest XDR is connected but a particular surface (email, identity, device) is not producing data.
 
-$(Format-Table -Items $xdrRows -Columns 'Table','RecordCount')
+$(Format-Table -Items @($xdrRows | ForEach-Object { [pscustomobject]@{ Table = $_.Table; RecordCount = (Format-BlueprintCount $_.RecordCount) } }) -Columns 'Table','RecordCount')
 
 ## Entra ID table presence (last {recent-d})
 
@@ -4987,7 +5160,7 @@ function Format-MinutesScalar {
     if ([string]::IsNullOrWhiteSpace($s) -or $s -eq 'NaN' -or $s -eq 'null') { return 'n/a' }
     $d = 0.0
     if (-not [double]::TryParse($s, [ref]$d)) { return 'n/a' }
-    return ("$([math]::Round($d, 1)) min")
+    return "$(Format-BlueprintNumber -Value $d -Decimals 1) min"
 }
 $mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
     $ackCount = $null
@@ -4997,13 +5170,13 @@ $mttrLine = if ($incMttr -and $incMttr.ClosedCount) {
     $mttaStr  = Format-MinutesScalar -Value $incMttr.MTTAMinutes -CountAcknowledged $ackCount
     $mttrStr  = Format-MinutesScalar -Value $incMttr.MTTRMinutes -CountAcknowledged $incMttr.ClosedCount
     $ackSuffix = if ($null -ne $ackCount) {
-        "  ·  **Acknowledged:** $ackCount of $($incMttr.ClosedCount)"
+        "  ·  **Acknowledged:** $(Format-BlueprintCount $ackCount) of $(Format-BlueprintCount $incMttr.ClosedCount)"
     } else { '' }
-    "**MTTA:** $mttaStr  ·  **MTTR:** $mttrStr  ·  **Closed:** $($incMttr.ClosedCount) (last {lookback-d})$ackSuffix"
+    "**MTTA:** $mttaStr  ·  **MTTR:** $mttrStr  ·  **Closed:** $(Format-BlueprintCount $incMttr.ClosedCount) (last {lookback-d})$ackSuffix"
 } else { '_No closed incidents in the last {lookback}; MTTA/MTTR not available._' }
 
 $dailyLine = if ($incDaily -and $null -ne $incDaily.AvgDailyUniqueIncidents) {
-    "**Avg daily unique incidents:** $($incDaily.AvgDailyUniqueIncidents)  ·  **Peak daily new incidents:** $($incDaily.PeakDailyNewIncidents) (last {lookback-d})"
+    "**Avg daily unique incidents:** $(Format-BlueprintNumber $incDaily.AvgDailyUniqueIncidents)  ·  **Peak daily new incidents:** $(Format-BlueprintCount $incDaily.PeakDailyNewIncidents) (last {lookback-d})"
 } else { '_No incident-flow metrics available._' }
 
 # Closed-without-ack count for the state diagram note. The fixture's
@@ -5024,7 +5197,7 @@ $incClassBag = if ($incSummary -and $incSummary.PSObject.Properties['ByClassific
 $incClassTotal = 0
 foreach ($v in $incClassBag.Values) { $incClassTotal += [long]$v }
 $incOutcomeBlock = if ($incClassTotal -gt 0) {
-    $classRows = ($incClassBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { "    `"$($_.Key)`" : $($_.Value)" }) -join [Environment]::NewLine
+    $classRows = ($incClassBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { "    `"$(ConvertTo-BlueprintWords ([string]$_.Key))`" : $($_.Value)" }) -join [Environment]::NewLine
 @"
 
 ## Incident outcomes (closed, last {lookback-d})
@@ -5076,11 +5249,11 @@ $incident7dBlock = if ($incSummary -and $incSummary.PSObject.Properties['Count7d
     @"
 | | |
 |---|---:|
-| Incidents | $([int](_RendererNumber $incSummary.Count7d)) |
-| Closed | $([int](_RendererNumber (_RProp $incSummary 'Closed7d' 0))) |
-| Closed as true positive | $([int](_RendererNumber (_RProp $incSummary 'TruePositive7d' 0))) |
-| Closed as false positive | $([int](_RendererNumber (_RProp $incSummary 'FalsePositive7d' 0))) |
-| Raised through Defender XDR (unified) | $([int](_RendererNumber (_RProp $incSummary 'Unified7d' 0))) |
+| Incidents | $(Format-BlueprintCount (_RendererNumber $incSummary.Count7d)) |
+| Closed | $(Format-BlueprintCount (_RendererNumber (_RProp $incSummary 'Closed7d' 0))) |
+| Closed as true positive | $(Format-BlueprintCount (_RendererNumber (_RProp $incSummary 'TruePositive7d' 0))) |
+| Closed as false positive | $(Format-BlueprintCount (_RendererNumber (_RProp $incSummary 'FalsePositive7d' 0))) |
+| Raised through Defender XDR (unified) | $(Format-BlueprintCount (_RendererNumber (_RProp $incSummary 'Unified7d' 0))) |
 | MTTA (incidents closed in the window) | $mtta7 |
 | MTTR (incidents closed in the window) | $mttr7 |
 "@
@@ -5091,9 +5264,18 @@ $incProviderRows = if ($incProviderBag) {
 } else { @() }
 $alertVolumes = @(Read-RawArray 'analytics-rule-volumes.json' | Where-Object { $_ })
 $alert7dCaptured = @($alertVolumes | Where-Object { $_.PSObject.Properties['Alerts7d'] }).Count -gt 0
-$alertProvider7dRows = @($alertVolumes | Where-Object { $_.PSObject.Properties['Alerts7d'] -and [long]$_.Alerts7d -gt 0 } |
-    Sort-Object @{ Expression = { [long]$_.Alerts7d }; Descending = $true }, AlertName |
-    ForEach-Object { [pscustomobject]@{ Provider = [string](_RProp $_ 'ProviderName' ''); Product = $_.ProductName; Alert = $_.AlertName; Severity = $_.AlertSeverity; Alerts = [long]$_.Alerts7d } })
+# Every alert name that fired in the lookback, busiest first, with how many of
+# its alerts fell in the recent window when the capture has that figure (and
+# the recent window is shorter than the lookback).
+$alertProviderRecent = $alert7dCaptured -and (Get-BpWindow).RecentDays -lt (Get-BpWindow).Days
+$alertProviderRows = @($alertVolumes | Where-Object { (_RendererNumber (_RProp $_ 'Alerts' 0)) -gt 0 } |
+    Sort-Object @{ Expression = { _RendererNumber (_RProp $_ 'Alerts' 0) }; Descending = $true }, AlertName |
+    ForEach-Object {
+        $row = [ordered]@{ Provider = [string](_RProp $_ 'ProviderName' ''); Product = $_.ProductName; Alert = $_.AlertName; Severity = $_.AlertSeverity; Alerts = [long](_RendererNumber $_.Alerts) }
+        if ($alertProviderRecent) { $row.Alerts7d = [long](_RendererNumber (_RProp $_ 'Alerts7d' 0)) }
+        [pscustomobject]$row
+    })
+$alertProviderColumns = @('Provider', 'Product', 'Alert', 'Severity', 'Alerts') + @(if ($alertProviderRecent) { 'Alerts7d' })
 
 # The incident lifecycle as data for the SharePoint graphic (the chart web
 # part's incident-lifecycle visual): the window's incidents at their
@@ -5165,9 +5347,9 @@ $lifecycleVisualLine
     }
 
     note right of New
-        $totalIncidents incidents in {lookback-d}
-        $closedCount reached Closed
-        $unackCount closed without acknowledgement
+        $(Format-BlueprintCount $totalIncidents) incidents in {lookback-d}
+        $(Format-BlueprintCount $closedCount) reached Closed
+        $(Format-BlueprintCount $unackCount) closed without acknowledgement
     end note
 ``````
 
@@ -5209,7 +5391,7 @@ Dips at "KQL hunt for context" and "Identify scope" mark the SOC pain points. Wo
 
 Every rule title that produced an incident in the last {lookback}, busiest first. Alert volume per rule is in [21-rule-performance.md](21-rule-performance.md#by-alert-volume-last-{lookback-d}).
 
-$(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = $_.Incidents } }) -Columns 'Rule','Incidents')
+$(Format-Table -Items ($incByRule | ForEach-Object { [pscustomobject]@{ Rule = $_.Title; Incidents = (Format-BlueprintCount $_.Incidents) } }) -Columns 'Rule','Incidents')
 
 $incOutcomeBlock
 
@@ -5217,7 +5399,7 @@ $incOutcomeBlock
 
 Per-provider, per-product, per-first-rule alert counts joined to the incidents they belong to. The FirstRule ID resolves to its full name via the [20-analytics-rules.md](20-analytics-rules.md) table.
 
-$(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | Where-Object { $_ } | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderName; Product = $_.ProductName; FirstRule = $_.FirstRule; AlertCount = $_.AlertCount } }) -Columns 'Provider','Product','FirstRule','AlertCount')
+$(Format-Table -Items (Read-RawArray 'incidents-detail-by-provider.json' | Where-Object { $_ } | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderName; Product = $_.ProductName; FirstRule = $_.FirstRule; AlertCount = (Format-BlueprintCount $_.AlertCount) } }) -Columns 'Provider','Product','FirstRule','AlertCount')
 
 ## Incident metrics (last {recent-d})
 
@@ -5253,11 +5435,11 @@ Which security product raised the alert volume. Sentinel analytics rules appear 
 
 $(Format-Table -Items $alertSourceRows -Columns 'Source','Alerts','Rules','Share')
 
-## Alert volumes by provider (last {recent-d})
+## Alert volumes by provider (last {lookback-d})
 
-Every alert name that fired in the last {recent}, with the provider and product that raised it, busiest first.
+Every alert name that fired in the last {lookback}, with the provider and product that raised it, busiest first.$(if ($alertProviderRecent) { ' The last column is how many of those alerts fired in the last {recent}.' })
 
-$(Format-Table -Items $alertProvider7dRows -Columns 'Provider','Product','Alert','Severity','Alerts' -EmptyMessage $(if ($alert7dCaptured -or $alertVolumes.Count -eq 0) { '_No alerts in the last {recent}._' } else { '_Not captured in this snapshot._' }))
+$(Format-Table -Items $alertProviderRows -Columns $alertProviderColumns -EmptyMessage (Get-EmptyMessage 'analytics-rule-volumes.json' '_No alerts in the last {lookback}._'))
 
 [Sentinel alerts and incidents (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/investigate-cases)
 "@
@@ -5309,7 +5491,7 @@ $volumeSection = @"
 Every alert name raised in the last {lookback}, most alerts first, derived from ``SecurityAlert``. A rule firing thousands of alerts a day is usually either a misconfiguration (too-low threshold) or a high-fidelity signal; review and tune.
 $volChartBlock
 
-$(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = $_.Alerts } }) -Columns 'Rule','Product','Severity','Alerts')
+$(Format-Table -Items ($ruleVolumes | ForEach-Object { [pscustomobject]@{ Rule = $_.AlertName; Product = $_.ProductName; Severity = $_.AlertSeverity; Alerts = (Format-BlueprintCount $_.Alerts) } }) -Columns 'Rule','Product','Severity','Alerts')
 
 ## Rule effectiveness (last {lookback-d})
 
@@ -5350,7 +5532,7 @@ pie showData title Microsoft-managed rules by severity
 $($msPieRows -join [Environment]::NewLine)
 ``````
 
-$($msRules.Count) Microsoft-managed rule(s). High-severity bias is the norm, as these rules are pre-tuned by Microsoft.
+$(Format-BlueprintPlural $msRules.Count 'Microsoft-managed rule'). High-severity bias is the norm, as these rules are pre-tuned by Microsoft.
 "@
 } else { '' }
 
@@ -5365,8 +5547,8 @@ $(Format-Table -Items ($msRules | ForEach-Object { [pscustomobject]@{ Kind = $_.
 "@
 
 # Section 23 — Modifications (TOC 4.11.4)
-# Sort uses ISO-formatted strings — ISO 8601 sorts lexically in the same
-# order as chronologically, so Format-DateUtc output preserves ordering.
+# Format-DateUtc text does not sort as time ("9 Oct" falls after "15 Oct"), so
+# the rows sort on SortKey, the same moment as a [datetime].
 $modifiedRows = $rules | ForEach-Object {
     $lm = $null
     if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'lastModifiedUtc')) { $lm = $_.properties.lastModifiedUtc }
@@ -5374,9 +5556,10 @@ $modifiedRows = $rules | ForEach-Object {
         Name = $_.properties.displayName
         Kind = $_.kind
         LastModified = Format-DateUtc $lm
+        SortKey = ConvertTo-UtcDateTime $lm
         Enabled = if ($_.properties.enabled) {'Yes'} else {'No'}
     }
-} | Where-Object { $_.LastModified } | Sort-Object -Property LastModified -Descending
+} | Where-Object { $_.LastModified } | Sort-Object -Property SortKey -Descending
 # Modifications-per-month bar over the last 12 months.
 $monthBuckets = [ordered]@{}
 $now = (Get-Date).ToUniversalTime()
@@ -5466,7 +5649,7 @@ pie showData title Analytics rules by Content Hub solution (top 8)
 $($solPieRows -join [Environment]::NewLine)
 ``````
 
-$($solCounts.Count) distinct solution(s) contributing $counted total rule(s). A heavy long-tail "(custom or unmapped)" slice usually means repo-deployed content not registered against any Content Hub solution.
+$(Format-BlueprintPlural $solCounts.Count 'distinct solution') contributing $(Format-BlueprintPlural $counted 'rule') in total. A heavy long-tail "(custom or unmapped)" slice usually means repo-deployed content not registered against any Content Hub solution.
 
 Rules grouped by the Content Hub solution that ships them, derived from the metadata link table. '(custom or unmapped)' covers rules that have no metadata association, typically repo-deployed custom rules.
 
@@ -5532,15 +5715,15 @@ $(Format-Table -Items $complexityRows -Columns 'Rule','Kind','Complexity','Chars
 # the collector did not run this capture; empty file: no failures.
 $ruleHealthCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'rule-health.json')
 $ruleHealthRows = @(Read-RawArray 'rule-health.json' | Where-Object { $_ } | ForEach-Object {
-    [pscustomobject]@{ Rule = $_.RuleName; Status = $_.Status; Failures = $_.Failures; 'Last failure' = Format-DateUtc (_RProp $_ 'LastFailure'); Reason = [string](_RProp $_ 'Reason' '') }
-} | Sort-Object { _RendererNumber $_.Failures } -Descending)
+    [pscustomobject]@{ Rule = $_.RuleName; Status = $_.Status; Failures = $_.Failures; 'Last failure (UTC)' = Format-DateUtc (_RProp $_ 'LastFailure'); Reason = [string](_RProp $_ 'Reason' '') }
+} | Sort-Object { _RendererNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
 $ruleHealthSection = @"
 
 ## Rule run failures (last {lookback-d})
 
 Analytics rules whose scheduled runs failed, from ``SentinelHealth``, with the failure count, the last failure and the reason Sentinel recorded. A failing rule is a detection that stopped without an alert; the usual causes are a query past the timeout, a table or column that no longer exists, or a KQL function the rule depends on that was removed. [SAC-DET-14] fires while any rule is failing.
 
-$(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last {lookback}._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','Last failure','Reason' })
+$(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json`` is absent); re-run the collector to populate it._' } elseif ($ruleHealthRows.Count -eq 0) { '_No analytics rule run failed in the last {lookback}._' } else { Format-Table -Items $ruleHealthRows -Columns 'Rule','Status','Failures','Last failure (UTC)','Reason' })
 "@
 
 # Defender XDR custom detections from the Graph capture: the other detection
@@ -5647,12 +5830,12 @@ $entityBlock = @"
 | | |
 |---|---|
 | Entity providers (configured) | $(if ($entityProviders.Count -gt 0) { $entityProviders -join ', ' } else { '_(none configured via the settings resource)_' }) |
-| IdentityInfo rows ({lookback-d}) | $identityRows14 |
+| IdentityInfo rows ({lookback-d}) | $(Format-BlueprintCount $identityRows14) |
 | Entity analytics | $(if ($entityEnabled) { 'Enabled' } elseif ($uebaPresence.Count -eq 0) { 'Unknown (data-presence capture not available)' } else { 'Not enabled ([SAC-COV-08])' }) |
 "@
 $uebaTotalRows = ($uebaPresenceRows | Measure-Object -Property Rows12d -Sum).Sum
 $uebaActiveLabel = if ($uebaTotalRows -and $uebaTotalRows -gt 0) {
-    "Yes, $uebaTotalRows rows across $(@($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count) UEBA table(s) over the last {lookback}"
+    "Yes, $(Format-BlueprintPlural $uebaTotalRows 'row') across $(Format-BlueprintPlural @($uebaPresenceRows | Where-Object { $_.Rows12d -gt 0 }).Count 'UEBA table') over the last {lookback}"
 } elseif ($uebaPresence.Count -eq 0) {
     '_(data-presence capture not available, re-run the exporter to refresh)_'
 } else {
@@ -5683,7 +5866,7 @@ $uebaPresenceBlock = if ($uebaPresenceRows.Count -gt 0) {
 
 Rows per UEBA table over the last {recent} and the last {lookback}. The {recent-d} column is blank in snapshots taken before it was added.
 
-$(Format-Table -Items $uebaPresenceRows -Columns 'Table','Rows7d','Rows12d')
+$(Format-Table -Items @($uebaPresenceRows | ForEach-Object { [pscustomobject]@{ Table = $_.Table; Rows7d = (Format-BlueprintCount $_.Rows7d); Rows12d = (Format-BlueprintCount $_.Rows12d) } }) -Columns 'Table','Rows7d','Rows12d')
 "@
 } else { '' }
 Write-Section '26-ueba.md' (@"
@@ -5770,7 +5953,7 @@ if ($tiMetrics.Count -gt 0) {
 }
 $tiTotal = ($tiRows | Measure-Object -Property IndicatorCount -Sum).Sum
 $tiHeadline = if ($tiTotal -and $tiTotal -gt 0) {
-    "**Total active indicators:** $tiTotal  ·  **Distinct breakdown rows:** $(@($tiRows).Count)  ·  **Data source:** $tiSourceLabel"
+    "**Total active indicators:** $(Format-BlueprintCount $tiTotal)  ·  **Distinct breakdown rows:** $(Format-BlueprintCount @($tiRows).Count)  ·  **Data source:** $tiSourceLabel"
 } else {
     "_No threat intelligence indicators surfaced via either capture path._"
 }
@@ -5782,7 +5965,7 @@ $tiTypeBlock = if ($tiTypeRows.Count -gt 0 -and ($tiTypeRows | Measure-Object -P
 
 ## Indicator breakdown by threat type
 
-$(Format-Table -Items $tiTypeRows -Columns 'ThreatType','IndicatorCount')
+$(Format-Table -Items @($tiTypeRows | ForEach-Object { [pscustomobject]@{ ThreatType = $_.ThreatType; IndicatorCount = (Format-BlueprintCount $_.IndicatorCount) } }) -Columns 'ThreatType','IndicatorCount')
 "@
 } else { '' }
 # Pie of TI sources: the six largest, the rest as one Other slice. The
@@ -5813,13 +5996,13 @@ Observable types across the indicators ingested in the last {lookback}, from the
 
 $tiByTypePie
 
-$(Format-Table -Items $tiByTypeRows -Columns 'Type','Count','Indicators')
+$(Format-Table -Items @($tiByTypeRows | ForEach-Object { [pscustomobject]@{ Type = $_.Type; Count = (Format-BlueprintCount $_.Count); Indicators = (Format-BlueprintCount $_.Indicators) } }) -Columns 'Type','Count','Indicators')
 
 ## STIX objects (last {lookback-d})
 
 Objects in ``ThreatIntelObjects`` by STIX type. Indicators alone give matches; threat actors, attack patterns and relationships give those matches their context.
 
-$(Format-Table -Items ($tiObjects | ForEach-Object { [pscustomobject]@{ StixType = $_.StixType; Count = $_.Count } }) -Columns 'StixType','Count')
+$(Format-Table -Items ($tiObjects | ForEach-Object { [pscustomobject]@{ StixType = $_.StixType; Count = (Format-BlueprintCount $_.Count) } }) -Columns 'StixType','Count')
 "@
 } else { '' }
 $tiFeedKinds = @('MicrosoftThreatIntelligence', 'PremiumMicrosoftDefenderForThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence', 'ThreatIntelligenceUploadIndicatorsAPI')
@@ -5854,17 +6037,17 @@ $tiHealthBlock = if ($tiHealth) {
     @"
 | | |
 |---|---:|
-| Distinct indicators (latest state) | $([long](_RProp $tiHealth 'Total' 0)) |
-| Active | $([long](_RProp $tiHealth 'Active' 0)) |
-| Deleted | $([long](_RProp $tiHealth 'Deleted' 0)) |
-| Revoked | $([long](_RProp $tiHealth 'Revoked' 0)) |
-| Still within their validity | $([long](_RProp $tiHealth 'StillValid' 0)) |
+| Distinct indicators (latest state) | $(Format-BlueprintCount (_RendererNumber (_RProp $tiHealth 'Total' 0))) |
+| Active | $(Format-BlueprintCount (_RendererNumber (_RProp $tiHealth 'Active' 0))) |
+| Deleted | $(Format-BlueprintCount (_RendererNumber (_RProp $tiHealth 'Deleted' 0))) |
+| Revoked | $(Format-BlueprintCount (_RendererNumber (_RProp $tiHealth 'Revoked' 0))) |
+| Still within their validity | $(Format-BlueprintCount (_RendererNumber (_RProp $tiHealth 'StillValid' 0))) |
 "@
 } else { Get-EmptyMessage 'threat-intel-health.json' '_No indicators in `ThreatIntelIndicators` over the last {lookback}._' }
 
 $tiKqlSourceRows = @($tiCounts | Where-Object { $_ } | ForEach-Object {
     [pscustomobject]@{ SourceSystem = $_.SourceSystem; Records = $_.Count; Indicators = _RProp $_ 'Indicators' ''; LastSeen = Format-DateUtc $_.Last }
-} | Sort-Object @{ Expression = { [long]$_.Records }; Descending = $true }, SourceSystem)
+} | Sort-Object @{ Expression = { _RendererNumber $_.Records }; Descending = $true }, SourceSystem | ForEach-Object { $_.Records = Format-BlueprintCount $_.Records; $_.Indicators = Format-BlueprintCount $_.Indicators; $_ })
 
 $taxiiRows = @(Read-RawArray 'taxii-clients.json' | Where-Object { $_ } | ForEach-Object {
     $tp = _RProp $_ 'properties'
@@ -5885,7 +6068,7 @@ Indicator counts and most-recent ingestion timestamp by source, last {lookback}.
 $tiHeadline
 $tiPieBlock
 
-$(Format-Table -Items $tiRows -Columns 'SourceSystem','IndicatorCount','LastIngested')
+$(Format-Table -Items @($tiRows | ForEach-Object { [pscustomobject]@{ SourceSystem = $_.SourceSystem; IndicatorCount = (Format-BlueprintCount $_.IndicatorCount); LastIngested = (Format-DateUtc $_.LastIngested) } }) -Columns 'SourceSystem','IndicatorCount','LastIngested')
 
 ## Table migration status
 
@@ -5968,7 +6151,7 @@ $retiredBlock = if ($retiredReady.Count -gt 0) {
     @"
 ## Templates from deprecated solutions
 
-**$($retiredReady.Count)** template(s) read a table with data but are left out of the lists above: the only Content Hub solution that ships them is deprecated, so Microsoft no longer maintains them$(if ($replaced) { ", and $replaced name the solution that replaces it: install that and enable its templates instead" }). An installed deprecated solution is flagged by [SAC-DET-13].
+**$(Format-BlueprintPlural $retiredReady.Count 'template')** $(if ($retiredReady.Count -eq 1) { 'reads a table with data but is' } else { 'read a table with data but are' }) left out of the lists above: the only Content Hub solution that ships $(if ($retiredReady.Count -eq 1) { 'it' } else { 'them' }) is deprecated, so Microsoft no longer maintains $(if ($retiredReady.Count -eq 1) { 'it' } else { 'them' })$(if ($replaced) { ", and $(Format-BlueprintCount $replaced) $(if ($replaced -eq 1) { 'names' } else { 'name' }) the solution that replaces it: install that and enable its templates instead" }). An installed deprecated solution is flagged by [SAC-DET-13].
 
 $(Format-Table -Items $retiredReady -Columns 'Template','Deprecated solution','Replaced by','Tables')
 "@
@@ -6004,7 +6187,7 @@ $readyTemplates = @($undeployedTemplates | Where-Object {
         'Solution installed' = $(if ($sol.Installed -eq $true) { 'Yes' } elseif ($sol.Installed -eq $false) { 'No' } else { '' })
         Severity             = $_.Severity
         Kind                 = $_.Kind
-        Tactics              = (@($_.Tactics) -join ', ')
+        Tactics              = (Format-TacticList $_.Tactics)
         Tables               = (@($_.Tables) -join ', ')
     }
 })
@@ -6062,7 +6245,7 @@ $headroomChart
 
 <!-- bp:shown-in-graphic -->
 
-**$($applicableTemplates.Count)** applicable template(s)  ·  **$($enabledRules.Count)** enabled rule(s)  ·  **$($undeployedTemplates.Count)** template(s) not yet deployed  ·  **$($opportunityRows.Count)** table(s) with data and no detection
+**$(Format-BlueprintPlural $applicableTemplates.Count 'applicable template')**  ·  **$(Format-BlueprintPlural $enabledRules.Count 'enabled rule')**  ·  **$(Format-BlueprintPlural $undeployedTemplates.Count 'template')** not yet deployed  ·  **$(Format-BlueprintPlural $opportunityRows.Count 'table')** with data and no detection
 
 ## Tables with data but no detection (last {lookback-d})
 
@@ -6082,7 +6265,7 @@ $(Format-Table -Items $noTemplateRows -Columns 'Table','GB ({lookback-d})','Solu
 
 ## Undeployed templates ready to enable
 
-Templates that are not deployed, not deprecated (nor shipped only by a deprecated solution), and read at least one table that has data, highest severity first, with the Content Hub solution each comes from. **$readyInstalled** come from solutions already installed and can be enabled as they are; **$readyNotInstalled** are in solutions not installed, which Sentinel still offers as gallery templates (installing the solution keeps them current); **$readyBuiltIn** are built-in templates no solution ships.
+Templates that are not deployed, not deprecated (nor shipped only by a deprecated solution), and read at least one table that has data, highest severity first, with the Content Hub solution each comes from. **$(Format-BlueprintCount $readyInstalled)** come from solutions already installed and can be enabled as they are; **$(Format-BlueprintCount $readyNotInstalled)** are in solutions not installed, which Sentinel still offers as gallery templates (installing the solution keeps them current); **$(Format-BlueprintCount $readyBuiltIn)** are built-in templates no solution ships.
 
 $(Format-Table -Items $readyTemplates -Columns 'Template','Solution','Solution installed','Severity','Kind','Tactics','Tables')
 
@@ -6173,7 +6356,7 @@ $srProp = {
 $srWindow = {
     param($From, $To)
     $f = Format-DateUtc $From; $t = Format-DateUtc $To
-    if ($f -or $t) { "$f to $t" } else { '' }
+    if ($f -or $t) { "$f to $t UTC" } else { '' }
 }
 $searchRows = @($searchJobs | ForEach-Object {
         $p = $_.properties; $s = & $srProp $p 'searchResults'
@@ -6182,7 +6365,7 @@ $searchRows = @($searchJobs | ForEach-Object {
             'Source table'   = [string](& $srProp $s 'sourceTable')
             'Search window'  = & $srWindow (& $srProp $s 'startSearchTime') (& $srProp $s 'endSearchTime')
             'Created (UTC)'  = Format-DateUtc (& $srProp $p 'createDate')
-            'Retention'      = $(if ($null -ne (& $srProp $p 'totalRetentionInDays')) { "$(& $srProp $p 'totalRetentionInDays') days" } else { '' })
+            'Retention'      = $(if ($null -ne (& $srProp $p 'totalRetentionInDays')) { (Format-BlueprintPlural (& $srProp $p 'totalRetentionInDays') 'day') } else { '' })
             'Query'          = $(if (& $srProp $s 'query') { '`' + ([string](& $srProp $s 'query')).Trim() + '`' } else { '' })
         }
     })
@@ -6198,7 +6381,7 @@ $restoreRows = @($restoreJobs | ForEach-Object {
 Write-Section '37-search-restore.md' (@"
 $(Format-Banner -Title "Search and Restore Tables  (TOC 4.3.4)")
 
-Search jobs and restores bring data back from long-term retention into tables you can query: a search job writes its matches to a table ending in ``_SRCH``, a restore a time range of a table to one ending in ``_RST``. Each table stays until someone deletes it, so this is every search and restore whose table is still in the workspace: **$(@($searchRows).Count)** search job$(if (@($searchRows).Count -ne 1) { 's' }) and **$(@($restoreRows).Count)** restore$(if (@($restoreRows).Count -ne 1) { 's' }).
+Search jobs and restores bring data back from long-term retention into tables you can query: a search job writes its matches to a table ending in ``_SRCH``, a restore a time range of a table to one ending in ``_RST``. Each table stays until someone deletes it, so this is every search and restore whose table is still in the workspace: **$(Format-BlueprintPlural @($searchRows).Count 'search job')** and **$(Format-BlueprintPlural @($restoreRows).Count 'restore')**.
 
 ## Search jobs
 
@@ -6242,7 +6425,7 @@ $summaryRows = $summaryRules | ForEach-Object {
 }
 $brokenSummary = @($summaryRows | Where-Object { $_.Active -eq 'No' -or $_.Status -ne 'Ok' })
 $summaryWarning = if ($brokenSummary.Count -gt 0) {
-    "`n<!-- bp:tone critical -->`n`n> **$($brokenSummary.Count) summary rule(s) are inactive or in error.** Inspect the `Status` column: `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
+    "`n<!-- bp:tone critical -->`n`n> **$(Format-BlueprintPlural $brokenSummary.Count 'summary rule') $(if ($brokenSummary.Count -eq 1) { 'is' } else { 'are' }) inactive or in error.** Inspect the `Status` column: `DataPlaneError` typically means the underlying source table is missing or the query failed at last execution.`n"
 } else { '' }
 # Active vs Errored pie (only when there's something to chart).
 $summaryActiveCount = @($summaryRows | Where-Object { $_.Active -eq 'Yes' -and $_.Status -eq 'Ok' }).Count
@@ -6322,7 +6505,7 @@ xychart-beta
 Two bars per machine type: AMA first, MMA second. A workspace mid-migration shows MMA bars sitting alongside AMA; a fully-migrated workspace has zero MMA bars across the board.
 "@
 } else {
-    "`n> **Agent migration:** $totalAgents agent(s) heartbeating; chart suppressed because the count is too small for a meaningful visual. The migration-status table below carries the per-machine detail."
+    "`n> **Agent migration:** $(Format-BlueprintPlural $totalAgents 'agent') heartbeating; chart suppressed because the count is too small for a meaningful visual. The migration-status table below carries the per-machine detail."
 }
 
 $heartbeatMixRows = @(Read-RawArray 'agent-heartbeat-mix.json' | Where-Object { $_ } | ForEach-Object {
@@ -6331,7 +6514,7 @@ $heartbeatMixRows = @(Read-RawArray 'agent-heartbeat-mix.json' | Where-Object { 
         Agent     = $(switch ([string]$_.Category) { 'Direct Agent' { 'Direct Agent (MMA, legacy)' } 'SCOM Agent' { 'SCOM Agent (legacy)' } default { $_ } })
         Version   = $_.Version
         OSVersion = $_.OSVersion
-        Computers = $_.Computers
+        Computers = Format-BlueprintCount $_.Computers
         LastSeen  = Format-DateUtc $_.LastSeen
     }
 })
@@ -6348,11 +6531,11 @@ $(Format-Table -Items $agentRows -Columns 'Computer','OS','Version','Resource','
 
 Per-machine-type breakdown of agent migration progress. ``Direct Agent`` counts the legacy MMA; ``Azure Monitor Agent`` counts the modern AMA. Migration state is **Completed** when only AMA records exist for a category, **In Progress** when both exist, and **Not Started** otherwise.
 
-$(Format-Table -Items $migrationRows -Columns 'MachineType','MachineCount','MMACount','AMACount','MigrationStatus')
+$(Format-Table -Items @($migrationRows | ForEach-Object { [pscustomobject]@{ MachineType = $_.MachineType; MachineCount = (Format-BlueprintCount $_.MachineCount); MMACount = (Format-BlueprintCount $_.MMACount); AMACount = (Format-BlueprintCount $_.AMACount); MigrationStatus = $_.MigrationStatus } }) -Columns 'MachineType','MachineCount','MMACount','AMACount','MigrationStatus')
 
 ## Agent heartbeat mix
 
-Machines by operating system, agent and agent version over the last {lookback}. A ``Direct Agent`` or ``SCOM Agent`` row is the legacy Log Analytics agent, retired on 31 August 2024 ([SAC-PLT-03]); the version column shows how far behind each fleet is.
+Machines by operating system, agent and agent version over the last {lookback}. A ``Direct Agent`` or ``SCOM Agent`` row is the legacy Log Analytics agent, retired on 31 Aug 2024 ([SAC-PLT-03]); the version column shows how far behind each fleet is.
 
 $(Format-Table -Items $heartbeatMixRows -Columns 'OSType','Agent','Version','OSVersion','Computers','LastSeen' -EmptyMessage (Get-EmptyMessage 'agent-heartbeat-mix.json' '_No heartbeats in the last {lookback}._'))
 
@@ -6490,7 +6673,7 @@ if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $
             [pscustomobject]@{
                 Table         = $_.Table
                 Gb30d         = $_.Gb30d
-                MonthlyCost   = $_.MonthlyCost
+                MonthlyCost   = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency)
                 Recommendation = 'Consider DataLake plan if rule queries are infrequent'
             }
         })
@@ -6498,13 +6681,13 @@ if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $
 
 # Headline narrative — one of four states based on the captured signals.
 $lakeHeadline = if ($hasDataLake -and $dlTables.Count -gt 0) {
-    "**Sentinel Data Lake is enrolled and active.** $($dlTables.Count) table(s) route to the Lake at the DataLake-rate ingestion meter (~$([math]::Round($lakeGb, 2)) GB in {lookback-d}, est. `$$([math]::Round($lakeCost, 2)) / month). Analytics-plan tables continue to bill at the higher Sentinel-rate meter."
+    "**Sentinel Data Lake is enrolled and active.** $(Format-BlueprintPlural $dlTables.Count 'table') $(if ($dlTables.Count -eq 1) { 'routes' } else { 'route' }) to the Lake at the DataLake-rate ingestion meter (~$(Format-BlueprintGb $lakeGb) GB in {lookback-d}, est. $(Format-BlueprintMoney $lakeCost $cost.Currency) / month). Analytics-plan tables continue to bill at the higher Sentinel-rate meter."
 } elseif ($hasDataLake -and $dlTables.Count -eq 0) {
     "**Sentinel Data Lake is enrolled on this workspace** (``features.unifiedSentinelBillingOnly = true``), but no tables currently route to the Lake. All ingest is on the Analytics plan billed at the full Sentinel-rate meter. See *Migration candidates* below for verbose tables that could move to the Lake to reduce monthly cost, since the Lake-rate per-GB ingestion meter is typically a fraction of the Sentinel-rate."
 } elseif (-not $hasDataLake -and $analyticsGb -gt 30) {
-    "**Sentinel Data Lake is not enrolled.** This workspace ingests $([math]::Round($analyticsGb, 1)) GB in {lookback-d} on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
+    "**Sentinel Data Lake is not enrolled.** This workspace ingests $(Format-BlueprintGb $analyticsGb) GB in {lookback-d} on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
 } else {
-    "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB/month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
+    "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB a month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
 }
 
 # Enrollment-signal table — primary signal is the
@@ -6514,8 +6697,8 @@ $lakeResource = @($sentinelDataLake) | Select-Object -First 1
 $lakeSignals = @(
     [pscustomobject]@{
         Signal      = 'Microsoft.SentinelPlatformServices/sentinelPlatformServices'
-        Value       = if ($lakeResource) { "$($lakeResource.name) ($($lakeResource.location))" } else { '(not found)' }
-        Interpretation = if ($lakeResource) { "Lake provisioned at tenant scope, region '$($lakeResource.location)', billing subscription '$($lakeResource.subscriptionId)' / RG '$($lakeResource.resourceGroup)'" } else { 'No Sentinel Data Lake resource found in the visible subscriptions, so the tenant is not onboarded to Lake' }
+        Value       = if ($lakeResource) { "$($lakeResource.name) ($(Get-BlueprintRegionName ([string]$lakeResource.location)))" } else { '(not found)' }
+        Interpretation = if ($lakeResource) { "Lake provisioned at tenant scope, region '$(Get-BlueprintRegionName ([string]$lakeResource.location))', billing subscription '$($lakeResource.subscriptionId)' / RG '$($lakeResource.resourceGroup)'" } else { 'No Sentinel Data Lake resource found in the visible subscriptions, so the tenant is not onboarded to Lake' }
     },
     [pscustomobject]@{
         Signal      = 'workspace.properties.features.unifiedSentinelBillingOnly'
@@ -6524,7 +6707,7 @@ $lakeSignals = @(
     },
     [pscustomobject]@{
         Signal      = "Tables on plan='DataLake'"
-        Value       = "$($dlTables.Count) table(s)"
+        Value       = (Format-BlueprintPlural $dlTables.Count 'table')
         Interpretation = if ($dlTables.Count -gt 0) { 'Data actively routed to Lake-only tier' } else { 'No tables route to Lake-only tier (mirrored data still flows when Lake is enrolled)' }
     }
 )
@@ -6533,8 +6716,8 @@ $lakeSignals = @(
 # resource exists. Surfaces the audit trail (createdBy/At) so reviewers
 # can answer "when was this onboarded and by whom" from the doc.
 $lakeResourceBlock = if ($lakeResource) {
-    $createdAt = if ($lakeResource.systemData.createdAt) { Format-DateUtc $lakeResource.systemData.createdAt } else { '_(unknown)_' }
-    $modifiedAt = if ($lakeResource.systemData.lastModifiedAt) { Format-DateUtc $lakeResource.systemData.lastModifiedAt } else { '_(unknown)_' }
+    $createdAt = if ($lakeResource.systemData.createdAt) { Format-BlueprintDate $lakeResource.systemData.createdAt -Time } else { '_(unknown)_' }
+    $modifiedAt = if ($lakeResource.systemData.lastModifiedAt) { Format-BlueprintDate $lakeResource.systemData.lastModifiedAt -Time } else { '_(unknown)_' }
     @"
 
 ## Lake resource detail
@@ -6543,7 +6726,7 @@ $lakeResourceBlock = if ($lakeResource) {
 |---|---|
 | Resource ID | ``$($lakeResource.id)`` |
 | Resource name | ``$($lakeResource.name)`` |
-| Region | ``$($lakeResource.location)`` |
+| Region | $(Format-WorkspaceRegion $lakeResource.location -WithCode) |
 | Subscription | ``$($lakeResource.subscriptionId)`` |
 | Resource group | ``$($lakeResource.resourceGroup)`` |
 | Provisioning state | ``$($lakeResource.properties.provisioningState)`` |
@@ -6600,8 +6783,8 @@ $lakeValidationRows = @($retentionRows | ForEach-Object {
         Table = $name; Plan = $_.Plan; LakeOnlyDays = $_.LakeOnlyDays
         Gb90d = $(if ($use) { [math]::Round((_RendererNumber (_RProp $use 'BillableLast90d' 0)), 2) } else { 0 })
         LastIngested = Format-DateUtc $last
-        DaysSince = $(if ($null -ne $days) { $days } else { 'n/a' })
-        Validation = $(if ($null -eq $days) { 'Check: no data in {lookback}' } elseif ($days -gt 7) { "Check: last record $days days ago" } else { 'OK: ingesting' })
+        DaysSince = $(if ($null -ne $days) { Format-BlueprintNumber $days -Decimals 1 } else { 'n/a' })
+        Validation = $(if ($null -eq $days) { 'Check: no data in {lookback}' } elseif ($days -gt 7) { "Check: last record $(Format-BlueprintNumber $days -Decimals 1) days ago" } else { 'OK: ingesting' })
     }
 } | Sort-Object @{ Expression = { $_.Validation -like 'OK*' } }, @{ Expression = 'Gb90d'; Descending = $true })
 
@@ -6788,8 +6971,8 @@ $assetDataBlock
 
 | Plan | Ingest (GB) | Estimated monthly cost |
 |---|---:|---:|
-| Analytics | $([math]::Round($analyticsGb, 2)) | `$$([math]::Round($analyticsCost, 2)) |
-| DataLake  | $([math]::Round($lakeGb, 2)) | `$$([math]::Round($lakeCost, 2)) |
+| Analytics | $(Format-BlueprintGb $analyticsGb) | $(Format-BlueprintMoney $analyticsCost $cost.Currency) |
+| DataLake | $(Format-BlueprintGb $lakeGb) | $(Format-BlueprintMoney $lakeCost $cost.Currency) |
 
 ## Lake billing meters
 
@@ -6817,14 +7000,14 @@ $(if ($dlCandidateRows.Count -gt 0) { Format-Table -Items $dlCandidateRows -Colu
 
 ## When to enroll
 
-- **Sustained ingest > 500 GB/month** of verbose / low-query telemetry (Defender XDR raw events, firewall syslog, EDR process telemetry).
+- **Sustained ingest above 500 GB a month** of verbose / low-query telemetry (Defender XDR raw events, firewall syslog, EDR process telemetry).
 - **Long-tail investigations need affordable retention**: Lake supports up to 12 years at storage rates with 6:1 compression, vs Analytics' high per-GB interactive retention rate.
 - **Already onboarded to the Defender unified SecOps portal**: Lake is the implicit storage tier for unified-portal workflows (graph, MCP, notebooks).
 - **Compliance retention requirements**: regulatory retention obligations (SOX, GDPR audit, PCI-DSS) often demand multi-year retention that's prohibitively expensive on Analytics-tier storage.
 
 ## When to stay on the legacy model
 
-- **Ingest < ~100 GB/month**: Analytics-plan per-GB rate is competitive at low volumes and avoids the operational complexity of plan-routing.
+- **Ingest below about 100 GB a month**: Analytics-plan per-GB rate is competitive at low volumes and avoids the operational complexity of plan-routing.
 - **Every table queries in near-real-time**: the Lake's higher query latency makes it a poor fit for detection-rule-heavy workloads.
 - **CMK encryption is required**: Sentinel Data Lake does **not** support Customer-Managed Keys; workspaces using CMK cannot use Lake experiences.
 - **Compliance / contract requires PerGB2018 billing**: some enterprise agreements lock to legacy meters that don't include the Lake meter set.
@@ -6865,19 +7048,19 @@ $( $defaultRet = [int](_RProp $workspace.properties 'retentionInDays' 0)
        [pscustomobject]@{
            Check = 'Default retention covers the free 90 days'
            Status = $(if ($defaultRet -lt 90) { 'Action needed' } else { 'OK' })
-           Detail = "Workspace default is $defaultRet days."
+           Detail = "Workspace default is $(Format-BlueprintPlural $defaultRet 'day')."
            Recommendation = 'Raise the default to at least 90 days: the first 90 days of retention are included with Microsoft Sentinel ([SAC-LOG-07]).'
        }
        [pscustomobject]@{
            Check = 'Long retention uses a cheaper tier'
            Status = $(if ($defaultRet -gt 90 -and $cheaperTier.Count -eq 0) { 'Action needed' } else { 'OK' })
-           Detail = "Default $defaultRet days; $($cheaperTier.Count) table(s) on the Basic, Auxiliary or data lake plan."
+           Detail = "Default $(Format-BlueprintPlural $defaultRet 'day'); $(Format-BlueprintPlural $cheaperTier.Count 'table') on the Basic, Auxiliary or data lake plan."
            Recommendation = 'Move high-volume tables that few rules read to the data lake tier, which bills well below the Analytics rate and keeps data for up to 12 years.'
        }
        [pscustomobject]@{
            Check = 'Long retention is set per table'
            Status = $(if ($defaultRet -gt 180 -and $overrides.Count -eq 0) { 'Action needed' } else { 'OK' })
-           Detail = "Default $defaultRet days; $($overrides.Count) table(s) override it."
+           Detail = "Default $(Format-BlueprintPlural $defaultRet 'day'); $(Format-BlueprintPlural $overrides.Count 'table') $(if ($overrides.Count -eq 1) { 'overrides' } else { 'override' }) it."
            Recommendation = 'Keep the default short and extend retention only on the tables that need it, rather than holding every table for the longest period any one of them needs.'
        }
    )
@@ -6885,7 +7068,7 @@ $( $defaultRet = [int](_RProp $workspace.properties 'retentionInDays' 0)
 
 ## Tables with non-default retention
 
-Tables where the Interactive or Total retention setting differs from the workspace default ($($workspace.properties.retentionInDays) days) AND that have received billable data in the last {lookback}. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
+Tables where the Interactive or Total retention setting differs from the workspace default ($(Format-BlueprintPlural $workspace.properties.retentionInDays 'day')) AND that have received billable data in the last {lookback}. A workspace with hundreds of rows here is usually leaking budget on long-retention tables that should be on the cheaper Archive plan.
 
 $( $nonDefaultRows = @($tableRows | Where-Object {
         ($_.Interactive -ne $workspace.properties.retentionInDays -or $_.Total -ne $workspace.properties.retentionInDays) -and ($_.Gb90d -gt 0)
@@ -6911,7 +7094,7 @@ Microsoft Learn pages for the topics this report covers, grouped by topic, the b
 | [Best practices](https://learn.microsoft.com/azure/sentinel/best-practices) | Microsoft's recommendations for running Sentinel, which the findings measure against |
 | [Deployment guide](https://learn.microsoft.com/azure/sentinel/deploy-overview) | Planning and rolling out a workspace, step by step |
 | [Skill-up resources](https://learn.microsoft.com/azure/sentinel/skill-up-resources) | Training paths for analysts and engineers |
-| [Move to the Defender portal](https://learn.microsoft.com/azure/sentinel/move-to-defender) | The move to the unified portal, as Sentinel in the Azure portal retires on 31 March 2027 |
+| [Move to the Defender portal](https://learn.microsoft.com/azure/sentinel/move-to-defender) | The move to the unified portal, as Sentinel in the Azure portal retires on 31 Mar 2027 |
 | [Manage data overview](https://learn.microsoft.com/azure/sentinel/manage-data-overview) | How Sentinel stores, tiers and keeps data |
 
 ## Workspace design and resilience
