@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Produces the _raw folder the iSOC Blueprint collector would write for a
-    fictitious enterprise workspace (Contoso), so the report, the SharePoint
+    fictitious enterprise workspace (Larkfield, a made-up organisation), so the report, the SharePoint
     dashboard and every page that reads activity can be shown, developed
     and screenshotted without a tenant. Nothing in it comes from a real
     workspace.
@@ -45,7 +45,7 @@
     SecurityDocs/<WorkspaceName> in the repository, which git ignores.
 
 .PARAMETER WorkspaceName
-    The demo workspace's name. Defaults to law-contoso-sentinel.
+    The demo workspace's name. Defaults to law-larkfield-sentinel.
 
 .PARAMETER DailyGb
     The average GB ingested a day over the last 30 days, every table
@@ -80,9 +80,9 @@
 .EXAMPLE
     ./Tools/New-BlueprintDemoWorkspace.ps1 -Build
 
-    Writes SecurityDocs/law-contoso-sentinel/_raw for a 2 TB a day
+    Writes SecurityDocs/law-larkfield-sentinel/_raw for a 2 TB a day
     workspace over 90 days, renders the report and builds the dashboard
-    bundle under SecurityDocs/law-contoso-sentinel/sharepoint.
+    bundle under SecurityDocs/law-larkfield-sentinel/sharepoint.
 
 .EXAMPLE
     ./Tools/New-BlueprintDemoWorkspace.ps1 -OutputPath ./artefact/demo -DailyGb 500 -LookbackDays 30
@@ -96,7 +96,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.2
+    Version:      0.2.3
     Last Updated: 2026-10-15
     Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
 
@@ -109,7 +109,7 @@ param(
     [string]$OutputPath,
 
     [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9-]{2,62}$')]
-    [string]$WorkspaceName = 'law-contoso-sentinel',
+    [string]$WorkspaceName = 'law-larkfield-sentinel',
 
     [ValidateRange(10, 50000)]
     [double]$DailyGb = 2048,
@@ -159,7 +159,7 @@ $recentDays = [math]::Min(7, $L)
 $script:Rng = [System.Random]::new($Seed)
 $subscriptionId = '00000000-0000-0000-0000-00000000c0de'
 $tenantId = '00000000-0000-0000-0000-0000000c0de0'
-$resourceGroup = 'rg-contoso-sentinel'
+$resourceGroup = 'rg-larkfield-sentinel'
 $region = 'uksouth'
 $wsId = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
 $siId = "$wsId/providers/Microsoft.SecurityInsights"
@@ -199,6 +199,10 @@ function Save-DemoJson([string]$Name, $Data) {
     elseif ($Data -is [System.Collections.IDictionary] -or $Data -is [System.Management.Automation.PSCustomObject]) { ConvertTo-Json -InputObject $Data -Depth 64 }
     else { ConvertTo-Json -InputObject @($Data) -Depth 64 }
     if ([string]::IsNullOrWhiteSpace($json)) { $json = '[]' }
+    # Some of the repository's rules and hunts carry Microsoft's sample
+    # domain as a placeholder in their KQL; the demo is Larkfield's, a
+    # made-up organisation on a reserved domain, so it names no real one.
+    $json = $json -replace '(?i)contoso\.com', 'larkfield.example' -replace '(?i)contoso', 'larkfield'
     Set-Content -LiteralPath (Join-Path $raw $Name) -Value $json -Encoding utf8NoBOM
 }
 function Read-DemoYaml([string]$Path) { ConvertFrom-Yaml (Get-Content -LiteralPath $Path -Raw) }
@@ -216,7 +220,7 @@ function ConvertFrom-DemoDuration([string]$Text) {
     if ($m -le 0) { 60 } else { $m }
 }
 $people = @('amara.okafor', 'ben.hughes', 'chloe.martin', 'dev.patel', 'ellie.brooks', 'farid.haddad', 'grace.lee', 'hamish.reid')
-function Get-DemoPerson { $p = $people[$script:Rng.Next($people.Count)]; "$p@contoso.com" }
+function Get-DemoPerson { $p = $people[$script:Rng.Next($people.Count)]; "$p@larkfield.example" }
 function New-DemoActor([string]$Upn) { [ordered]@{ objectId = (New-DemoGuid "user|$Upn"); email = $Upn; name = (($Upn -split '@')[0] -split '\.' | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_) }) -join ' '; userPrincipalName = $Upn } }
 
 # ---------------------------------------------------------------------------
@@ -662,7 +666,7 @@ foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'DefenderCustomD
     $n++
     $at = Get-DemoValue $y['detectionAction'] 'alertTemplate' @{}
     $modified = $asOfUtc.AddDays(-(Get-DemoBetween 2 160))
-    $detections.Add([ordered]@{ id = "$n"; displayName = [string]$y['displayName']; isEnabled = [bool](Get-DemoValue $y 'isEnabled' $true); createdBy = 'secops@contoso.com'; createdDateTime = (Format-DemoTime $modified.AddDays(-30)); lastModifiedBy = 'secops@contoso.com'; lastModifiedDateTime = (Format-DemoTime $modified)
+    $detections.Add([ordered]@{ id = "$n"; displayName = [string]$y['displayName']; isEnabled = [bool](Get-DemoValue $y 'isEnabled' $true); createdBy = 'secops@larkfield.example'; createdDateTime = (Format-DemoTime $modified.AddDays(-30)); lastModifiedBy = 'secops@larkfield.example'; lastModifiedDateTime = (Format-DemoTime $modified)
             schedule = [ordered]@{ period = [string](Get-DemoValue $y['schedule'] 'period' '1H'); nextRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(37)) }
             queryCondition = [ordered]@{ queryText = [string]$y['queryCondition']['queryText']; lastModifiedDateTime = (Format-DemoTime $modified) }
             detectionAction = [ordered]@{ alertTemplate = [ordered]@{ title = [string](Get-DemoValue $at 'title' $y['displayName']); description = [string](Get-DemoValue $at 'description' ''); severity = [string](Get-DemoValue $at 'severity' 'medium'); category = [string](Get-DemoValue $at 'category' ''); mitreTechniques = @(Get-DemoValue $at 'mitreTechniques' @()); recommendedActions = [string](Get-DemoValue $at 'recommendedActions' ''); impactedAssets = @() }; organizationalScope = $null; responseActions = @() }
@@ -704,7 +708,7 @@ foreach ($c in @(@{ Id = 'GoogleWorkspaceCCPDefinition'; Title = 'Google Workspa
 }
 Save-DemoJson 'data-connector-definitions.json' $ccf
 
-$dce = @('dce-contoso-uks-01', 'dce-contoso-uks-02')
+$dce = @('dce-larkfield-uks-01', 'dce-larkfield-uks-02')
 Save-DemoJson 'dces.json' @(foreach ($d in $dce) {
         [ordered]@{ properties = [ordered]@{ immutableId = "dce-$((New-DemoGuid $d).Replace('-',''))"; configurationAccess = [ordered]@{ endpoint = "https://$d-abcd.$region-1.handler.control.monitor.azure.com" }; logsIngestion = [ordered]@{ endpoint = "https://$d-abcd.$region-1.ingest.monitor.azure.com" }; networkAcls = [ordered]@{ publicNetworkAccess = 'Disabled' }; provisioningState = 'Succeeded' }
             location = $region; id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionEndpoints/$d"; name = $d; type = 'Microsoft.Insights/dataCollectionEndpoints'; etag = '"' + (New-DemoGuid "etag|$d") + '"' }
@@ -1050,7 +1054,7 @@ $amaMachines = foreach ($m in @($agentMix | Where-Object Cat -eq 'Azure Monitor 
         $role = if ($m.OS -eq 'Windows') { Get-DemoPick @('app', 'sql', 'web', 'dc', 'file', 'rds') @(5, 2, 3, 0.5, 1, 1) } else { Get-DemoPick @('app', 'web', 'k8s', 'db', 'fwd') @(5, 3, 3, 1, 0.3) }
         $name = "$(if ($m.OS -eq 'Windows') { 'WIN' } else { 'lnx' })-$role-$('{0:d4}' -f $hostNo)"
         $late = (Get-DemoRandom) -lt 0.012
-        [ordered]@{ SourceComputerId = (New-DemoGuid "host|$name"); LastHeartbeat = (Format-DemoTime $(if ($late) { $asOfUtc.AddDays(-(Get-DemoBetween 2 20)) } else { $asOfUtc.AddMinutes(-(Get-DemoBetween 0.2 3)) })); OS = $m.OS; Version = $m.Ver; Solutions = '"security", "changeTracking"'; Computer = $name.ToLowerInvariant() + '.corp.contoso.com'
+        [ordered]@{ SourceComputerId = (New-DemoGuid "host|$name"); LastHeartbeat = (Format-DemoTime $(if ($late) { $asOfUtc.AddDays(-(Get-DemoBetween 2 20)) } else { $asOfUtc.AddMinutes(-(Get-DemoBetween 0.2 3)) })); OS = $m.OS; Version = $m.Ver; Solutions = '"security", "changeTracking"'; Computer = $name.ToLowerInvariant() + '.corp.larkfield.example'
             Resource = "/subscriptions/$subscriptionId/resourcegroups/rg-servers-$role/providers/microsoft.compute/virtualmachines/$($name.ToLowerInvariant())" }
     }
 }
@@ -1062,16 +1066,16 @@ Save-DemoJson 'ama-mma-migration.json' @(
 
 $cefRows = & $gbToRows (Get-SeriesSum 'CommonSecurityLog' $L) 1350
 Save-DemoJson 'cef-devices.json' @(foreach ($c in @(@('Palo Alto Networks', 'PAN-OS', 0.44), @('Fortinet', 'Fortigate', 0.27), @('Zscaler', 'NSSWeblog', 0.15), @('Check Point', 'VPN-1 & FireWall-1', 0.09), @('Cisco', 'ASA', 0.05))) { [ordered]@{ DeviceVendor = $c[0]; DeviceProduct = $c[1]; LogCount = [long]($cefRows * $c[2]) } })
-Save-DemoJson 'cef-in-syslog.json' @([ordered]@{ Computer = 'lnx-fwd-0007.corp.contoso.com'; ProductVendor = 'Cisco-ASA'; LogCount = 184220 })
+Save-DemoJson 'cef-in-syslog.json' @([ordered]@{ Computer = 'lnx-fwd-0007.corp.larkfield.example'; ProductVendor = 'Cisco-ASA'; LogCount = 184220 })
 $sysRows = & $gbToRows (Get-SeriesSum 'Syslog' $L) 420
-Save-DemoJson 'syslog-contributors.json' @(foreach ($h in @(@('lnx-k8s-0412.corp.contoso.com', 'daemon', 0.24), @('lnx-app-0233.corp.contoso.com', 'local4', 0.16), @('lnx-web-0117.corp.contoso.com', 'authpriv', 0.09), @('lnx-db-0031.corp.contoso.com', 'daemon', 0.07), @('lnx-app-0298.corp.contoso.com', 'user', 0.05))) { [ordered]@{ Computer = $h[0]; Facility = $h[1]; LogCount = [long]($sysRows * $h[2]); SizeMB = [math]::Round($sysRows * $h[2] * 420 / 1MB, 1) } })
+Save-DemoJson 'syslog-contributors.json' @(foreach ($h in @(@('lnx-k8s-0412.corp.larkfield.example', 'daemon', 0.24), @('lnx-app-0233.corp.larkfield.example', 'local4', 0.16), @('lnx-web-0117.corp.larkfield.example', 'authpriv', 0.09), @('lnx-db-0031.corp.larkfield.example', 'daemon', 0.07), @('lnx-app-0298.corp.larkfield.example', 'user', 0.05))) { [ordered]@{ Computer = $h[0]; Facility = $h[1]; LogCount = [long]($sysRows * $h[2]); SizeMB = [math]::Round($sysRows * $h[2] * 420 / 1MB, 1) } })
 $secRows = & $gbToRows (Get-SeriesSum 'SecurityEvent' $L) 1100
-Save-DemoJson 'securityevent-top-hosts.json' @(foreach ($h in @(@('WIN-dc-0101.corp.contoso.com', 0.11), @('WIN-dc-0102.corp.contoso.com', 0.1), @('WIN-dc-0103.corp.contoso.com', 0.08), @('WIN-file-0204.corp.contoso.com', 0.05), @('WIN-rds-0311.corp.contoso.com', 0.04))) { [ordered]@{ Computer = $h[0]; LogCount = [long]($secRows * $h[1]); SizeMB = [math]::Round($secRows * $h[1] * 1100 / 1MB, 1) } })
+Save-DemoJson 'securityevent-top-hosts.json' @(foreach ($h in @(@('WIN-dc-0101.corp.larkfield.example', 0.11), @('WIN-dc-0102.corp.larkfield.example', 0.1), @('WIN-dc-0103.corp.larkfield.example', 0.08), @('WIN-file-0204.corp.larkfield.example', 0.05), @('WIN-rds-0311.corp.larkfield.example', 0.04))) { [ordered]@{ Computer = $h[0]; LogCount = [long]($secRows * $h[1]); SizeMB = [math]::Round($secRows * $h[1] * 1100 / 1MB, 1) } })
 $secGb = Get-SeriesSum 'SecurityEvent' $L
 Save-DemoJson 'top-event-ids.json' @(foreach ($e in @(@(4624, 'An account was successfully logged on', 0.24), @(4688, 'A new process has been created', 0.19), @(4663, 'An attempt was made to access an object', 0.12), @(4634, 'An account was logged off', 0.09), @(5145, 'A network share object was checked to see whether client can be granted desired access', 0.08), @(4672, 'Special privileges assigned to new logon', 0.06), @(4625, 'An account failed to log on', 0.04), @(4769, 'A Kerberos service ticket was requested', 0.04), @(4776, 'The computer attempted to validate the credentials for an account', 0.03), @(4662, 'An operation was performed on an object', 0.03))) {
         [ordered]@{ TableName = 'SecurityEvent'; EventID = $e[0]; EventDescription = $e[1]; BilledSizeGB = [math]::Round($secGb * $e[2] * 1.07374, 3); LogCount = [long]($secRows * $e[2]) }
     })
-Save-DemoJson 'security-event-duplicates.json' @([ordered]@{ Computer = 'WIN-file-0204.corp.contoso.com'; DuplicateRecords = 412; LogCount = 9120; DuplicateEventIds = @(4663, 5145) })
+Save-DemoJson 'security-event-duplicates.json' @([ordered]@{ Computer = 'WIN-file-0204.corp.larkfield.example'; DuplicateRecords = 412; LogCount = 9120; DuplicateEventIds = @(4663, 5145) })
 Save-DemoJson 'azure-activity-coverage.json' @(foreach ($i in 1..14) { $sid = '00000000-0000-0000-0000-{0:x12}' -f (0xc0de00 + $i); [ordered]@{ SubscriptionId = $sid; LogCount = [long](Get-DemoBetween 20000 900000) } })
 Save-DemoJson 'azure-diagnostics-providers.json' @(foreach ($p in @(@('MICROSOFT.KEYVAULT', 0.31), @('MICROSOFT.NETWORK', 0.27), @('MICROSOFT.SQL', 0.22), @('MICROSOFT.WEB', 0.12), @('MICROSOFT.CONTAINERSERVICE', 0.08))) { [ordered]@{ ResourceProvider = $p[0]; LogCount = [long]((& $gbToRows (Get-SeriesSum 'AzureDiagnostics' $L) 1500) * $p[1]) } })
 Save-DemoJson 'azure-diagnostics-categories.json' @(foreach ($p in @(@('MICROSOFT.KEYVAULT', 'AuditEvent', 0.31), @('MICROSOFT.NETWORK', 'ApplicationGatewayFirewallLog', 0.18), @('MICROSOFT.NETWORK', 'ApplicationGatewayAccessLog', 0.09), @('MICROSOFT.SQL', 'SQLSecurityAuditEvents', 0.22), @('MICROSOFT.WEB', 'AppServiceHTTPLogs', 0.12), @('MICROSOFT.CONTAINERSERVICE', 'kube-audit-admin', 0.08))) { [ordered]@{ ResourceProvider = $p[0]; Category = $p[1]; LogCount = [long]((& $gbToRows (Get-SeriesSum 'AzureDiagnostics' $L) 1500) * $p[2]) } })
@@ -1109,9 +1113,9 @@ Save-DemoJson 'workspace.json' ([ordered]@{
             defaultDataCollectionRuleResourceId = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionRules/dcr-workspace-transform"
             replication = [ordered]@{ enabled = $true; location = 'ukwest' }
         }
-        location = $region; tags = [ordered]@{ Environment = 'Production'; Owner = 'secops@contoso.com'; CostCentre = 'SEC-001' }; id = $wsId; name = $WorkspaceName; type = 'Microsoft.OperationalInsights/workspaces'; etag = '"' + (New-DemoGuid 'etag|workspace') + '"'
+        location = $region; tags = [ordered]@{ Environment = 'Production'; Owner = 'secops@larkfield.example'; CostCentre = 'SEC-001' }; id = $wsId; name = $WorkspaceName; type = 'Microsoft.OperationalInsights/workspaces'; etag = '"' + (New-DemoGuid 'etag|workspace') + '"'
     })
-Save-DemoJson 'subscription.json' ([ordered]@{ Id = $subscriptionId; Name = 'Contoso Security Production'; TenantId = $tenantId; State = 'Enabled'; HomeTenantId = $tenantId })
+Save-DemoJson 'subscription.json' ([ordered]@{ Id = $subscriptionId; Name = 'Larkfield Security Production'; TenantId = $tenantId; State = 'Enabled'; HomeTenantId = $tenantId })
 Save-DemoJson 'resource-providers.json' @(foreach ($p in 'Microsoft.OperationalInsights', 'Microsoft.SecurityInsights', 'Microsoft.OperationsManagement', 'Microsoft.Insights', 'Microsoft.Logic', 'Microsoft.SentinelPlatformServices') { [ordered]@{ ProviderNamespace = $p; RegistrationState = 'Registered' } })
 $roleSpec = @(
     @('SOC Analysts Tier 1', 'Group', 'Microsoft Sentinel Responder'), @('SOC Analysts Tier 2', 'Group', 'Microsoft Sentinel Responder'), @('SOC Engineering', 'Group', 'Microsoft Sentinel Contributor'),
@@ -1123,7 +1127,7 @@ Save-DemoJson 'rbac-workspace.json' @(foreach ($r in $roleSpec) { & $asRole $wsI
 Save-DemoJson 'rbac-resourcegroup.json' @(foreach ($r in @($roleSpec | Where-Object { $_[2] -in @('Owner', 'Contributor', 'Logic App Contributor') })) { & $asRole "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup" $r })
 Save-DemoJson 'sentinel-data-lake.json' @([ordered]@{ id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.SentinelPlatformServices/sentinelPlatformServices/default"; name = 'default'; location = $region; resourceGroup = $resourceGroup; subscriptionId = $subscriptionId
         properties = [ordered]@{ provisioningState = 'Succeeded' }; identity = [ordered]@{ principalId = (New-DemoGuid 'lake-mi'); tenantId = $tenantId; type = 'SystemAssigned' }
-        systemData = [ordered]@{ lastModifiedByType = 'User'; lastModifiedAt = (Format-DemoTime $asOfUtc.AddDays(-160)); lastModifiedBy = 'secops@contoso.com'; createdByType = 'User'; createdAt = (Format-DemoTime $asOfUtc.AddDays(-160)); createdBy = 'secops@contoso.com' } })
+        systemData = [ordered]@{ lastModifiedByType = 'User'; lastModifiedAt = (Format-DemoTime $asOfUtc.AddDays(-160)); lastModifiedBy = 'secops@larkfield.example'; createdByType = 'User'; createdAt = (Format-DemoTime $asOfUtc.AddDays(-160)); createdBy = 'secops@larkfield.example' } })
 Save-DemoJson 'available-service-tiers.json' @(
     [ordered]@{ serviceTier = 'PerGB2018'; enabled = (-not $commitmentGb) }
     [ordered]@{ serviceTier = 'CapacityReservation'; capacityReservationLevel = $(if ($commitmentGb) { $commitmentGb } else { 100 }); enabled = [bool]$commitmentGb }
@@ -1165,7 +1169,7 @@ Save-DemoJson 'whats-new.json' ([ordered]@{ FetchedUtc = (Format-DemoTime $asOfU
         Items = $newsItems })
 
 # The rest from the fixture, under the demo's names.
-$rename = [ordered]@{ 'law-sentinel-test' = $WorkspaceName; 'rg-sentinel-test' = $resourceGroup; '/resourceGroups/rg-test/' = "/resourceGroups/$resourceGroup/"; '00000000-0000-0000-0000-000000000001' = $subscriptionId; '00000000-0000-0000-0000-000000000000' = $subscriptionId; 'example.test' = 'contoso.com'; 'Sentinel Test' = 'Contoso Security Production' }
+$rename = [ordered]@{ 'law-sentinel-test' = $WorkspaceName; 'rg-sentinel-test' = $resourceGroup; '/resourceGroups/rg-test/' = "/resourceGroups/$resourceGroup/"; '00000000-0000-0000-0000-000000000001' = $subscriptionId; '00000000-0000-0000-0000-000000000000' = $subscriptionId; 'example.test' = 'larkfield.example'; 'Sentinel Test' = 'Larkfield Security Production' }
 foreach ($f in @(Get-ChildItem -LiteralPath $fixtureRaw -Filter '*.json')) {
     $dest = Join-Path $raw $f.Name
     if (Test-Path -LiteralPath $dest) { continue }

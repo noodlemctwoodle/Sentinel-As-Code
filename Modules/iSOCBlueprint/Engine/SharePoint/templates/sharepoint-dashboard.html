@@ -113,7 +113,7 @@
   /* Progress: the baseline switch wraps on a narrow screen; a baseline with
      no kept run that far back is greyed. */
   .pgtabs{flex-wrap:wrap}
-  .pgtab[disabled]{opacity:.45;cursor:default}
+  .pglabel{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-right:-6px}
   /* What the maturity score is based on and what it leaves out: two
      matching tiles, side by side where there is room. */
   .matscope{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 18px}
@@ -1182,7 +1182,13 @@
 
   <!-- PROGRESS (change across runs): the baseline switch, then the board -->
   <div class="subnav hidden" data-views="progress">
-    <div class="pgtabs" id="progressPick" role="tablist" aria-label="Compare with"></div>
+    <span class="pglabel" id="progressLabel">Compare with</span>
+    <div class="pgtabs" id="progressPick" role="tablist" aria-labelledby="progressLabel"></div>
+    <label class="winwrap" id="progressRunWrap" hidden title="Compare with any kept run">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>
+      <input type="range" id="progressRun" min="0" max="0" step="1" value="0" aria-label="Run compared with" aria-describedby="progressRunLab">
+      <span class="winlab" id="progressRunLab" aria-live="polite"><b></b><small></small></span>
+    </label>
     <span class="note" id="progressNote"></span>
   </div>
   <section data-view="progress" class="hidden">
@@ -3356,10 +3362,12 @@
   // compares its own day with the runs before it.
   (function(){
     const board=document.getElementById('progressBoard'), pickEl=document.getElementById('progressPick'), noteEl=document.getElementById('progressNote');
+    const labelEl=document.getElementById('progressLabel'), runWrap=document.getElementById('progressRunWrap'), runEl=document.getElementById('progressRun'), runLab=document.getElementById('progressRunLab');
     if(!board) return;
     const cur=M.progress||null;
     if(!cur){
       if(pickEl) pickEl.hidden=true;
+      if(labelEl) labelEl.hidden=true;
       if(noteEl) noteEl.textContent='This snapshot was built before progress tracking. Each run from now on adds a record, and this view compares them.';
       return;
     }
@@ -3389,20 +3397,28 @@
     const TILES=[['maturityScore',ICON.gauge],['findings',ICON.shieldAlert],['findingsCritical',ICON.flag],['rulesEnabled',ICON.bolt],
       ['techniquesCovered',ICON.crosshair],['uncoveredGb',ICON.database],['openIncidents',ICON.pulse],['monthlyCost',ICON.coins]];
     const TRENDS=[['maturityScore','indigo'],['findings','amber'],['rulesEnabled','brand'],['techniquesCovered','teal'],['uncoveredGb','violet'],['monthlyCost','cyan']];
-    const CHIPS=[['prev','Previous run',0],['d7','7 days',7],['d30','30 days',30],['d90','90 days',90],['first','First run',null]];
+    // The baselines offered at a click: the previous run, the latest run at
+    // least 7, 30 and 90 days before this one, and the first kept run. Each
+    // run is offered once, named for what it is (Previous run, First run,
+    // or how far back it is) with its date; the slider beside them, styled
+    // as the window slider, reaches every kept run. pick is the date of the
+    // run compared with.
+    const PRESETS=[['prev',0],['d7',7],['d30',30],['d90',90],['first',null]];
     const SHOW=8;
-    let entries=[cur], pick='prev';
+    let entries=[cur], pick=null;
     const day=d=>new Date(d+'T00:00:00Z');
     const iso=d=>{ const t=day(cur.date); t.setUTCDate(t.getUTCDate()-d); return t.toISOString().slice(0,10); };
     const daysBetween=(a,b)=>Math.round((day(b)-day(a))/86400000);
     const short=d=>fmtDate(d,{year:false});
     const long=d=>fmtDate(d);
     const andList=a=>a.length<2? a.join('') : a.slice(0,-1).join(', ')+' and '+a[a.length-1];
-    const baselines=()=>{
-      const earlier=entries.filter(e=>e.date<cur.date), out={};
-      CHIPS.forEach(([k,,d])=>{ out[k]= k==='prev'? earlier[earlier.length-1]||null : k==='first'? earlier[0]||null : earlier.filter(e=>e.date<=iso(d)).pop()||null; });
-      return out;
-    };
+    const earlierRuns=()=>entries.filter(e=>e.date<cur.date);
+    const presetRuns=E=>{ const seen=new Set(), out=[];
+      PRESETS.forEach(([k,d])=>{ const r= k==='prev'? E[E.length-1] : k==='first'? E[0] : E.filter(e=>e.date<=iso(d)).pop();
+        if(r && !seen.has(r.date)){ seen.add(r.date); out.push(r); } });
+      return out.sort((a,b)=>a.date<b.date?1:-1); };
+    const backBy=r=>{ const n=daysBetween(r.date,cur.date); return n===1? '1 day' : n+' days'; };
+    const roleOf=(r,E)=>r===E[E.length-1]? 'Previous run' : r===E[0]? 'First run' : '';
     const mv=(e,k)=>{ const v=e&&e.metrics? e.metrics[k] : null; return v==null||v===''? null : +v; };
     const fmtVal=(v,f)=>{
       if(v==null) return 'n/a';
@@ -3525,19 +3541,27 @@
     }
 
     function draw(){
-      const B=baselines();
-      if(!B[pick]) pick=CHIPS.map(c=>c[0]).find(k=>B[k])||'prev';
-      const base=B[pick];
+      const E=earlierRuns();
+      if(!E.some(e=>e.date===pick)) pick=E.length? E[E.length-1].date : null;
+      const base=E.find(e=>e.date===pick)||null, P=presetRuns(E);
+      if(labelEl) labelEl.hidden=!E.length;
       if(pickEl){
-        pickEl.hidden=false;
-        pickEl.innerHTML=CHIPS.map(([k,label])=>{ const b=B[k], on=k===pick&&!!b;
-          return '<button type="button" class="pgtab'+(on?' active':'')+'" role="tab" aria-selected="'+on+'" data-pgpick="'+k+'"'+(b?'':' disabled')+
-            ' title="'+(b? 'Compare with the run of '+esc(long(b.date)) : 'No kept run that far back')+'"><span>'+esc(label)+'</span>'+(b?'<span class="subcount">'+esc(short(b.date))+'</span>':'')+'</button>';
+        pickEl.hidden=!E.length;
+        pickEl.innerHTML=P.map(r=>{ const on=r.date===pick;
+          return '<button type="button" class="pgtab'+(on?' active':'')+'" role="tab" aria-selected="'+on+'" data-pgpick="'+esc(r.date)+'"'+
+            ' title="The run of '+esc(long(r.date))+', '+backBy(r)+' back"><span>'+esc(roleOf(r,E)||backBy(r))+'</span><span class="subcount">'+esc(short(r.date))+'</span></button>';
         }).join('');
+      }
+      // Every kept run on the slider, the first on the left and the previous
+      // on the right, when there are more runs than chips.
+      if(runWrap&&runEl){
+        runWrap.hidden=E.length<=P.length;
+        runEl.max=String(Math.max(0,E.length-1)); runEl.value=String(Math.max(0,E.findIndex(e=>e.date===pick)));
+        showRun(E);
       }
       if(noteEl){
         const n=base? daysBetween(base.date,cur.date) : 0;
-        noteEl.innerHTML= base? 'The run of <b>'+esc(long(cur.date))+'</b> against the run of <b>'+esc(long(base.date))+'</b>, '+n+' day'+(n===1?'':'s')+' earlier. '+entries.length+' runs kept.' :
+        noteEl.innerHTML= base? 'Change from <b>'+esc(long(base.date))+'</b> to <b>'+esc(long(cur.date))+'</b>, '+n+' day'+(n===1?'':'s')+'. '+entries.length+' runs kept.' :
           'Only the run of <b>'+esc(long(cur.date))+'</b> is kept so far. Each run adds a record, and this view compares them.';
       }
       board.innerHTML=tilesHtml(base)+areasHtml(base)+trendsHtml()+changesHtml(base)+tableHtml(base);
@@ -3547,7 +3571,18 @@
       if(typeof markClamped==='function') markClamped();
       if(typeof window.fitIframe==='function') window.fitIframe();
     }
-    if(pickEl) pickEl.addEventListener('click',e=>{ const c=e.target.closest('[data-pgpick]'); if(c && !c.disabled){ pick=c.dataset.pgpick; draw(); } });
+    if(pickEl) pickEl.addEventListener('click',e=>{ const c=e.target.closest('[data-pgpick]'); if(c){ pick=c.dataset.pgpick; draw(); } });
+    // The slider's label follows the thumb; letting go (or a key) compares.
+    function showRun(E){
+      const r=E[+runEl.value]; if(!r||!runLab) return;
+      const role=roleOf(r,E);
+      runLab.querySelector('b').textContent=long(r.date);
+      runLab.querySelector('small').textContent=backBy(r)+(role? ', '+role.toLowerCase() : '');
+    }
+    if(runEl){
+      runEl.addEventListener('input',()=>showRun(earlierRuns()));
+      runEl.addEventListener('change',()=>{ const r=earlierRuns()[+runEl.value]; if(r){ pick=r.date; draw(); } });
+    }
     board.addEventListener('click',e=>openItem(e.target.closest('.pglink')));
     board.addEventListener('keydown',e=>{ const l=e.target.closest('.pglink'); if(l && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); openItem(l); } });
     function openItem(l){
@@ -3563,7 +3598,7 @@
         SNAP.read('progress-history.json').then(h=>{
           const earlier=((h&&h.entries)||[]).filter(e=>e&&e.date&&e.date<cur.date).sort((a,b)=>a.date<b.date?-1:1);
           if(!earlier.length) return;
-          entries=earlier.concat([cur]); pick='prev'; draw();
+          entries=earlier.concat([cur]); pick=null; draw();
         }).catch(()=>{});
       }
     }catch(e){}

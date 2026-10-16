@@ -179,7 +179,7 @@ Describe 'The publisher keeps the history on the site' {
 Describe 'The dashboard''s Progress tab' {
     It 'has its tab, its baseline switch and its board' {
         $script:html | Should -Match '<div class="tab" data-tab="progress" role="tab">'
-        $script:html | Should -Match '<div class="subnav hidden" data-views="progress">\s*<div class="pgtabs" id="progressPick" role="tablist" aria-label="Compare with"></div>'
+        $script:html | Should -Match '<div class="subnav hidden" data-views="progress">\s*<span class="pglabel" id="progressLabel">Compare with</span>\s*<div class="pgtabs" id="progressPick" role="tablist" aria-labelledby="progressLabel"></div>'
         $script:html | Should -Match '<section data-view="progress" class="hidden">\s*<div id="progressBoard"></div>'
         # The switch is the Assessment switch's look under its own class, as
         # .subtab buttons switch views.
@@ -189,7 +189,16 @@ Describe 'The dashboard''s Progress tab' {
 
     It 'reads the history beside the dashboard and compares against a chosen baseline' {
         $script:html.Contains("SNAP.read('progress-history.json')") | Should -BeTrue
-        $script:html.Contains("const CHIPS=[['prev','Previous run',0],['d7','7 days',7],['d30','30 days',30],['d90','90 days',90],['first','First run',null]];") | Should -BeTrue
+        $script:html.Contains("const PRESETS=[['prev',0],['d7',7],['d30',30],['d90',90],['first',null]];") | Should -BeTrue
+        # Each run is offered once (a preset that lands on the same run as
+        # another is dropped), named for what it is, with no 'earlier'.
+        $script:html.Contains("if(r && !seen.has(r.date)){ seen.add(r.date); out.push(r); }") | Should -BeTrue
+        $script:html.Contains("const roleOf=(r,E)=>r===E[E.length-1]? 'Previous run' : r===E[0]? 'First run' : '';") | Should -BeTrue
+        $script:html | Should -Not -Match 'days earlier'
+        # Every kept run on a slider styled as the window slider, not a native list.
+        $script:html | Should -Match '<label class="winwrap" id="progressRunWrap" hidden title="Compare with any kept run">'
+        $script:html | Should -Not -Match 'id="progressAny"'
+        $script:html.Contains("noteEl.innerHTML= base? 'Change from <b>'+esc(long(base.date))+'</b> to <b>'+esc(long(cur.date))+'</b>, '") | Should -BeTrue
         # A day's kept copy compares its own day with the runs before it.
         $script:html.Contains("filter(e=>e&&e.date&&e.date<cur.date)") | Should -BeTrue
     }

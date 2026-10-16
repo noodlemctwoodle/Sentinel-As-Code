@@ -2,7 +2,7 @@
 
 [`Tools/New-BlueprintDemoWorkspace.ps1`](../../Tools/New-BlueprintDemoWorkspace.ps1)
 writes a complete, synthetic iSOC Blueprint inventory for a large
-fictitious workspace (Contoso, 2 TB a day), so the report and the
+fictitious workspace (Larkfield, a made-up organisation, 2 TB a day), so the report and the
 SharePoint dashboard can be developed, demonstrated and screenshotted
 without a tenant. Nothing in it comes from a real workspace, so it is safe
 to show and share; a live run's output never is.
@@ -18,14 +18,14 @@ From the repository root:
 ./Tools/New-BlueprintDemoWorkspace.ps1 -Build
 ```
 
-That writes `SecurityDocs/law-contoso-sentinel/_raw` (git ignores
+That writes `SecurityDocs/law-larkfield-sentinel/_raw` (git ignores
 `SecurityDocs/`), renders the report beside it and builds the dashboard
-bundle under `SecurityDocs/law-contoso-sentinel/sharepoint`. Serve that
+bundle under `SecurityDocs/law-larkfield-sentinel/sharepoint`. Serve that
 folder to open the dashboard in a browser, so it can also read the
 maturity history beside it:
 
 ```powershell
-python3 -m http.server 8080 --directory SecurityDocs/law-contoso-sentinel/sharepoint
+python3 -m http.server 8080 --directory SecurityDocs/law-larkfield-sentinel/sharepoint
 ```
 
 The command returns the workspace folder, its `_raw` folder, the bundle
@@ -34,7 +34,7 @@ The command returns the workspace folder, its `_raw` folder, the bundle
 | Parameter | Default | What it sets |
 | --- | --- | --- |
 | `-OutputPath` | `SecurityDocs/<WorkspaceName>` | The workspace folder; the inventory goes to its `_raw` |
-| `-WorkspaceName` | `law-contoso-sentinel` | The demo workspace's name |
+| `-WorkspaceName` | `law-larkfield-sentinel` | The demo workspace's name |
 | `-DailyGb` | `2048` | Average GB a day over the last 30 days, every table included |
 | `-LookbackDays` | `90` | Days of activity, 7 to 90; the daily series and the dashboard's window slider cover the same days |
 | `-AsOf` | now (UTC) | When the demo was "collected"; every date counts back from it |

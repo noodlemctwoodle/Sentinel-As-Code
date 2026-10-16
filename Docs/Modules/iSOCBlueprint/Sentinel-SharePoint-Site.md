@@ -643,10 +643,15 @@ baseline:
 The dashboard's **Progress** tab compares the run it shows with a baseline
 from the history, and is drawn in the dashboard's own parts:
 
-- **The baseline switch**, the Assessment tab's switch: the previous run
-  (the default), the latest run at least 7, 30 or 90 days earlier, or the
-  first kept run, each with its date. A choice with no run that far back is
-  greyed out. Beside it, the two runs compared and how many are kept.
+- **Compare with**: the Assessment tab's switch with a chip for each of
+  the previous run (the default), the latest run at least 7, 30 and 90
+  days back, and the first kept run, each run once (a preset that lands
+  on a run another already offers is dropped) and named for what it is
+  ("Previous run", "30 days", "First run") with its date. Beside it, a
+  slider styled as the window slider reaches every kept run, its label
+  giving the run's date and how far back it is; chips and slider follow
+  each other. A sentence says what is compared ("Change from 8 Oct 2026 to
+  16 Oct 2026, 8 days") and how many runs are kept.
 - **Progress at a glance**: the Overview's tiles (maturity score, findings,
   critical findings, analytics rules enabled, ATT&CK techniques covered, GB
   no detection reads, open incidents, monthly cost), each with its change

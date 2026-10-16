@@ -11,12 +11,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   record for its run (the headline numbers and the findings, criteria,
   rules, ATT&CK techniques and tables behind them), kept as a history: from
   earlier day folders locally, and on the site by the publisher, so daily
-  pipeline runs build it up. A new **Progress** tab compares the run with a
-  baseline (the previous run, 7, 30 or 90 days earlier, or the first): the
+  pipeline runs build it up. A new **Progress** tab compares the run with
+  any kept run (one click for the previous run, 7, 30 or 90 days back, or
+  the first, each run offered once; a slider styled as the window slider
+  for the rest): the
   headline numbers then and now, coloured by whether each moved the right
   way, trends across every kept run, and every change since, each finding,
   criterion and rule opening where it lives. It is drawn in the dashboard's
-  own parts: the Assessment tab's switch for the baseline, the Overview's
+  own parts: the Assessment tab's switch for the presets, the Overview's
   tiles, the maturity view's area bars (the target marker in line, the
   change a green or red segment at each bar's end) and Insights cards for
   the trends and the changes. The history keeps the newest run and the 90
@@ -140,7 +142,8 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   change from the next collection.
 - **A demo workspace for the Blueprint** - `Tools/New-BlueprintDemoWorkspace.ps1`
   writes a complete synthetic inventory for a fictitious 2 TB a day
-  workspace on a 2,000 GB a day commitment tier, built from this
+  workspace belonging to Larkfield, a made-up organisation on the reserved
+  `larkfield.example` domain (no vendor's sample company), on a 2,000 GB a day commitment tier, built from this
   repository's own content: its analytics rules (the Community rules as
   Content Hub templates, some deployed from them), hunting queries, Defender
   XDR custom detections, playbooks, workbooks, watchlists, automation and
