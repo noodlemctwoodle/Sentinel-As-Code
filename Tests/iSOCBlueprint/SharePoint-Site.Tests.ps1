@@ -2406,7 +2406,7 @@ Describe 'Dashboard figures and labels' {
     It 'writes figures, money, dates and names in one style' {
         $script:dash.Contains("const fmtGb = n =>") | Should -BeTrue
         $script:dash.Contains("const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];") | Should -BeTrue
-        $script:dash.Contains("(w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '')") | Should -BeTrue
+        $script:dash.Contains("? 'Collected '+fmtDate(M.workspace.generatedUtc,{time:true}) : PRODUCT_SUB;") | Should -BeTrue
         $script:dash.Contains("uksouth:'UK South'") | Should -BeTrue
         $script:dash.Contains("label:apiWords(i.label)") | Should -BeTrue
         # No currency code before an amount, and no locale-dependent month names.
@@ -2425,10 +2425,12 @@ Describe 'Dashboard figures and labels' {
         $script:dash | Should -Match '<h1 id="title"></h1>'
         $script:dash.Contains("document.getElementById('title').textContent = w.name||PRODUCT;") | Should -BeTrue
         $script:dash.Contains("[w.region? regionName(w.region) : '', w.resourceGroup||'']") | Should -BeTrue
-        # The Blueprint version is the top bar's, beside the product's name, not the header's.
+        # The Blueprint version and the collection time are the top bar's,
+        # beside and under the product's name, not the header's.
         $script:dash | Should -Match '<span class="bt" id="brandName">iSOC Blueprint<span class="bv" id="brandVer" hidden></span>'
         $script:dash.Contains("brandVer.textContent='v'+w.blueprintVer;") | Should -BeTrue
         $script:dash.Contains("'Blueprint v'+esc(w.blueprintVer") | Should -BeFalse
+        $script:dash | Should -Not -Match 'id="heroMeta"'
         $script:dash | Should -Not -Match "'Sentinel workspace'"
         # The lead sentence follows the tab: the days shown, as collected, or
         # (Progress) the runs compared.

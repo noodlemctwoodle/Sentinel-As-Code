@@ -238,10 +238,6 @@
   .hero-lead{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--ink-2);max-width:78ch}
   .hero-lead[hidden]{display:none}
   .hero-lead b{color:var(--ink);font-weight:700}
-  .hero-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;margin:10px 0 0;font-size:12px;color:var(--muted)}
-  .hero-meta[hidden]{display:none}
-  .hero-meta span{display:inline-flex;align-items:center;gap:6px}
-  .hero-meta svg{width:13px;height:13px;color:var(--faint)}
   .hero-kpis{display:flex;flex-wrap:wrap;gap:12px;margin-left:auto}
   .hkpi{display:flex;align-items:center;gap:14px;min-width:240px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);
     background:color-mix(in srgb,var(--panel-soft) 85%,transparent);font:inherit;color:var(--ink);text-align:left;cursor:pointer;
@@ -1163,7 +1159,6 @@
         <div class="hero-eyebrow" id="heroEyebrow"></div>
         <h1 id="title"></h1>
         <p class="hero-lead" id="heroCtx" aria-live="polite" hidden></p>
-        <p class="hero-meta" id="heroMeta"></p>
       </div>
     </div>
     <div class="hero-kpis" id="heroFacts"></div>
@@ -1794,17 +1789,17 @@
     return null;
   }
   document.getElementById('brandName').childNodes[0].nodeValue = PRODUCT;
-  document.getElementById('brandSub').textContent = PRODUCT_SUB;
+  // The line under the product's name says when this was collected (the
+  // provenance sits together: product, version, collection time).
+  document.getElementById('brandSub').textContent = M.workspace&&M.workspace.generatedUtc? 'Collected '+fmtDate(M.workspace.generatedUtc,{time:true}) : PRODUCT_SUB;
   const w = M.workspace;
-  // The header names the workspace (the product is the top bar's): where it
-  // lives (region, resource group) above the name, when it was collected
-  // below. No product label: the Blueprint is not only Sentinel's.
+  // The header names the workspace (the product, its version and when this
+  // was collected are the top bar's): where it lives (region, resource
+  // group) above the name. No product label: the Blueprint is not only
+  // Sentinel's.
   document.getElementById('title').textContent = w.name||PRODUCT;
   document.getElementById('heroEyebrow').innerHTML=[w.region? regionName(w.region) : '', w.resourceGroup||'']
     .filter(Boolean).map(s=>'<span>'+esc(s)+'</span>').join('');
-  const heroMeta=document.getElementById('heroMeta');
-  heroMeta.innerHTML=w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '';
-  heroMeta.hidden=!w.generatedUtc;
   // The Blueprint version that built this, in the top bar by the product.
   const brandVer=document.getElementById('brandVer');
   if(brandVer && w.blueprintVer){ brandVer.textContent='v'+w.blueprintVer; brandVer.title='Built by iSOC Blueprint v'+w.blueprintVer; brandVer.hidden=false; }
