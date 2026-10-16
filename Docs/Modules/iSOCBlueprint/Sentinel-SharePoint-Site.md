@@ -84,6 +84,13 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Blueprint computes:
 
+The header under the top bar names the workspace and, in a line that
+follows the tab, what the view showing covers: the days chosen for the
+activity views ("Activity in the last 90 days, 19 Jul to 16 Oct 2026"),
+when the Assessment and the Report were collected, and on Progress the
+two runs compared. Its Maturity and Findings facts open their view in the
+Assessment tab.
+
 The glance tiles name the pricing tier in words with the API's SKU under
 it (Pay-as-you-go over `PerGB2018`), or on a commitment tier or dedicated
 cluster its size ("Commitment tier", "2,000 GB a day", from the
@@ -91,7 +98,7 @@ workspace's `sku.capacityReservationLevel`), the region by the portal's
 name with the programmatic one under it (UK South over `uksouth`), and
 show money in its currency with thousands separators ("£70,575"). The
 monthly cost says which window it is projected from, as it follows the
-window slider while the Report tab's cost page keeps the collected window.
+date range while the Report tab's cost page keeps the collected window.
 
 Figures, money and dates are written as the report pages write them (see
 [Writing figures](Blueprint-Renderer-Design.md#writing-figures)): GB to two
@@ -610,7 +617,7 @@ reports what it would append and writes nothing.
 
 ### Progress across runs
 
-Each export is a snapshot: the window slider re-scopes its activity, but
+Each export is a snapshot: the date range re-scopes its activity, but
 posture (rules enabled, findings, maturity criteria, coverage) is as it was
 on the day. To show change, every site build writes a **progress record**
 for its run (`progress.json` in the bundle, and `progress` in the dashboard
@@ -643,15 +650,13 @@ baseline:
 The dashboard's **Progress** tab compares the run it shows with a baseline
 from the history, and is drawn in the dashboard's own parts:
 
-- **Compare with**: the Assessment tab's switch with a chip for each of
-  the previous run (the default), the latest run at least 7, 30 and 90
-  days back, and the first kept run, each run once (a preset that lands
-  on a run another already offers is dropped) and named for what it is
-  ("Previous run", "30 days", "First run") with its date. Beside it, a
-  slider styled as the window slider reaches every kept run, its label
-  giving the run's date and how far back it is; chips and slider follow
-  each other. A sentence says what is compared ("Change from 8 Oct 2026 to
-  16 Oct 2026, 8 days") and how many runs are kept.
+- **The dates**: the top bar's date range chooses the two runs compared:
+  the run kept on or before its last day, against the run kept on or
+  before its first day (or, when none is, the earliest inside it); a
+  single day compares that day's run with the one before. The header names
+  them ("Change from the run of 1 Sep 2026 to the run of 23 Sep 2026, 22
+  days apart"). Without daily
+  series, the snapshot's run is compared with the previous one.
 - **Progress at a glance**: the Overview's tiles (maturity score, findings,
   critical findings, analytics rules enabled, ATT&CK techniques covered, GB
   no detection reads, open incidents, monthly cost), each with its change
@@ -664,7 +669,7 @@ from the history, and is drawn in the dashboard's own parts:
   one, and the badge gives the change.
 - **Over time**: Insights cards for the maturity score, findings, rules
   enabled, techniques covered, GB no detection reads and the monthly cost
-  across every kept run, each scaled to its own range so a small move shows.
+  across the kept runs between the two compared, each scaled to its own range so a small move shows.
 - **What changed**: an Insights card per subject with a change, every one
   listed (the first eight of a list, then Show all): findings resolved and
   new, criteria now met and now a gap, analytics rules enabled and no longer
@@ -682,18 +687,22 @@ the frame); from disk there is nothing to read and the tab shows this run
 alone. A record is about 20 KB for a large workspace, so 90 days of history
 is a couple of megabytes.
 
-### The window slider
+### The date range
 
-A slider in the top bar, beside the light and dark toggle, sets how many
-days of activity the dashboard shows: from 1 to the days the collector
-counted per day (the lookback, at most 90). Beside it are the window and
-the dates it covers, counted back from when the data was collected
-("Last 14 days", "30 Sep to 14 Oct 2026"). The label follows the thumb;
-letting go (or a pause after the arrow keys) redraws the dashboard for
-that window and reopens the tab, and the report page, that was showing.
-The choice stays for the next load in the same tab (it is kept in the
-frame's `window.name`, which the dashboard checks before use and never
-writes out as markup).
+One control in the top bar, beside the light and dark toggle, chooses the
+days the whole dashboard shows. The pill names the window and its dates
+("Last 14 days", "1 Oct to 14 Oct 2026"; "30 days", "1 Sep to 30 Sep
+2026" for a window that ends earlier) and opens a calendar of the days the
+collector counted per day (the lookback, at most 90): two months side by
+side (one on a phone), the days outside the collected span greyed out.
+Choose a first and a last day, as when booking dates; one day alone is a
+window too. Quick choices above the months take the last 7, 30 or every
+collected day at once, and light up when the days chosen match one. Apply redraws the dashboard for the window
+and reopens the tab, and the report page, that was showing. The arrow keys
+move a day or a week, Home and End go to the first and last collected day,
+Enter or Space chooses, Escape closes. The choice stays for the next load
+in the same tab (it is kept in the frame's `window.name`, which the
+dashboard checks before use and never writes out as markup).
 
 The collector counts five series per day ago (0 is the last 24 hours) for
 this: billable GB per table, alerts (once each, on the day first seen, with
@@ -702,7 +711,8 @@ their product, severity, provider and rule), incidents at their latest state
 acknowledge and resolve times), incidents per detection with their verdicts,
 and Sentinel health events; playbook runs are counted per day too. The
 build carries them in the model as `daily`. Summing the last N days gives
-exactly the rolling N-day window the other captures read, so the dashboard
+exactly the rolling N-day window the other captures read, and any N
+consecutive days within the span a window that ends earlier, so the dashboard
 rebuilds from them, before anything is drawn, every card that counts
 activity: the glance tiles, the alert lifecycle and its figures, the estate
 pipeline and its four measures, the ingest and billing flow, the detection
@@ -712,14 +722,16 @@ effectiveness, detection opportunities, playbook health, daily ingestion,
 and the cost, projected to a month from the window. Cost and the flow are
 re-priced only when the cost estimate priced every table (it does from
 the collector that writes the series); otherwise they keep the collected
-window. Every label names the window shown.
+window. Every label names the window shown ("in the last 30 days", or
+"in the 30 days to 30 Sep 2026").
 
 What does not count activity keeps the window that was collected, and says
 so: configuration and inventory, threat intelligence (its Insights card
-says the slider does not re-scope it), the findings, the maturity score,
-the Report tab's pages, which are the rendered report, and the Progress
-tab, which compares each run's own collected figures.
-A run collected before the daily series has no slider and shows its
+says the chosen dates do not re-scope it), the findings, the maturity
+score, and the Report tab's pages, which are the rendered report. The
+Progress tab compares the runs kept at either end of the chosen dates,
+each with its own collected figures.
+A run collected before the daily series has no date range and shows its
 collected window. With the window at the collected number of days the
 dashboard shows the collected figures unchanged.
 
@@ -735,8 +747,8 @@ from the newest, so with the daily pipeline it grows a day at a time until
 it holds 90 days; older days go to the recycle bin. `-HistoryDays 0` keeps
 none. A copy is about the size of the dashboard (around 3 MB).
 
-The window slider took the place of the dashboard's date picker, so the
-dashboard no longer links to these copies; they stay in the library, each
+The date range compares runs through their progress records rather than
+these copies, so the dashboard does not link to them; they stay in the library, each
 a complete dashboard of its day that opens on its own. Each copy runs the
 dashboard code of its own day, so it always matches its data; a later
 design change does not reach older copies. Only the dashboard has a

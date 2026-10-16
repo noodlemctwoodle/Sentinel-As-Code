@@ -11,14 +11,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   record for its run (the headline numbers and the findings, criteria,
   rules, ATT&CK techniques and tables behind them), kept as a history: from
   earlier day folders locally, and on the site by the publisher, so daily
-  pipeline runs build it up. A new **Progress** tab compares the run with
-  any kept run (one click for the previous run, 7, 30 or 90 days back, or
-  the first, each run offered once; a slider styled as the window slider
-  for the rest): the
+  pipeline runs build it up. A new **Progress** tab compares the runs kept
+  at either end of the dates chosen in the top bar (the date range below):
+  the
   headline numbers then and now, coloured by whether each moved the right
   way, trends across every kept run, and every change since, each finding,
   criterion and rule opening where it lives. It is drawn in the dashboard's
-  own parts: the Assessment tab's switch for the presets, the Overview's
+  own parts: the Overview's
   tiles, the maturity view's area bars (the target marker in line, the
   change a green or red segment at each bar's end) and Insights cards for
   the trends and the changes. The history keeps the newest run and the 90
@@ -33,7 +32,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   finding (SAC-DET-12) counts rules that fired by rule id, as the Data flow
   ring does, so the two add up to the enabled rules; the lifecycle's GB a
   day says it counts billable and free data and splits them. Labels follow
-  the window slider (the source family volumes, the monthly cost, which
+  the date range (the source family volumes, the monthly cost, which
   now says the window it is projected from), and what does not follow it
   says so (threat intelligence by source, the Progress tab). The alert
   volumes by provider table covers the report's full window, with the last
@@ -142,14 +141,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   change from the next collection.
 - **A demo workspace for the Blueprint** - `Tools/New-BlueprintDemoWorkspace.ps1`
   writes a complete synthetic inventory for a fictitious 2 TB a day
-  workspace belonging to Larkfield, a made-up organisation on the reserved
-  `larkfield.example` domain (no vendor's sample company), on a 2,000 GB a day commitment tier, built from this
+  workspace, `sentinel-blog-uks-law`, with its people and hosts on the
+  reserved `sentinel-blog.example` domain (no vendor's sample company), on a 2,000 GB a day commitment tier, built from this
   repository's own content: its analytics rules (the Community rules as
   Content Hub templates, some deployed from them), hunting queries, Defender
   XDR custom detections, playbooks, workbooks, watchlists, automation and
   summary rules. About 60 tables ingest with weekday patterns and growth,
   and alerts, incidents, verdicts, health events, playbook runs and the
-  daily series behind the window slider are simulated so they agree with
+  daily series behind the date range are simulated so they agree with
   each other. The engine's table references, cost estimate, gap analysis
   and maturity assessment run over it, and `-Build` renders the report and
   the dashboard, so both can be developed and shown without a tenant. The
@@ -162,10 +161,15 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   Estimated Monthly Cost page and the dashboard's cost card say the
   estimate is at public list prices, without any discount or agreement
   that is not public.
-- **A window slider on the dashboard** - the dashboard's top bar has a
-  slider in place of the snapshot date picker: from 1 day to the days
-  collected (at most 90), with the dates the window covers beside it
-  ("Last 14 days, 30 Sep to 14 Oct 2026"). Letting go redraws every card
+- **A date range on the dashboard** - the dashboard's top bar has one
+  date range in place of the snapshot date picker: a calendar of the days
+  collected (at most 90) where a first and a last day are chosen as when
+  booking dates, one day alone included, with quick choices for the last
+  7, 30 or every day, and the window and its dates named on the pill
+  ("Last 14 days, 1 Oct to 14 Oct 2026"); the header says in a line what
+  the tab showing covers (its days, when it was collected, or the runs
+  Progress compares), and its Maturity and Findings facts open their
+  view. Applying redraws every card
   that counts activity for that window (the glance tiles, the alert
   lifecycle, the estate pipeline, the billing flow and cost, the detection
   matrix, top tables and rules, health, incident outcomes, rule
@@ -176,7 +180,7 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   (table GB, alerts, incidents, incidents per detection, health events)
   and per-day playbook runs over the lookback, at most 90 days, which the
   site build carries into the dashboard; a run collected before them shows
-  no slider. The daily dashboard copies are still kept in the assets
+  no date range. The daily dashboard copies are still kept in the assets
   library, but the dashboard no longer links to them. The estate's "rules
   that fired" now counts only rules that are still enabled Scheduled or
   NRT rules, so a rule disabled or deleted after it fired no longer takes

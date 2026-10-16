@@ -113,7 +113,6 @@
   /* Progress: the baseline switch wraps on a narrow screen; a baseline with
      no kept run that far back is greyed. */
   .pgtabs{flex-wrap:wrap}
-  .pglabel{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-right:-6px}
   /* What the maturity score is based on and what it leaves out: two
      matching tiles, side by side where there is room. */
   .matscope{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 18px}
@@ -146,7 +145,7 @@
   table.tbl tr.frow:hover td{background:var(--chip)}
   html[data-theme="dark"] .tab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
   .spacer{flex:1 1 0;min-width:0}
-  /* The window slider, beside the theme toggle: the last N days of the
+  /* The window pill, beside the theme toggle: the last N days of the
      collected activity, with the dates they cover. */
   .winwrap{flex:none;display:inline-flex;align-items:center;gap:10px;height:38px;padding:0 12px 0 11px;border-radius:10px;
     border:1px solid var(--line);background:var(--panel);color:var(--ink-2);box-shadow:var(--shadow-sm)}
@@ -159,6 +158,45 @@
   .winwrap:focus-within{outline:2px solid var(--brand);outline-offset:2px}
   .winwrap.busy{opacity:.55;pointer-events:none}
   @media(max-width:560px){.winwrap input[type=range]{width:96px}.winlab{min-width:0}}
+  /* The date range: the window pill opens a calendar of the collected days,
+     a first and a last day chosen as when booking dates. */
+  .winbox{position:relative;flex:none}
+  .winbox.busy{opacity:.55;pointer-events:none}
+  button.winwrap{font:inherit;cursor:pointer;text-align:left}
+  button.winwrap:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--line))}
+  button.winwrap .winchev{width:14px;height:14px;color:var(--muted);transition:transform .15s}
+  button.winwrap[aria-expanded="true"] .winchev{transform:rotate(180deg)}
+  .calpop{position:absolute;top:calc(100% + 8px);right:0;z-index:70;width:max-content;max-width:calc(100vw - 24px);
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+  .calhead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;margin-bottom:14px}
+  .calpre .pgtab{font-size:12.5px;padding:6px 12px}
+  .calnav{display:flex;gap:6px}
+  .calnav .iconbtn{width:32px;height:32px}
+  .calnav .iconbtn:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+  .calmonths{display:flex;gap:24px}
+  .calmh{font-size:13px;font-weight:750;margin:0 0 8px 6px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,36px);row-gap:2px}
+  .caldow{font-size:10.5px;font-weight:800;color:var(--faint);text-align:center;padding:2px 0 6px;letter-spacing:.04em}
+  .calday{position:relative;height:38px;padding:0;border:0;background:none;font:inherit;font-size:12.5px;font-weight:600;
+    color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums;display:grid;place-items:center}
+  .calday .n{display:grid;place-items:center;width:30px;height:30px;border-radius:999px;transition:background .12s}
+  .calday:disabled{color:var(--faint);opacity:.5;cursor:default}
+  .calday:not(:disabled):hover .n{box-shadow:inset 0 0 0 1.5px var(--brand)}
+  .calday:focus-visible{outline:none}
+  .calday:focus-visible .n{box-shadow:0 0 0 2px var(--brand)}
+  .calday.inr{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+  .calday.st{border-radius:999px 0 0 999px}
+  .calday.en{border-radius:0 999px 999px 0}
+  .calday.st.en{border-radius:999px}
+  .calday.st .n,.calday.en .n{background:var(--btn-bg);color:#fff;box-shadow:var(--btn-shadow)}
+  .calday.last .n{font-weight:800}
+  .calfoot{display:flex;align-items:center;flex-wrap:wrap;gap:10px 12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .calsel{flex:1 1 220px;font-size:13px;font-weight:650;color:var(--ink)}
+  .sbtn.quiet{background:none;color:var(--ink-2);border-color:var(--line);box-shadow:none}
+  .sbtn.quiet:hover{color:var(--ink);filter:none;background:var(--chip)}
+  .sbtn[disabled]{opacity:.5;cursor:default;filter:none}
+  @media(max-width:600px){.calpop{left:0;right:auto;width:calc(100vw - 32px);max-width:none;padding:14px}
+    .calm{flex:1;min-width:0}.calgrid{grid-template-columns:repeat(7,minmax(0,1fr))}.calday{height:40px}}
   .iconbtn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
     color:var(--ink-2);display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow-sm);
     transition:transform .08s,box-shadow .15s,border-color .15s}
@@ -175,7 +213,20 @@
     margin:22px 0 0;padding:16px 22px;border:1px solid var(--line);border-radius:var(--radius);
     background:var(--panel);box-shadow:var(--shadow-sm);
     animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
+  /* A soft brand glow from the top left, under the content. */
+  .hero{position:relative;overflow:hidden;isolation:isolate}
+  .hero::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background:radial-gradient(55% 150% at 0% 0%,color-mix(in srgb,var(--brand) 16%,transparent),transparent 70%),
+               radial-gradient(40% 120% at 100% 100%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 70%)}
   .hero .hero-main{min-width:0}
+  /* What the view showing covers: its days, or the runs it compares. */
+  .hero-ctx{display:inline-flex;align-items:center;gap:9px;margin:12px 0 0;padding:5px 14px 5px 5px;border-radius:999px;
+    font-size:12.5px;line-height:1.4;color:var(--ink-2);background:color-mix(in srgb,var(--brand) 9%,transparent);
+    border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line))}
+  .hero-ctx[hidden]{display:none}
+  .hero-ctx b{color:var(--ink);font-weight:700}
+  .hero-ctx .ctxic{flex:none;width:24px;height:24px;border-radius:999px;display:grid;place-items:center;color:#fff;background:var(--btn-bg)}
+  .hero-ctx .ctxic svg{width:13px;height:13px}
   .hero h1{margin:0;font-size:clamp(20px,2.2vw,26px);line-height:1.1;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
   .hero .sub{margin:5px 0 0;font-size:13px;color:var(--muted)}
   .hero .sub b{color:var(--ink);font-weight:700}
@@ -185,6 +236,9 @@
   .fact .fk{color:var(--faint);font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10px}
   .fact i{width:8px;height:8px;border-radius:50%;background:var(--slate);flex:none}
   .fact.ok i{background:var(--green)} .fact.alert i{background:var(--red)} .fact.brand i{background:var(--brand)}
+  button.fact{font:inherit;cursor:pointer;transition:border-color .15s,background .15s}
+  button.fact:hover,button.fact:focus-visible{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,var(--panel-soft));outline:none}
+  button.fact .go{width:12px;height:12px;color:var(--muted)}
 
   /* ---------- panels / headings ---------- */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -1063,11 +1117,14 @@
       <div class="tab" data-tab="progress" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Progress</div>
     </nav>
     <div class="spacer"></div>
-    <label class="winwrap" id="winWrap" hidden title="Show the dashboard for the last N days of the collected activity">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-      <input type="range" id="winRange" min="1" max="30" step="1" value="30" aria-label="Days of activity shown" aria-describedby="winLab">
-      <span class="winlab" id="winLab" aria-live="polite"><b id="winDays"></b><small id="winDates"></small></span>
-    </label>
+    <div class="winbox" id="winWrap" hidden>
+      <button type="button" class="winwrap" id="winBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="winPop" title="Choose the days the dashboard shows">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+        <span class="winlab" id="winLab"><b id="winDays"></b><small id="winDates"></small></span>
+        <svg class="winchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="calpop" id="winPop" role="dialog" aria-label="Choose the days the dashboard shows" hidden></div>
+    </div>
     <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
@@ -1080,6 +1137,7 @@
     <div class="hero-main">
       <h1 id="title">iSOC Blueprint</h1>
       <p class="sub" id="subtitle"></p>
+      <p class="hero-ctx" id="heroCtx" aria-live="polite" hidden></p>
     </div>
     <div class="hero-facts" id="heroFacts"></div>
   </header>
@@ -1126,7 +1184,7 @@
     <div class="panel">
       <div class="phead"><div>
         <h2>Estate flow</h2>
-        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over the last <span data-win="w">30 days</span>. Detection counts the tables an enabled Sentinel rule or Defender XDR custom detection reads. Alerts split in two: Defender XDR's, raised by its products (which read no workspace table), and Sentinel's, from the scheduled and NRT rules that fired; both feed the incidents. Strand width is GB; dashed strands are billed but read by no detection. Select a family for its tables and its product alerts.</p>
+        <p class="note">Source families &rarr; ingestion &rarr; detection &rarr; alerts &rarr; incidents over <span data-win="span">the last 30 days</span>. Detection counts the tables an enabled Sentinel rule or Defender XDR custom detection reads. Alerts split in two: Defender XDR's, raised by its products (which read no workspace table), and Sentinel's, from the scheduled and NRT rules that fired; both feed the incidents. Strand width is GB; dashed strands are billed but read by no detection. Select a family for its tables and its product alerts.</p>
       </div></div>
       <div class="flowbox estatebox"><svg class="estate" id="estateFlow" role="img" aria-label="Estate flow"></svg></div>
       <div class="legend" id="estateLegend"></div>
@@ -1137,7 +1195,7 @@
     <div class="panel" id="detMatrixPanel">
       <div class="phead"><div>
         <h2>Detection matrix</h2>
-        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in <span data-win="w">30 days</span>; Silent: raised none; Failing: had run failures in <span data-win="w">30 days</span>) and its incidents in <span data-win="w">30 days</span> by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them. Select a rule to open it in Rule Performance.</p>
+        <p class="note">Every enabled analytics rule and Defender XDR custom detection that reads a workspace table: the data it reads, its health (Working: raised alerts or incidents in <span data-win="span">the last 30 days</span>; Silent: raised none; Failing: had run failures in <span data-win="span">the last 30 days</span>) and its incidents in <span data-win="span">the last 30 days</span> by verdict. Columns are source families, and a number means the rule reads that many of the family's tables; Every table shows them one by one. Failing rules come first, then working, then silent, the most incidents first. Hover a column to see every rule that reads it; the footer counts them. Select a rule to open it in Rule Performance.</p>
       </div></div>
       <div class="dm-summary" id="dmSummary"></div>
       <div class="dm-tools"><input type="search" id="dmQ" placeholder="Find a rule, detection or table…" aria-label="Find a rule, detection or table"><div class="dm-grp" id="dmSrc" role="group" aria-label="Source"></div><div class="dm-grp" id="dmHealth" role="group" aria-label="Health"></div><div class="dm-grp" id="dmMode" role="group" aria-label="Columns"></div></div>
@@ -1148,7 +1206,7 @@
     <div class="panel">
       <div class="toolbar">
         <div><h2>Ingest &amp; billing flow</h2>
-          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed in full or eligible for a data grant, from the cost estimate over the last <span data-win="w">30 days</span>. Strand width is GB; each plan's ring is its share of the GB shown. Select a family to see every one of its tables.</p></div>
+          <p class="note">Ingested volume by source family &rarr; table &rarr; billing plan and lake tier &rarr; billed in full or eligible for a data grant, from the cost estimate over <span data-win="span">the last 30 days</span>. Strand width is GB; each plan's ring is its share of the GB shown. Select a family to see every one of its tables.</p></div>
         <div class="zoom"><button type="button" class="sbtn icon" id="zoomOut" aria-label="Zoom out">&minus;</button><span id="zoomPct">100%</span><button type="button" class="sbtn icon" id="zoomIn" aria-label="Zoom in">+</button><button type="button" class="sbtn" id="zoomFit">Fit</button></div>
       </div>
       <div class="flowfilter" id="flowFilter"></div>
@@ -1181,16 +1239,6 @@
   </section>
 
   <!-- PROGRESS (change across runs): the baseline switch, then the board -->
-  <div class="subnav hidden" data-views="progress">
-    <span class="pglabel" id="progressLabel">Compare with</span>
-    <div class="pgtabs" id="progressPick" role="tablist" aria-labelledby="progressLabel"></div>
-    <label class="winwrap" id="progressRunWrap" hidden title="Compare with any kept run">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>
-      <input type="range" id="progressRun" min="0" max="0" step="1" value="0" aria-label="Run compared with" aria-describedby="progressRunLab">
-      <span class="winlab" id="progressRunLab" aria-live="polite"><b></b><small></small></span>
-    </label>
-    <span class="note" id="progressNote"></span>
-  </div>
   <section data-view="progress" class="hidden">
     <div id="progressBoard"></div>
   </section>
@@ -1240,14 +1288,24 @@
     const days=(M.window&&+M.window.days>0)? +M.window.days : 30;
     const recent=(M.window&&+M.window.recentDays>0)? +M.window.recentDays : Math.min(7,days);
     const words=n=>n===1? '1 day' : n+' days';
-    const o={days, recent, collected:days};
+    // ago: how many days before the collection the window ends (0: it ends
+    // with it); startT, endT and lastT: its first and last day and the
+    // collection's (UTC midnights), set once the daily series are read.
+    const o={days, recent, collected:days, ago:0, startT:null, endT:null, lastT:null};
     o.d=()=>o.days+'d'; o.w=()=>words(o.days); o.rd=()=>o.recent+'d'; o.rw=()=>words(o.recent); o.cd=()=>o.collected+'d'; o.cw=()=>words(o.collected);
     o.words=words;
+    // The window in a sentence: "the last 7 days", or for one that ends
+    // before the collection "the 7 days to 7 Sep 2026". Its own date words,
+    // as the page's fixed text is named before fmtDate is set up.
+    const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const day=t=>{ const d=new Date(t); return d.getUTCDate()+' '+MON[d.getUTCMonth()]+' '+d.getUTCFullYear(); };
+    o.span=()=>o.ago>0 && o.endT!=null? 'the '+words(o.days)+' to '+day(o.endT) : 'the last '+words(o.days);
     return o;
   })();
-  // The window slider. The build's daily series (M.daily) count per day ago
-  // over the daily span (the lookback, at most 90), so the last N days of
-  // them are the rolling N-day window. The slider's N, and after a change
+  // The date range. The build's daily series (M.daily) count per day ago
+  // over the daily span (the lookback, at most 90), so any N consecutive
+  // days of them, ending ago days before the collection, are an N-day
+  // window. The range's N and ago, and after a change
   // the open view and report page, live in window.name across the reload a
   // change makes (on SharePoint the web part runs the script again on each
   // load of its frame, which keeps its height meanwhile, so the page stays
@@ -1260,8 +1318,11 @@
     catch(e){ return {}; }
   })();
   if(DAILY){
-    const want=Math.round(+SAVED.days||0), n=Math.min(Math.max(want,1), +DAILY.span);
-    if(want>=1 && n!==WIN.collected){ WIN.days=n; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent); }
+    const span=+DAILY.span, want=Math.round(+SAVED.days||0), n=Math.min(Math.max(want,1), span);
+    const ago=Math.min(Math.max(Math.round(+SAVED.ago||0),0), span-n);
+    if(want>=1 && (n!==WIN.collected || ago>0)){ WIN.days=n; WIN.ago=ago; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago); }
+    const at=Date.parse(DAILY.asOf||'');
+    if(!isNaN(at)){ const d=new Date(at); WIN.lastT=Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); WIN.endT=WIN.lastT-WIN.ago*864e5; WIN.startT=WIN.endT-(WIN.days-1)*864e5; }
   }
   // Rebuild every windowed part of the model for the last N days (R of them
   // recent) from the daily series, the way the build makes it from the
@@ -1272,8 +1333,11 @@
   // flow are re-priced only when the estimate priced every table (costed).
   // What does not count activity (configuration, threat intelligence,
   // findings, maturity, the Report tab's pages) keeps the collected window.
-  function applyWindow(M, D, N, R){
-    const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ if(+e[0]<n) s+=(+e[i]||0); }); return s; };
+  function applyWindow(M, D, N, R, S){
+    // S: the days before the collection the window ends (0: with it); each
+    // series is [days ago, values], so the window is days ago S to S+N-1.
+    S=+S||0;
+    const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ const k=+e[0]-S; if(k>=0 && k<n) s+=(+e[i]||0); }); return s; };
     const r1=v=>Math.round(v*10)/10, r2=v=>Math.round(v*100)/100, r3=v=>Math.round(v*1000)/1000;
     const asi=pv=>/^ASI (Scheduled|NRT) Alerts$/.test(pv||'');
     // Tables: GB over N days and over the recent days, priced per GB and
@@ -1438,11 +1502,12 @@
     // The daily ingestion trend: the calendar days the window touches.
     if(M.usageDaily){
       const t=Date.parse(D.asOf||'');
-      if(!isNaN(t)){ const cut=new Date(t-N*864e5).toISOString().slice(0,10); M.usageDaily=M.usageDaily.filter(u=>String(u.day)>=cut); }
+      if(!isNaN(t)){ const last=new Date(t-S*864e5).toISOString().slice(0,10), first=new Date(t-(S+N-1)*864e5).toISOString().slice(0,10);
+        M.usageDaily=M.usageDaily.filter(u=>String(u.day)>=first && String(u.day)<=last); }
     }
   }
   // Fixed text in the page names the window through data-win spans.
-  const paintWindow=()=>document.querySelectorAll('[data-win]').forEach(e=>{ const k=e.dataset.win; e.textContent= k==='d'? WIN.d() : k==='rd'? WIN.rd() : k==='rw'? WIN.rw() : WIN.w(); });
+  const paintWindow=()=>document.querySelectorAll('[data-win]').forEach(e=>{ const k=e.dataset.win; e.textContent= k==='d'? WIN.d() : k==='rd'? WIN.rd() : k==='rw'? WIN.rw() : k==='span'? WIN.span() : WIN.w(); });
   paintWindow();
   // Where the dashboard's files are. On SharePoint the web part says
   // (window.sacSnapshot: the folder, a reader and a loader), since the frame's
@@ -1462,7 +1527,7 @@
   // cross-tab navigation hooks (assigned later, used by the gap-analysis buttons)
   let gotoDocSection = null;   // (num) => void  — open a section in the Sections tab
   let activateTab = null;      // (name) => void — switch the top-level tab
-  let curView = 'overview';    // the view showing, and the report page open (for the slider's reload)
+  let curView = 'overview';    // the view showing, and the report page open (for the date range's reload)
   let curDoc = () => null;
   // Bring an element's top into view, so a link opens at the top of what it
   // shows rather than at the old scroll position. On SharePoint the web part
@@ -1711,11 +1776,36 @@
   const headerFacts = [
     {k:'Generated', v:w.generatedUtc? fmtDate(w.generatedUtc,{time:true}) : 'n/a', cls:'ok'},
     {k:'Blueprint', v:'v'+(w.blueprintVer||'?')},
-    {k:'Maturity', v:headerMat? (M.maturity.overall.score+' / 5 &middot; '+esc(M.maturity.overall.levelName)) : 'not assessed', cls:headerMat?'brand':'', raw:true},
-    {k:'Findings', v:M.findings.total+' open', cls:M.findings.total>0?'alert':'ok'}
+    {k:'Maturity', v:headerMat? (M.maturity.overall.score+' / 5 &middot; '+esc(M.maturity.overall.levelName)) : 'not assessed', cls:headerMat?'brand':'', raw:true, go:headerMat?'maturity':null},
+    {k:'Findings', v:M.findings.total+' open', cls:M.findings.total>0?'alert':'ok', go:'findings'}
   ];
-  document.getElementById('heroFacts').innerHTML = headerFacts.map(f=>
-    '<span class="fact '+(f.cls||'')+'">'+(f.cls?'<i></i>':'')+'<span class="fk">'+esc(f.k)+'</span>'+(f.raw?f.v:esc(f.v))+'</span>').join('');
+  // Maturity and Findings open their view in the Assessment tab.
+  const heroFacts=document.getElementById('heroFacts');
+  heroFacts.innerHTML = headerFacts.map(f=>{
+    const inner=(f.cls?'<i></i>':'')+'<span class="fk">'+esc(f.k)+'</span>'+(f.raw?f.v:esc(f.v));
+    return f.go? '<button type="button" class="fact '+(f.cls||'')+'" data-go="'+f.go+'" title="Open '+(f.go==='maturity'?'the maturity assessment':'the findings')+'">'+inner+
+        '<svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>'
+      : '<span class="fact '+(f.cls||'')+'">'+inner+'</span>';
+  }).join('');
+  heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && activateTab) activateTab(b.dataset.go); });
+  // The header's line under the workspace: what the view showing covers.
+  // A view with its own registers it in HERO_CTX (Progress: the runs it
+  // compares); the activity views name their days, the Assessment and the
+  // Report that they are as collected.
+  const HERO_CTX={};
+  function paintHeroCtx(){
+    const el=document.getElementById('heroCtx'); if(!el) return;
+    const v=curView, gen=w.generatedUtc? fmtDate(w.generatedUtc) : '';
+    const yrs=WIN.startT!=null && new Date(WIN.startT).getUTCFullYear()!==new Date(WIN.endT).getUTCFullYear();
+    const dates=WIN.startT==null? '' : WIN.startT===WIN.endT? fmtDate(WIN.endT) : fmtDate(WIN.startT,{year:yrs})+' to '+fmtDate(WIN.endT);
+    const ctx= HERO_CTX[v]? [ICON.history, HERO_CTX[v]()] :
+      ['overview','flow','sections'].includes(v)? [ICON.pulse, 'Activity in <b>'+esc(WIN.span())+'</b>'+(dates? ', '+esc(dates) : '')+'.'] :
+      (v==='maturity'||v==='findings')? [ICON.gauge, 'Assessed'+(gen? ' on <b>'+esc(gen)+'</b>' : '')+', from the '+esc(WIN.cw())+' collected.'] :
+      v==='sectionsdoc'? [ICON.doc, 'The full report as collected'+(gen? ' on <b>'+esc(gen)+'</b>' : '')+', over '+esc(WIN.cw())+'.'] : null;
+    el.innerHTML=ctx&&ctx[1]? '<span class="ctxic" aria-hidden="true">'+ctx[0]+'</span><span>'+ctx[1]+'</span>' : '';
+    el.hidden=!(ctx&&ctx[1]);
+  }
+  paintHeroCtx();
   // Gap analysis is section 90; the findings tile opens it.
   const gapNum = (M.sections && (M.sections.find(s=>s.num===90) ||
                    M.sections.find(s=>/gap analysis/i.test(s.title)))||{}).num;
@@ -1745,7 +1835,7 @@
     {k:'Retention', v:w.retentionDays+' days', ic:ICON.history, sec:secRetention},
     {k:'Daily cap', v:w.dailyCap, ic:ICON.gauge, sec:secInventory},
     {k:'Ingestion', v:w.pnaIngestion, ic:ICON.ingest, sec:secOverview},
-    {k:'Monthly cost', v:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', s:cost? 'projected from the last '+WIN.w() : '', ic:ICON.coins, sec:secCost},
+    {k:'Monthly cost', v:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', s:cost? 'projected from '+WIN.span() : '', ic:ICON.coins, sec:secCost},
     {k:'Open findings', v:M.findings.total, ic:ICON.shieldAlert,
       badge:M.findings.total>0?'badge-red':'badge-green', sec:(gapNum!=null?gapNum:secOverview)},
     {k:'Maturity', v:(M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null)? (M.maturity.overall.score+' / 5'):'n/a', ic:ICON.gauge,
@@ -1778,7 +1868,7 @@
       big:M.health.pct+'%', unit:WIN.days+'-day success rate',
       s:M.health.totalEvents.toLocaleString()+' health events processed', ring:Math.round(M.health.pct)},
     {grad:'linear-gradient(135deg,#7c3aed,#9333ea)', ic:ICON.scale, h:'Cost &amp; governance',
-      big:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', unit:cost?'per month at public list prices, projected from '+WIN.w():'',
+      big:cost? fmtMoney(cost.currency, cost.monthlyTotal):'n/a', unit:cost?'per month at public list prices, projected from '+WIN.span():'',
       s:M.findings.total+' open findings &middot; '+c.rbac+' role assignments', ring:null}
   ];
   document.getElementById('outcomes').innerHTML = outcomes.map(o=>
@@ -1800,9 +1890,9 @@
     if(!E || !E.rings){ el.innerHTML='<p class="note">Estate pipeline not available in this snapshot.</p>'; return; }
     const R=E.rings;
     const defs=[
-      {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables with data in the last '+WIN.w(), sec:findSecNum(/table plans/i,null)},
+      {k:'ingestion', h:'Ingestion', unit:'tables still receiving data', s:'of the tables with data in '+WIN.span(), sec:findSecNum(/table plans/i,null)},
       {k:'detection', h:'Detection', unit:'active tables read by a rule', s:fmtN(E.uncoveredGb)+' GB ingested with no detection', sec:findSecNum(/detection opportunities/i,null)},
-      {k:'alerts', h:(+E.alertsXdr||0)>0? 'Sentinel alerts' : 'Alerts', unit:'enabled rules that fired ('+WIN.d()+')', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' Sentinel alerts in '+WIN.w(), sec:findSecNum(/^analytics rules/i,null)},
+      {k:'alerts', h:(+E.alertsXdr||0)>0? 'Sentinel alerts' : 'Alerts', unit:'enabled rules that fired ('+WIN.d()+')', s:(E.ruleAlerts!=null? E.ruleAlerts : (E.alerts||0)).toLocaleString()+' Sentinel alerts in '+WIN.span(), sec:findSecNum(/^analytics rules/i,null)},
       // Defender XDR's alerts, as the flow splits them: their share of every
       // alert, in the Defender XDR colour (a share, not a score).
       ...((+E.alertsXdr||0)>0? [{k:'xdr', h:'Defender XDR alerts', unit:'of every alert ('+WIN.d()+')', s:'raised by Defender XDR and the Microsoft products feeding it', sec:findSecNum(/^alerts/i,null),
@@ -1848,7 +1938,7 @@
     const mkLines=(x,y,lines,attrs,lh)=>{ const t=mk('text',Object.assign({x:x,y:y},attrs)); lines.forEach((ln,i)=>{ const ts=document.createElementNS(ns,'tspan'); ts.setAttribute('x',x); ts.setAttribute('dy',i?String(lh||12):'0'); ts.textContent=ln; t.appendChild(ts); }); return t; };
     const sources=(E&&E.sources?E.sources:[]);
     if(!E || !sources.length || !(E.totalGb>0)){
-      mk('text',{x:W/2,y:H/2,'text-anchor':'middle','font-size':'14',style:'fill:var(--muted)'},'No billable ingestion in the last '+WIN.w()+', so there is no flow to draw.');
+      mk('text',{x:W/2,y:H/2,'text-anchor':'middle','font-size':'14',style:'fill:var(--muted)'},'No billable ingestion in '+WIN.span()+', so there is no flow to draw.');
       return;
     }
     const maxGb=Math.max(...sources.map(s=>s.gb),0.01);
@@ -1886,7 +1976,7 @@
       const y=top+i*gap; const col=famColor[s.category]||'#64748b';
       const cov=+s.coveredGb||0, unc=Math.max(0,(+s.gb||0)-cov);
       const fp=(E.productAlerts||[]).filter(p=>p.family===s.category); const fpAlerts=fp.reduce((a,p)=>a+(+p.alerts||0),0);
-      const tipText=s.category+': '+fmtN(s.gb)+' GB in '+WIN.w()+', '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule or custom detection'+(unc>0?', '+fmtN(unc)+' GB with no detection rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
+      const tipText=s.category+': '+fmtN(s.gb)+' GB in '+WIN.span()+', '+s.covered+' of '+s.tables+' tables read by an enabled Sentinel rule or custom detection'+(unc>0?', '+fmtN(unc)+' GB with no detection rule':'')+(fpAlerts?'; '+fpAlerts.toLocaleString()+' alert(s) from first-party detections ('+fp.map(p=>p.product).join(', ')+')':'')+'. Click for the tables.';
       // Covered strands are solid in the family colour; unmonitored strands
       // keep the family colour but run dashed into the pool.
       if(cov>0){
@@ -1930,7 +2020,7 @@
       const det=rings[1], al=rings[2], inc=rings[3], xx=al.x, xy=cy-splitY, xcol=famColor['Defender XDR']||'#0d9488';
       const share=allAlerts>0? Math.min(1,xdr/allAlerts) : 1, pctX=Math.round(share*100);
       const xw=Math.max(3,Math.min(24,bandW*Math.sqrt(xdr/Math.max(+E.ruleAlerts||+E.alertsSentinel||1,1))));
-      const xTip='Defender XDR alerts: '+xdr.toLocaleString()+' raised in Defender XDR and the Microsoft security products feeding it in the last '+WIN.w()+', '+pctX+'% of the '+allAlerts.toLocaleString()+' alerts. They read no workspace table, so the rings to the left do not count them; the incidents do. Click to open the alerts page.';
+      const xTip='Defender XDR alerts: '+xdr.toLocaleString()+' raised in Defender XDR and the Microsoft security products feeding it in '+WIN.span()+', '+pctX+'% of the '+allAlerts.toLocaleString()+' alerts. They read no workspace table, so the rings to the left do not count them; the incidents do. Click to open the alerts page.';
       [curve(det.x+r,cy,xx-r,xy), curve(xx+r,xy,inc.x-r,cy)].forEach(d=>{
         tip(mk('path',{'data-xdr':'1',d:d,fill:'none',stroke:xcol,'stroke-opacity':'.42','stroke-width':xw.toFixed(1),'stroke-linecap':'butt'}),xTip);
         beads('path',{d:d},xcol,xw,Math.min(1,xw/24));
@@ -1964,7 +2054,7 @@
       const share=(+E.incidents||0)>0? b.v/(+E.incidents): .5;
       mk('path',{d:curve(last.x+r,cy,1092,b.y),fill:'none',stroke:b.col,'stroke-opacity':'.35','stroke-width':Math.max(3,bandW*share).toFixed(1)});
       beads('path',{d:curve(last.x+r,cy,1092,b.y)},b.col,Math.max(3,bandW*share),share);
-      const incTip=b.l+' incidents in the last '+WIN.w()+'. Click to open the incidents page.';
+      const incTip=b.l+' incidents in '+WIN.span()+'. Click to open the incidents page.';
       tip(mk('rect',{'data-inc':b.l,x:1088,y:b.y-18,width:104,height:40,rx:8,fill:'transparent'}),incTip);
       tip(mk('circle',{'data-inc':b.l,cx:1098,cy:b.y,r:6.5,fill:b.col,filter:'url(#esGlow)'}),incTip);
       tip(mk('text',{'data-inc':b.l,x:1114,y:b.y+6,'font-size':'19','font-weight':'800',style:'fill:var(--ink)'},b.v.toLocaleString()),incTip);
@@ -1996,14 +2086,14 @@
     const rows=sel.family? all.filter(t=>t.family===sel.family) : all.filter(t=>!t.covered);
     const gb=rows.reduce((a,t)=>a+(+t.gb||0),0), covered=rows.filter(t=>t.covered).length;
     const title=sel.family? sel.family : 'No detection rule';
-    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in '+WIN.w()+', '+covered+' read by an enabled Sentinel rule or custom detection')
-                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in '+WIN.w()+' that no enabled Sentinel rule or custom detection reads');
+    const sub=sel.family? (rows.length+' table'+(rows.length===1?'':'s')+' receiving data, '+fmtN(gb)+' GB in '+WIN.span()+', '+covered+' read by an enabled Sentinel rule or custom detection')
+                        : (rows.length+' table'+(rows.length===1?'':'s')+' with '+fmtN(gb)+' GB in '+WIN.span()+' that no enabled Sentinel rule or custom detection reads');
     const cd=E.customDetections||{};
     const cdLine=cd.captured? '<p class="note" style="margin:0 0 6px">Defender XDR custom detections: '+(cd.enabled||0)+' enabled of '+(cd.total||0)+' defined; an enabled one counts as coverage for the tables it queries.</p>'
                             : '<p class="note" style="margin:0 0 6px">Defender XDR custom detections were not captured in this run (the identity needs CustomDetection.Read.All), so coverage here counts Sentinel rules only.</p>';
     const fp=(E.productAlerts||[]).filter(p=>sel.family? p.family===sel.family : true);
-    const fpLine=fp.length? '<p class="note" style="margin:0 0 10px">First-party detections on '+(sel.family?'this family':'these families')+' in '+WIN.w()+': '+fp.map(p=>esc(p.product)+' '+(+p.alerts||0).toLocaleString()+' alert'+(p.alerts==1?'':'s')+' from '+p.detections+' detection'+(p.detections==1?'':'s')).join('; ')+'. These run inside the product and do not read workspace tables, so they are not counted as Sentinel coverage.</p>'
-                         : '<p class="note" style="margin:0 0 10px">No first-party product alerts on '+(sel.family?'this family':'these families')+' in the last '+WIN.w()+' either.</p>';
+    const fpLine=fp.length? '<p class="note" style="margin:0 0 10px">First-party detections on '+(sel.family?'this family':'these families')+' in '+WIN.span()+': '+fp.map(p=>esc(p.product)+' '+(+p.alerts||0).toLocaleString()+' alert'+(p.alerts==1?'':'s')+' from '+p.detections+' detection'+(p.detections==1?'':'s')).join('; ')+'. These run inside the product and do not read workspace tables, so they are not counted as Sentinel coverage.</p>'
+                         : '<p class="note" style="margin:0 0 10px">No first-party product alerts on '+(sel.family?'this family':'these families')+' in '+WIN.span()+' either.</p>';
     const opNum=findSecNum(/detection opportunities/i,null);
     const trs=rows.map(t=>'<tr><td>'+esc(t.table)+'</td><td>'+esc(t.family)+'</td><td class="num">'+fmtN(t.gb)+'</td><td class="num">'+(t.rules||0)+'</td><td class="num">'+(t.customDetections||0)+'</td><td>'+
       ((t.rules||0)>0&&(t.customDetections||0)>0?'<span class="st Met">Rule and custom detection</span>':(t.rules||0)>0?'<span class="st Met">Sentinel rule reads it</span>':(t.customDetections||0)>0?'<span class="st Met">Custom detection reads it</span>':'<span class="st Gap">No detection rule</span>')+'</td></tr>');
@@ -2045,7 +2135,7 @@
     const n0=v=>Number(v)||0;
     // Exact counts, never abbreviated.
     const num=v=>n0(v).toLocaleString('en-GB');
-    const win='last '+WIN.w();
+    const win=WIN.span();
     const sources=(E.sources||[]).filter(s=>s&&n0(s.gb)>0).sort((a,b)=>n0(b.gb)-n0(a.gb));
     const alerts=n0(E.alerts), incidents=n0(E.incidents), closed=n0(E.incidentsClosed), open=n0(E.incidentsOpen);
     // Two alert nodes when the model splits them and Defender XDR raised any;
@@ -2070,15 +2160,15 @@
       ] : [{label:'Closed', v:closed, col:'#2dd4bf', go:hasSec(15)}]).concat([{label:'Open', v:open, col:'#f59e0b', go:hasSec(15), open:true}]);
 
     document.getElementById('lcNote').textContent=split
-      ? 'Source families to the alerts raised on them in Sentinel and in Defender XDR, the incidents those became and how the incidents were closed, over the '+win+
+      ? 'Source families to the alerts raised on them in Sentinel and in Defender XDR, the incidents those became and how the incidents were closed, over '+win+
         '. Strand width is GB into Sentinel, alerts into Defender XDR and incidents on the right. Select any part to open its page.'
-      : 'Source families to the alerts they raised, the incidents those became and how the incidents were closed, over the '+win+
+      : 'Source families to the alerts they raised, the incidents those became and how the incidents were closed, over '+win+
         '. Strand width is GB on the left and incidents on the right. Select any part to open its page.';
 
     const svg=document.createElementNS(ns,'svg');
     svg.setAttribute('viewBox','0 0 '+W+' '+H);
     svg.setAttribute('role','img');
-    svg.setAttribute('aria-label', (split? num(aSen)+' Sentinel alerts, '+num(aXdr)+' Defender XDR alerts' : num(alerts)+' alerts')+' and '+num(incidents)+' incidents over the '+win+': '+
+    svg.setAttribute('aria-label', (split? num(aSen)+' Sentinel alerts, '+num(aXdr)+' Defender XDR alerts' : num(alerts)+' alerts')+' and '+num(incidents)+' incidents over '+win+': '+
       branches.map(b=>b.label.charAt(0).toLowerCase()+b.label.slice(1)+' '+num(b.v)).join(', ')+'.');
     stage.appendChild(svg);
     const mk=(tag,attrs,text,parent)=>{ const el=document.createElementNS(ns,tag); for(const k in attrs) el.setAttribute(k,attrs[k]); if(text!=null) el.textContent=text; (parent||svg).appendChild(el); return el; };
@@ -2470,7 +2560,7 @@
       mk('circle',{cx:fx,cy:n._y,r:4.5,fill:nodeFill(n),filter:'url(#ibGlow)'},null,g);
       mk('text',{x:fx-14,y:n._y-1,'text-anchor':'end','font-size':'12','font-weight':'600',style:'fill:var(--ink-2);'+HALO},n.label,g);
       mk('text',{x:fx-14,y:n._y+13,'text-anchor':'end','font-size':'10',style:'fill:var(--muted);'+HALO},fmtN(n.value)+' GB',g);
-      click(g,n,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+'.'+(n.clickable&&opts.onNode? ' Select to show every table in it.' : ''));
+      click(g,n,n.label+': '+fmtN(n.value)+' GB in '+WIN.span()+'.'+(n.clickable&&opts.onNode? ' Select to show every table in it.' : ''));
       g.addEventListener('mouseenter',()=>spot(n.label)); g.addEventListener('mouseleave',()=>spot(null));
     });
     // Tables: a pill each, the name truncated to fit with the full name in the tooltip.
@@ -2483,7 +2573,7 @@
       if(estText(txt)>avail){ while(txt.length>1 && estText(txt+'…')>avail) txt=txt.slice(0,-1); txt+='…'; }
       mk('text',{x:tx+12,y:n._y+4,'font-size':'11.5','font-weight':'600',style:'fill:var(--ink)'},txt,g);
       mk('text',{x:tx+tw-12,y:n._y+4,'text-anchor':'end','font-size':'10',style:'fill:var(--muted)'},val,g);
-      click(g,n,n.label+': '+val+' in '+WIN.w()+(fam? ' ('+fam+')' : '')+'.'+(n.other&&opts.onNode? ' Select to show every table.' : ''));
+      click(g,n,n.label+': '+val+' in '+WIN.span()+(fam? ' ('+fam+')' : '')+'.'+(n.other&&opts.onNode? ' Select to show every table.' : ''));
     });
     // Plans and tiers: a ring each, its share of the GB shown.
     const C=2*Math.PI*R, planGb=cols[2].reduce((a,n)=>a+(+n.value||0),0)||1;
@@ -2494,7 +2584,7 @@
       mk('text',{x:px,y:n._y+5,'text-anchor':'middle','font-size':'14','font-weight':'800',style:'fill:var(--ink)'},pct+'%',g);
       mk('text',{x:px,y:n._y-R-12,'text-anchor':'middle','font-size':'9.5','font-weight':'800',style:'fill:var(--faint);'+LBL+HALO},String(n.label).toUpperCase(),g);
       mk('text',{x:px,y:n._y+R+18,'text-anchor':'middle','font-size':'11','font-weight':'650',style:'fill:var(--ink-2);'+HALO},fmtN(n.value)+' GB',g);
-      tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+', '+pct+'% of the GB shown.');
+      tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.span()+', '+pct+'% of the GB shown.');
     });
     // Outcomes: billed in full and eligible for a data grant, with their totals.
     const outGb=cols[3].reduce((a,n)=>a+(+n.value||0),0)||1;
@@ -2504,7 +2594,7 @@
       mk('text',{x:ox+18,y:n._y+7,'font-size':'22','font-weight':'800',style:'fill:var(--ink)'},fmtN(n.value)+' GB',g);
       mk('text',{x:ox+18,y:n._y+22,'font-size':'9.5','font-weight':'700',style:'fill:var(--muted);'+LBL},String(n.label).toUpperCase(),g);
       mk('text',{x:ox+18,y:n._y+36,'font-size':'10',style:'fill:var(--muted)'},pct+'% of the GB shown',g);
-      tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.w()+', '+pct+'% of the GB shown.');
+      tip(g,n.label+': '+fmtN(n.value)+' GB in '+WIN.span()+', '+pct+'% of the GB shown.');
     });
     revealSankey(svgEl);
     return {W,H};
@@ -2590,7 +2680,7 @@
       document.getElementById('dmSummary').innerHTML=
         '<div class="dm-sm"><div class="k">Rules and detections</div><div class="v">'+base.length.toLocaleString()+'</div><div class="s">'+base.filter(r=>r.source!=='Defender XDR').length+' analytics rules, '+base.filter(r=>r.source==='Defender XDR').length+' custom detections</div></div>'+
         HEALTH.map(([h,c])=>'<div class="dm-sm"><div class="k" style="color:'+c+'">'+h+'</div><div class="v">'+cnt(h).toLocaleString()+'</div><div class="s">'+Math.round(100*cnt(h)/Math.max(1,base.length))+'% of rules</div></div>').join('')+
-        '<div class="dm-sm"><div class="k">Incidents in '+WIN.w()+' by verdict</div><div class="dm-vbar">'+(allInc? OUT.map(([k,l,c])=>tot[k]? '<i style="width:'+(100*tot[k]/allInc)+'%;background:'+c+'" title="'+l+': '+tot[k].toLocaleString()+'"></i>':'').join('') : '')+'</div>'+
+        '<div class="dm-sm"><div class="k">Incidents in '+WIN.span()+' by verdict</div><div class="dm-vbar">'+(allInc? OUT.map(([k,l,c])=>tot[k]? '<i style="width:'+(100*tot[k]/allInc)+'%;background:'+c+'" title="'+l+': '+tot[k].toLocaleString()+'"></i>':'').join('') : '')+'</div>'+
         '<div class="dm-vleg">'+OUT.map(([k,l,c])=>'<span><i style="background:'+c+'"></i>'+l+' '+tot[k].toLocaleString()+'</span>').join('')+'</div></div>';
       // Chips.
       const srcBase=all.filter(match);
@@ -2973,7 +3063,7 @@
     const ttSrc = (cost.allTables&&cost.allTables.length)? cost.allTables : cost.topTables;
     const tt = ttSrc.map(t=>({label:t.table,value:t.gb30d,display:fmt(t.gb30d)+' GB'}));
     cards.push('<div class="ipanel"><h3>Top tables by volume</h3>'+
-      '<p class="note">Ingested GB over the last '+WIN.w()+' (cost-estimate snapshot).</p>'+barsHtml(tt,{theme:'teal',fill:{sec:secCostPage,label:'tables'}})+'</div>');
+      '<p class="note">Ingested GB over '+WIN.span()+' (cost-estimate snapshot).</p>'+barsHtml(tt,{theme:'teal',fill:{sec:secCostPage,label:'tables'}})+'</div>');
   }
 
   // 4b. Ingestion by billing plan — only when there are 2+ active plans (a single
@@ -2995,7 +3085,7 @@
     const lakeLine = lakeOn? '<p class="note" style="margin:12px 0 0">Data lake enrolled: '+(mirrored? mirrored.toLocaleString()+' Analytics-plan table'+(mirrored===1?' is':'s are') : 'Analytics-plan tables are')+
       ' mirrored to it at no extra ingestion charge'+(extended? ', and '+extended.toLocaleString()+' keep data there beyond analytics retention' : '')+'.</p>' : '';
     cards.push('<div class="ipanel"><h3>Ingestion by billing plan</h3>'+
-      '<p class="note">GB over '+WIN.w()+' split across the table plans'+(lakeOn?', the data lake included':'')+'.</p>'+barsHtml(pl,{theme:'amber'})+lakeLine+'</div>');
+      '<p class="note">GB over '+WIN.span()+' split across the table plans'+(lakeOn?', the data lake included':'')+'.</p>'+barsHtml(pl,{theme:'amber'})+lakeLine+'</div>');
   } else if(M.topRules && M.topRules.length){
     const sevCol={High:'#ff4d1f',Medium:'#ffaa00',Low:'#fff100',Informational:'#8a8886',Other:'#94a3b8'};
     const sa={}; M.topRules.forEach(r=>{ const s=r.severity||'Other'; sa[s]=(sa[s]||0)+(r.alerts||0); });
@@ -3012,7 +3102,7 @@
   if(M.topRules && M.topRules.length){
     const tr = M.topRules.map(r=>({label:r.name,value:r.alerts,display:r.alerts.toLocaleString()}));
     cards.push('<div class="ipanel"><h3>Top alerting rules ('+WIN.d()+')</h3>'+
-      '<p class="note">Rules producing the most alerts in the last '+WIN.w()+'.</p>'+barsHtml(tr,{theme:'indigo',fill:{sec:secRulePerf,label:'rules'}})+'</div>');
+      '<p class="note">Rules producing the most alerts in '+WIN.span()+'.</p>'+barsHtml(tr,{theme:'indigo',fill:{sec:secRulePerf,label:'rules'}})+'</div>');
   }
 
   // 5a. Alerts by detection source — which security product generates the alert volume
@@ -3037,7 +3127,7 @@
     const hi=Object.keys(agg).map(k=>({label:k,value:agg[k],display:agg[k].toLocaleString()})).sort((a,b)=>b.value-a.value);
     if(hi.length){
       cards.push('<div class="ipanel"><h3>Operational health event mix ('+WIN.d()+')</h3>'+
-        '<p class="note">Sentinel health events by operation and status over the last '+WIN.w()+'.</p>'+barsHtml(hi,{theme:'cyan',fill:{sec:secHealth,label:'operations'}})+'</div>');
+        '<p class="note">Sentinel health events by operation and status over '+WIN.span()+'.</p>'+barsHtml(hi,{theme:'cyan',fill:{sec:secHealth,label:'operations'}})+'</div>');
     }
   }
 
@@ -3160,7 +3250,7 @@
     const items=M.tiBySource.map((t,i)=>({label:t.source,value:+t.count||0,display:(+t.count||0).toLocaleString(),color:pal[i%pal.length]}));
     const tot=items.reduce((a,i)=>a+i.value,0);
     cards.push('<div class="ipanel"><h3>Threat intelligence by source ('+WIN.cd()+')</h3>'+
-      '<p class="note">Indicators observed per feed'+(WIN.days!==WIN.collected? ', over the collected '+WIN.cw()+': the window slider does not re-scope this card' : '')+'. One feed is a single point of failure for every TI detection.</p>'+
+      '<p class="note">Indicators observed per feed'+((WIN.days!==WIN.collected||WIN.ago>0)? ', over the collected '+WIN.cw()+': the dates chosen at the top do not re-scope this card' : '')+'. One feed is a single point of failure for every TI detection.</p>'+
       donutMultiHtml(items,tot.toLocaleString(),'indicators')+'</div>');
   }
 
@@ -3178,7 +3268,7 @@
     const status=DL.enrolled
       ? 'Enrolled'+(DL.region?' ('+esc(DL.region)+')':'')+': every Analytics-plan table is mirrored to the lake; '+(DL.extendedCount||0)+' table'+(DL.extendedCount===1?'':'s')+' keep data beyond analytics retention and '+((DL.signals&&DL.signals.lakeOnlyTables)||0)+' route to the lake only.'
       : 'Not enrolled: all '+(DL.operationalTables||0)+' operational tables stay on the analytics tier with no lake mirror.';
-    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtGb(DL.cost.lakeGb)+' GB in '+WIN.w()+' ('+esc(fmtMoney(DL.cost.currency,DL.cost.lakeCost))+' a month) beside '+fmtGb(DL.cost.analyticsGb)+' GB on Analytics ('+esc(fmtMoney(DL.cost.currency,DL.cost.analyticsCost))+' a month).</p>':'';
+    const costLine=(DL.cost&&(+DL.cost.lakeGb>0||+DL.cost.lakeCost>0))?'<p class="note" style="margin:12px 0 0">Lake-only ingest '+fmtGb(DL.cost.lakeGb)+' GB in '+WIN.span()+' ('+esc(fmtMoney(DL.cost.currency,DL.cost.lakeCost))+' a month) beside '+fmtGb(DL.cost.analyticsGb)+' GB on Analytics ('+esc(fmtMoney(DL.cost.currency,DL.cost.analyticsCost))+' a month).</p>':'';
     cards.push('<div class="ipanel" id="dataLakePanel"><h3>Sentinel data lake</h3>'+
       // The button under the table list opens the data lake page; without a
       // list, the link sits in the description instead.
@@ -3351,24 +3441,26 @@
   })();
 
   // ---- progress (change across runs) ----
-  // Each export is a snapshot: the slider re-scopes its activity, but posture
-  // (findings, criteria, rules, coverage) is as it was on the day. The build
-  // writes a progress record for every run (M.progress) and the history of
-  // them beside the dashboard (progress-history.json: earlier day folders'
-  // records locally, the publisher's on the site). This view compares the
-  // run shown with a baseline from that history, in the dashboard's own
-  // parts: the Assessment tab's switch, the Overview's tiles, the maturity
-  // view's area bars and the Insights cards. A day's kept copy (history/)
-  // compares its own day with the runs before it.
+  // Each export is a snapshot: the date range re-scopes its activity, but
+  // posture (findings, criteria, rules, coverage) is as it was on the day.
+  // The build writes a progress record for every run (M.progress) and the
+  // history of them beside the dashboard (progress-history.json: earlier
+  // day folders' records locally, the publisher's on the site). This view
+  // compares two of those runs, chosen by the top bar's date range: the
+  // run kept at its end against the run kept at its start, drawn in the
+  // dashboard's own parts (the Overview's tiles, the maturity view's area
+  // bars, the Insights cards).
   (function(){
-    const board=document.getElementById('progressBoard'), pickEl=document.getElementById('progressPick'), noteEl=document.getElementById('progressNote');
-    const labelEl=document.getElementById('progressLabel'), runWrap=document.getElementById('progressRunWrap'), runEl=document.getElementById('progressRun'), runLab=document.getElementById('progressRunLab');
+    const board=document.getElementById('progressBoard');
+    // The sentence naming the runs compared, shown in the header.
+    let ctxHtml='';
+    HERO_CTX.progress=()=>ctxHtml;
+    const setCtx=h=>{ ctxHtml=h; if(curView==='progress') paintHeroCtx(); };
     if(!board) return;
-    const cur=M.progress||null;
+    const latest=M.progress||null;
+    let cur=latest;
     if(!cur){
-      if(pickEl) pickEl.hidden=true;
-      if(labelEl) labelEl.hidden=true;
-      if(noteEl) noteEl.textContent='This snapshot was built before progress tracking. Each run from now on adds a record, and this view compares them.';
+      setCtx('This snapshot was built before progress tracking. Each run from now on adds a record, and this view compares them.');
       return;
     }
     // key, label, which way is better ('up', 'down' or '' for neither), format
@@ -3397,28 +3489,27 @@
     const TILES=[['maturityScore',ICON.gauge],['findings',ICON.shieldAlert],['findingsCritical',ICON.flag],['rulesEnabled',ICON.bolt],
       ['techniquesCovered',ICON.crosshair],['uncoveredGb',ICON.database],['openIncidents',ICON.pulse],['monthlyCost',ICON.coins]];
     const TRENDS=[['maturityScore','indigo'],['findings','amber'],['rulesEnabled','brand'],['techniquesCovered','teal'],['uncoveredGb','violet'],['monthlyCost','cyan']];
-    // The baselines offered at a click: the previous run, the latest run at
-    // least 7, 30 and 90 days before this one, and the first kept run. Each
-    // run is offered once, named for what it is (Previous run, First run,
-    // or how far back it is) with its date; the slider beside them, styled
-    // as the window slider, reaches every kept run. pick is the date of the
-    // run compared with.
-    const PRESETS=[['prev',0],['d7',7],['d30',30],['d90',90],['first',null]];
     const SHOW=8;
-    let entries=[cur], pick=null;
+    let entries=[latest], viewRuns=[latest];
     const day=d=>new Date(d+'T00:00:00Z');
-    const iso=d=>{ const t=day(cur.date); t.setUTCDate(t.getUTCDate()-d); return t.toISOString().slice(0,10); };
     const daysBetween=(a,b)=>Math.round((day(b)-day(a))/86400000);
     const short=d=>fmtDate(d,{year:false});
     const long=d=>fmtDate(d);
     const andList=a=>a.length<2? a.join('') : a.slice(0,-1).join(', ')+' and '+a[a.length-1];
-    const earlierRuns=()=>entries.filter(e=>e.date<cur.date);
-    const presetRuns=E=>{ const seen=new Set(), out=[];
-      PRESETS.forEach(([k,d])=>{ const r= k==='prev'? E[E.length-1] : k==='first'? E[0] : E.filter(e=>e.date<=iso(d)).pop();
-        if(r && !seen.has(r.date)){ seen.add(r.date); out.push(r); } });
-      return out.sort((a,b)=>a.date<b.date?1:-1); };
-    const backBy=r=>{ const n=daysBetween(r.date,cur.date); return n===1? '1 day' : n+' days'; };
-    const roleOf=(r,E)=>r===E[E.length-1]? 'Previous run' : r===E[0]? 'First run' : '';
+    // The runs the date range compares: the latest kept on or before its
+    // last day, against the latest kept on or before its first day (or,
+    // when none is, the earliest inside it); one day alone compares that
+    // day's run with the one before. Without a calendar (a model with no
+    // daily series), the snapshot's run against the previous one.
+    const dayT=d=>Date.parse(d+'T00:00:00Z');
+    function chooseRuns(){
+      const runs=entries.slice().sort((a,b)=>a.date<b.date?-1:1);
+      if(WIN.endT==null){ const i=runs.indexOf(latest); return {end:latest, base:i>0? runs[i-1] : null}; }
+      const end=runs.filter(r=>dayT(r.date)<=WIN.endT).pop()||null;
+      if(!end) return {end:null, base:null};
+      const before=runs.filter(r=>r.date<end.date);
+      return {end, base:before.filter(r=>dayT(r.date)<=WIN.startT).pop() || before.find(r=>dayT(r.date)>=WIN.startT) || null};
+    }
     const mv=(e,k)=>{ const v=e&&e.metrics? e.metrics[k] : null; return v==null||v===''? null : +v; };
     const fmtVal=(v,f)=>{
       if(v==null) return 'n/a';
@@ -3443,8 +3534,8 @@
     // Tiles: each headline number now, and its change since the baseline.
     function tilesHtml(base){
       return '<div class="panel glance"><div class="phead"><div><h2>Progress at a glance</h2><p class="note">'+
-        (base? 'Each figure now, and how it has moved since '+esc(long(base.date))+'. Green is better and red is worse; cost and volume are neither.' : 'Each figure as this run collected it. The next run adds the comparison.')+
-        ' Activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), whatever the window slider shows.'+
+        (base? 'Each figure on '+esc(long(cur.date))+', and how it has moved since '+esc(long(base.date))+'. Green is better and red is worse; cost and volume are neither.' : 'Each figure as this run collected it. The next run adds the comparison.')+
+        ' Activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), whatever dates are chosen at the top.'+
         '</p></div></div><div class="tiles pgtiles">'+TILES.filter(([k])=>mv(cur,k)!=null).map(([k,ic])=>{
           const m=MK[k], a=base? mv(base,k) : null, b=mv(cur,k);
           const s=!base? 'No earlier run yet' : a==null? 'Not captured on '+esc(short(base.date)) : fmtDelta(a,b,m[2],m[3])+' since '+esc(short(base.date));
@@ -3473,18 +3564,18 @@
           (target!=null? '<div class="am" style="--t:'+(target/5*100)+'%"></div>' : '')+'</div>'+
           '<div class="av">'+(now==null? 'n/a' : (+now).toFixed(2))+'</div>'+badge+'</div>';
       }).join('');
-      return '<div class="panel"><div class="phead"><div><h2>Maturity by area</h2><p class="note">Each area\'s score out of 5 now'+
+      return '<div class="panel"><div class="phead"><div><h2>Maturity by area</h2><p class="note">Each area\'s score out of 5 on '+esc(long(cur.date))+''+
         (base? '; green at the end of a bar is what it gained since '+esc(long(base.date))+', red what it lost' : '')+'. '+
         (target!=null? 'Dashed marker = target level; amber bars are below it.' : '')+'</p></div></div><div class="areabars">'+rows+'</div></div>';
     }
     // Insights cards: each headline number across every kept run, scaled to
     // its own range so a small move shows.
     function trendsHtml(){
-      if(entries.length<2) return '';
+      if(viewRuns.length<2) return '';
       const cards=TRENDS.map(([k,theme])=>{
-        const m=MK[k], kept=entries.filter(e=>mv(e,k)!=null); if(kept.length<2) return '';
+        const m=MK[k], kept=viewRuns.filter(e=>mv(e,k)!=null); if(kept.length<2) return '';
         const first=mv(kept[0],k), last=mv(kept[kept.length-1],k);
-        return '<div class="ipanel"><h3>'+esc(m[1])+'</h3><p class="note">'+fmtVal(first,m[3])+' on '+esc(short(kept[0].date))+', '+fmtVal(last,m[3])+' now ('+fmtDelta(first,last,m[2],m[3])+'), over '+kept.length+' runs.</p>'+
+        return '<div class="ipanel"><h3>'+esc(m[1])+'</h3><p class="note">'+fmtVal(first,m[3])+' on '+esc(short(kept[0].date))+', '+fmtVal(last,m[3])+' on '+esc(short(kept[kept.length-1].date))+' ('+fmtDelta(first,last,m[2],m[3])+'), over '+kept.length+' runs.</p>'+
           trendHtml(kept.map(e=>({label:short(e.date),value:mv(e,k)})),{theme:theme,unit:m[3]==='gb'?' GB':'',fit:true})+'</div>';
       }).join('');
       return cards? '<div class="seclabel">Over time</div><div class="insights pgcards">'+cards+'</div>' : '';
@@ -3536,52 +3627,27 @@
       const rows=METRICS.filter(([k])=>mv(cur,k)!=null||mv(base,k)!=null).map(([k,label,better,f])=>
         '<tr><td>'+esc(label)+'</td>'+(base?'<td class="num">'+fmtVal(mv(base,k),f)+'</td>':'')+'<td class="num">'+fmtVal(mv(cur,k),f)+'</td>'+(base?'<td class="num">'+fmtDelta(mv(base,k),mv(cur,k),better,f)+'</td>':'')+'</tr>');
       return '<div class="panel"><div class="phead"><div><h2>Every measure</h2><p class="note">'+
-        (base? 'Each figure on '+esc(long(base.date))+' and now. Posture is as each run collected it; activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), not the window slider\'s.' : 'Each figure as this run collected it.')+'</p></div></div>'+
+        (base? 'Each figure on '+esc(long(base.date))+' and on '+esc(long(cur.date))+'. Posture is as each run collected it; activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), not the dates chosen at the top.' : 'Each figure as this run collected it.')+'</p></div></div>'+
         '<table class="tbl"><thead><tr><th>Measure</th>'+(base?'<th class="num">'+esc(short(base.date))+'</th>':'')+'<th class="num">'+esc(short(cur.date))+'</th>'+(base?'<th class="num">Change</th>':'')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
     }
 
     function draw(){
-      const E=earlierRuns();
-      if(!E.some(e=>e.date===pick)) pick=E.length? E[E.length-1].date : null;
-      const base=E.find(e=>e.date===pick)||null, P=presetRuns(E);
-      if(labelEl) labelEl.hidden=!E.length;
-      if(pickEl){
-        pickEl.hidden=!E.length;
-        pickEl.innerHTML=P.map(r=>{ const on=r.date===pick;
-          return '<button type="button" class="pgtab'+(on?' active':'')+'" role="tab" aria-selected="'+on+'" data-pgpick="'+esc(r.date)+'"'+
-            ' title="The run of '+esc(long(r.date))+', '+backBy(r)+' back"><span>'+esc(roleOf(r,E)||backBy(r))+'</span><span class="subcount">'+esc(short(r.date))+'</span></button>';
-        }).join('');
-      }
-      // Every kept run on the slider, the first on the left and the previous
-      // on the right, when there are more runs than chips.
-      if(runWrap&&runEl){
-        runWrap.hidden=E.length<=P.length;
-        runEl.max=String(Math.max(0,E.length-1)); runEl.value=String(Math.max(0,E.findIndex(e=>e.date===pick)));
-        showRun(E);
-      }
-      if(noteEl){
-        const n=base? daysBetween(base.date,cur.date) : 0;
-        noteEl.innerHTML= base? 'Change from <b>'+esc(long(base.date))+'</b> to <b>'+esc(long(cur.date))+'</b>, '+n+' day'+(n===1?'':'s')+'. '+entries.length+' runs kept.' :
-          'Only the run of <b>'+esc(long(cur.date))+'</b> is kept so far. Each run adds a record, and this view compares them.';
-      }
+      const sel=chooseRuns(), base=sel.end? sel.base : null;
+      cur=sel.end||latest;
+      // The trends cover the runs between the two compared, both included.
+      viewRuns=entries.filter(e=>(!base || e.date>=base.date) && e.date<=cur.date).sort((a,b)=>a.date<b.date?-1:1);
+      const n=base? daysBetween(base.date,cur.date) : 0;
+      setCtx(!sel.end? 'No run was kept on or before <b>'+esc(fmtDate(WIN.endT))+'</b>. Choose later dates to compare.' :
+        base? 'Change from the run of <b>'+esc(long(base.date))+'</b> to the run of <b>'+esc(long(cur.date))+'</b>, '+n+' day'+(n===1?'':'s')+' apart. The dates chosen at the top pick the runs; '+entries.length+' are kept.' :
+        entries.length>1? 'Only the run of <b>'+esc(long(cur.date))+'</b> falls on or before these dates. Choose dates that reach back to an earlier run to compare.' :
+        'Only the run of <b>'+esc(long(cur.date))+'</b> is kept so far. Each run adds a record, and this view compares them.');
+      if(!sel.end){ board.innerHTML=''; return; }
       board.innerHTML=tilesHtml(base)+areasHtml(base)+trendsHtml()+changesHtml(base)+tableHtml(base);
       // Balanced rows, as the other boards: after this script has run, as
       // the first draw comes before the grid list is set up.
       requestAnimationFrame(()=>{ if(typeof balanceGrids==='function') balanceGrids(); });
       if(typeof markClamped==='function') markClamped();
       if(typeof window.fitIframe==='function') window.fitIframe();
-    }
-    if(pickEl) pickEl.addEventListener('click',e=>{ const c=e.target.closest('[data-pgpick]'); if(c){ pick=c.dataset.pgpick; draw(); } });
-    // The slider's label follows the thumb; letting go (or a key) compares.
-    function showRun(E){
-      const r=E[+runEl.value]; if(!r||!runLab) return;
-      const role=roleOf(r,E);
-      runLab.querySelector('b').textContent=long(r.date);
-      runLab.querySelector('small').textContent=backBy(r)+(role? ', '+role.toLowerCase() : '');
-    }
-    if(runEl){
-      runEl.addEventListener('input',()=>showRun(earlierRuns()));
-      runEl.addEventListener('change',()=>{ const r=earlierRuns()[+runEl.value]; if(r){ pick=r.date; draw(); } });
     }
     board.addEventListener('click',e=>openItem(e.target.closest('.pglink')));
     board.addEventListener('keydown',e=>{ const l=e.target.closest('.pglink'); if(l && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); openItem(l); } });
@@ -3596,9 +3662,9 @@
     try{
       if(SNAP.read){
         SNAP.read('progress-history.json').then(h=>{
-          const earlier=((h&&h.entries)||[]).filter(e=>e&&e.date&&e.date<cur.date).sort((a,b)=>a.date<b.date?-1:1);
+          const earlier=((h&&h.entries)||[]).filter(e=>e&&e.date&&e.date<latest.date).sort((a,b)=>a.date<b.date?-1:1);
           if(!earlier.length) return;
-          entries=earlier.concat([cur]); pick=null; draw();
+          entries=earlier.concat([latest]); draw();
         }).catch(()=>{});
       }
     }catch(e){}
@@ -4427,7 +4493,7 @@
       // A note above the tabs says which rule the tables show, and clears it.
       const c=counts||{}, nA=+c.alerts||0, nI=+c.incidents||0, body=content.querySelector('.docbody');
       const why=best? '' : (nA||nI)
-        ? ' No table here lists it by this name: its '+(nA? nA.toLocaleString()+' alert'+(nA===1?'':'s') : 'alerts')+' in '+WIN.w()+' carry the alert names it gives them, in the alert volume table.'
+        ? ' No table here lists it by this name: its '+(nA? nA.toLocaleString()+' alert'+(nA===1?'':'s') : 'alerts')+' in '+WIN.span()+' carry the alert names it gives them, in the alert volume table.'
         : ' It raised no alerts or incidents in the last '+WIN.cw()+', so no table here lists it.';
       if(body){
         const note=document.createElement('div'); note.className='docnote rulepin';
@@ -4585,41 +4651,111 @@
     BALANCED.forEach(([sel])=>document.querySelectorAll(sel).forEach(el=>ro.observe(el)));
   }
 
-  // ---- the window slider ----
-  // 1 to the daily span. The label follows the thumb with the dates the
-  // window covers (from the collection time back N days); letting go, or a
-  // pause after arrow keys, reloads the dashboard for that window and
-  // reopens the view that was showing.
-  const asOfT=Date.parse((DAILY&&DAILY.asOf)||'');
+  // ---- the date range ----
+  // One control for every view: the window pill opens a calendar of the
+  // collected days (the daily span), where a first and a last day choose
+  // the window, as when booking dates; one day alone is a window too. The
+  // activity cards count the chosen days and the Progress tab compares the
+  // runs kept at either end. The quick choices take the last 7, 30 or every
+  // collected day at once. Applying
+  // reloads the dashboard for the window and reopens the view showing.
+  const DAY_MS=864e5;
   const fmtDay=(t,y)=>fmtDate(t,{year:!!y});
-  const winDates=n=>{
-    if(isNaN(asOfT)) return '';
-    const a=asOfT-n*864e5;
-    return fmtDay(a, new Date(a).getUTCFullYear()!==new Date(asOfT).getUTCFullYear())+' to '+fmtDay(asOfT, true);
-  };
+  const winDates=()=>WIN.startT==null? '' : WIN.startT===WIN.endT? fmtDay(WIN.endT,true) :
+    fmtDay(WIN.startT, new Date(WIN.startT).getUTCFullYear()!==new Date(WIN.endT).getUTCFullYear())+' to '+fmtDay(WIN.endT, true);
   const saveWindow=o=>{ try{ window.name='sacDash:'+JSON.stringify(o); }catch(e){} };
   (function(){
-    const wrap=document.getElementById('winWrap');
-    if(!DAILY || !wrap) return;
-    const rng=document.getElementById('winRange'), days=document.getElementById('winDays'), dates=document.getElementById('winDates');
-    const span=+DAILY.span;
-    rng.max=String(span); rng.value=String(Math.min(WIN.days, span));
-    const show=n=>{
-      days.textContent='Last '+WIN.words(n); dates.textContent=winDates(n);
-      rng.setAttribute('aria-valuetext', days.textContent+(dates.textContent? ', '+dates.textContent : ''));
-    };
-    show(WIN.days);
-    wrap.hidden=false;
-    let timer=null;
-    const commit=()=>{
-      const n=+rng.value;
-      if(n===WIN.days) return;
-      saveWindow({days:n, back:1, view:curView, doc:curDoc()});
-      wrap.classList.add('busy');
-      location.reload();
-    };
-    rng.addEventListener('input',()=>{ show(+rng.value); clearTimeout(timer); });
-    rng.addEventListener('change',()=>{ clearTimeout(timer); timer=setTimeout(commit, 350); });
+    const box=document.getElementById('winWrap'), btn=document.getElementById('winBtn'), pop=document.getElementById('winPop');
+    if(!DAILY || !box || !btn || !pop || WIN.lastT==null) return;
+    const span=+DAILY.span, minT=WIN.lastT-(span-1)*DAY_MS, maxT=WIN.lastT;
+    const daysEl=document.getElementById('winDays'), datesEl=document.getElementById('winDates');
+    daysEl.textContent=WIN.ago? WIN.words(WIN.days) : 'Last '+WIN.words(WIN.days);
+    datesEl.textContent=winDates();
+    btn.setAttribute('aria-label','Days shown: '+daysEl.textContent+', '+datesEl.textContent+'. Choose the dates');
+    box.hidden=false;
+    const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthOf=t=>{ const d=new Date(t); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); };
+    const addMonths=(t,n)=>{ const d=new Date(t); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+n, 1); };
+    const shown=()=>(window.matchMedia && matchMedia('(max-width: 600px)').matches)? 1 : 2;
+    const nDays=(a,b)=>Math.round((b-a)/DAY_MS)+1;
+    let lo=WIN.startT, hi=WIN.endT, pending=false, hover=null, lastMonth=monthOf(hi);
+    const range=()=>pending&&hover!=null? [Math.min(lo,hover), Math.max(lo,hover)] : [lo,hi];
+    function monthHtml(first){
+      const d=new Date(first), y=d.getUTCFullYear(), m=d.getUTCMonth(), len=new Date(Date.UTC(y,m+1,0)).getUTCDate(), lead=(d.getUTCDay()+6)%7;
+      let cells=''; for(let i=0;i<lead;i++) cells+='<span></span>';
+      for(let i=1;i<=len;i++){
+        const t=Date.UTC(y,m,i), off=t<minT||t>maxT;
+        cells+='<button type="button" class="calday'+(t===maxT?' last':'')+'" data-t="'+t+'"'+(off?' disabled':'')+' tabindex="-1" aria-label="'+esc(fmtDate(t))+'"><span class="n">'+i+'</span></button>';
+      }
+      return '<div class="calm"><div class="calmh">'+MONTH_NAMES[m]+' '+y+'</div><div class="calgrid">'+
+        ['Mo','Tu','We','Th','Fr','Sa','Su'].map(x=>'<span class="caldow" aria-hidden="true">'+x+'</span>').join('')+cells+'</div></div>';
+    }
+    // The chosen days painted onto the open months (and, while the last day
+    // is being chosen, up to the day under the pointer), and the line that
+    // names them.
+    function paint(){
+      const [a,b]=range();
+      pop.querySelectorAll('.calday').forEach(c=>{ const t=+c.dataset.t, inr=t>=a&&t<=b;
+        c.classList.toggle('inr',inr); c.classList.toggle('st',t===a); c.classList.toggle('en',t===b); c.setAttribute('aria-pressed',String(inr)); });
+      const sel=pop.querySelector('.calsel');
+      if(sel) sel.textContent=pending? 'Now choose the last day' : (a===b? fmtDate(a) : fmtDate(a)+' to '+fmtDate(b))+', '+WIN.words(nDays(a,b));
+      const ap=pop.querySelector('[data-cal-apply]'); if(ap) ap.disabled=pending;
+      // A quick choice lights up only while it is what the days chosen are.
+      pop.querySelectorAll('[data-cal-last]').forEach(q=>{ const on=!pending && b===maxT && nDays(a,b)===+q.dataset.calLast; q.classList.toggle('active',on); q.setAttribute('aria-pressed',String(on)); });
+    }
+    function render(focusT){
+      const k=shown(), months=[]; for(let i=k-1;i>=0;i--) months.push(addMonths(lastMonth,-i));
+      const presets=[7,30,span].filter((v,i,l)=>v<=span && l.indexOf(v)===i);
+      const nav=(dir,dis)=>'<button type="button" class="iconbtn" data-cal-nav="'+dir+'" aria-label="'+(dir<0?'Earlier months':'Later months')+'"'+(dis?' disabled':'')+'>'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(dir<0?'m15 18-6-6 6-6':'m9 18 6-6-6-6')+'"/></svg></button>';
+      pop.innerHTML='<div class="calhead"><div class="subtabs calpre" role="group" aria-label="Quick choices">'+
+        presets.map(p=>'<button type="button" class="pgtab" data-cal-last="'+p+'">'+(p===span&&p>30? 'All '+p+' days' : 'Last '+p+' days')+'</button>').join('')+'</div>'+
+        '<div class="calnav">'+nav(-1, months[0]<=monthOf(minT))+nav(1, lastMonth>=monthOf(maxT))+'</div></div>'+
+        '<div class="calmonths">'+months.map(monthHtml).join('')+'</div>'+
+        '<div class="calfoot"><span class="calsel" aria-live="polite"></span>'+
+        sbtn('Cancel','data-cal-cancel',{cls:'quiet'})+sbtn('Apply','data-cal-apply')+'</div>';
+      paint();
+      const f=pop.querySelector('.calday[data-t="'+(focusT!=null? focusT : hi)+'"]:not([disabled])')||pop.querySelector('.calday:not([disabled])');
+      if(f){ f.tabIndex=0; if(focusT!=null) f.focus(); }
+    }
+    const outside=e=>{ if(!box.contains(e.target)) close(false); };
+    function open(){
+      lo=WIN.startT; hi=WIN.endT; pending=false; hover=null; lastMonth=monthOf(hi);
+      render(); pop.hidden=false; btn.setAttribute('aria-expanded','true'); document.addEventListener('mousedown',outside,true);
+      const f=pop.querySelector('.calday[tabindex="0"]'); if(f) f.focus();
+      if(typeof window.fitIframe==='function') window.fitIframe();
+    }
+    function close(back){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); document.removeEventListener('mousedown',outside,true); if(back) btn.focus(); }
+    function apply(n, ago){
+      close(false); if(n===WIN.days && ago===WIN.ago) return;
+      saveWindow({days:n, ago:ago, back:1, view:curView, doc:curDoc()});
+      box.classList.add('busy'); location.reload();
+    }
+    btn.addEventListener('click',()=>{ if(pop.hidden) open(); else close(true); });
+    pop.addEventListener('click',e=>{
+      const d=e.target.closest('.calday');
+      if(d){ if(d.disabled) return; const t=+d.dataset.t;
+        if(!pending){ lo=hi=t; pending=true; } else { if(t<lo){ hi=lo; lo=t; } else hi=t; pending=false; }
+        hover=null; paint(); return; }
+      const p=e.target.closest('[data-cal-last]'); if(p){ apply(+p.dataset.calLast, 0); return; }
+      const nv=e.target.closest('[data-cal-nav]'); if(nv){ if(!nv.disabled){ lastMonth=addMonths(lastMonth, +nv.dataset.calNav); render(); } return; }
+      if(e.target.closest('[data-cal-cancel]')){ close(true); return; }
+      if(e.target.closest('[data-cal-apply]') && !pending) apply(nDays(lo,hi), Math.round((maxT-hi)/DAY_MS));
+    });
+    pop.addEventListener('mouseover',e=>{ if(!pending) return; const d=e.target.closest('.calday'); if(d && !d.disabled && +d.dataset.t!==hover){ hover=+d.dataset.t; paint(); } });
+    // Keys: the arrows move a day or a week, Home and End to the first and
+    // last collected day; Enter or Space chooses; Escape closes.
+    pop.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){ e.preventDefault(); close(true); return; }
+      const d=e.target.closest('.calday'); if(!d) return;
+      const step={ArrowLeft:-1, ArrowRight:1, ArrowUp:-7, ArrowDown:7}[e.key];
+      let t=step!=null? +d.dataset.t+step*DAY_MS : e.key==='Home'? minT : e.key==='End'? maxT : null;
+      if(t==null) return;
+      e.preventDefault(); t=Math.min(Math.max(t,minT),maxT);
+      const k=shown(); if(t<addMonths(lastMonth,1-k)) lastMonth=addMonths(monthOf(t),k-1); else if(t>=addMonths(lastMonth,1)) lastMonth=monthOf(t);
+      if(pending) hover=t;
+      render(t);
+    });
   })();
 
   // ---- tabs ----
@@ -4628,7 +4764,7 @@
   const lastOf={};
   const viewsOf=t=>(t.dataset.tabs||t.dataset.tab).split(' ');
   activateTab = function(name){
-    curView=name;
+    curView=name; paintHeroCtx();
     document.querySelectorAll('.tab').forEach(x=>{ const on=viewsOf(x).includes(name); x.classList.toggle('active', on); if(on) lastOf[x.dataset.tab]=name; });
     document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==name));
     document.querySelectorAll('[data-views]').forEach(el=>el.classList.toggle('hidden',!el.dataset.views.split(' ').includes(name)));

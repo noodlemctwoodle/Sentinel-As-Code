@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-10-14
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
@@ -36,7 +36,7 @@ BeforeAll {
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-demo-" + [guid]::NewGuid())
     $script:asOf = [datetime]::SpecifyKind([datetime]'2026-10-14T09:00:00', 'Utc')
     $script:days = 30
-    $script:result = & $script:tool -OutputPath (Join-Path $script:outDir 'law-larkfield-sentinel') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf -Seed 7 -Build 6> $null 3> $null
+    $script:result = & $script:tool -OutputPath (Join-Path $script:outDir 'sentinel-blog-uks-law') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf -Seed 7 -Build 6> $null 3> $null
     $script:raw = $script:result.Raw
     function Read-Demo([string]$Name) { Get-Content -LiteralPath (Join-Path $script:raw $Name) -Raw | ConvertFrom-Json -Depth 64 }
 }

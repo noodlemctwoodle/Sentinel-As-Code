@@ -2,7 +2,7 @@
 
 [`Tools/New-BlueprintDemoWorkspace.ps1`](../../Tools/New-BlueprintDemoWorkspace.ps1)
 writes a complete, synthetic iSOC Blueprint inventory for a large
-fictitious workspace (Larkfield, a made-up organisation, 2 TB a day), so the report and the
+fictitious workspace (sentinel-blog-uks-law, 2 TB a day), so the report and the
 SharePoint dashboard can be developed, demonstrated and screenshotted
 without a tenant. Nothing in it comes from a real workspace, so it is safe
 to show and share; a live run's output never is.
@@ -18,14 +18,14 @@ From the repository root:
 ./Tools/New-BlueprintDemoWorkspace.ps1 -Build
 ```
 
-That writes `SecurityDocs/law-larkfield-sentinel/_raw` (git ignores
+That writes `SecurityDocs/sentinel-blog-uks-law/_raw` (git ignores
 `SecurityDocs/`), renders the report beside it and builds the dashboard
-bundle under `SecurityDocs/law-larkfield-sentinel/sharepoint`. Serve that
+bundle under `SecurityDocs/sentinel-blog-uks-law/sharepoint`. Serve that
 folder to open the dashboard in a browser, so it can also read the
 maturity history beside it:
 
 ```powershell
-python3 -m http.server 8080 --directory SecurityDocs/law-larkfield-sentinel/sharepoint
+python3 -m http.server 8080 --directory SecurityDocs/sentinel-blog-uks-law/sharepoint
 ```
 
 The command returns the workspace folder, its `_raw` folder, the bundle
@@ -34,9 +34,9 @@ The command returns the workspace folder, its `_raw` folder, the bundle
 | Parameter | Default | What it sets |
 | --- | --- | --- |
 | `-OutputPath` | `SecurityDocs/<WorkspaceName>` | The workspace folder; the inventory goes to its `_raw` |
-| `-WorkspaceName` | `law-larkfield-sentinel` | The demo workspace's name |
+| `-WorkspaceName` | `sentinel-blog-uks-law` | The demo workspace's name |
 | `-DailyGb` | `2048` | Average GB a day over the last 30 days, every table included |
-| `-LookbackDays` | `90` | Days of activity, 7 to 90; the daily series and the dashboard's window slider cover the same days |
+| `-LookbackDays` | `90` | Days of activity, 7 to 90; the daily series and the dashboard's date range cover the same days |
 | `-AsOf` | now (UTC) | When the demo was "collected"; every date counts back from it |
 | `-Seed` | `2048` | The random seed: the same seed, date and content give the same inventory |
 | `-Build` | off | Render the report and build the bundle, and return the bundle's folder |
@@ -85,7 +85,7 @@ analyst, Defender XDR or someone else, classified per rule, with
 acknowledge and resolve times by severity. Every capture is aggregated from
 the same samples, so the alert volumes, rules fired, rule effectiveness,
 incident summary, MTTR, title statistics and the daily series behind the
-dashboard's slider all agree. Playbooks run when automation rules call
+dashboard's date range all agree. Playbooks run when automation rules call
 them (the Teams notification playbook's connection expired five days ago;
 a VirusTotal lookup is rate-limited now and then), health events cover
 every rule run, connector fetch, automation run and playbook trigger, and
@@ -118,7 +118,7 @@ capture, add it to the generator: the test suite
 fails until every file the collector writes is in the demo. It also checks
 the volume, the deployed content, the commitment tier, that the daily
 series agree with the captures, that the same seed gives the same data,
-that no fixture name is left, and that the bundle carries its slider series
+that no fixture name is left, and that the bundle carries its date-range series
 and maturity trend.
 
 ## Related

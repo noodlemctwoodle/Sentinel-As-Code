@@ -209,31 +209,46 @@ Describe 'The build carries the daily series' {
     }
 }
 
-Describe 'The dashboard re-scopes its cards to the slider''s window' {
-    It 'replaces the snapshot picker with a slider and its dates' {
-        $script:html | Should -Match '<label class="winwrap" id="winWrap" hidden'
-        $script:html | Should -Match '<input type="range" id="winRange" min="1" max="30" step="1" value="30" aria-label="Days of activity shown"'
-        $script:html | Should -Match '<span class="winlab" id="winLab" aria-live="polite"><b id="winDays"></b><small id="winDates"></small></span>'
-        $script:html | Should -Not -Match 'snapPick|snapBanner|snapWrap'
-        $script:html | Should -Match "rng\.max=String\(span\)"
-        $script:html | Should -Match "days\.textContent='Last '\+WIN\.words\(n\); dates\.textContent=winDates\(n\);"
-        $script:html | Should -Match "fmtDay\(a, new Date\(a\)\.getUTCFullYear\(\)!==new Date\(asOfT\)\.getUTCFullYear\(\)\)\+' to '\+fmtDay\(asOfT, true\)"
+Describe 'The dashboard re-scopes its cards to the chosen dates' {
+    It 'opens a calendar of the collected days from the window pill' {
+        $script:html | Should -Match '<div class="winbox" id="winWrap" hidden>'
+        $script:html | Should -Match '<button type="button" class="winwrap" id="winBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="winPop"'
+        $script:html | Should -Match '<div class="calpop" id="winPop" role="dialog"'
+        $script:html | Should -Not -Match 'snapPick|snapBanner|snapWrap|id="winRange"'
+        # Only the collected days can be chosen, a first and a last as when
+        # booking dates; one day alone is a window too.
+        $script:html.Contains('const span=+DAILY.span, minT=WIN.lastT-(span-1)*DAY_MS, maxT=WIN.lastT;') | Should -BeTrue
+        $script:html.Contains('off=t<minT||t>maxT') | Should -BeTrue
+        $script:html.Contains('if(!pending){ lo=hi=t; pending=true; } else { if(t<lo){ hi=lo; lo=t; } else hi=t; pending=false; }') | Should -BeTrue
+        # Quick choices, keys, and the pill names the window and its dates.
+        $script:html.Contains('const presets=[7,30,span].filter((v,i,l)=>v<=span && l.indexOf(v)===i);') | Should -BeTrue
+        $script:html.Contains('const step={ArrowLeft:-1, ArrowRight:1, ArrowUp:-7, ArrowDown:7}[e.key];') | Should -BeTrue
+        $script:html.Contains("daysEl.textContent=WIN.ago? WIN.words(WIN.days) : 'Last '+WIN.words(WIN.days);") | Should -BeTrue
+        # Nothing on the calendar but the days; a quick choice lights up
+        # only while it is what is chosen.
+        $script:html | Should -Not -Match 'caldot|calkey|RUN_DAYS'
+        $script:html.Contains("const on=!pending && b===maxT && nDays(a,b)===+q.dataset.calLast;") | Should -BeTrue
     }
 
-    It 'rebuilds the model before anything renders, and only for a window other than the collected one' {
-        $script:html | Should -Match 'function applyWindow\(M, D, N, R\)'
-        $script:html | Should -Match 'if\(want>=1 && n!==WIN\.collected\)\{ WIN\.days=n; WIN\.recent=Math\.min\(WIN\.recent, n\); applyWindow\(M, DAILY, WIN\.days, WIN\.recent\); \}'
-        $script:html.IndexOf('applyWindow(M, DAILY, WIN.days, WIN.recent)') | Should -BeLessThan $script:html.IndexOf('// ---- glance stat tiles ----')
+    It 'rebuilds the model before anything renders, for any days within the span' {
+        $script:html | Should -Match 'function applyWindow\(M, D, N, R, S\)'
+        $script:html.Contains('const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ const k=+e[0]-S; if(k>=0 && k<n) s+=(+e[i]||0); }); return s; };') | Should -BeTrue
+        $script:html.Contains('if(want>=1 && (n!==WIN.collected || ago>0)){ WIN.days=n; WIN.ago=ago; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago); }') | Should -BeTrue
+        $script:html.IndexOf('applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago)') | Should -BeLessThan $script:html.IndexOf('// ---- glance stat tiles ----')
         # Cost and the flow only when the estimate priced every table.
         $script:html | Should -Match 'if\(M\.cost && D\.costed\)\{'
         foreach ($field in 'M\.flow=\{nodes, links\}', 'M\.flowTables=', 'E\.sources=', 'E\.productAlerts=', 'M\.topRules=', 'M\.health=\{', 'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=', 'L\.mttrMinutes=', 'M\.usageDaily=') {
             $script:html | Should -Match $field
         }
+        # Sentences name the window: the last N days, or the N days to a date.
+        $script:html.Contains("o.span=()=>o.ago>0 && o.endT!=null? 'the '+words(o.days)+' to '+day(o.endT) : 'the last '+words(o.days);") | Should -BeTrue
+        $script:html | Should -Not -Match "the last '\+WIN\.w\(\)"
     }
 
     It 'keeps the window in window.name, checks it before use and reloads to apply it' {
         $script:html | Should -Match "const m=/\^sacDash:\(\.\*\)\$/\.exec\(window\.name\|\|''\)"
-        $script:html | Should -Match "saveWindow\(\{days:n, back:1, view:curView, doc:curDoc\(\)\}\);"
+        $script:html | Should -Match "saveWindow\(\{days:n, ago:ago, back:1, view:curView, doc:curDoc\(\)\}\);"
+        $script:html | Should -Match 'const ago=Math\.min\(Math\.max\(Math\.round\(\+SAVED\.ago\|\|0\),0\), span-n\);'
         $script:html | Should -Match 'location\.reload\(\);'
         # The saved view must name a view on the page; it is never put in a selector.
         $script:html | Should -Match "if\(\[\.\.\.document\.querySelectorAll\('\[data-view\]'\)\]\.some\(el=>el\.dataset\.view===view\)\) activateTab\(view\);"

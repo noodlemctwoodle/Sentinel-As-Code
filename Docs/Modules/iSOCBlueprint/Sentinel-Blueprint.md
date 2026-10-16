@@ -324,9 +324,9 @@ The run-pipeline panel exposes three further parameters:
   the dashboard's cards, the findings and the maturity criteria name the
   window, and the cost estimate projects a month from it. The collector also
   counts activity per day over the lookback (at most 90 days), which the
-  dashboard's window slider re-scopes its cards with, from 1 day to that
+  dashboard's date range re-scopes its cards with, any days within that
   span; see
-  [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md#the-window-slider).
+  [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md#the-date-range).
   A window longer
   than a table's interactive retention returns only what the table holds,
   and a long window costs more query time on the raw tables. See

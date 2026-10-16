@@ -235,12 +235,12 @@ SOC optimisation recommendations (`soc-optimization`) are read over REST from
 | `azure-firewall-categories` | `AzureDiagnostics` | Lookback | Azure Firewall rows by category, legacy `AzureFirewall*` and resource-specific `AZFW*` side by side |
 | `xdr-table-presence` | The Defender XDR tables (`Device*`, `Email*`, `Identity*` and others) | Lookback | Records per table, whether Defender XDR is connected and producing data |
 
-### Daily series for the dashboard's slider
+### Daily series for the dashboard's date range
 
 The **daily span** is the lookback, at most 90 days (`daily`). These five count per day
 ago (`DaysAgo`, 0 for the last 24 hours, from when the query runs), so the last N days of
 them sum to exactly the rolling N-day window the captures above read. The site build
-carries them in the dashboard model, whose window slider re-scopes its cards to any number
+carries them in the dashboard model, whose date range re-scopes its cards to any run of days
 of days up to the span. Playbook runs are counted per day too, inside `playbook-runs`.
 
 | Capture | Reads | Window | What it gives |

@@ -2132,9 +2132,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'reads files beside the dashboard the way SharePoint allows' {
-        # The window slider took the snapshot picker's place in the top bar.
+        # The date range took the snapshot picker's place in the top bar.
         $html | Should -Not -Match 'snapPick|snapBanner'
-        $html | Should -Match '<label class="winwrap" id="winWrap" hidden'
+        $html | Should -Match '<div class="winbox" id="winWrap" hidden>'
         # A snapshot served as a file finds the live folder one level up.
         $html | Should -Match 'root=/\\/history\\/\$/\.test\(here\.pathname\)\? new URL\(''\.\.'',here\) : here;'
         # The maturity trend reads through the same path; about:srcdoc has no folder.
@@ -2399,8 +2399,8 @@ Describe 'Dashboard figures and labels' {
 
     It 'says which window a re-scoped or fixed figure covers' {
         # The cost tile follows the slider and says so; the TI card does not and says so.
-        $script:dash.Contains("s:cost? 'projected from the last '+WIN.w() : ''") | Should -BeTrue
-        $script:dash.Contains("', over the collected '+WIN.cw()+': the window slider does not re-scope this card'") | Should -BeTrue
+        $script:dash.Contains("s:cost? 'projected from '+WIN.span() : ''") | Should -BeTrue
+        $script:dash.Contains("(WIN.days!==WIN.collected||WIN.ago>0)? ', over the collected '+WIN.cw()+': the dates chosen at the top do not re-scope this card'") | Should -BeTrue
     }
 
     It 'writes figures, money, dates and names in one style' {
@@ -2417,6 +2417,15 @@ Describe 'Dashboard figures and labels' {
     It 'sorts report tables by date and by amount in any currency' {
         $script:dash.Contains('const SORT_DATE=/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})(?: (\d{2}):(\d{2}))?(?: UTC)?$/;') | Should -BeTrue
         $script:dash.Contains('const NUM_PREFIX=/^-?\s*(?:[A-Z]{2,3}\$|[A-Z]{3} |[£$€¥₹₩]|<)\s*/;') | Should -BeTrue
+    }
+
+    It 'says in the header what the view showing covers, and opens a view from its fact' {
+        # The context line follows the tab: the days shown, as collected, or
+        # (Progress) the runs compared; Maturity and Findings open their view.
+        $script:dash.Contains('    curView=name; paintHeroCtx();') | Should -BeTrue
+        $script:dash.Contains("['overview','flow','sections'].includes(v)? [ICON.pulse, 'Activity in <b>'+esc(WIN.span())+'</b>'") | Should -BeTrue
+        $script:dash.Contains("heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && activateTab) activateTab(b.dataset.go); });") | Should -BeTrue
+        $script:dash | Should -Match "go:'findings'"
     }
 
     It 'gives a key/value table no header row to sort by, as the site''s pages do' {
