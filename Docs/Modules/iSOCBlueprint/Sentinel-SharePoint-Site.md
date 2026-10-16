@@ -84,12 +84,17 @@ The dashboard reads one embedded JSON model. Beyond the workspace headline,
 counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Blueprint computes:
 
-The header under the top bar names the workspace and, in a line that
-follows the tab, what the view showing covers: the days chosen for the
-activity views ("Activity in the last 90 days, 19 Jul to 16 Oct 2026"),
-when the Assessment and the Report were collected, and on Progress the
-two runs compared. Its Maturity and Findings facts open their view in the
-Assessment tab.
+The header under the top bar is the workspace's: an eyebrow with where it
+lives (Sentinel workspace, region, resource group), the workspace's name
+(the product's is the top bar's), a lead sentence on what the tab showing
+covers, and a quiet line with when it was collected and the Blueprint
+version. The lead follows the tab: the days chosen for the activity views
+("Showing activity in the last 90 days, 19 Jul to 16 Oct 2026"), that the
+Assessment and the Report are as collected whatever dates are chosen, and
+on Progress the two runs compared. On the right, how the workspace stands:
+the maturity score as a ring (amber below the target level) with its
+level and target, and the open findings with a bar by severity; each
+opens its view in the Assessment tab.
 
 The glance tiles name the pricing tier in words with the API's SKU under
 it (Pay-as-you-go over `PerGB2018`), or on a commitment tier or dedicated

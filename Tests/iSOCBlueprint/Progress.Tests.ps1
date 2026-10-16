@@ -181,7 +181,7 @@ Describe 'The dashboard''s Progress tab' {
         $script:html | Should -Match '<div class="tab" data-tab="progress" role="tab">'
         # No bar of its own: the header's context line carries the sentence.
         $script:html | Should -Not -Match 'data-views="progress"|id="progressNote"'
-        $script:html | Should -Match '<p class="hero-ctx" id="heroCtx" aria-live="polite" hidden></p>'
+        $script:html | Should -Match '<p class="hero-lead" id="heroCtx" aria-live="polite" hidden></p>'
         $script:html.Contains('HERO_CTX.progress=()=>ctxHtml;') | Should -BeTrue
         $script:html.Contains("const setCtx=h=>{ ctxHtml=h; if(curView==='progress') paintHeroCtx(); };") | Should -BeTrue
         $script:html | Should -Match '<section data-view="progress" class="hidden">\s*<div id="progressBoard"></div>'

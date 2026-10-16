@@ -166,10 +166,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   collected (at most 90) where a first and a last day are chosen as when
   booking dates, one day alone included, with quick choices for the last
   7, 30 or every day, and the window and its dates named on the pill
-  ("Last 14 days, 1 Oct to 14 Oct 2026"); the header says in a line what
-  the tab showing covers (its days, when it was collected, or the runs
-  Progress compares), and its Maturity and Findings facts open their
-  view. Applying redraws every card
+  ("Last 14 days, 1 Oct to 14 Oct 2026"). The header below it is now the
+  workspace's: its name, where it lives, a lead sentence on what the tab
+  showing covers (its days, as collected, or the runs Progress compares),
+  and how it stands, as a maturity ring and the open findings by severity,
+  each opening its view. Applying redraws every card
   that counts activity for that window (the glance tiles, the alert
   lifecycle, the estate pipeline, the billing flow and cost, the detection
   matrix, top tables and rules, health, incident outcomes, rule

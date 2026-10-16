@@ -209,36 +209,56 @@
   /* ---------- page header ---------- */
   /* A low header row: title and workspace line on the left, fact chips on
      the right. Wraps to two rows on narrow screens. */
-  .hero{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;
-    margin:22px 0 0;padding:16px 22px;border:1px solid var(--line);border-radius:var(--radius);
-    background:var(--panel);box-shadow:var(--shadow-sm);
-    animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
-  /* A soft brand glow from the top left, under the content. */
-  .hero{position:relative;overflow:hidden;isolation:isolate}
+  /* ---------- the workspace header ----------
+     The workspace and how it stands, in order of weight: where it lives (an
+     eyebrow), its name, a lead sentence on what the view showing covers, a
+     quiet line on when it was collected; on the right the maturity ring and
+     the open findings by severity, each opening its view. The product's
+     name is the top bar's, so it is not repeated here. A soft brand glow,
+     no edge stripe. */
+  .hero{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:center;justify-content:space-between;
+    gap:20px 32px;flex-wrap:wrap;margin:22px 0 0;padding:22px 26px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--panel);box-shadow:var(--shadow-sm);animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
   .hero::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
     background:radial-gradient(55% 150% at 0% 0%,color-mix(in srgb,var(--brand) 16%,transparent),transparent 70%),
                radial-gradient(40% 120% at 100% 100%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 70%)}
-  .hero .hero-main{min-width:0}
-  /* What the view showing covers: its days, or the runs it compares. */
-  .hero-ctx{display:inline-flex;align-items:center;gap:9px;margin:12px 0 0;padding:5px 14px 5px 5px;border-radius:999px;
-    font-size:12.5px;line-height:1.4;color:var(--ink-2);background:color-mix(in srgb,var(--brand) 9%,transparent);
-    border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line))}
-  .hero-ctx[hidden]{display:none}
-  .hero-ctx b{color:var(--ink);font-weight:700}
-  .hero-ctx .ctxic{flex:none;width:24px;height:24px;border-radius:999px;display:grid;place-items:center;color:#fff;background:var(--btn-bg)}
-  .hero-ctx .ctxic svg{width:13px;height:13px}
-  .hero h1{margin:0;font-size:clamp(20px,2.2vw,26px);line-height:1.1;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
-  .hero .sub{margin:5px 0 0;font-size:13px;color:var(--muted)}
-  .hero .sub b{color:var(--ink);font-weight:700}
-  .hero-facts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
-  .fact{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);
-    background:var(--panel-soft);font-size:12.5px;color:var(--ink);font-weight:650;white-space:nowrap}
-  .fact .fk{color:var(--faint);font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10px}
-  .fact i{width:8px;height:8px;border-radius:50%;background:var(--slate);flex:none}
-  .fact.ok i{background:var(--green)} .fact.alert i{background:var(--red)} .fact.brand i{background:var(--brand)}
-  button.fact{font:inherit;cursor:pointer;transition:border-color .15s,background .15s}
-  button.fact:hover,button.fact:focus-visible{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,var(--panel-soft));outline:none}
-  button.fact .go{width:12px;height:12px;color:var(--muted)}
+  .hero-id{display:flex;align-items:flex-start;gap:16px;min-width:0;flex:1 1 420px}
+  .hero-mark{flex:none;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:#fff;
+    background:var(--btn-bg);box-shadow:var(--btn-shadow)}
+  .hero-mark svg{width:24px;height:24px}
+  .hero-main{min-width:0}
+  .hero-eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:11px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint)}
+  .hero-eyebrow span+span::before{content:"";display:inline-block;width:3px;height:3px;border-radius:50%;background:currentColor;
+    margin:0 10px 2px 0;vertical-align:middle}
+  .hero h1{margin:4px 0 0;font-size:clamp(22px,2.4vw,30px);line-height:1.12;font-weight:800;letter-spacing:-.02em;color:var(--ink);
+    overflow-wrap:anywhere}
+  .hero-lead{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--ink-2);max-width:78ch}
+  .hero-lead[hidden]{display:none}
+  .hero-lead b{color:var(--ink);font-weight:700}
+  .hero-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;margin:10px 0 0;font-size:12px;color:var(--muted)}
+  .hero-meta span{display:inline-flex;align-items:center;gap:6px}
+  .hero-meta svg{width:13px;height:13px;color:var(--faint)}
+  .hero-kpis{display:flex;flex-wrap:wrap;gap:12px;margin-left:auto}
+  .hkpi{display:flex;align-items:center;gap:14px;min-width:240px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);
+    background:color-mix(in srgb,var(--panel-soft) 85%,transparent);font:inherit;color:var(--ink);text-align:left;cursor:pointer;
+    transition:border-color .15s,transform .15s,box-shadow .15s}
+  .hkpi:hover,.hkpi:focus-visible{border-color:color-mix(in srgb,var(--brand) 55%,var(--line));box-shadow:var(--shadow);transform:translateY(-1px);outline:none}
+  .hkpi:disabled{cursor:default;transform:none;box-shadow:none;border-color:var(--line)}
+  .hring{flex:none;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+    background:conic-gradient(var(--c,var(--brand)) calc(var(--p,0)*1%),var(--line-2) 0)}
+  .hring b{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--panel);
+    font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+  .hbig{flex:none;min-width:56px;text-align:center;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+  .hkt{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+  .hkk{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .hkv{font-size:14px;font-weight:750;color:var(--ink)}
+  .hks{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .hsev{display:flex;gap:2px;height:6px;border-radius:999px;overflow:hidden;background:var(--line-2);margin:4px 0 2px}
+  .hsev i{display:block;min-width:4px}
+  .hsev .c{background:var(--red)} .hsev .w{background:var(--amber)} .hsev .n{background:var(--slate)}
+  .hkpi .go{flex:none;width:14px;height:14px;color:var(--muted)}
+  @media(max-width:720px){.hero-kpis{margin-left:0;width:100%}.hkpi{flex:1 1 220px;min-width:0}.hero-mark{width:40px;height:40px}}
 
   /* ---------- panels / headings ---------- */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -1072,15 +1092,16 @@
   @media(prefers-reduced-motion:reduce){*{animation:none !important}}
   /* Drop the tab strip to its own full-width row before it can overflow the bar.
      Brand (left) + theme toggle + CTA (right) stay on row 1; nav sits on row 2 and
-     can scroll horizontally within itself if the viewport is very narrow. */
-  @media(max-width:1120px){
+     can scroll horizontally within itself if the viewport is very narrow. The
+     brand, the six tabs, the date range and the toggle need about 1,300px. */
+  @media(max-width:1300px){
     .brand{margin-right:auto}
     .nav{order:5;width:100%;max-width:100%;margin-left:0;justify-content:flex-start}
     .spacer{display:none}
   }
   @media(max-width:720px){
     .shell{padding:0 16px 56px}.topbar .inner{padding:10px 16px}
-    .hero{padding:14px 16px}
+    .hero{padding:16px 18px}
     .brand .bs{display:none}
   }
   /* The one button. Every button that does something (show all, show
@@ -1134,12 +1155,16 @@
 
 <div class="shell">
   <header class="hero">
-    <div class="hero-main">
-      <h1 id="title">iSOC Blueprint</h1>
-      <p class="sub" id="subtitle"></p>
-      <p class="hero-ctx" id="heroCtx" aria-live="polite" hidden></p>
+    <div class="hero-id">
+      <span class="hero-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span>
+      <div class="hero-main">
+        <div class="hero-eyebrow" id="heroEyebrow"></div>
+        <h1 id="title"></h1>
+        <p class="hero-lead" id="heroCtx" aria-live="polite" hidden></p>
+        <p class="hero-meta" id="heroMeta"></p>
+      </div>
     </div>
-    <div class="hero-facts" id="heroFacts"></div>
+    <div class="hero-kpis" id="heroFacts"></div>
   </header>
 
   <!-- OVERVIEW -->
@@ -1766,44 +1791,50 @@
     }catch(e){}
     return null;
   }
-  document.getElementById('title').textContent = PRODUCT;
   document.getElementById('brandName').childNodes[0].nodeValue = PRODUCT;
   document.getElementById('brandSub').textContent = PRODUCT_SUB;
   const w = M.workspace;
-  document.getElementById('subtitle').innerHTML =
-    'Workspace <b>'+esc(w.name)+'</b>'+(w.region?' &middot; '+esc(regionName(w.region)):'')+(w.resourceGroup?' &middot; '+esc(w.resourceGroup):'');
-  const headerMat = M.maturity&&M.maturity.overall&&M.maturity.overall.score!=null;
-  const headerFacts = [
-    {k:'Generated', v:w.generatedUtc? fmtDate(w.generatedUtc,{time:true}) : 'n/a', cls:'ok'},
-    {k:'Blueprint', v:'v'+(w.blueprintVer||'?')},
-    {k:'Maturity', v:headerMat? (M.maturity.overall.score+' / 5 &middot; '+esc(M.maturity.overall.levelName)) : 'not assessed', cls:headerMat?'brand':'', raw:true, go:headerMat?'maturity':null},
-    {k:'Findings', v:M.findings.total+' open', cls:M.findings.total>0?'alert':'ok', go:'findings'}
-  ];
-  // Maturity and Findings open their view in the Assessment tab.
+  // The header names the workspace (the product is the top bar's): where it
+  // lives above the name, when it was collected below.
+  document.getElementById('title').textContent = w.name||PRODUCT;
+  document.getElementById('heroEyebrow').innerHTML=['Sentinel workspace', w.region? regionName(w.region) : '', w.resourceGroup||'']
+    .filter(Boolean).map(s=>'<span>'+esc(s)+'</span>').join('');
+  document.getElementById('heroMeta').innerHTML=
+    (w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '')+
+    '<span>'+ICON.tag+'Blueprint v'+esc(w.blueprintVer||'?')+'</span>';
+  // How the workspace stands: the maturity score as a ring (amber below the
+  // target level) and the open findings by severity; each opens its view
+  // in the Assessment tab.
+  const hMat=M.maturity&&M.maturity.overall, hMatOk=!!(hMat&&hMat.score!=null), hTarget=M.maturity&&M.maturity.targetLevel;
+  const hSev=(M.findings&&M.findings.bySeverity)||{}, hC=+hSev.Critical||0, hW=+hSev.Warning||0, hI=+hSev.Info||0, hTotal=+(M.findings&&M.findings.total)||0;
+  const hGo='<svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
   const heroFacts=document.getElementById('heroFacts');
-  heroFacts.innerHTML = headerFacts.map(f=>{
-    const inner=(f.cls?'<i></i>':'')+'<span class="fk">'+esc(f.k)+'</span>'+(f.raw?f.v:esc(f.v));
-    return f.go? '<button type="button" class="fact '+(f.cls||'')+'" data-go="'+f.go+'" title="Open '+(f.go==='maturity'?'the maturity assessment':'the findings')+'">'+inner+
-        '<svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>'
-      : '<span class="fact '+(f.cls||'')+'">'+inner+'</span>';
-  }).join('');
-  heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && activateTab) activateTab(b.dataset.go); });
-  // The header's line under the workspace: what the view showing covers.
-  // A view with its own registers it in HERO_CTX (Progress: the runs it
-  // compares); the activity views name their days, the Assessment and the
-  // Report that they are as collected.
+  heroFacts.innerHTML=
+    '<button type="button" class="hkpi" data-go="maturity"'+(hMatOk?'':' disabled')+' title="Open the maturity assessment">'+
+      '<span class="hring" style="--p:'+(hMatOk? (+hMat.score/5*100).toFixed(1) : 0)+';--c:'+(hMatOk&&hTarget!=null&&+hMat.level<+hTarget? 'var(--amber)' : 'var(--brand)')+'"><b>'+(hMatOk? (+hMat.score).toFixed(2) : 'n/a')+'</b></span>'+
+      '<span class="hkt"><span class="hkk">Maturity</span><span class="hkv">'+(hMatOk? esc(hMat.levelName||('Level '+hMat.level)) : 'Not assessed')+'</span>'+
+      '<span class="hks">'+(hMatOk? 'Level '+esc(hMat.level)+' of 5'+(hTarget!=null? ', target '+esc(hTarget) : '') : 'No maturity.json in this run')+'</span></span>'+(hMatOk? hGo : '')+'</button>'+
+    '<button type="button" class="hkpi" data-go="findings" title="Open the findings">'+
+      '<span class="hbig">'+hTotal.toLocaleString('en-GB')+'</span>'+
+      '<span class="hkt"><span class="hkk">Open findings</span>'+
+      '<span class="hsev" aria-hidden="true">'+(hC?'<i class="c" style="flex:'+hC+'"></i>':'')+(hW?'<i class="w" style="flex:'+hW+'"></i>':'')+(hI?'<i class="n" style="flex:'+hI+'"></i>':'')+'</span>'+
+      '<span class="hks">'+hC.toLocaleString('en-GB')+' critical &middot; '+hW.toLocaleString('en-GB')+' warning &middot; '+hI.toLocaleString('en-GB')+' info</span></span>'+hGo+'</button>';
+  heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && !b.disabled && activateTab) activateTab(b.dataset.go); });
+  // The lead sentence under the name: what the view showing covers. A view
+  // with its own registers it in HERO_CTX (Progress: the runs it compares);
+  // the activity views name their days, and the Assessment and the Report
+  // say they are as collected, whatever dates are chosen.
   const HERO_CTX={};
   function paintHeroCtx(){
     const el=document.getElementById('heroCtx'); if(!el) return;
-    const v=curView, gen=w.generatedUtc? fmtDate(w.generatedUtc) : '';
+    const v=curView;
     const yrs=WIN.startT!=null && new Date(WIN.startT).getUTCFullYear()!==new Date(WIN.endT).getUTCFullYear();
     const dates=WIN.startT==null? '' : WIN.startT===WIN.endT? fmtDate(WIN.endT) : fmtDate(WIN.startT,{year:yrs})+' to '+fmtDate(WIN.endT);
-    const ctx= HERO_CTX[v]? [ICON.history, HERO_CTX[v]()] :
-      ['overview','flow','sections'].includes(v)? [ICON.pulse, 'Activity in <b>'+esc(WIN.span())+'</b>'+(dates? ', '+esc(dates) : '')+'.'] :
-      (v==='maturity'||v==='findings')? [ICON.gauge, 'Assessed'+(gen? ' on <b>'+esc(gen)+'</b>' : '')+', from the '+esc(WIN.cw())+' collected.'] :
-      v==='sectionsdoc'? [ICON.doc, 'The full report as collected'+(gen? ' on <b>'+esc(gen)+'</b>' : '')+', over '+esc(WIN.cw())+'.'] : null;
-    el.innerHTML=ctx&&ctx[1]? '<span class="ctxic" aria-hidden="true">'+ctx[0]+'</span><span>'+ctx[1]+'</span>' : '';
-    el.hidden=!(ctx&&ctx[1]);
+    const html= HERO_CTX[v]? HERO_CTX[v]() :
+      ['overview','flow','sections'].includes(v)? 'Showing activity in <b>'+esc(WIN.span())+'</b>'+(dates? ', '+esc(dates) : '')+'.' :
+      (v==='maturity'||v==='findings')? 'Assessed from the <b>'+esc(WIN.cw())+'</b> collected; the findings and the score do not follow the dates chosen.' :
+      v==='sectionsdoc'? 'The full report as collected, over <b>'+esc(WIN.cw())+'</b>; it does not follow the dates chosen.' : '';
+    el.innerHTML=html||''; el.hidden=!html;
   }
   paintHeroCtx();
   // Gap analysis is section 90; the findings tile opens it.

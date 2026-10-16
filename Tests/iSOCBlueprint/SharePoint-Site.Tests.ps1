@@ -2406,7 +2406,7 @@ Describe 'Dashboard figures and labels' {
     It 'writes figures, money, dates and names in one style' {
         $script:dash.Contains("const fmtGb = n =>") | Should -BeTrue
         $script:dash.Contains("const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];") | Should -BeTrue
-        $script:dash.Contains("{k:'Generated', v:w.generatedUtc? fmtDate(w.generatedUtc,{time:true}) : 'n/a', cls:'ok'}") | Should -BeTrue
+        $script:dash.Contains("(w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '')") | Should -BeTrue
         $script:dash.Contains("uksouth:'UK South'") | Should -BeTrue
         $script:dash.Contains("label:apiWords(i.label)") | Should -BeTrue
         # No currency code before an amount, and no locale-dependent month names.
@@ -2419,13 +2419,22 @@ Describe 'Dashboard figures and labels' {
         $script:dash.Contains('const NUM_PREFIX=/^-?\s*(?:[A-Z]{2,3}\$|[A-Z]{3} |[£$€¥₹₩]|<)\s*/;') | Should -BeTrue
     }
 
-    It 'says in the header what the view showing covers, and opens a view from its fact' {
-        # The context line follows the tab: the days shown, as collected, or
-        # (Progress) the runs compared; Maturity and Findings open their view.
+    It 'heads the page with the workspace, what the view covers and how it stands' {
+        # The workspace's name (the product is the top bar's), where it lives
+        # above it and when it was collected below.
+        $script:dash | Should -Match '<h1 id="title"></h1>'
+        $script:dash.Contains("document.getElementById('title').textContent = w.name||PRODUCT;") | Should -BeTrue
+        $script:dash.Contains("['Sentinel workspace', w.region? regionName(w.region) : '', w.resourceGroup||'']") | Should -BeTrue
+        # The lead sentence follows the tab: the days shown, as collected, or
+        # (Progress) the runs compared.
         $script:dash.Contains('    curView=name; paintHeroCtx();') | Should -BeTrue
-        $script:dash.Contains("['overview','flow','sections'].includes(v)? [ICON.pulse, 'Activity in <b>'+esc(WIN.span())+'</b>'") | Should -BeTrue
-        $script:dash.Contains("heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && activateTab) activateTab(b.dataset.go); });") | Should -BeTrue
-        $script:dash | Should -Match "go:'findings'"
+        $script:dash.Contains("'Showing activity in <b>'+esc(WIN.span())+'</b>'") | Should -BeTrue
+        # The maturity ring (amber below target) and the findings by severity open their views.
+        $script:dash | Should -Match '<button type="button" class="hkpi" data-go="maturity"'
+        $script:dash | Should -Match '<button type="button" class="hkpi" data-go="findings"'
+        $script:dash.Contains("+hMat.level<+hTarget? 'var(--amber)' : 'var(--brand)'") | Should -BeTrue
+        $script:dash.Contains("heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && !b.disabled && activateTab) activateTab(b.dataset.go); });") | Should -BeTrue
+        $script:dash | Should -Not -Match 'class="fact '
     }
 
     It 'gives a key/value table no header row to sort by, as the site''s pages do' {
