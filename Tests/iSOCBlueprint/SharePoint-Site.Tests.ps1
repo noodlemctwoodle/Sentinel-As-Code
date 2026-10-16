@@ -2425,6 +2425,10 @@ Describe 'Dashboard figures and labels' {
         $script:dash | Should -Match '<h1 id="title"></h1>'
         $script:dash.Contains("document.getElementById('title').textContent = w.name||PRODUCT;") | Should -BeTrue
         $script:dash.Contains("[w.region? regionName(w.region) : '', w.resourceGroup||'']") | Should -BeTrue
+        # The Blueprint version is the top bar's, beside the product's name, not the header's.
+        $script:dash | Should -Match '<span class="bt" id="brandName">iSOC Blueprint<span class="bv" id="brandVer" hidden></span>'
+        $script:dash.Contains("brandVer.textContent='v'+w.blueprintVer;") | Should -BeTrue
+        $script:dash.Contains("'Blueprint v'+esc(w.blueprintVer") | Should -BeFalse
         $script:dash | Should -Not -Match "'Sentinel workspace'"
         # The lead sentence follows the tab: the days shown, as collected, or
         # (Progress) the runs compared.

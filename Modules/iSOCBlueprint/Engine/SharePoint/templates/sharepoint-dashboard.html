@@ -88,6 +88,11 @@
   .brand .mark svg{width:17px;height:17px}
   .brand .bt{font-size:14.5px}
   .brand .bs{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.01em;margin-top:-2px}
+  /* The Blueprint version that built this dashboard, beside the product's name. */
+  .brand .bv{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);
+    background:var(--chip);color:var(--ink-2);font-size:10.5px;font-weight:700;letter-spacing:.02em;vertical-align:2px;
+    font-variant-numeric:tabular-nums}
+  .brand .bv[hidden]{display:none}
   .nav{display:flex;gap:3px;margin-left:8px;background:var(--chip);border:1px solid var(--line);
     padding:4px;border-radius:12px;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}
   .nav::-webkit-scrollbar{display:none}
@@ -234,6 +239,7 @@
   .hero-lead[hidden]{display:none}
   .hero-lead b{color:var(--ink);font-weight:700}
   .hero-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;margin:10px 0 0;font-size:12px;color:var(--muted)}
+  .hero-meta[hidden]{display:none}
   .hero-meta span{display:inline-flex;align-items:center;gap:6px}
   .hero-meta svg{width:13px;height:13px;color:var(--faint)}
   .hero-kpis{display:flex;flex-wrap:wrap;gap:12px;margin-left:auto}
@@ -1124,7 +1130,7 @@
   <div class="inner">
     <div class="brand">
       <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-      <span class="bt" id="brandName">iSOC Blueprint<span class="bs" id="brandSub">Workspace documentation</span></span>
+      <span class="bt" id="brandName">iSOC Blueprint<span class="bv" id="brandVer" hidden></span><span class="bs" id="brandSub">Workspace documentation</span></span>
     </div>
     <nav class="nav" id="tabs" role="tablist">
       <div class="tab active" data-tab="overview" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</div>
@@ -1796,9 +1802,12 @@
   document.getElementById('title').textContent = w.name||PRODUCT;
   document.getElementById('heroEyebrow').innerHTML=[w.region? regionName(w.region) : '', w.resourceGroup||'']
     .filter(Boolean).map(s=>'<span>'+esc(s)+'</span>').join('');
-  document.getElementById('heroMeta').innerHTML=
-    (w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '')+
-    '<span>'+ICON.tag+'Blueprint v'+esc(w.blueprintVer||'?')+'</span>';
+  const heroMeta=document.getElementById('heroMeta');
+  heroMeta.innerHTML=w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '';
+  heroMeta.hidden=!w.generatedUtc;
+  // The Blueprint version that built this, in the top bar by the product.
+  const brandVer=document.getElementById('brandVer');
+  if(brandVer && w.blueprintVer){ brandVer.textContent='v'+w.blueprintVer; brandVer.title='Built by iSOC Blueprint v'+w.blueprintVer; brandVer.hidden=false; }
   // How the workspace stands: the maturity score as a ring (amber below the
   // target level) and the open findings by severity; each opens its view
   // in the Assessment tab.

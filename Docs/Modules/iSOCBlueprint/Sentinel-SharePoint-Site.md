@@ -87,8 +87,9 @@ carries the health-check views the Blueprint computes:
 The header under the top bar is the workspace's: an eyebrow with where it
 lives (region and resource group), the workspace's name
 (the product's is the top bar's), a lead sentence on what the tab showing
-covers, and a quiet line with when it was collected and the Blueprint
-version. The lead follows the tab: the days chosen for the activity views
+covers, and a quiet line with when it was collected; the Blueprint
+version that built the dashboard is in the top bar, beside the product's
+name. The lead follows the tab: the days chosen for the activity views
 ("Showing activity in the last 90 days, 19 Jul to 16 Oct 2026"), that the
 Assessment and the Report are as collected whatever dates are chosen, and
 on Progress the two runs compared. On the right, how the workspace stands:
