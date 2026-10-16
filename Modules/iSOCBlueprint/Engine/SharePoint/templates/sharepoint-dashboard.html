@@ -1791,9 +1791,10 @@
   document.getElementById('brandSub').textContent = PRODUCT_SUB;
   const w = M.workspace;
   // The header names the workspace (the product is the top bar's): where it
-  // lives above the name, when it was collected below.
+  // lives (region, resource group) above the name, when it was collected
+  // below. No product label: the Blueprint is not only Sentinel's.
   document.getElementById('title').textContent = w.name||PRODUCT;
-  document.getElementById('heroEyebrow').innerHTML=['Sentinel workspace', w.region? regionName(w.region) : '', w.resourceGroup||'']
+  document.getElementById('heroEyebrow').innerHTML=[w.region? regionName(w.region) : '', w.resourceGroup||'']
     .filter(Boolean).map(s=>'<span>'+esc(s)+'</span>').join('');
   document.getElementById('heroMeta').innerHTML=
     (w.generatedUtc? '<span>'+ICON.history+'Collected '+esc(fmtDate(w.generatedUtc,{time:true}))+'</span>' : '')+

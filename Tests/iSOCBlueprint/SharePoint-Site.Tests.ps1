@@ -2424,7 +2424,8 @@ Describe 'Dashboard figures and labels' {
         # above it and when it was collected below.
         $script:dash | Should -Match '<h1 id="title"></h1>'
         $script:dash.Contains("document.getElementById('title').textContent = w.name||PRODUCT;") | Should -BeTrue
-        $script:dash.Contains("['Sentinel workspace', w.region? regionName(w.region) : '', w.resourceGroup||'']") | Should -BeTrue
+        $script:dash.Contains("[w.region? regionName(w.region) : '', w.resourceGroup||'']") | Should -BeTrue
+        $script:dash | Should -Not -Match "'Sentinel workspace'"
         # The lead sentence follows the tab: the days shown, as collected, or
         # (Progress) the runs compared.
         $script:dash.Contains('    curView=name; paintHeroCtx();') | Should -BeTrue

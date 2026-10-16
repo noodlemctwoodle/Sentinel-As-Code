@@ -85,7 +85,7 @@ counts, cost, findings, MITRE coverage and the billing flow, the model
 carries the health-check views the Blueprint computes:
 
 The header under the top bar is the workspace's: an eyebrow with where it
-lives (Sentinel workspace, region, resource group), the workspace's name
+lives (region and resource group), the workspace's name
 (the product's is the top bar's), a lead sentence on what the tab showing
 covers, and a quiet line with when it was collected and the Blueprint
 version. The lead follows the tab: the days chosen for the activity views
