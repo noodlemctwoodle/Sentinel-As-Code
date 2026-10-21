@@ -3,17 +3,22 @@
 
 <#
 .SYNOPSIS
-    Pester 5 unit tests for the pure functions in
-    Deploy/content/Deploy-SentinelContentHub.ps1: SemVer comparison and the
-    customisation detector.
+    Pester 5 unit tests for Deploy/content/Deploy-SentinelContentHub.ps1:
+    SemVer comparison, the customisation detector and the solution
+    deployment request body.
 
 .DESCRIPTION
-    Two pure functions worth pinning with tests:
+    Covers:
       - Compare-SemanticVersion (SemVer comparison with parse-error
         fallback to ordinal string compare)
       - Test-RuleIsCustomised (the customisation-protection comparator
         that decides whether to overwrite a deployed rule with its
         Content Hub template, used by -ProtectCustomisedRules)
+      - ConvertTo-SolutionDeploymentJson (the compact ARM deployment
+        body a solution package is sent as)
+      - Deploy-Solution's request size check, which skips a package over
+        the 4 MB ARM limit instead of sending it. Invoke-SentinelApi is
+        mocked, so nothing reaches Azure.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/Test-DeploySentinelContentHub.Tests.ps1
@@ -31,8 +36,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-10-23
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -247,5 +252,114 @@ Describe 'Alert rules API version' {
         $calls = [regex]::Matches($text, '(?:alertRules|baseAlertUri\})[^"\r\n]*\?api-version=\$\(\$script:(\w+)\)')
         $calls.Count | Should -BeGreaterThan 0
         @($calls | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) | Should -Be @('AlertRuleApiVersion')
+    }
+}
+
+Describe 'ConvertTo-SolutionDeploymentJson' {
+    BeforeAll {
+        $package = [pscustomobject]@{
+            contentVersion = '1.0.0.0'
+            resources      = @(
+                [pscustomobject]@{
+                    type       = 'Microsoft.OperationalInsights/workspaces/providers/contentTemplates'
+                    properties = [pscustomobject]@{
+                        displayName  = 'Café rule'
+                        mainTemplate = [pscustomobject]@{
+                            resources = @(
+                                [pscustomobject]@{ properties = [pscustomobject]@{ query = [pscustomobject]@{ text = 'SecurityEvent | take 1' } } }
+                            )
+                        }
+                    }
+                }
+            )
+        }
+        $json = ConvertTo-SolutionDeploymentJson -PackagedContent $package -Workspace 'law-test' -Region 'uksouth'
+    }
+
+    It 'emits compact single-line JSON' {
+        # Indented output pushed Microsoft Defender XDR over the 4 MB ARM
+        # request limit, so any whitespace between tokens is a regression.
+        $json | Should -Not -Match '\n'
+        $json | Should -Not -Match '": '
+    }
+
+    It 'carries the workspace, region and incremental mode' {
+        $body = $json | ConvertFrom-Json
+        $body.properties.parameters.workspace.value | Should -Be 'law-test'
+        $body.properties.parameters.'workspace-location'.value | Should -Be 'uksouth'
+        $body.properties.mode | Should -Be 'Incremental'
+    }
+
+    It 'keeps template content nested beyond the default serialisation depth' {
+        $body = $json | ConvertFrom-Json
+        @($body.properties.template.resources)[0].properties.mainTemplate.resources[0].properties.query.text |
+            Should -Be 'SecurityEvent | take 1'
+    }
+
+    It 'escapes non-ASCII characters' {
+        $json | Should -BeLike '*Caf\u00e9 rule*'
+    }
+}
+
+Describe 'Deploy-Solution request size check' {
+    BeforeAll {
+        $WhatIf        = $false
+        $ResourceGroup = 'rg-test'
+        $Workspace     = 'law-test'
+        $Region        = 'uksouth'
+
+        $script:BaseUri              = 'https://management.azure.com/subscriptions/0000/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/law-test'
+        $script:ServerUrl            = 'https://management.azure.com'
+        $script:SubscriptionId       = '0000'
+        $script:AuthHeader           = @{ Authorization = 'Bearer test' }
+        $script:SentinelApiVersion   = '2025-09-01'
+        $script:DeploymentApiVersion = '2024-11-01'
+
+        # A small limit keeps the fixtures small. The production value is
+        # 4 MB, set at the top of the script.
+        $script:MaxDeploymentRequestBytes = 2KB
+
+        $status = [pscustomobject]@{
+            Name             = 'Test Solution'
+            CatalogEntry     = [pscustomobject]@{ name = 'test.solution'; properties = [pscustomobject]@{} }
+            Action           = 'Install'
+            InstalledVersion = $null
+            AvailableVersion = '1.0.0'
+        }
+    }
+
+    BeforeEach {
+        Mock Write-PipelineMessage { }
+        Mock Start-Sleep { }
+        Mock Invoke-SentinelApi -ParameterFilter { $Method -eq 'Put' } { [pscustomobject]@{} }
+    }
+
+    It 'skips a package over the limit without sending it' {
+        Mock Invoke-SentinelApi -ParameterFilter { $Method -eq 'Get' } {
+            [pscustomobject]@{ properties = [pscustomobject]@{ packagedContent = [pscustomobject]@{
+                resources = @([pscustomobject]@{ properties = [pscustomobject]@{ description = ('x' * 4000) } })
+            } } }
+        }
+
+        Deploy-Solution -SolutionStatus $status | Should -BeFalse
+
+        Should -Invoke Invoke-SentinelApi -ParameterFilter { $Method -eq 'Put' } -Times 0 -Exactly
+        Should -Invoke Write-PipelineMessage -ParameterFilter {
+            $Level -eq 'Error' -and $Message -like '*Test Solution v1.0.0 is * MB*over the * MB ARM limit*'
+        } -Times 1 -Exactly
+    }
+
+    It 'sends a package under the limit as compact JSON' {
+        Mock Invoke-SentinelApi -ParameterFilter { $Method -eq 'Get' } {
+            [pscustomobject]@{ properties = [pscustomobject]@{ packagedContent = [pscustomobject]@{
+                resources = @([pscustomobject]@{ properties = [pscustomobject]@{ description = 'small' } })
+            } } }
+        }
+
+        Deploy-Solution -SolutionStatus $status | Should -BeTrue
+
+        Should -Invoke Invoke-SentinelApi -ParameterFilter {
+            $Method -eq 'Put' -and $Body -notmatch '\n' -and $Body -like '*"description":"small"*'
+        } -Times 1 -Exactly
     }
 }

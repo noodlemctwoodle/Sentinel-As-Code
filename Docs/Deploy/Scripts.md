@@ -438,6 +438,7 @@ Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions 
 - Analytics rules referencing tables/columns not present in your environment will be skipped
 - Deprecated rules are skipped by design to prevent deploying outdated content
 - Some workbooks may have dependencies on specific data sources being configured
+- Each solution installs as one ARM deployment, and ARM rejects a request over 4 MB with HTTP 413. The package is sent as compact JSON (Microsoft Defender XDR 3.2.2 is 3.44 MB that way, against 5.34 MB indented), and a solution still over the limit is skipped with an error giving its size instead of being sent
 
 ---
 

@@ -116,8 +116,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-03-20
-    Version:        2.1.2
-    Last Updated:   2026-10-13
+    Version:        2.1.3
+    Last Updated:   2026-10-23
     Requires:       PowerShell 7.2+, Az.Accounts
 
     API versions:
@@ -207,6 +207,11 @@ $script:SentinelApiVersion    = "2025-09-01"
 $script:AlertRuleApiVersion = "2025-07-01-preview"
 $script:DeploymentApiVersion  = "2024-11-01"
 $script:MetadataApiVersion    = "2025-09-01"
+
+# ARM rejects a deployment request body over 4 MB with HTTP 413
+# (RequestContentTooLarge), so each solution package is measured against
+# this before it is sent.
+$script:MaxDeploymentRequestBytes = 4MB
 
 # ---------------------------------------------------------------------------
 # Shared helpers from Sentinel.Common
@@ -482,6 +487,41 @@ function Get-SolutionStatus {
 # ---------------------------------------------------------------------------
 # Solution Deployment
 # ---------------------------------------------------------------------------
+function ConvertTo-SolutionDeploymentJson {
+    <#
+    .SYNOPSIS
+        Serialises a solution's packaged content into an ARM deployment request body.
+    .DESCRIPTION
+        Emits compact JSON. Indentation makes a large solution about half as big
+        again: Microsoft Defender XDR 3.2.2 is 5.34 MB indented against 3.44 MB
+        compact, and ARM rejects anything over 4 MB.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$PackagedContent
+        ,
+        [Parameter(Mandatory = $true)]
+        [string]$Workspace
+        ,
+        [Parameter(Mandatory = $true)]
+        [string]$Region
+    )
+
+    $deploymentBody = @{
+        properties = @{
+            parameters = @{
+                "workspace"          = @{ value = $Workspace }
+                "workspace-location" = @{ value = $Region }
+            }
+            template = $PackagedContent
+            mode     = "Incremental"
+        }
+    }
+
+    return ($deploymentBody | ConvertTo-Json -EnumsAsStrings -Depth 50 -EscapeHandling EscapeNonAscii -Compress)
+}
+
 function Deploy-Solution {
     [CmdletBinding()]
     param(
@@ -567,22 +607,19 @@ function Deploy-Solution {
     $deploymentName = ("sentinel-$($catalogEntry.name)").Substring(0, [Math]::Min(64, ("sentinel-$($catalogEntry.name)").Length))
     $deploymentUrl = "$($script:ServerUrl)/subscriptions/$($script:SubscriptionId)/resourcegroups/$ResourceGroup/providers/Microsoft.Resources/deployments/${deploymentName}?api-version=$($script:DeploymentApiVersion)"
 
-    $deploymentBody = @{
-        properties = @{
-            parameters = @{
-                "workspace"          = @{ value = $Workspace }
-                "workspace-location" = @{ value = $Region }
-            }
-            template = $packagedContent
-            mode     = "Incremental"
-        }
-    }
-
     try {
-        $jsonBody = $deploymentBody | ConvertTo-Json -EnumsAsStrings -Depth 50 -EscapeHandling EscapeNonAscii
+        $jsonBody = ConvertTo-SolutionDeploymentJson -PackagedContent $packagedContent -Workspace $Workspace -Region $Region
     }
     catch {
         Write-PipelineMessage "  Failed to serialise deployment body for $solutionName : $($_.Exception.Message)" -Level Error
+        return $false
+    }
+
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetByteCount($jsonBody)
+    if ($bodyBytes -gt $script:MaxDeploymentRequestBytes) {
+        $bodyMB  = [Math]::Round($bodyBytes / 1MB, 2)
+        $limitMB = [Math]::Round($script:MaxDeploymentRequestBytes / 1MB, 2)
+        Write-PipelineMessage "  $solutionName v$($SolutionStatus.AvailableVersion) is $bodyMB MB as a deployment request, over the $limitMB MB ARM limit. Skipping it rather than sending a request ARM will reject with HTTP 413." -Level Error
         return $false
     }
 
