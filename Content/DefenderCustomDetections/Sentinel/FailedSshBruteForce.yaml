@@ -1,5 +1,6 @@
+id: failed-ssh-brute-force
 displayName: SSH brute force with successful logon from same source
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     CommonSecurityLog
@@ -16,9 +17,8 @@ queryCondition:
     | where FailedCount > 15 and SuccessCount > 0
     | project TimeGenerated, AccountUpn, SourceIP, DeviceName,
               FailedCount, SuccessCount
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "SSH brute force with successful logon from same source"
@@ -28,9 +28,12 @@ detectionAction:
       This indicates a brute force attack that successfully compromised
       credentials for a Linux system.
     severity: high
-    category: CredentialAccess
-    mitreTechniques:
-      - T1110.001
+    tactics:
+      - tactic: CredentialAccess
+        techniques:
+          - technique: T1110
+            subTechniques:
+              - T1110.001
     recommendedActions: |
       1. Isolate the affected Linux host from the network.
       2. Reset the compromised account password immediately.
@@ -38,6 +41,6 @@ detectionAction:
       4. Block the source IP at the NSG or firewall level.
       5. Check for SSH key persistence or backdoor accounts created.
       6. Review SSH configuration for password authentication hardening.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountUpn
+    entityMappings:
+      accounts:
+        - upnColumn: AccountUpn

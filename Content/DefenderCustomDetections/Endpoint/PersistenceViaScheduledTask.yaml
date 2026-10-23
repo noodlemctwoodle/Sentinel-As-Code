@@ -1,5 +1,6 @@
+id: persistence-via-scheduled-task
 displayName: Persistence via scheduled task creation with suspicious command
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceProcessEvents
@@ -16,9 +17,8 @@ queryCondition:
               InitiatingProcessFileName, InitiatingProcessCommandLine,
               InitiatingProcessSHA1,
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Persistence via scheduled task creation with suspicious command"
@@ -27,20 +27,23 @@ detectionAction:
       living-off-the-land binary. Attackers create scheduled tasks to maintain
       persistence and execute payloads on a recurring schedule.
     severity: medium
-    category: Persistence
-    mitreTechniques:
-      - T1053.005
+    tactics:
+      - tactic: Persistence
+        techniques:
+          - technique: T1053
+            subTechniques:
+              - T1053.005
     recommendedActions: |
       1. Review the scheduled task configuration and the command it executes.
       2. Check the parent process that created the task for legitimacy.
       3. Verify whether the task was created by an administrator or automated tool.
       4. If suspicious, delete the scheduled task and scan the device.
       5. Check for other persistence mechanisms on the same device.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    runAntivirusScans:
+      - deviceIdColumn: DeviceId

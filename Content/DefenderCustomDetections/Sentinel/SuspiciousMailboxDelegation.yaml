@@ -1,5 +1,6 @@
+id: suspicious-mailbox-delegation
 displayName: Mailbox delegation or permission added via Exchange
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     AuditLogs
@@ -15,9 +16,8 @@ queryCondition:
     | project TimeGenerated, AccountUpn, AccountObjectId,
               TargetResource, PermissionDetails,
               OperationName, CorrelationId
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Mailbox delegation or permission added via Exchange"
@@ -26,15 +26,18 @@ detectionAction:
       who compromise an admin account often add mailbox delegation to read
       email from high-value targets without triggering sign-in alerts.
     severity: medium
-    category: Collection
-    mitreTechniques:
-      - T1098.002
+    tactics:
+      - tactic: Collection
+        techniques:
+          - technique: T1098
+            subTechniques:
+              - T1098.002
     recommendedActions: |
       1. Verify the delegation was requested through proper channels.
       2. Review who initiated the change and from what IP address.
       3. Check the target mailbox for sensitive content exposure.
       4. If unauthorised, remove the delegation immediately.
       5. Review the initiating account for compromise indicators.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId

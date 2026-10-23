@@ -1,5 +1,6 @@
+id: living-off-the-land-binary-chain
 displayName: Living-off-the-land binary execution chain detected
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceProcessEvents
@@ -16,9 +17,8 @@ queryCondition:
               InitiatingProcessFileName, InitiatingProcessCommandLine,
               InitiatingProcessSHA1,
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Living-off-the-land binary execution chain detected"
@@ -27,23 +27,24 @@ detectionAction:
       with arguments suggesting remote content download or proxy execution.
       This technique uses legitimate system tools to bypass application controls.
     severity: high
-    category: Execution
-    mitreTechniques:
-      - T1218
-      - T1105
+    tactics:
+      - tactic: Execution
+        techniques:
+          - technique: T1218
+          - technique: T1105
     recommendedActions: |
       1. Review the full command line for remote URLs or encoded payloads.
       2. Check if the LOLBin was used to download or execute remote content.
       3. Investigate the parent process chain for initial access vectors.
       4. Review network connections from the device around the event time.
       5. If confirmed malicious, isolate the device and block the remote indicators.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.restrictAppExecutionResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    restrictAppExecutions:
+      - deviceIdColumn: DeviceId
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    runAntivirusScans:
+      - deviceIdColumn: DeviceId

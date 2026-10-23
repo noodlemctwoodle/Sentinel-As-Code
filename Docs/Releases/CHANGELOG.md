@@ -6,6 +6,24 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **Defender XDR custom detections move to the current Graph rule shape** -
+  Microsoft removed the original custom detection fields from the Graph
+  beta API on 1 October 2026: `isEnabled`, `schedule.period`,
+  `alertTemplate.category` and `mitreTechniques`, `impactedAssets` and
+  `responseActions`. They are replaced by `status`, an ISO 8601
+  `schedule.frequency`, `alertTemplate.tactics`, `entityMappings` and
+  `automatedActions`, which name query result columns where the old fields
+  named identifier tokens, and Graph now needs a client-provided `id` to
+  create a rule. All 33 rules under `Content/DefenderCustomDetections/` are
+  converted (each mapped column checked against the columns its query
+  returns), `Deploy-DefenderDetections.ps1` sends the current shape, and CI
+  rejects the old names. **For forks:** a rule you wrote in the old shape
+  still deploys, translated with a warning, but CI fails on it; convert it
+  with the field table in
+  [Defender Custom Detections](../Content/Defender-Custom-Detections.md#moving-a-rule-from-the-old-shape)
+  and give it an `id` before it can be created in a new tenant. The Sentinel
+  as Code Toolkit's schema still describes the old fields until it is
+  updated.
 - **Analytics rule sub-techniques reach the workspace again** - every GA
   version of the alert rules API (2024-09-01 to 2025-09-01) leaves out
   `subTechniques` and `sentinelEntitiesMappings`: a PUT on GA succeeds and

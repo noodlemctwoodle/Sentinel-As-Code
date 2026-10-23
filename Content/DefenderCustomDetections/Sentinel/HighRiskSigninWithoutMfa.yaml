@@ -1,5 +1,6 @@
+id: high-risk-signin-without-mfa
 displayName: High risk sign-in succeeded without MFA challenge
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     SigninLogs
@@ -14,9 +15,8 @@ queryCondition:
               AppDisplayName, RiskLevelDuringSignIn, RiskState,
               AuthenticationRequirement, ConditionalAccessStatus,
               LocationDetails, DeviceDetail
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "High risk sign-in succeeded without MFA challenge"
@@ -26,9 +26,12 @@ detectionAction:
       a gap in Conditional Access policies or a policy exclusion that allowed
       a risky sign-in without MFA enforcement.
     severity: high
-    category: InitialAccess
-    mitreTechniques:
-      - T1078.004
+    tactics:
+      - tactic: InitialAccess
+        techniques:
+          - technique: T1078
+            subTechniques:
+              - T1078.004
     recommendedActions: |
       1. Review the sign-in details including location and device.
       2. Verify whether MFA is enforced by Conditional Access for this user/app.
@@ -36,9 +39,9 @@ detectionAction:
       4. Review the risk detection that flagged this sign-in.
       5. If suspicious, revoke the user session and force MFA re-registration.
       6. Audit Conditional Access policies for coverage gaps.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
-      identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId
+  automatedActions:
+    markUsersAsCompromised:
+      - accountObjectIdColumn: AccountObjectId

@@ -1,5 +1,6 @@
+id: guest-user-elevated-access
 displayName: Guest user granted privileged role or group membership
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     AuditLogs
@@ -14,9 +15,8 @@ queryCondition:
     | project TimeGenerated, AccountUpn, AccountObjectId,
               TargetUpn, TargetObjectId, RoleOrGroup,
               OperationName, CorrelationId
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Guest user granted privileged role or group membership"
@@ -25,15 +25,18 @@ detectionAction:
       role or group. Guest accounts with elevated permissions can access
       internal resources beyond their intended collaboration scope.
     severity: medium
-    category: PrivilegeEscalation
-    mitreTechniques:
-      - T1098.001
+    tactics:
+      - tactic: PrivilegeEscalation
+        techniques:
+          - technique: T1098
+            subTechniques:
+              - T1098.001
     recommendedActions: |
       1. Review the role or group the guest was added to.
       2. Verify the assignment was approved through access governance.
       3. Check if the guest account is still needed for collaboration.
       4. If unauthorised, remove the assignment and review the guest account.
       5. Audit all guest accounts with elevated permissions across the tenant.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId

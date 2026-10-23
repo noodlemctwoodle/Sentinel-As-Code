@@ -1,5 +1,6 @@
+id: impossible-travel-detected
 displayName: Impossible travel between two successful sign-ins
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     SigninLogs
@@ -26,9 +27,8 @@ queryCondition:
     | project TimeGenerated, AccountObjectId, AccountUpn, IPAddress,
               City, Country, PrevCountry, TimeDiffMinutes,
               AppDisplayName, DeviceDetail
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Impossible travel between two successful sign-ins"
@@ -38,18 +38,21 @@ detectionAction:
       this travel speed is physically impossible and suggests credential
       compromise with concurrent use from a different location.
     severity: high
-    category: InitialAccess
-    mitreTechniques:
-      - T1078.004
+    tactics:
+      - tactic: InitialAccess
+        techniques:
+          - technique: T1078
+            subTechniques:
+              - T1078.004
     recommendedActions: |
       1. Review both sign-in locations and verify with the user.
       2. Check if either location matches a known VPN or corporate egress IP.
       3. If one location is anomalous, revoke sessions and force password reset.
       4. Review post-authentication activity from the suspicious location.
       5. Enable location-based Conditional Access policies if not already active.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
-      identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId
+  automatedActions:
+    markUsersAsCompromised:
+      - accountObjectIdColumn: AccountObjectId

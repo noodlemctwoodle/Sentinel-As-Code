@@ -1,5 +1,6 @@
+id: brute-force-entra-id-accounts
 displayName: Successful login after brute force against Entra ID
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     let failedLogins =
@@ -15,9 +16,8 @@ queryCondition:
     | where ActionType == "LogonSuccess"
     | join kind=inner failedLogins on AccountUpn, IPAddress
     | project Timestamp, ReportId, AccountUpn, AccountObjectId, AccountSid, IPAddress, FailureCount, DeviceName, Application
-  lastModifiedDateTime: "2026-03-20T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Successful login after brute force attack on Entra ID account"
@@ -26,21 +26,24 @@ detectionAction:
       attempts from the same IP address. This indicates the account may have
       been compromised via brute force or password spray attack.
     severity: high
-    category: CredentialAccess
-    mitreTechniques:
-      - T1110.001
-      - T1110.003
+    tactics:
+      - tactic: CredentialAccess
+        techniques:
+          - technique: T1110
+            subTechniques:
+              - T1110.001
+              - T1110.003
     recommendedActions: |
       1. Confirm the successful login was not legitimate.
       2. Review the sign-in location and device.
       3. Check for suspicious activity after the successful login.
       4. Verify MFA status for the account.
       5. Review Conditional Access policies.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.forceUserPasswordResetResponseAction"
-      identifier: accountSid
-    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
-      identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId
+  automatedActions:
+    forceUserPasswordResets:
+      - accountSidColumn: AccountSid
+    markUsersAsCompromised:
+      - accountObjectIdColumn: AccountObjectId

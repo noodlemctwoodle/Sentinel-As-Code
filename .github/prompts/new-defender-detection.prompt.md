@@ -32,10 +32,11 @@ an analytical rule (`/new-analytical-rule`).
 - **Severity** — lowercase: `high`, `medium`, `low`,
   `informational`. (Different from analytical rules, which are
   PascalCase.)
-- **Schedule** — `"0"` for near-real-time, otherwise an ISO 8601
-  duration (`"PT1H"`, `"P1D"`).
-- **Impacted asset type** — what the detection emits as the affected
-  entity. Common: `deviceId`, `accountObjectId`, `mailbox`, `url`.
+- **Schedule** - an ISO 8601 `frequency`: `PT1H`, `PT3H`, `PT12H` or
+  `P1D` (NRT is portal-only).
+- **Entities** - what the detection attaches to the alert (a device,
+  an account, a mailbox), and which query columns identify them
+  (`DeviceId`, `AccountObjectId`, `RecipientEmailAddress`).
 
 ## Steps
 
@@ -54,30 +55,30 @@ an analytical rule (`/new-analytical-rule`).
    [`.github/instructions/defender-detections.instructions.md`](../instructions/defender-detections.instructions.md).
 
    Required fields:
+   - `id` (lowercase kebab-case, unique; Graph needs it to create the rule)
    - `displayName`
-   - `isEnabled` (Defender uses `isEnabled`, not `enabled`)
+   - `status` (`enabled` or `disabled`)
    - `queryCondition.queryText`
-   - `schedule.period`
-   - `detectionAction.alertTemplate.{title, description, severity, category, mitreTechniques, impactedAssets}`
-   - `detectionAction.organizationalScope`
-   - `detectionAction.responseActions`
+   - `schedule.frequency`
+   - `detectionAction.alertTemplate.{title, description, severity, tactics, entityMappings}`
+   - `detectionAction.automatedActions` only when the user asks for actions
 
 4. **Write the KQL** using Defender XDR Advanced Hunting tables.
    **Do not use Sentinel tables** (`SecurityAlert`, `SigninLogs`,
    `AzureActivity`) — those don't exist in Advanced Hunting.
 
-5. **Set up `impactedAssets`** so the column reference matches what
-   the query projects:
+5. **Set up `entityMappings`** with columns the query projects:
 
    ```yaml
-   impactedAssets:
-     - identifier: deviceId
-       '@odata.type': '#microsoft.graph.security.impactedDeviceAsset'
+   entityMappings:
+     hosts:
+       - deviceIdColumn: DeviceId
+         nameColumn: DeviceName
    ```
 
-   The query must `project` a column named `DeviceId` for this to
+   The query must `project` `DeviceId` and `DeviceName` for this to
    resolve. See the table in the path-scoped instruction file for
-   the common identifier shapes.
+   the common column mappings.
 
 6. **Run the schema test:**
    ```powershell
@@ -92,10 +93,13 @@ an analytical rule (`/new-analytical-rule`).
 
 ## Hard rules
 
-- **`isEnabled: true|false`** — not `enabled`, not `status`.
+- **`status: enabled|disabled`** - not `isEnabled` (removed from Graph
+  on 2026-10-01) and not `enabled`.
+- **Never use the retired field names** `schedule.period`, `category`,
+  `mitreTechniques`, `impactedAssets` or `responseActions`.
 - **Lowercase severity**: `high`, `medium`, `low`, `informational`.
-- **No response actions without explicit consent.** Adding
-  `isolateDevice`, `forceUserPasswordReset`, `restrictExecution`,
+- **No automated actions without explicit consent.** Adding
+  `isolateDevices`, `forceUserPasswordResets`, `restrictAppExecutions`,
   etc. requires the deploy SP to have the matching action permission
   and admin-approved consent. Ask the user before adding any
-  response action.
+  automated action.
