@@ -15,7 +15,7 @@ code counterpart and are grouped by concern instead: `Guides/`, `Releases/` and 
 
 Schemas and conventions for every content type the repo deploys. The Toolkit
 schemas and templates are the authoring source of truth for these; each doc
-cross-links the matching [Toolkit](#toolkit--companion-vs-code-extension) pages.
+cross-links the matching [Toolkit](#toolkit---companion-vs-code-extension) pages.
 
 | Doc | What it covers |
 | --- | --- |
@@ -37,7 +37,7 @@ Auto-generated community summaries live under `Content/Community/` (one file per
 contributor, written by [`Tools/Import-CommunityRules.ps1`](../Tools/Import-CommunityRules.ps1)
 with per-category rule listings and last-sync metadata). Do not hand-edit them.
 Current: [Dalonso](Content/Community/Dalonso.md) (David Alonso, see
-[Community Rules](Content/Community-Rules.md#david-alonso--threat-hunting-rules)).
+[Community Rules](Content/Community-Rules.md#david-alonso---threat-hunting-rules)).
 
 ## Deploy - `Deploy/`
 
@@ -75,12 +75,13 @@ Azure resources that host Sentinel content.
 The iSOC Blueprint is the read-only workspace documentation, gap analysis and
 maturity assessment, shipped as the `iSOCBlueprint` PowerShell module:
 `New-iSOCBlueprint` produces JSON, Markdown, a Word report or a SharePoint site
-in one command, and eleven more commands run each step on its own. Its docs
-live in `Docs/Modules/iSOCBlueprint/`.
+in one command, and twelve more commands run each step on its own or support
+it. Its docs live in `Docs/Modules/iSOCBlueprint/`.
 
 | Doc | What it covers |
 | --- | --- |
-| [Module README](../Modules/iSOCBlueprint/README.md) | Quick start, the twelve commands, what each needs, the layout, and where each old script went |
+| [Blueprint docs guide](Modules/iSOCBlueprint/README.md) | Which page to read for which job, how a run's steps map to the pages, and deep links for common tasks |
+| [Module README](../Modules/iSOCBlueprint/README.md) | Quick start, the thirteen commands, what each needs, the layout, and where each old script went |
 | [iSOC Blueprint](Modules/iSOCBlueprint/Sentinel-Blueprint.md) | The operating guide: what the iSOC Blueprint collects and produces, how to read the report, running it in CI or locally, permissions, the gap engine, the maturity assessment and the cost estimator |
 | [Renderer Design](Modules/iSOCBlueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
 | [Section Model](Modules/iSOCBlueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |
@@ -154,7 +155,7 @@ exists, this one builds a new one.
 The Sentinel as Code Toolkit is a separate repository (a VS Code extension) for
 authoring the content types this repo deploys. It authors and validates; it does
 not deploy. Its schemas and templates are the authoring source of truth for the
-[Content](#content--content) docs.
+[Content](#content---content) docs.
 
 | Doc | What it covers |
 | --- | --- |
