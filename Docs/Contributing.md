@@ -112,8 +112,9 @@ or JSON against the schemas described under [Docs/README.md](README.md) (see the
 ## Versioning
 
 The repository and its releases use **CalVer** (`YY.0M`, for example `26.07`),
-**not** Semantic Versioning, and the repository does **not** use git tags:
-each release ships as a `release/<CalVer>` branch and a GitHub Release. The one
+**not** Semantic Versioning. Each release ships as a `release/<CalVer>` branch
+merged to `main` and a GitHub Release, which tags the merge commit
+`v<CalVer>` (from `v26.10.0`). The one
 exception is the in-repo `Sentinel.Common` PowerShell module, which is versioned
 with SemVer. Do not bump a "SemVer version number" as part of a content or
 pipeline change. The full scheme is in [Versioning](Releases/Versioning.md).

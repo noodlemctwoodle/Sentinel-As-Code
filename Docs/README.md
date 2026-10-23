@@ -181,7 +181,7 @@ Versioning scheme and the customer-facing changelog. No code counterpart.
 
 | Doc | What it covers |
 | --- | --- |
-| [Versioning](Releases/Versioning.md) | CalVer (`YY.0M`) scheme, how releases are cut as GitHub Releases (no git tags), the wave to CalVer history, and how repo CalVer relates to the `Sentinel.Common` module's SemVer |
+| [Versioning](Releases/Versioning.md) | CalVer (`YY.0M`) scheme, how releases are cut as GitHub Releases tagged `v<CalVer>`, the wave to CalVer history, and how repo CalVer relates to the `Sentinel.Common` module's SemVer |
 | [Changelog](Releases/CHANGELOG.md) | Customer-facing summary of changes per release |
 | [Layout Restructure 26.06](Releases/Layout-Restructure-26.06.md) | Old to new path map for the by-concern restructure and the fork-migration steps |
 
