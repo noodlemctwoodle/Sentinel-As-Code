@@ -266,6 +266,11 @@ Describe 'Blueprint output stays off GitHub' {
         }
         $clean = & $commit 'README.md'
         $fixture = & $commit 'Tests/iSOCBlueprint/Fixtures/sample/_raw/alert-rules.json'
+        # Names Git quotes (a non-ASCII character): a fixture still goes, and
+        # output under SecurityDocs/ is still refused.
+        $fixtureQuoted = & $commit ('Tests/iSOCBlueprint/Fixtures/sample/_raw/caf{0}.json' -f [char]0xE9)
+        $leakQuoted = & $commit ('SecurityDocs/r{0}sum{0}/notes.md' -f [char]0xE9) -Force
+        git -C $repo reset -q --hard $fixtureQuoted
         $leak = & $commit 'SecurityDocs/law-test/_raw/alert-rules.json' -Force
         $zero = '0' * 40
         $push = {
@@ -276,6 +281,8 @@ Describe 'Blueprint output stays off GitHub' {
         }
         & $push 'https://github.com/owner/repo.git' $clean | Should -Be 0
         & $push 'https://github.com/owner/repo.git' $fixture | Should -Be 0
+        & $push 'https://github.com/owner/repo.git' $fixtureQuoted | Should -Be 0
+        & $push 'https://github.com/owner/repo.git' $leakQuoted | Should -Be 1
         & $push 'https://github.com/owner/repo.git' $leak | Should -Be 1
         & $push 'git@github.com:owner/repo.git' $leak | Should -Be 1
         & $push 'https://dev.azure.com/org/project/_git/repo' $leak | Should -Be 0

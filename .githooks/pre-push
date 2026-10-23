@@ -17,8 +17,8 @@
 # Repository:   Sentinel-As-Code
 # Author:       noodlemctwoodle
 # Created:      2026-10-13
-# Version:      1.0.0
-# Last Updated: 2026-10-13
+# Version:      1.0.1
+# Last Updated: 2026-10-23
 
 remote="$1"
 url="$2"
@@ -47,8 +47,13 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 
     for c in $commits; do
         # -m lists a merge's changes against each parent; deletions are
-        # left out so a clean-up commit can still go.
-        paths=$(git diff-tree -m --root -r --no-commit-id --name-only --diff-filter=d "$c" | grep -E "$blocked" | grep -v -E "$allowed")
+        # left out so a clean-up commit can still go. -z gives each name as
+        # it is: without it Git quotes a name with a non-ASCII character, a
+        # tab or a quote ("SecurityDocs/r\303\251sum\303\251.md"), which the
+        # anchored patterns would miss (and a quoted fixture path would be
+        # blocked). A name is one line after the NULs become newlines; one
+        # with a newline in it splits, and its parts are still checked.
+        paths=$(git diff-tree -z -m --root -r --no-commit-id --name-only --diff-filter=d "$c" | tr '\000' '\n' | grep -E "$blocked" | grep -v -E "$allowed")
         if [ -n "$paths" ]; then
             found="$found$paths
 "

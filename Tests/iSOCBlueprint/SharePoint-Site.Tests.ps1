@@ -639,6 +639,19 @@ Describe 'Web part package' {
         $ids | Should -Contain $script:SacChartWebPartComponentId
         $manifests | ForEach-Object { $_.requiresCustomScript | Should -BeFalse -Because $_.alias }
     }
+
+    It 'loads and runs files only from the library the publisher writes to' {
+        $ts = Get-Content -LiteralPath (Join-Path $wp 'src/webparts/isocBlueprint/IsocBlueprintWebPart.ts') -Raw
+        $ts | Should -Match ("const TRUSTED_LIBRARY: string = '{0}';" -f $script:SacAssetsLibraryUrl)
+        # Every fetch resolves through trustedPath, which refuses encoded, query and
+        # fragment tricks and any ..-walk out of the library.
+        $ts | Should -Match 'const trusted: string \| undefined = trustedPath\(rel\);'
+        $ts | Should -Match '\(web\.serverRelativeUrl \+ ''/'' \+ trusted\)'
+        $ts | Should -Match 'if \(/\[%\?#\]/\.test\(decoded\)\) \{ return undefined; \}'
+        $ts | Should -Match 'if \(segment === ''\.\.''\) \{\s+if \(!parts\.length\) \{ return undefined; \}'
+        $ts | Should -Match 'parts\[0\]\.toLowerCase\(\) !== TRUSTED_LIBRARY\.toLowerCase\(\)\) \{ return undefined; \}'
+        $ts | Should -Not -Match '\(web\.serverRelativeUrl \+ ''/'' \+ rel\)'
+    }
 }
 
 Describe 'Add-SacMaturityHistoryEntry' {

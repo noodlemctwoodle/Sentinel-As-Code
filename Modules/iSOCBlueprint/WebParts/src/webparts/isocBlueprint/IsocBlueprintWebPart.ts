@@ -14,6 +14,38 @@ export interface IIsocBlueprintWebPartProps {
 
 const DEFAULT_FILE: string = 'BlueprintAssets/dashboard/index.html';
 
+// The web part runs the script of the file it shows, and it is allowed on
+// sites without custom script, so it shows only files from this site's
+// Blueprint Assets library: the publisher writes it and only site owners
+// can change it. A page author cannot point it at a script of their own. A
+// path is resolved first (decoded, backslashes and repeated slashes read as
+// one slash, '.' and '..' applied), so nothing steps out of the library; one
+// still holding '%', '?' or '#' once decoded is refused, as SharePoint would
+// decode it again (a double-encoded '..') or read it as a query.
+const TRUSTED_LIBRARY: string = 'BlueprintAssets';
+
+export function trustedPath(rel: string): string | undefined {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rel || '');
+  } catch {
+    return undefined;
+  }
+  if (/[%?#]/.test(decoded)) { return undefined; }
+  const parts: string[] = [];
+  for (const segment of decoded.replace(/\\/g, '/').split('/')) {
+    if (!segment || segment === '.') { continue; }
+    if (segment === '..') {
+      if (!parts.length) { return undefined; }
+      parts.pop();
+      continue;
+    }
+    parts.push(segment);
+  }
+  if (parts.length < 2 || parts[0].toLowerCase() !== TRUSTED_LIBRARY.toLowerCase()) { return undefined; }
+  return parts.join('/');
+}
+
 // What the dashboard inside the frame can ask of this web part: the folder
 // its files sit in, a file read from beside it (the maturity history, the
 // snapshot list), and a day's snapshot loaded in its place (none for the
@@ -84,8 +116,12 @@ export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlu
   }
 
   private _fetchHtml(rel: string): Promise<string> {
+    const trusted: string | undefined = trustedPath(rel);
+    if (!trusted) {
+      return Promise.reject(new Error('This web part shows only files from this site\'s ' + TRUSTED_LIBRARY + ' library, not ' + rel + '.'));
+    }
     const web = this.context.pageContext.web;
-    const serverRel: string = (web.serverRelativeUrl + '/' + rel).replace(/\/{2,}/g, '/');
+    const serverRel: string = (web.serverRelativeUrl + '/' + trusted).replace(/\/{2,}/g, '/');
     const apiUrl: string =
       web.absoluteUrl +
       "/_api/web/GetFileByServerRelativeUrl('" + serverRel.replace(/'/g, "''") + "')/$value";

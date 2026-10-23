@@ -1285,8 +1285,10 @@ them to their new home.
   content on your next commit.
 - Is idempotent: paths already at the new location are skipped. When both
   the old and new path exist (a partial migration), the old folder's
-  contents are merged into the new folder and a warning is emitted for
-  anything that would collide.
+  contents are merged into the new folder at every depth, so a
+  customisation in a subfolder both sides have still comes across. A
+  warning is emitted for each file that would collide (it is left in
+  place), and old folders the merge empties are removed.
 - Does NOT rewrite file contents, regenerate `dependencies.json`, or
   commit. After running it, review `git status`, run
   `./Tools/Build-DependencyManifest.ps1 -Mode Generate`, then commit.

@@ -9,8 +9,9 @@
   "manifestVersion": 2,
 
   // The web part renders a dashboard file from this site's own Blueprint
-  // Assets library; it does not let page authors embed their own script, so
-  // it does not need custom script enabled on the site.
+  // Assets library and refuses any other path (IsocBlueprintWebPart.ts,
+  // trustedPath), so a page author cannot run a script of their own; it does
+  // not need custom script enabled on the site.
   "requiresCustomScript": false,
   "supportedHosts": ["SharePointWebPart"],
   "supportsThemeVariants": true,

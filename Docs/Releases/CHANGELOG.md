@@ -1198,6 +1198,17 @@ from the synthetic demo workspace. The four changes merged to `main` since
   are now subsections of `20-analytics-rules.md` rather than separate
   files, so the Detection family reads as one rules page. A site published
   from an earlier run retires the four old pages on its next publish.
+- **Hardening from the release review** - the dashboard web part (1.15.0)
+  loads and runs only files in the site's `BlueprintAssets` library, the one
+  the publisher writes to, so the page's dashboard path can no longer point
+  it at another file in the site; a path that walks out of the library, or
+  carries a query, fragment or encoded character, is refused with a message
+  saying so. The `.githooks/pre-push` hook (1.0.1) reads commit paths
+  NUL-separated, so Blueprint output under a non-ASCII name is caught
+  instead of slipping past as a quoted path. `Tools/Migrate-ForkLayout.ps1`
+  (0.1.4) merges a partly migrated folder at every depth, so a customisation
+  in a subfolder both layouts have comes across; a file both have is left in
+  place with a warning, and old folders the merge empties are removed.
 - **A failed sign-in burst rule and hunting query, and connector metadata
   across the rules** - a new analytics rule and matching hunting query flag a
   single IP address producing ten or more failed Entra ID sign-ins within an
