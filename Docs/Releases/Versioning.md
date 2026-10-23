@@ -34,24 +34,25 @@ Black-style micro ordinal starting at `0`:
 A month's sole release is written bare (`26.05`); a month with two or more
 releases uses the micro suffix.
 
-### Release branches and GitHub Releases
+### Release branches, GitHub Releases and tags
 
-The repository does **not** use git tags for releases (`git tag --list`
-returns zero results, and none have ever been created). The release
-mechanism is:
+The release mechanism is:
 
 1. A `release/<CalVer>` branch is cut for the release (for example
-   `release/26.07.1`), following the same `YY.0M[.micro]` string as the
+   `release/26.10.0`), following the same `YY.0M[.micro]` string as the
    version itself. Work lands on the release branch via PR before it merges
    to `main`.
 2. Once merged, the release is published as a **GitHub Release** named after
-   the CalVer string (for example `26.07.1`), with the release notes drawn
+   the CalVer string (for example `26.10.0`), with the release notes drawn
    from `Docs/Releases/` / the CHANGELOG.
+3. The GitHub Release tags the release PR's merge commit on `main` with `v`
+   followed by the CalVer string (for example `v26.10.0`). GitHub creates the
+   tag when the release is published, so there is no separate `git tag` step.
 
-If tagging is introduced in future, it should tag the merge commit of the
-release PR with `v` + the CalVer string (e.g. `v26.07.1`) so the convention
-matches the release branch and GitHub Release naming - but this is not
-current practice and no such tags exist today.
+`26.10.0` is the first release published this way: `v26.10.0` is the
+repository's first tag and its first GitHub Release. Earlier releases have
+neither; their code is the merge of their release PR into `main` (the PRs
+are listed in the history below).
 
 ## Wave → CalVer history
 
@@ -72,13 +73,13 @@ immutable git history). The mapping:
 | Sophos codeless connector, Detection Engineering dashboard, connector-metadata corrections, PowerShell header standardisation | `26.09` | PR #49, PR #50, PR #52, PR #53, PR #54, PR #55, PR #57 |
 | The iSOCBlueprint module (its first release), the iSOC Blueprint SharePoint site and dashboard, the Sentinel health check folded in, a failed sign-in burst rule, nightly failure issues closing on recovery, Toolkit docs, drift-sync manifest fix | `26.10.0` | PR #59, PR #60, PR #61, PR #64, PR #65 |
 
-None of these releases were git-tagged; each shipped as a `release/<CalVer>`
-branch merged to `main` and, where published, a GitHub Release. The
-"Copilot content pack, authoring toolkit, PR-template scaffolding" row adds
-`.github/agents/`, `.github/prompts/`, `.github/instructions/`, and
-`.github/PULL_REQUEST_TEMPLATE.md`; the template's sections are informational
-only (its own text notes "Empty sections / unchecked boxes are fine") and
-are not enforced by any CI gate today.
+Each release shipped as a `release/<CalVer>` branch merged to `main`. Up to
+`26.09` there was no tag and no GitHub Release; `26.10.0` is the first with
+both (`v26.10.0`). The `26.07.1` row's PR template validation gate is the
+`template` check: it fails a pull request whose description leaves a
+required section of `.github/PULL_REQUEST_TEMPLATE.md` empty (Summary, Why
+is this change needed?, What does this change do?, Testing) or ticks no
+"Type of change" box.
 
 ## Module SemVer
 
