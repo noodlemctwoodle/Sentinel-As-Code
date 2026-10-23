@@ -631,13 +631,13 @@ Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph
 
 1. **Authentication**: Acquires a Microsoft Graph token via `Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com"` using the existing Azure context
 2. **Fetch Existing Rules**: Queries the Graph API to list all current custom detection rules for upsert matching by `displayName`
-3. **YAML Processing**: Scans `Content/DefenderCustomDetections/` for YAML files, validates required fields (`displayName`, `queryCondition.queryText`, `schedule.period`, `detectionAction.alertTemplate`)
-4. **Upsert**: If a rule with the same `displayName` exists, updates it via `PATCH`; otherwise creates via `POST`
+3. **YAML Processing**: Scans `Content/DefenderCustomDetections/` for YAML files, translates any that still use the Graph fields removed on 2026-10-01 (with a warning), and validates each with `Test-DetectionRule` (`displayName`, `queryCondition.queryText`, `schedule.frequency`, `detectionAction.alertTemplate` with `title`, `severity` and `tactics`, plus the entity mapping and automated action shapes)
+4. **Upsert**: If a rule with the same `displayName` exists, updates it via `PATCH`; otherwise creates it via `POST` with the file's client-provided `id` (a file with no `id` cannot be created and counts as failed)
 5. **Status Reporting**: Prints a summary with created/updated/skipped/failed counts
 
 ### Content Folder Structure
 
-See [Defender-Custom-Detections.md](../Content/Defender-Custom-Detections.md) for the full YAML schema, response action types, and impacted asset identifiers.
+See [Defender-Custom-Detections.md](../Content/Defender-Custom-Detections.md) for the full YAML schema, entity mappings, automated actions and the old-to-new field table.
 
 ---
 
