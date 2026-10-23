@@ -36,7 +36,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-10-23
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -136,6 +136,13 @@ Describe 'Test-RuleIsCustomised' {
             $template = New-DeployedRuleProps -Override @{ query = 'T | take 1' }
             $result = Test-RuleIsCustomised -ExistingRule $rule -TemplateProperties $template
             $result.IsCustomised | Should -BeFalse -Because 'whitespace is collapsed before comparison; a multi-line vs single-line query with the same tokens is not a real customisation'
+        }
+
+        It 'treats two spellings of the same duration as unchanged (PT24H and P1D)' {
+            $rule     = New-DeployedRule -PropsOverride @{ queryFrequency = 'P1D'; queryPeriod = 'P14D' }
+            $template = New-DeployedRuleProps -Override @{ queryFrequency = 'PT24H'; queryPeriod = 'PT336H' }
+            $result = Test-RuleIsCustomised -ExistingRule $rule -TemplateProperties $template
+            $result.IsCustomised | Should -BeFalse -Because 'the API returns its own spelling of a duration; only a different length is a customisation'
         }
     }
 

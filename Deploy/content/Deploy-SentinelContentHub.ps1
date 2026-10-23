@@ -116,7 +116,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-03-20
-    Version:        2.1.3
+    Version:        2.1.4
     Last Updated:   2026-10-23
     Requires:       PowerShell 7.2+, Az.Accounts
 
@@ -666,6 +666,28 @@ function Get-ExistingAnalyticsRules {
     return ,$rules
 }
 
+function ConvertTo-NormalisedDuration {
+    <#
+    .SYNOPSIS
+        Returns an ISO 8601 duration in the canonical form XmlConvert writes.
+    .DESCRIPTION
+        ISO 8601 has several spellings for one duration (PT24H and P1D), and
+        the API returns its own spelling rather than the template's, so a
+        verbatim compare marks a rule customised when only the spelling
+        differs. A value that is not a valid duration is returned as written.
+    #>
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $null }
+    $trimmed = $Value.Trim()
+    try {
+        return [System.Xml.XmlConvert]::ToString([System.Xml.XmlConvert]::ToTimeSpan($trimmed.ToUpperInvariant()))
+    }
+    catch {
+        return $trimmed
+    }
+}
+
 function Test-RuleIsCustomised {
     <#
     .SYNOPSIS
@@ -702,7 +724,7 @@ function Test-RuleIsCustomised {
     # Compare query frequency
     if ($existingProps.PSObject.Properties.Name -contains "queryFrequency" -and
         $TemplateProperties.PSObject.Properties.Name -contains "queryFrequency") {
-        if ($existingProps.queryFrequency -ne $TemplateProperties.queryFrequency) {
+        if ((ConvertTo-NormalisedDuration $existingProps.queryFrequency) -ne (ConvertTo-NormalisedDuration $TemplateProperties.queryFrequency)) {
             $isCustomised = $true
             $modifications += "queryFrequency"
         }
@@ -711,7 +733,7 @@ function Test-RuleIsCustomised {
     # Compare query period
     if ($existingProps.PSObject.Properties.Name -contains "queryPeriod" -and
         $TemplateProperties.PSObject.Properties.Name -contains "queryPeriod") {
-        if ($existingProps.queryPeriod -ne $TemplateProperties.queryPeriod) {
+        if ((ConvertTo-NormalisedDuration $existingProps.queryPeriod) -ne (ConvertTo-NormalisedDuration $TemplateProperties.queryPeriod)) {
             $isCustomised = $true
             $modifications += "queryPeriod"
         }

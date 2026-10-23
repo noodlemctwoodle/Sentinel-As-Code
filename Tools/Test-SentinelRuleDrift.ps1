@@ -135,8 +135,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-28
-    Version:        1.1.2
-    Last Updated:   2026-10-13
+    Version:        1.1.3
+    Last Updated:   2026-10-23
     Requires:       PowerShell 7.2+, Az.Accounts, powershell-yaml (auto-installed if missing)
 
     API versions:
@@ -431,6 +431,25 @@ function Convert-QueryWhitespace {
     return ($Value -replace '\s+', ' ').Trim()
 }
 
+# ---------------------------------------------------------------------------
+# ISO 8601 has several spellings for one duration (PT24H and P1D), and the API
+# returns its own spelling rather than the one the YAML was deployed with, so
+# a verbatim compare reports drift on every rule written as PT24H. Durations
+# are compared in the canonical form XmlConvert writes; a value that is not a
+# valid duration is compared as written.
+# ---------------------------------------------------------------------------
+function ConvertTo-NormalisedDuration {
+    param([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $null }
+    $trimmed = $Value.Trim()
+    try {
+        return [System.Xml.XmlConvert]::ToString([System.Xml.XmlConvert]::ToTimeSpan($trimmed.ToUpperInvariant()))
+    }
+    catch {
+        return $trimmed
+    }
+}
+
 function ConvertTo-NormalisedYamlRule {
     [CmdletBinding()]
     param(
@@ -453,8 +472,8 @@ function ConvertTo-NormalisedYamlRule {
     }
 
     if ($kind -ne 'NRT') {
-        $normalised.queryFrequency   = if ($yaml.ContainsKey('queryFrequency'))   { [string]$yaml['queryFrequency'] }   else { $null }
-        $normalised.queryPeriod      = if ($yaml.ContainsKey('queryPeriod'))      { [string]$yaml['queryPeriod'] }      else { $null }
+        $normalised.queryFrequency   = if ($yaml.ContainsKey('queryFrequency'))   { ConvertTo-NormalisedDuration ([string]$yaml['queryFrequency']) } else { $null }
+        $normalised.queryPeriod      = if ($yaml.ContainsKey('queryPeriod'))      { ConvertTo-NormalisedDuration ([string]$yaml['queryPeriod']) }    else { $null }
         $normalised.triggerOperator  = if ($yaml.ContainsKey('triggerOperator'))  { Convert-TriggerOperator ([string]$yaml['triggerOperator']) } else { $null }
         $normalised.triggerThreshold = if ($yaml.ContainsKey('triggerThreshold')) { [int]$yaml['triggerThreshold'] }     else { $null }
     }
@@ -509,8 +528,8 @@ function ConvertTo-NormalisedTemplateRule {
     $normalised.enabled = $null
 
     if ($kind -ne 'NRT') {
-        $normalised.queryFrequency   = if ($props.PSObject.Properties.Name -contains 'queryFrequency')   { [string]$props.queryFrequency } else { $null }
-        $normalised.queryPeriod      = if ($props.PSObject.Properties.Name -contains 'queryPeriod')      { [string]$props.queryPeriod }    else { $null }
+        $normalised.queryFrequency   = if ($props.PSObject.Properties.Name -contains 'queryFrequency')   { ConvertTo-NormalisedDuration ([string]$props.queryFrequency) } else { $null }
+        $normalised.queryPeriod      = if ($props.PSObject.Properties.Name -contains 'queryPeriod')      { ConvertTo-NormalisedDuration ([string]$props.queryPeriod) }    else { $null }
         $normalised.triggerOperator  = if ($props.PSObject.Properties.Name -contains 'triggerOperator')  { Convert-TriggerOperator ([string]$props.triggerOperator) } else { $null }
         $normalised.triggerThreshold = if ($props.PSObject.Properties.Name -contains 'triggerThreshold') { [int]$props.triggerThreshold } else { $null }
     }
@@ -536,8 +555,8 @@ function ConvertTo-NormalisedDeployedRule {
     }
 
     if ($kind -ne 'NRT') {
-        $normalised.queryFrequency   = if ($props.PSObject.Properties.Name -contains 'queryFrequency')   { [string]$props.queryFrequency } else { $null }
-        $normalised.queryPeriod      = if ($props.PSObject.Properties.Name -contains 'queryPeriod')      { [string]$props.queryPeriod }    else { $null }
+        $normalised.queryFrequency   = if ($props.PSObject.Properties.Name -contains 'queryFrequency')   { ConvertTo-NormalisedDuration ([string]$props.queryFrequency) } else { $null }
+        $normalised.queryPeriod      = if ($props.PSObject.Properties.Name -contains 'queryPeriod')      { ConvertTo-NormalisedDuration ([string]$props.queryPeriod) }    else { $null }
         $normalised.triggerOperator  = if ($props.PSObject.Properties.Name -contains 'triggerOperator')  { Convert-TriggerOperator ([string]$props.triggerOperator) } else { $null }
         $normalised.triggerThreshold = if ($props.PSObject.Properties.Name -contains 'triggerThreshold') { [int]$props.triggerThreshold } else { $null }
     }
@@ -1154,6 +1173,30 @@ function Write-DriftSummary {
 }
 
 # ---------------------------------------------------------------------------
+# The drift-sync bot commits the reports, so paths in them are written
+# relative to the repo with forward slashes. An absolute agent path
+# (/home/vsts/work/1/s/...) is build-host detail, not repository content. A
+# path outside the repo keeps only its file name; a relative path or a
+# non-path value (a template content id) is returned unchanged.
+# ---------------------------------------------------------------------------
+function ConvertTo-ReportPath {
+    param(
+        [string]$Path
+        ,
+        [Parameter(Mandatory)] [string]$RepoPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not [System.IO.Path]::IsPathRooted($Path)) { return $Path }
+
+    $base     = (Resolve-Path -LiteralPath $RepoPath).ProviderPath
+    $relative = [System.IO.Path]::GetRelativePath($base, $Path)
+    if ($relative.StartsWith('..') -or [System.IO.Path]::IsPathRooted($relative)) {
+        return [System.IO.Path]::GetFileName($Path)
+    }
+    return ($relative -replace '\\', '/')
+}
+
+# ---------------------------------------------------------------------------
 # Write JSON + Markdown reports under reports/ in the repo. Only called when
 # drift is detected — when the working tree should stay clean we never touch
 # disk so the invoking pipeline doesn't open an empty PR.
@@ -1184,7 +1227,6 @@ function Write-DriftReport {
     [void]$sb.AppendLine("# Sentinel Analytics Rule Drift Report")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("- Generated: $($Report.generatedAt)")
-    [void]$sb.AppendLine("- Subscription: $($Report.subscriptionId)")
     [void]$sb.AppendLine("- Resource Group: $($Report.resourceGroup)")
     [void]$sb.AppendLine("- Workspace: $($Report.workspace)")
     [void]$sb.AppendLine("")
@@ -1505,10 +1547,19 @@ function Invoke-Main {
         }
     }
 
+    # Absorption above needs the absolute paths; the committed report does not.
+    # The subscription id is left out of the report for the same reason.
+    foreach ($entry in @($drifted) + @($orphans)) {
+        foreach ($name in 'sourceRef', 'absorbedPath') {
+            if ($entry.PSObject.Properties.Name -contains $name) {
+                $entry.$name = ConvertTo-ReportPath -Path $entry.$name -RepoPath $RepoPath
+            }
+        }
+    }
+
     $report = @{
         generatedAt    = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         workspace      = $Workspace
-        subscriptionId = $script:SubscriptionId
         resourceGroup  = $ResourceGroup
         summary        = $summary
         drifted        = @($drifted)

@@ -132,7 +132,7 @@ workbook-export suites.
 
 | Suite | File | Coverage |
 | --- | --- | --- |
-| Drift detector | [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` |
+| Drift detector | [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug`, `ConvertTo-NormalisedDuration`, `ConvertTo-ReportPath`, `Write-DriftReport` |
 | Analytical rule YAML schema | [`Tests/Test-AnalyticalRuleYaml.Tests.ps1`](../../Tests/Test-AnalyticalRuleYaml.Tests.ps1) | 193 analytical rules + 51 hunting queries × per-file schema; cross-file `id` uniqueness |
 | Dependency manifest | [`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1) | `dependencies.json` shape; per-entry path resolution; watchlist + function alias resolution |
 | Defender custom detections | [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) | 33 Defender YAMLs × required + alertTemplate fields; response-action enum validation (the `-ForEach` count tracks the file tree under `Content/DefenderCustomDetections/`) |
@@ -146,7 +146,7 @@ workbook-export suites.
 | PR template validator | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | `Remove-MarkdownComment`, `Get-PullRequestSection`, `Test-PullRequestTemplateBody` (required-section + tick-box rules for the PR description) |
 | Sentinel.Common module | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | `Write-PipelineMessage` ADO/local branching · `Invoke-SentinelApi` failure handling · `Connect-AzureEnvironment` state-shape contract + government-cloud branching · KQL extractors (`Remove-KqlComments`, `Get-KqlWatchlistReferences`, `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifiers` incl. `materialize()`/`table('X')` patterns) · `Get-ContentDependencies` orchestrator |
 | Deploy-CustomContent | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` |
-| Deploy-SentinelContentHub | [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised`, `ConvertTo-SolutionDeploymentJson`, the `Deploy-Solution` request size check |
+| Deploy-SentinelContentHub | [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised`, `ConvertTo-SolutionDeploymentJson`, the `Deploy-Solution` request size check, durations compared by length |
 | Deploy-DefenderDetections | [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) |
 | Set-PlaybookPermissions | [`Tests/Test-SetPlaybookPermissions.Tests.ps1`](../../Tests/Test-SetPlaybookPermissions.Tests.ps1) | `Get-PlaybookRequiredRoles`, `Resolve-Scope` |
 | Import-CommunityRules | [`Tests/Test-ImportCommunityRules.Tests.ps1`](../../Tests/Test-ImportCommunityRules.Tests.ps1) | The full normalisation pipeline (6 functions) |
@@ -638,14 +638,14 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1) | `dependencies.json` shape + per-entry path / watchlist / function alias resolution | ~1000 (per-entry) |
 | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` | 15 |
 | [`Tests/Test-DeployDefenderDetections.Tests.ps1`](../../Tests/Test-DeployDefenderDetections.Tests.ps1) | `ConvertTo-GraphDetectionBody` (YAML → Graph API) | 14 |
-| [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised`, `ConvertTo-SolutionDeploymentJson`, the `Deploy-Solution` request size check | 24 |
+| [`Tests/Test-DeploySentinelContentHub.Tests.ps1`](../../Tests/Test-DeploySentinelContentHub.Tests.ps1) | `Compare-SemanticVersion`, `Test-RuleIsCustomised`, `ConvertTo-SolutionDeploymentJson`, the `Deploy-Solution` request size check | 25 |
 | [`Tests/Test-ImportCommunityRules.Tests.ps1`](../../Tests/Test-ImportCommunityRules.Tests.ps1) | The full normalisation pipeline (6 functions) | 25 |
 | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip | 6 |
 | [`Tests/Test-ParserYaml.Tests.ps1`](../../Tests/Test-ParserYaml.Tests.ps1) | Required fields + KQL identifier validation; functionAlias uniqueness | 4 |
 | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence | 10 |
 | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | PR-description parsing + required-section / tick-box validation | 16 |
 | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | Pipeline logging + REST wrapper + Az context bootstrap + KQL discovery extractors | 57 |
-| [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` | 58 |
+| [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` | 74 |
 | [`Tests/Test-SetPlaybookPermissions.Tests.ps1`](../../Tests/Test-SetPlaybookPermissions.Tests.ps1) | `Get-PlaybookRequiredRoles`, `Resolve-Scope` | 14 |
 | [`Tests/Test-SummaryRuleJson.Tests.ps1`](../../Tests/Test-SummaryRuleJson.Tests.ps1) | binSize enum + destinationTable suffix + KQL restriction patterns | 10 |
 | [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1) | JSON schema + sibling CSV header invariants; alias uniqueness | 9 |

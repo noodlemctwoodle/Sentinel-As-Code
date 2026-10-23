@@ -45,8 +45,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-04-28
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-10-23
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 
     powershell-yaml is auto-installed by the YAML-related tests if missing.
@@ -849,6 +849,100 @@ Describe 'Save-AbsorbedRule' {
         $rule = New-DeployedScheduledForSave -DisplayName 'No solution attribution'
         $result = Save-AbsorbedRule -RepoPath $TestDrive -DeployedRule $rule -Provenance 'ContentHub'
         $result.Path | Should -Match 'AbsorbedFromPortal[\\/]+ContentHub[\\/]+Unattributed[\\/]+'
+    }
+}
+
+Describe 'ConvertTo-NormalisedDuration' {
+    It 'writes <Value> as <Expected>' -ForEach @(
+        @{ Value = 'PT24H';  Expected = 'P1D' }
+        @{ Value = 'P1D';    Expected = 'P1D' }
+        @{ Value = 'PT5M';   Expected = 'PT5M' }
+        @{ Value = 'PT90M';  Expected = 'PT1H30M' }
+        @{ Value = 'pt1h';   Expected = 'PT1H' }
+        @{ Value = ' PT1H '; Expected = 'PT1H' }
+    ) {
+        ConvertTo-NormalisedDuration $Value | Should -BeExactly $Expected
+    }
+
+    It 'returns a value that is not a duration as written' {
+        ConvertTo-NormalisedDuration '5h' | Should -BeExactly '5h'
+    }
+
+    It 'returns null for an empty value' {
+        ConvertTo-NormalisedDuration '' | Should -BeNullOrEmpty
+        ConvertTo-NormalisedDuration $null | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Duration spelling is not drift' {
+    It 'reports no drift when the YAML says PT24H and the API returns P1D' {
+        $yamlEntry = @{
+            Yaml        = @{ kind = 'Scheduled'; name = 'Mock rule'; severity = 'Medium'; query = 'T | take 1'; queryFrequency = 'PT24H'; queryPeriod = 'PT24H'; triggerOperator = 'gt'; triggerThreshold = 0 }
+            IsCommunity = $false
+        }
+        $deployed = [pscustomobject]@{
+            kind       = 'Scheduled'
+            properties = [pscustomobject]@{ displayName = 'Mock rule'; severity = 'Medium'; query = 'T | take 1'; enabled = $true; queryFrequency = 'P1D'; queryPeriod = 'P1D'; triggerOperator = 'GreaterThan'; triggerThreshold = 0 }
+        }
+        $diff = Compare-SentinelRule -Deployed (ConvertTo-NormalisedDeployedRule -Rule $deployed) -Expected (ConvertTo-NormalisedYamlRule -YamlEntry $yamlEntry)
+        $diff.HasDrift | Should -BeFalse
+    }
+
+    It 'still reports a duration that really changed' {
+        $yamlEntry = @{
+            Yaml        = @{ kind = 'Scheduled'; name = 'Mock rule'; severity = 'Medium'; query = 'T | take 1'; queryFrequency = 'PT1H'; queryPeriod = 'PT1H'; triggerOperator = 'gt'; triggerThreshold = 0 }
+            IsCommunity = $false
+        }
+        $deployed = [pscustomobject]@{
+            kind       = 'Scheduled'
+            properties = [pscustomobject]@{ displayName = 'Mock rule'; severity = 'Medium'; query = 'T | take 1'; enabled = $true; queryFrequency = 'PT2H'; queryPeriod = 'PT1H'; triggerOperator = 'GreaterThan'; triggerThreshold = 0 }
+        }
+        $diff = Compare-SentinelRule -Deployed (ConvertTo-NormalisedDeployedRule -Rule $deployed) -Expected (ConvertTo-NormalisedYamlRule -YamlEntry $yamlEntry)
+        $diff.HasDrift | Should -BeTrue
+        @($diff.Modifications | ForEach-Object { $_.Field }) | Should -Be @('queryFrequency')
+    }
+}
+
+Describe 'ConvertTo-ReportPath' {
+    It 'makes a path under the repo relative, with forward slashes' {
+        $repo = Join-Path $TestDrive 'repo'
+        $file = Join-Path $repo 'Content/AnalyticalRules/Identity/Rule.yaml'
+        New-Item -ItemType Directory -Path (Split-Path $file -Parent) -Force | Out-Null
+        ConvertTo-ReportPath -Path $file -RepoPath $repo | Should -BeExactly 'Content/AnalyticalRules/Identity/Rule.yaml'
+    }
+
+    It 'keeps only the file name for a path outside the repo' {
+        $repo = Join-Path $TestDrive 'repo'
+        New-Item -ItemType Directory -Path $repo -Force | Out-Null
+        ConvertTo-ReportPath -Path (Join-Path $TestDrive 'elsewhere/Rule.yaml') -RepoPath $repo | Should -BeExactly 'Rule.yaml'
+    }
+
+    It 'returns a relative path or a content id unchanged' {
+        $repo = Join-Path $TestDrive 'repo'
+        New-Item -ItemType Directory -Path $repo -Force | Out-Null
+        ConvertTo-ReportPath -Path 'Content/AnalyticalRules/Rule.yaml' -RepoPath $repo | Should -BeExactly 'Content/AnalyticalRules/Rule.yaml'
+        ConvertTo-ReportPath -Path 'a1b2c3d4-template-id' -RepoPath $repo | Should -BeExactly 'a1b2c3d4-template-id'
+        ConvertTo-ReportPath -Path $null -RepoPath $repo | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Write-DriftReport' {
+    It 'writes no subscription id into the markdown report' {
+        $out = Join-Path $TestDrive 'reports'
+        $report = @{
+            generatedAt   = '2026-10-23T06:00:00Z'
+            workspace     = 'law-test'
+            resourceGroup = 'rg-test'
+            summary       = @{ totalDeployed = 1; contentHubClean = 0; contentHubDrift = 0; customClean = 0; customDrift = 0; orphan = 1; managed = 0 }
+            drifted       = @()
+            orphans       = @([pscustomobject]@{ ruleId = 'x'; ruleName = 'r1'; displayName = 'Orphan rule'; kind = 'Scheduled'; enabled = $true })
+        }
+        # This suite does not load Sentinel.Common, so stand in for its logger.
+        function Write-PipelineMessage { param([string]$Message, [string]$Level) }
+        Write-DriftReport -Report $report -OutputDir $out
+        $md = Get-Content -Raw -Path (Get-ChildItem -Path $out -Filter '*.md' | Select-Object -First 1).FullName
+        $md | Should -Not -Match 'Subscription'
+        $md | Should -Match '- Workspace: law-test'
     }
 }
 

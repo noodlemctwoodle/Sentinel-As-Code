@@ -23,6 +23,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   **Smart Deployment** off (custom rules) and **Force Content
   Redeployment** on (Content Hub rules; a rule customised in the portal is
   still skipped, as before).
+- **Drift stops flagging duration spelling, and its reports stop carrying
+  host and tenant detail** - ISO 8601 writes one duration several ways and
+  the API returns its own spelling, so drift detection reported every rule
+  written as `PT24H` as edited when the API read back `P1D`, and the drift
+  bot rewrote its YAML. `Test-SentinelRuleDrift.ps1` now compares
+  `queryFrequency` and `queryPeriod` by the length they describe, and
+  `Test-RuleIsCustomised` in `Deploy-SentinelContentHub.ps1` does the same,
+  so a Content Hub rule is no longer marked customised (and skipped by
+  **Protect Customised Rules**) over spelling alone. The committed drift
+  reports now give file paths relative to the repository, not the build
+  agent's absolute path, and no longer include the subscription id.
 
 ## 26.10.0
 
