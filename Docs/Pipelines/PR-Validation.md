@@ -244,6 +244,8 @@ runs when one of the listed paths changes.
 
 | Variable | Value |
 | --- | --- |
+| `pesterVersion` | `5.7.1` (same pin as GitHub's `PESTER_VERSION`) |
+| `yamlVersion` | `0.4.12` (same pin as GitHub's `YAML_VERSION`) |
 | `testResultsFile` | `$(Build.SourcesDirectory)/test-results/pester-results.xml` |
 
 ### Stage and job
@@ -256,12 +258,11 @@ Steps, in order:
 
 1. **Checkout** `self` with `fetchDepth: 1`.
 2. **Install Pester, powershell-yaml and PnP.PowerShell** (inline `pwsh`):
-   installs Pester (minimum `5.0.0`) if a suitable version is not already
-   present, plus powershell-yaml if missing. Note this is a
-   **minimum-version** install, not the exact pin the GitHub composite
-   action enforces. PnP.PowerShell is the exception: it is installed at
-   exactly the `pnpVersion` read from `Pipelines/Sentinel-Blueprint.yml`,
-   for the SharePoint PnP call check.
+   installs Pester at exactly `pesterVersion` and powershell-yaml at
+   exactly `yamlVersion` when those versions are not already present, the
+   same pins the GitHub composite action enforces. PnP.PowerShell is
+   installed at exactly the `pnpVersion` read from
+   `Pipelines/Sentinel-Blueprint.yml`, for the SharePoint PnP call check.
 3. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
    `-RepoPath`, `-TestResultsPath "$(testResultsFile)"` and
    `-InstallModules:$false` - the same entrypoint the GitHub `validate` job

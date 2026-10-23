@@ -222,10 +222,10 @@ Two distinct identities are in play:
 
 1. **`checkout: self`** with `persistCredentials: true` so
    `System.AccessToken` is available to git.
-2. **Install powershell-yaml Module** (`PowerShell@2`, inline) - a plain
-   `Install-Module -Name powershell-yaml -Force -Scope CurrentUser
-   -AllowClobber`. Note this installs the **latest** version, not a pinned
-   one (see the [mapping](#github---ado-mapping)).
+2. **Install powershell-yaml Module** (`PowerShell@2`, inline) - installs
+   `powershell-yaml` at exactly the `yamlVersion` pipeline variable
+   (`0.4.12`, the same pin as GitHub's `YAML_VERSION`) when that version is
+   not already present.
 3. **Detect Sentinel Rule Drift** (`AzurePowerShell@5`) -
    `azureSubscription: $(serviceConnection)`, `ScriptType: InlineScript`,
    `azurePowerShellVersion: LatestVersion`, `errorActionPreference:
@@ -294,7 +294,7 @@ The asymmetries to be aware of:
 | Structure | Single job, six steps | One stage, one job, four steps |
 | Azure auth | OIDC via `azure-login-oidc` composite action | `sc-sentinel-as-code` service connection |
 | Git / PR auth | `GITHUB_TOKEN` (job `permissions` block) | `System.AccessToken` via `persistCredentials`, plus build-service repo grants |
-| Module install | `setup-pwsh-modules` composite, `powershell-yaml` **pinned** to `0.4.12` | Inline `Install-Module`, **latest** (unpinned) |
+| Module install | `setup-pwsh-modules` composite, `powershell-yaml` pinned to `0.4.12` | Inline `Install-Module`, pinned to `0.4.12` by the `yamlVersion` variable |
 | PR CLI | `gh pr list` / `create` / `edit`, body via `--body-file` | `az repos pr list` / `create` / `update`, body via `--description` |
 | ReportOnly guard | `if: inputs.reportOnly != true` on the commit/PR step | `condition: and(succeeded(), ne(parameters.reportOnly, true))` on the commit/PR step |
 | Report artefact | Uploaded as a run artefact (`actions/upload-artifact@v6`) | Not uploaded; committed to the sync branch only |

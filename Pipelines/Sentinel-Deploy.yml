@@ -183,6 +183,11 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
 
+  # Pinned module version. Keep in step with YAML_VERSION in the GitHub
+  # workflows and yamlVersion in Sentinel-Blueprint.yml.
+  - name: yamlVersion
+    value: "0.4.12"
+
   # Map boolean parameters to switch flag strings at compile time.
   # Each resolves to either the switch name or an empty string.
   - name: flagDisableRules
@@ -639,9 +644,18 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                Write-Host "##[section]Installing powershell-yaml module"
-                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
-                Write-Host "powershell-yaml installed successfully."
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing powershell-yaml $(yamlVersion)"
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
 
           # Pre-deploy guard: dependencies.json must match what discovery
           # produces from current content. The PR-validation gate already
@@ -746,9 +760,18 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                Write-Host "##[section]Installing powershell-yaml module"
-                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
-                Write-Host "powershell-yaml installed successfully."
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing powershell-yaml $(yamlVersion)"
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
 
           - task: AzurePowerShell@5
             displayName: "Deploy Defender Custom Detections"

@@ -64,6 +64,13 @@ trigger:
       - Pipelines/Sentinel-PR-Validation.yml
 
 variables:
+  # Pinned module versions. Keep in step with PESTER_VERSION and
+  # YAML_VERSION in .github/workflows/pr-validation.yml and with
+  # Sentinel-Blueprint.yml, so the two gates agree on what passes.
+  - name: pesterVersion
+    value: "5.7.1"
+  - name: yamlVersion
+    value: "0.4.12"
   - name: testResultsFile
     value: "$(Build.SourcesDirectory)/test-results/pester-results.xml"
 
@@ -87,12 +94,12 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                $needsPester = -not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -ge [version]'5.0.0' })
-                if ($needsPester) {
-                    Install-Module -Name Pester -MinimumVersion '5.0.0' -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
+                $ErrorActionPreference = 'Stop'
+                if (-not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -eq [version]'$(pesterVersion)' })) {
+                    Install-Module -Name Pester -RequiredVersion '$(pesterVersion)' -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
                 }
-                if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
-                    Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+                if (-not (Get-Module -ListAvailable -Name powershell-yaml | Where-Object { $_.Version -eq [version]'$(yamlVersion)' })) {
+                    Install-Module -Name powershell-yaml -RequiredVersion '$(yamlVersion)' -Force -Scope CurrentUser -AllowClobber
                 }
                 # PnP.PowerShell for Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1,
                 # which checks every PnP call in the SharePoint scripts against the

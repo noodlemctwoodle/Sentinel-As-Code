@@ -335,7 +335,8 @@ or was skipped. Timeout: 60 minutes. Steps, in order:
 3. **Set up PowerShell modules** - installs `powershell-yaml` only
    (GitHub uses the [`setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml)
    composite with `install-pester: 'false'` and the pinned
-   `YAML_VERSION`; ADO installs it inline).
+   `YAML_VERSION`; ADO installs the same version inline, pinned by its
+   `yamlVersion` variable).
 4. **Verify dependency manifest is current** - runs
    `Tools/Build-DependencyManifest.ps1 -Mode Verify` and fails the stage
    if `dependencies.json` is out of sync with current content. This is the

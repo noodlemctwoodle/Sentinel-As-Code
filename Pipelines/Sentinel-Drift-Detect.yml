@@ -98,6 +98,11 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
 
+  # Pinned module version. Keep in step with YAML_VERSION in the GitHub
+  # workflows and yamlVersion in Sentinel-Blueprint.yml.
+  - name: yamlVersion
+    value: "0.4.12"
+
   # Branch configuration. These are deliberately variables (not parameters) so the
   # 'Run pipeline' panel stays minimal — the rolling sync branch and PR target are
   # bot-managed and shouldn't be tweaked per-run.
@@ -107,7 +112,7 @@ variables:
     value: "main"
 
   # Map boolean parameters to switch flag strings at compile time.
-  # Mirrors the convention used in Sentinel-Deploy.yml (lines 188-300).
+  # Mirrors the flag convention in Sentinel-Deploy.yml.
   - name: flagFailOnDrift
     ${{ if eq(parameters.failOnDrift, true) }}:
       value: "-FailOnDrift"
@@ -159,9 +164,18 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                Write-Host "##[section]Installing powershell-yaml module"
-                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
-                Write-Host "powershell-yaml installed successfully."
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing powershell-yaml $(yamlVersion)"
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
 
           - task: AzurePowerShell@5
             displayName: "Detect Sentinel Rule Drift"
