@@ -180,9 +180,15 @@ Describe 'The capture summary' {
     }
 
     It 'colours each outcome as the notes do' {
-        $records = @(Write-CaptureSummary -RawRoot $script:sumRaw -Issues @(
-            [pscustomobject]@{ Label = 'a'; Kind = 'NotAvailable'; Message = 'm' }
-            [pscustomobject]@{ Label = 'b'; Kind = 'Permission'; Message = 'm' }) 6>&1)
+        # At a console: on a pipeline agent the No access headline is a
+        # warning annotation instead, so the agent's variables are cleared.
+        $saved = @{ GITHUB_ACTIONS = $env:GITHUB_ACTIONS; TF_BUILD = $env:TF_BUILD }
+        try {
+            $env:GITHUB_ACTIONS = $null; $env:TF_BUILD = $null
+            $records = @(Write-CaptureSummary -RawRoot $script:sumRaw -Issues @(
+                [pscustomobject]@{ Label = 'a'; Kind = 'NotAvailable'; Message = 'm' }
+                [pscustomobject]@{ Label = 'b'; Kind = 'Permission'; Message = 'm' }) 6>&1)
+        } finally { $env:GITHUB_ACTIONS = $saved.GITHUB_ACTIONS; $env:TF_BUILD = $saved.TF_BUILD }
         ($records | Where-Object { [string]$_.MessageData -match '^  Not available' }).MessageData.ForegroundColor | Should -Be 'DarkCyan'
         ($records | Where-Object { [string]$_.MessageData -match '^  No access' }).MessageData.ForegroundColor | Should -Be 'Magenta'
     }
