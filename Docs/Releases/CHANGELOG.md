@@ -182,7 +182,10 @@ from the synthetic demo workspace. The four changes merged to `main` since
   workspace's: its name, where it lives, a lead sentence on what the tab
   showing covers (its days, as collected, or the runs Progress compares),
   and how it stands, as a maturity ring and the open findings by severity,
-  each opening its view. Applying redraws every card
+  each opening its view. The top bar carries the Blueprint version that
+  built the dashboard beside the product's name and when the data was
+  collected under it; the header holds no product label, as the Blueprint
+  is set to cover Defender XDR as well as Sentinel. Applying redraws every card
   that counts activity for that window (the glance tiles, the alert
   lifecycle, the estate pipeline, the billing flow and cost, the detection
   matrix, top tables and rules, health, incident outcomes, rule

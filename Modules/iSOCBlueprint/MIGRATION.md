@@ -1,7 +1,10 @@
 # iSOCBlueprint migration map
 
 Where every file under `Tools/Blueprint` went when the Blueprint became the
-`iSOCBlueprint` module (release 26.10). The move was made file by file: the
+`iSOCBlueprint` module (release 26.10.0). In release 26.09 the folder was
+`Tools/Documenter` (with `Documenter.psd1` for `Blueprint.psd1`); it took the
+product's name while this release was built, so a 26.09 path maps through
+`Tools/Blueprint` below. The move was made file by file: the
 module was built beside the old folder, its engine held byte-identical to the
 old scripts apart from the edits below, its output compared with the old
 scripts' over the test fixture, the pipelines switched to it, and the old

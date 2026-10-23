@@ -33,7 +33,7 @@
             Tags         = @('iSOC', 'Blueprint', 'SecurityOperations', 'Sentinel', 'Documentation', 'Azure')
             ProjectUri   = 'https://github.com/noodlemctwoodle/Sentinel-As-Code'
             LicenseUri   = 'https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/LICENSE'
-            ReleaseNotes = '26.10.0 - first release as a module. The Blueprint scripts that lived in Tools/Blueprint now run from Engine/ inside this module, unchanged apart from the edits listed in MIGRATION.md, behind twelve commands. The version follows the repository release it ships in.'
+            ReleaseNotes = '26.10.0 - first release as a module. The scripts that lived in Tools/Documenter in release 26.09 (Tools/Blueprint while this release was built) now run from Engine/ inside this module, unchanged apart from the edits listed in MIGRATION.md, behind twelve commands. The version follows the repository release it ships in.'
         }
     }
 }
