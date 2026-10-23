@@ -16,8 +16,8 @@ repository. These pages document what a user does with the extension.
 | Marketplace | [`noodlemctwoodle.sentinelcodeguard`](https://marketplace.visualstudio.com/items?itemName=noodlemctwoodle.sentinelcodeguard) |
 | Display name | Sentinel as Code Toolkit |
 | Publisher | `noodlemctwoodle` |
-| Version | 26.7.1 |
-| Requires | Visual Studio Code 1.125 or later |
+| Version | 26.10.2 |
+| Requires | Visual Studio Code 1.134 or later |
 | Feedback / issues | [Sentinel-As-Code issue tracker](https://github.com/noodlemctwoodle/Sentinel-As-Code/issues) |
 
 ## Author here, the pipeline deploys
@@ -38,7 +38,7 @@ Deployment is the job of the Sentinel-As-Code pipeline. The boundary is:
 
 ## Requirements
 
-- Visual Studio Code 1.125 or later.
+- Visual Studio Code 1.134 or later.
 - Familiarity with the Microsoft Sentinel analytics rule schema (KQL and MITRE
   ATT&CK).
 
@@ -106,6 +106,6 @@ under those terms.
 | [Templates](Templates.md) | The bundled starter templates, canonical field order, and which content types are authored as YAML and converted to JSON with **Convert Content YAML to JSON** |
 | [Schemas and Validation](Schemas-and-Validation.md) | The seven bundled schemas, how validation is triggered, and MITRE ATT&CK multi-framework checking |
 | [Configuration](Configuration.md) | Every `sentinelAsCode.*` setting, its default, and the custom-connectors file |
-| [ARM to YAML Conversion](ARM-to-YAML-Conversion.md) | Decompiling `Microsoft.SecurityInsights/alertRules` ARM templates into clean analytics-rule YAML |
+| [ARM to YAML Conversion](ARM-to-YAML-Conversion.md) | Decompiling exported analytics rule ARM templates into clean analytics-rule YAML |
 | [Defender Workflows](Defender-Workflows.md) | Formatting, validating, and converting Defender XDR custom detections for the repository |
 | [Graph API Migrations](Graph-API-Migrations.md) | Upcoming Microsoft Graph `security` API deprecations that affect Defender custom detections, with the migration plan and removal date |
