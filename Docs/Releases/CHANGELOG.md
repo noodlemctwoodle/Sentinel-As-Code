@@ -4,7 +4,19 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
-## Unreleased
+## 26.10.0
+
+The iSOC Blueprint release. The Documenter becomes `iSOCBlueprint`, a
+PowerShell module (26.10.0, its first release) whose twelve commands
+document a security operations workspace and assess it against best
+practice and a maturity model, as JSON, Markdown, a Word report or a
+SharePoint site with an interactive dashboard. The Sentinel health check
+that thinkndle gave the project is folded in: new gap rules, the maturity
+assessment and its roadmap, the estate flow, detection opportunities and
+rule effectiveness. The dashboard is shown in
+[A tour of the dashboard](../Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md#a-tour-of-the-dashboard),
+from the synthetic demo workspace. The four changes merged to `main` since
+26.09 close the list.
 
 - **Progress across runs** - each export was a snapshot, so the dashboard
   could not say what had improved. Every site build now writes a progress
@@ -1183,6 +1195,22 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   are now subsections of `20-analytics-rules.md` rather than separate
   files, so the Detection family reads as one rules page. A site published
   from an earlier run retires the four old pages on its next publish.
+- **A failed sign-in burst rule and hunting query, and connector metadata
+  across the rules** - a new analytics rule and matching hunting query flag a
+  single IP address producing ten or more failed Entra ID sign-ins within an
+  hour, the general per-IP case the existing Entra ID rules did not cover,
+  and the `requiredDataConnectors` metadata is updated across the existing
+  analytics rules. Contributed by @bbusch12 (PR #60).
+- **Nightly failure issues close when the stage recovers** - the nightly
+  pipeline closes the issue it opened for a failing stage once that stage
+  passes again, so the open issues are the live failures (PR #59).
+- **Toolkit docs in line with its 26.10 release** - the Sentinel as Code
+  Toolkit pages (commands, configuration, schemas and validation, ARM to
+  YAML conversion) describe the extension's current release (PR #61).
+- **Drift sync regenerates the dependency manifest** - a drift-sync run that
+  brings portal edits back into the repository regenerates
+  `dependencies.json` so the dependency-manifest gate passes on its pull
+  request, and the lease push that publishes the branch is fixed (PR #64).
 
 ## 26.09
 

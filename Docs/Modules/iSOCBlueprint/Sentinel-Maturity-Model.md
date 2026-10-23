@@ -9,6 +9,13 @@ as a parameter.
 This page explains what the assessment is, how a score is computed, what
 each criterion reads, and how to add one.
 
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/maturity.jpg"
+       alt="The Assessment tab with the Maturity view: the basis and scope of the model, the overall score against the target level, and a bar per capability area" />
+</p>
+
+*The dashboard's maturity view, from the synthetic demo workspace.*
+
 ## What it is, and what it is not
 
 It is a **capability reference point** computed from the workspace's

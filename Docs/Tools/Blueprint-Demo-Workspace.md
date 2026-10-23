@@ -5,7 +5,9 @@ writes a complete, synthetic iSOC Blueprint inventory for a large
 fictitious workspace (sentinel-blog-uks-law, 2 TB a day), so the report and the
 SharePoint dashboard can be developed, demonstrated and screenshotted
 without a tenant. Nothing in it comes from a real workspace, so it is safe
-to show and share; a live run's output never is.
+to show and share; a live run's output never is. The screenshots in
+[A tour of the dashboard](../Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md#a-tour-of-the-dashboard)
+are of this demo.
 
 It runs offline: it reads this repository and writes files, and calls no
 Azure API.

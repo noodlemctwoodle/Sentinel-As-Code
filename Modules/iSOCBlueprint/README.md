@@ -19,12 +19,20 @@ New-iSOCBlueprint -ResourceGroup rg-sentinel -WorkspaceName law-sentinel-prod -F
 
 Output goes to `./SecurityDocs/<workspace>/<yyyy-MM-dd>/` under the current
 directory unless `-OutputPath` says otherwise. Each day's run gets its own
-folder, so earlier runs stay where they are and the dashboard's date picker
-can offer them; `-NoDateFolder` writes straight into `<workspace>/`, as the
+folder, so earlier runs stay where they are and the dashboard's Progress tab
+can compare them; `-NoDateFolder` writes straight into `<workspace>/`, as the
 pipelines do. Commands that take `-Path` accept a day folder or the workspace
 folder (and then use the newest day). The output holds tenant configuration,
 so keep it out of source control and share it as you would the workspace
 itself.
+
+<p align="center">
+  <img src="../../.images/isoc-blueprint/posture-maturity.jpg"
+       alt="The iSOC Blueprint dashboard Overview: the workspace header with the maturity ring and open findings, posture cards, the maturity card and the quick wins" />
+</p>
+
+*The SharePoint dashboard, from the synthetic demo workspace. More views in
+[A tour of the dashboard](../../Docs/Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md#a-tour-of-the-dashboard).*
 
 ## Commands
 

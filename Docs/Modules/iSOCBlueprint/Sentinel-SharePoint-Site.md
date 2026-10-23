@@ -25,6 +25,105 @@ One communication site per workspace, containing:
 The generator owns all of the above. Manual edits to generated pages or the
 top navigation are overwritten on the next run that changes them.
 
+## A tour of the dashboard
+
+The screenshots below come from the synthetic demo workspace
+(`sentinel-blog-uks-law`, built by
+[`New-BlueprintDemoWorkspace.ps1`](../../Tools/Blueprint-Demo-Workspace.md)),
+not from a customer. Each view is described in full under
+[Dashboard panels](#dashboard-panels).
+
+**Date range.** One date range in the top bar drives every view: a calendar of the collected days, a first and a last day chosen as when booking dates, or the quick choices. The header under it names the workspace and says what the tab showing covers.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/date-range.gif"
+       alt="The top bar date range: the calendar opens, the last 7 days are chosen, then a custom range, then every collected day, with the Overview redrawing each time" />
+</p>
+
+**Overview.** Posture cards, the maturity card with every area against the target, and the quick wins.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/posture-maturity.jpg"
+       alt="The Overview: posture cards for detection coverage by ATT&amp;CK tactic, operational health and cost and governance, the maturity card with the overall score and every area against the target, and the quick wins" />
+</p>
+
+**Overview: the alert lifecycle.** Source families into the alerts raised on them, Sentinel and Defender XDR, then into incidents and how each one was closed.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/alert-lifecycle.jpg"
+       alt="The alert lifecycle: source families flow into Sentinel alerts and Defender XDR alerts, through a core into incidents, and out to how each incident was closed" />
+</p>
+
+**Data flow.** The estate flow from source family to incident. The pool at the foot is ingested data that no enabled rule or custom detection reads.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/data-flow.jpg"
+       alt="The estate flow on the Data flow tab: source families on the left run through rings for ingestion, detection, alerts and incidents, with a pool of ingested data that no detection reads" />
+</p>
+
+**Data flow: the detection matrix.** Every enabled analytics rule and custom detection that reads a workspace table, failing rules first, with the data it reads and how its incidents closed.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/detection-matrix.jpg"
+       alt="The detection matrix: a summary of rules by health with incidents by verdict, filters, and a row per rule with the source families it reads, its health and how its incidents closed" />
+</p>
+
+**Insights.** The chart board.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/insights.jpg"
+       alt="The top of the Insights tab: cards for analytics rules enabled, findings by severity and category, incident outcomes, billed versus data grant eligible volume and ingestion by billing plan" />
+</p>
+
+**Insights: the ATT&CK grid.** Laid out like MITRE's Navigator, shaded by the enabled rules that map each technique; select a cell for its rules.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/insights-attack.jpg"
+       alt="The ATT&amp;CK grid: a column per tactic and a cell per technique, shaded by how many enabled rules map to it, with switches for sub-techniques and disabled rules and a search box" />
+</p>
+
+**Insights: detection opportunities.** Tables receiving data with no detection reading them, largest first, each with the Content Hub templates that would cover it.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/insights-opportunities.jpg"
+       alt="The Detection opportunities card: tables with data that no enabled rule reads, each with its source family, its GB over the window and the templates ready to enable" />
+</p>
+
+**Report.** Every section of the Blueprint, searchable, with the section families down the side.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/report.jpg"
+       alt="The Report tab: a searchable list of documentation sections grouped into families on the left, and the open section on the right" />
+</p>
+
+**Assessment: findings.** The summary by severity, maturity effect, area and category; every legend entry, bar and row filters the cards below.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/findings.jpg"
+       alt="The Assessment tab with the Findings view: donuts of findings by severity and by maturity effect, and bars by maturity area and by category" />
+</p>
+
+**Assessment: finding cards.** Evidence beside remediation, with the lift each gives the maturity score.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/findings-cards.jpg"
+       alt="Finding cards under filters for severity, area, category and maturity effect: each with its id, title, evidence, remediation and the maturity lift closing it gives" />
+</p>
+
+**Assessment: maturity.** What the score is based on and what it leaves out, the overall score against the target, and every capability area.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/maturity.jpg"
+       alt="The Assessment tab with the Maturity view: the basis and scope of the model, the overall score against the target level, and a bar per capability area" />
+</p>
+
+**Progress.** The runs kept at either end of the chosen dates, compared figure by figure and area by area; green is better, red is worse.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/progress.jpg"
+       alt="The Progress tab: the header naming the two runs compared, tiles with each headline figure and its change, and the maturity areas with what each gained or lost" />
+</p>
+
 ### Finding history
 
 A finding that stops firing is not deleted. The Blueprint's gap engine now
