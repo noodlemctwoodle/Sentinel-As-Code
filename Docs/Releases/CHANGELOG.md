@@ -34,6 +34,24 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   **Protect Customised Rules**) over spelling alone. The committed drift
   reports now give file paths relative to the repository, not the build
   agent's absolute path, and no longer include the subscription id.
+- **Protect Customised Rules can be turned off, and GitHub keeps
+  deployment state** - the deploy pipelines only passed
+  `-ProtectCustomisedRules` when the toggle was on, and the script's
+  parameter defaults to on, so turning the toggle off changed nothing:
+  customised Content Hub rules were always skipped. Both pipelines now pass
+  the toggle's value either way. On GitHub, the deploy workflow cached
+  `.deployment-state.json`, a file the deployer never writes (it writes
+  `deployment-state.json`), so smart deployment always started without
+  state and could not retry failed items; the cache now holds the right
+  file.
+- **Pipelines pinned and ready for a release branch** - the Azure DevOps
+  deploy, drift and PR-validation pipelines install Pester 5.7.1 and
+  powershell-yaml 0.4.12 exactly, as the GitHub workflows already did. The
+  PR gates on both platforms also run for `release/*` branches (ADO also
+  gates changes that touch only pipeline or workflow files), and the drift,
+  dependency-update and solution-mapping bots only commit and open pull
+  requests from `main`. Add the ADO build-validation policy for `release/*`
+  and include `release/**` in the GitHub ruleset to make the gate required.
 
 ## 26.10.0
 
