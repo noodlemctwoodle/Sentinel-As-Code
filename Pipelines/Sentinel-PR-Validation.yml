@@ -10,10 +10,11 @@
 # Wiring this as a hard merge gate:
 #
 #   Project Settings -> Repos -> Repositories -> <repo> -> Policies
-#     Branch policies for: main
+#     Branch policies for: main, and for release/* (a long-lived release
+#     branch gets the same gate before it merges to main)
 #       Build validation -> + Add build policy
 #         Build pipeline:        Sentinel-PR-Validation
-#         Path filter:           Content/AnalyticalRules/*;Content/HuntingQueries/*;Deploy/*;Tools/*;Tests/*
+#         Path filter:           Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*
 #         Trigger:               Automatic
 #         Policy requirement:    Required
 #         Build expiration:      Immediately when {repo} is updated
@@ -35,6 +36,7 @@ pr:
   branches:
     include:
       - main
+      - release/*
   paths:
     include:
       - Content/AnalyticalRules
@@ -44,7 +46,8 @@ pr:
       - Tools
       - Tests
       - dependencies.json
-      - Pipelines/Sentinel-PR-Validation.yml
+      - Pipelines
+      - .github/workflows
 
 # CI on push to main ensures we have a green baseline; if main ever goes red
 # the most recent run is the place to start the post-mortem.
@@ -52,6 +55,7 @@ trigger:
   branches:
     include:
       - main
+      - release/*
   paths:
     include:
       - Content/AnalyticalRules
@@ -61,7 +65,8 @@ trigger:
       - Tools
       - Tests
       - dependencies.json
-      - Pipelines/Sentinel-PR-Validation.yml
+      - Pipelines
+      - .github/workflows
 
 variables:
   # Pinned module versions. Keep in step with PESTER_VERSION and

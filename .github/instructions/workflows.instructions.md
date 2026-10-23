@@ -103,11 +103,17 @@ instead of inlining `Azure/login@v2` or `Install-Module` patterns:
 
 ## Path filters (ADO build-validation)
 
-The ADO PR-validation policy currently filters on these paths:
+The ADO PR-validation policy filters on these paths, and is set on
+`main` and on `release/*` branches (a release branch gets the same gate
+before it merges to `main`):
 
 ```
-Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json
+Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*
 ```
+
+Bot commit steps (drift sync, dependency update, solution mapping) run
+only from `main` on both platforms, so a run queued on a release branch
+never opens an `auto/*` PR against `main`.
 
 If you add a new top-level folder that should trigger PR validation
 (e.g. a future `Connectors/` folder), update this filter in two

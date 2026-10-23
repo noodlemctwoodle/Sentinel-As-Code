@@ -224,6 +224,7 @@ stages:
 
               rm -f "$PR_BODY_FILE"
             displayName: "Commit, Push, and Open PR (when drift detected)"
-            condition: succeeded()
+            # Bot commits only ever run from main (see Sentinel-Drift-Detect.yml).
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)

@@ -355,6 +355,9 @@ stages:
             # Mirrors the GitHub workflow's 'if: inputs.reportOnly != true' guard.
             # Gate on the runtime flagReportOnly variable (set to "-ReportOnly"
             # only when reportOnly is true) rather than a compile-time expression.
-            condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'))
+            # Bot commits only ever run from main: a run queued on any other
+            # branch (a release branch under test) must never open a sync PR
+            # against main from that branch's content.
+            condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)

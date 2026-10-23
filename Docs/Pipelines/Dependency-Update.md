@@ -73,7 +73,8 @@ Both systems expose a single input:
 | `reportOnly` | boolean | `false` | Regenerate the manifest and show the drift in the run log, but do not commit, push, or open a PR. |
 
 - **GitHub** declares it as a `workflow_dispatch` input and gates the
-  commit step directly with `if: ${{ inputs.reportOnly != true }}`.
+  commit step directly with
+  `if: ${{ inputs.reportOnly != true && github.ref == 'refs/heads/main' }}`.
 - **ADO** declares it as a pipeline `parameter` and, because a template
   parameter cannot be read inside a runtime bash step directly, resolves it
   at compile time into a `flagReportOnly` variable
@@ -104,7 +105,7 @@ The steps run in this order:
 1. Checkout main (full history)
 2. Install PowerShell modules (powershell-yaml only)
 3. Run Build-DependencyManifest.ps1 -Mode Update
-4. Commit, push, and open / refresh PR  (skipped on reportOnly or clean tree)
+4. Commit, push, and open / refresh PR  (skipped on reportOnly, off main, or clean tree)
 ```
 
 ### 1. Checkout
@@ -147,7 +148,9 @@ detail.
 
 ### 4. Commit, push, and open / refresh PR
 
-This step is skipped when `reportOnly` is set, and short-circuits with a
+This step is skipped when `reportOnly` is set or the run is not on `main`
+(both platforms; a run queued on a release branch never opens a bot PR),
+and short-circuits with a
 clean exit when `git status --porcelain dependencies.json` shows no change
 (no drift). When drift is present it:
 
@@ -220,7 +223,7 @@ title, same guards). The mechanical differences are:
 | --- | --- | --- |
 | Module install | Shared `setup-pwsh-modules` composite | Inline `PowerShell@2` install |
 | Repo path to the script | Implicit (working directory) | Explicit `-RepoPath $(Build.SourcesDirectory)` |
-| `reportOnly` gating | Step-level `if: inputs.reportOnly != true` | Compile-time `flagReportOnly`, checked in bash |
+| `reportOnly` and branch gating | Step-level `if: inputs.reportOnly != true && github.ref == 'refs/heads/main'` | Compile-time `flagReportOnly`, checked in bash; step `condition` requires `refs/heads/main` |
 | Repo-write credential | `GITHUB_TOKEN` + `permissions` block | `System.AccessToken` + build-service repo permissions |
 | PR tooling | `gh` CLI | `az repos` / `az devops` CLI |
 

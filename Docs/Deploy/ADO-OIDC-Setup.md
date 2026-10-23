@@ -208,11 +208,16 @@ Then rename to drop the auto-generated prefix:
 
 > Project Settings → Repos → Repositories → `<repo>` → Policies →
 > Branch policies for `main` → Build validation → + Add build policy
+>
+> Add the same policy for the `release/*` branch pattern (Policies →
+> Branch policies → + → "Protect current and future branches matching a
+> specified pattern" → `release/*`), so a release branch is gated before
+> it merges to `main`.
 
 | Setting | Value |
 | --- | --- |
 | Build pipeline | `Sentinel-PR-Validation` |
-| Path filter | `Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/Sentinel-PR-Validation.yml` |
+| Path filter | `Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*` |
 | Trigger | Automatic |
 | Policy requirement | Required |
 | Build expiration | Immediately when source branch is updated |

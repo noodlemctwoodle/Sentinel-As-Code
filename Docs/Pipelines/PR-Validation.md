@@ -30,8 +30,8 @@ job is in [PR Validation Gate Setup](../Deploy/PR-Validation-Setup.md).
 
 | Event | Detail |
 | --- | --- |
-| `pull_request` | Target branch `main`; activity types `opened`, `synchronize`, `reopened`, `ready_for_review` |
-| `push` | Branch `main` (CI baseline; catches admin-override, force-push and squash-merge edge cases where a direct push reaches `main`) |
+| `pull_request` | Target branches `main` and `release/**`; activity types `opened`, `synchronize`, `reopened`, `ready_for_review` |
+| `push` | Branches `main` and `release/**` (CI baseline; catches admin-override, force-push and squash-merge edge cases where a direct push reaches `main`) |
 | `workflow_dispatch` | Manual run against any branch |
 
 There is **no `paths` / `paths-ignore` filter**. Every job runs on every
@@ -217,8 +217,9 @@ reports success against the PR's latest commit.
 
 ### Triggers
 
-Both a `pr` trigger and a CI `trigger`, each scoped to `main` with the same
-path filter:
+Both a `pr` trigger and a CI `trigger`, each scoped to `main` and
+`release/*` with the same path filter (pipeline and workflow files are
+included, so a change that touches only CI definitions is still gated):
 
 ```yaml
 paths:
@@ -296,8 +297,8 @@ the latest commit.
 | Bicep / ARM / KQL checks | Yes (`bicep-build`, `arm-validate`, `kql-validate`) | **Not present** |
 | Azure auth | `arm-validate` uses OIDC; rest offline | None (all gates offline) |
 | Path filter | None (runs on every PR / push to `main`) | Path-filtered on both `pr` and `trigger` |
-| PR trigger scope | `opened`, `synchronize`, `reopened`, `ready_for_review` | `pr` branches `main` |
-| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Blueprint's `pnpVersion`) | Inline; Pester minimum `5.0.0`, powershell-yaml latest, PnP.PowerShell at the Blueprint's `pnpVersion` |
+| PR trigger scope | `opened`, `synchronize`, `reopened`, `ready_for_review` on `main` and `release/**` | `pr` branches `main` and `release/*` |
+| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Blueprint's `pnpVersion`) | Inline, exact pins from the `pesterVersion` and `yamlVersion` variables (same versions), PnP.PowerShell at the Blueprint's `pnpVersion` |
 | Test report | NUnit 2.5 XML (published to check UI + artefact) | NUnit 2.5 XML (published via `PublishTestResults@2` + artefact) |
 | Concurrency | Cancels superseded PR runs | Handled by ADO's own PR-run behaviour |
 

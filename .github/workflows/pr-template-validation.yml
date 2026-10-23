@@ -40,7 +40,7 @@ name: PR Template Validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'release/**']
     # 'edited' is what makes a description fix re-trigger the check without a
     # new commit. 'synchronize' keeps the check present on each new head sha
     # so a required-check ruleset always has a result to gate on.

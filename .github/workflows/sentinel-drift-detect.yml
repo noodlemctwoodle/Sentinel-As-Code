@@ -142,7 +142,9 @@ jobs:
       # (nothing on disk to commit) or when no drift was detected (working
       # tree clean).
       - name: Commit, push, and open / refresh PR
-        if: ${{ inputs.reportOnly != true }}
+        # Bot commits only ever run from main: a dispatch on any other ref
+        # must never open a sync PR against main (mirrors the ADO condition).
+        if: ${{ inputs.reportOnly != true && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash

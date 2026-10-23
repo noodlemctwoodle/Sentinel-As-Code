@@ -35,7 +35,9 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [main]
+    # release/** so a long-lived release branch gets the same five gates
+    # before it merges to main (mirrors the ADO pr trigger).
+    branches: [main, 'release/**']
     types: [opened, synchronize, reopened, ready_for_review]
 
   # CI baseline on push to main. Mirrors the ADO pipeline's `trigger:`
@@ -45,7 +47,7 @@ on:
   # ever goes red, the most recent run is the place to start the
   # post-mortem.
   push:
-    branches: [main]
+    branches: [main, 'release/**']
 
   # Lets maintainers run the same validation manually against any branch.
   workflow_dispatch:
