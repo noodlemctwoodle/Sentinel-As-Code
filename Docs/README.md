@@ -92,6 +92,21 @@ it. Its docs live in `Docs/Modules/iSOCBlueprint/`.
 | [Word Report](Modules/iSOCBlueprint/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
 | [SharePoint Site](Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |
 
+### iSOC Deployments - `Modules/iSOCDeployments/`
+
+The module that will deploy, export, compare and sync every content type,
+replacing the scripts under `Deploy/` and `Tools/` in release 26.11.0. It
+is in development beside those scripts, which still run the pipelines. Its
+docs live in `Docs/Modules/iSOCDeployments/`.
+
+| Doc | What it covers |
+| --- | --- |
+| [iSOCDeployments docs guide](Modules/iSOCDeployments/README.md) | What the module is, its status, and which page covers what |
+| [Module README](../Modules/iSOCDeployments/README.md) | Quick start, the commands so far, what each step needs, the layout |
+| [Architecture](Modules/iSOCDeployments/Architecture.md) | The context, the REST client, content type definitions and handlers, comparers, API versions, and how to add a content type |
+| [Content types](Modules/iSOCDeployments/Content-Types.md) | Each content type and what the module can do with it so far |
+| [Migration map](../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
+
 ## Pipelines - `Pipelines/` (and `.github/workflows/`)
 
 Eight Azure DevOps pipelines, seven of them mirrored by GitHub Actions workflows. Start at

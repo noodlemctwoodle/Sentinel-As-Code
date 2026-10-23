@@ -1,0 +1,17 @@
+id: 0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d
+name: Fixture NRT rule
+description: |
+  A near-real-time rule used by the iSOCDeployments tests.
+severity: High
+enabled: false
+suppressionEnabled: true
+suppressionDuration: PT1H
+tactics:
+  - Persistence
+relevantTechniques:
+  - T1098
+query: |
+  AuditLogs
+  | where OperationName == "Add member to role"
+version: 1.0.0
+kind: NRT

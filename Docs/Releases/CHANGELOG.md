@@ -6,6 +6,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
 
 ## Unreleased
 
+- **iSOCDeployments module started (in development)** - the module that
+  will replace the deploy, export, drift and change scripts under
+  `Deploy/` and `Tools/` in 26.11.0 is being built beside them in
+  `Modules/iSOCDeployments`. It has its core (logging, one REST client
+  over `Invoke-AzRestMethod`, a read-only workspace context from
+  `Connect-iSOCWorkspace`, the YAML and KQL helpers, comparers) and a
+  content type registry, with analytics rules read, validated and turned
+  into the same requests `Deploy-CustomContent.ps1` sends. Nothing uses it
+  yet: every pipeline still runs the scripts. See
+  [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
+  [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
 - **Defender XDR custom detections move to the current Graph rule shape** -
   Microsoft removed the original custom detection fields from the Graph
   beta API on 1 October 2026: `isEnabled`, `schedule.period`,

@@ -1,0 +1,44 @@
+id: 6F1C2A3B-0D4E-4F5A-9B8C-7D6E5F4A3B2C
+name: Fixture scheduled rule
+description: |
+  A scheduled rule used by the iSOCDeployments tests.
+severity: Medium
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+queryFrequency: PT1H
+queryPeriod: PT24H
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+  - InitialAccess
+relevantTechniques:
+  - T1110
+  - T1110.003
+  - T1078.004
+query: |
+  SigninLogs
+  | where ResultType != "0"
+  | summarize Failures = count() by UserPrincipalName, IPAddress
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+customDetails:
+  Failures: Failures
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+version: 1.0.0
+kind: Scheduled
