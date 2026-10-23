@@ -1,201 +1,177 @@
-# Sentinel Word Report Pipeline
+# Sentinel Word Report Stage
 
-CI/CD wiring for [`Pipelines/Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml),
-the Azure DevOps pipeline that renders the Sentinel Documenter Markdown pack
+CI/CD wiring for the `WordReport` stage of
+[`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml),
+the Azure DevOps stage that renders the iSOC Blueprint Markdown pack
 into a single, styled Word (`.docx`) report and publishes it as a build
 artefact.
 
-This page documents the **pipeline mechanics** (triggers, parameters, agent,
+This page documents the **stage mechanics** (how it is switched on, agent,
 steps, outputs, and the GitHub parity story). For what the invoked converter
 actually does to the Markdown (pandoc styling, the LibreOffice page-numbered
 table of contents, the reference template, and how to run it locally), see the
-tool page: [Sentinel Word Report](../Tools/Documenter/Sentinel-Word-Report.md).
+tool page: [iSOC Blueprint Word Report](../Modules/iSOCBlueprint/Sentinel-Word-Report.md).
 This page does not repeat that detail.
 
 ## At a glance
 
 | Property | Value |
 | --- | --- |
-| File | [`Pipelines/Sentinel-Word-Report.yml`](../../Pipelines/Sentinel-Word-Report.yml) |
-| Trigger | Manual only (`trigger: none`, `pr: none`) |
-| Agent pool | `ubuntu-latest` (Microsoft-hosted) |
+| Pipeline | [`Pipelines/Sentinel-Blueprint.yml`](../../Pipelines/Sentinel-Blueprint.yml), stage `WordReport` |
+| Switched on by | The `publishWordReport` tick box at queue time (default off) |
+| Runs after | The `Document` stage, in parallel with the `SharePoint` stage when that is ticked too |
+| Input | This run's `sentinel-docs` artefact (`download: current`) |
+| Agent pool | `ubuntu-latest` (Microsoft-hosted), its own job |
 | Azure auth | **None** (never contacts Azure or Graph) |
-| Variable group / secrets | **None** |
-| Runtime parameters | `sourcePath`, `title`, `outputName`, `pandocVersion` |
-| Published artefact | `sentinel-word-report` (the `.docx`) |
+| Variable group / secrets | `sentinelWorkspaceName` from `sentinel-deployment` (shared with the rest of the pipeline); `pandocVersion` pipeline variable |
+| Published artefact | `sentinel-word-report` (`<workspace>.docx`) |
 | GitHub equivalent | **None** (ADO-only, no mirror) |
 
 ## Purpose
 
-The [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) writes a
+The [iSOC Blueprint](../Modules/iSOCBlueprint/Sentinel-Blueprint.md) writes a
 folder of numbered Markdown section files plus an `assets/` image store to
-`SecurityDocs/<workspace>/`. That is good for browsing in the repo but awkward to
-hand to a stakeholder. This pipeline closes the gap: it checks out that committed
-folder, renders it into one styled, page-numbered `.docx`, and publishes the
-document as a build artefact you can download from the run summary.
+`SecurityDocs/<workspace>/`. That is good for browsing in a repository but
+awkward to hand to a stakeholder. This stage closes the gap: it takes the
+Markdown the same run just produced, renders it into one styled,
+page-numbered `.docx`, and publishes the document as a build artefact you can
+download from the run summary.
 
 The render itself is done by
-[`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
-in its default `-Toc Baked` mode. See the tool page for how that works.
+[`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1) from the
+iSOCBlueprint module, in its default `-Toc Baked` mode. See the tool page for how that works.
 
-## Trigger and schedule
+## Running it
 
-The pipeline is **manual-run only**. Both automatic triggers are switched off:
+Queue the Blueprint (**Pipelines -> Sentinel-Blueprint -> Run pipeline**)
+and tick **Export: Word report**. Leave **Charts: Mermaid to PNG** on: the
+Word report pulls the chart images from `assets/`, and pandoc drops Mermaid
+fences, so with pre-rendering off the stage warns and the report carries no
+charts. Any mixture of the three outputs (Markdown pull request, Word
+report, SharePoint site) can be ticked on the same run.
 
-- `trigger: none` disables CI (branch) triggers, so a push never starts it.
-- `pr: none` disables pull-request triggers.
-
-There is **no cron schedule** and no `workflow_dispatch` equivalent (that is a
-GitHub Actions concept; on ADO the manual queue is the built-in dispatch).
-You start a run from **Pipelines -> Sentinel Word Report -> Run pipeline**, set
-any parameters that differ from their defaults, then download the artefact from
-the build **Summary -> Published artefacts -> `sentinel-word-report`**.
-
-This matches the manual posture of the Documenter pipeline
-([`Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml), also
-`trigger: none`); the Word Report deliberately runs after you have a fresh
-`SecurityDocs/<workspace>/` in the branch.
-
-## Parameters
-
-All four parameters are overridable at queue time:
-
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `sourcePath` | string | `SecurityDocs/SEC-UKS-PROD-SIEM-WS` | Documenter output folder to render. Must contain the section `.md` files and the `assets/` image folder (the `_raw/` JSON snapshot is ignored). |
-| `title` | string | `SEC-UKS-PROD-SIEM-WS - Sentinel Documentation` | The document title passed to the converter. |
-| `outputName` | string | `SEC-UKS-PROD-SIEM-WS.docx` | File name for the generated `.docx`, written under the artefact staging directory. |
-| `pandocVersion` | string | `3.10` | Pandoc release to install on the agent. Used to build the `.deb` download URL from the pandoc GitHub releases. |
-
-The defaults target the `SEC-UKS-PROD-SIEM-WS` workspace. Point `sourcePath` at a
-different `SecurityDocs/<workspace>/` folder to render another workspace's docs,
-and set `title` / `outputName` to match.
+Download the artefact from the run **Summary -> Published artefacts ->
+`sentinel-word-report`**.
 
 ## Where the source Markdown comes from
 
-The pipeline does not generate the Markdown. It expects
-`SecurityDocs/<workspace>/` to already exist in the checked-out branch. That
-folder is produced and committed by the Documenter pipeline
-([`Sentinel-Documenter.yml`](../../Pipelines/Sentinel-Documenter.yml)) to the
-private ADO mirror. This pipeline runs `checkout: self`, which brings that folder
-in with the rest of the repo, then renders it.
+The stage does not generate the Markdown and does not read it from the
+repository. It downloads the `sentinel-docs` artefact the `Document` stage
+published moments earlier (`download: current`) and renders
+`<docsRoot>/<workspace>/`, where `docsRoot` is
+`$(Pipeline.Workspace)/sentinel-docs`. The `_raw/` JSON in the artefact is
+ignored.
 
-If `sourcePath` does not resolve, the convert step logs an error via
-`##vso[task.logissue type=error]` and exits non-zero, failing the build.
+If that folder is missing (the workspace name in the variable group does not
+match the run), the convert step logs an error via
+`##vso[task.logissue type=error]` and exits non-zero, failing the stage.
 
 ## Agent pool
 
 `pool: vmImage: ubuntu-latest` (a Microsoft-hosted Ubuntu agent). Ubuntu is
-required because the page-numbered table of contents needs a layout engine, and
-LibreOffice plus `python3-uno` install cleanly on the Ubuntu image. See the tool
-page for the layout-engine rationale and the local-machine fallback behaviour.
+required because the page-numbered table of contents needs a layout engine,
+and LibreOffice plus `python3-uno` install cleanly on the Ubuntu image. See
+the tool page for the layout-engine rationale and the local-machine fallback
+behaviour.
 
 ## Steps, in order
 
-The pipeline is a single implicit job with three steps.
+One job, `Render`, with five steps.
 
-### 1. Checkout (`checkout: self`)
+### 1. Checkout (`checkout: self`, `fetchDepth: 1`)
 
-Checks out the repository, which brings `SecurityDocs/<workspace>/` (committed by
-the Documenter pipeline) onto the agent.
+Brings the converter scripts and the reference template onto the agent.
 
-### 2. Install pandoc + LibreOffice + python3-uno (`script`, bash)
+### 2. Download the artefact (`download: current`)
+
+Downloads this run's `sentinel-docs` artefact to `$(docsRoot)`.
+
+### 3. Install pandoc + LibreOffice + python3-uno (`script`, bash)
 
 Runs with `set -euo pipefail` and:
 
 - `apt-get install`s `libreoffice-writer`, `python3-uno`, and `fonts-liberation`.
-- Downloads the pandoc `.deb` for `${{ parameters.pandocVersion }}` from the
-  pandoc GitHub releases (`https://github.com/jgm/pandoc/releases/...`) and
-  installs it with `dpkg -i`.
+- Downloads the pandoc `.deb` for `$(pandocVersion)` from the pandoc GitHub
+  releases and installs it with `dpkg -i`.
 - Prints `pandoc --version`, `soffice --version`, and confirms
   `import uno` works (`python3-uno OK`) as a smoke check.
 
-This step needs outbound internet to GitHub and the Ubuntu apt mirrors; it is the
-only external network dependency in the pipeline.
+This step needs outbound internet to GitHub and the Ubuntu apt mirrors; it is
+the only external network dependency in the stage.
 
-### 3. Convert Markdown to Word (`pwsh`)
+### 4. Convert Markdown to Word (`PowerShell@2`)
 
-- Validates that `sourcePath` exists (errors and exits `1` if not).
-- Builds the output path under `$(Build.ArtifactStagingDirectory)` using
-  `outputName`.
-- Runs
-  [`Tools/Documenter/Report/Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1)
-  with `-Source`, `-OutputPath`, `-Title`, and `-Toc Baked`.
-- Fails the build if the script returns non-zero or the `.docx` was not written.
+- Validates that `<docsRoot>/<workspace>` exists (errors and exits `1` if not).
+- Warns when `prerenderChartsToPng` was off for the run.
+- Imports `Modules/iSOCBlueprint` and runs
+  [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
+  with `-Path`, `-OutputPath $(Build.ArtifactStagingDirectory)/<workspace>.docx`,
+  `-Title "<workspace> - Sentinel Documentation"`, and `-Toc Baked`.
+- Fails the stage if the conversion returns non-zero or the `.docx` was not written.
 - **TOC verification:** opens the produced `.docx` as a zip, reads
   `word/document.xml`, and counts LibreOffice `__RefHeading` anchors. A baked
   (page-numbered) table of contents carries these anchors, so if the count is
-  zero the pipeline treats the LibreOffice bake as having failed, logs an error,
-  and exits `1` rather than publishing a document with an empty contents field.
+  zero the stage treats the LibreOffice bake as having failed, logs an error,
+  and exits `1` rather than publishing a document with an empty contents
+  field.
 
-### 4. Publish the artefact (`publish`)
+### 5. Publish the artefact (`PublishPipelineArtifact@1`)
 
-Publishes `$(Build.ArtifactStagingDirectory)/${{ parameters.outputName }}` as the
+Publishes `$(Build.ArtifactStagingDirectory)/<workspace>.docx` as the
 pipeline artefact **`sentinel-word-report`**.
 
-## Variable groups, secrets, and repo variables
+## Variables, secrets, and authentication
 
-**None.** The pipeline references no variable group, no secret variables, and no
-service-connection-backed variables. Everything it needs is supplied by the four
-queue-time parameters and the tools it installs at runtime.
-
-## Authentication
-
-**None.** Unlike [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml),
-[`Sentinel-Drift-Detect.yml`](../../Pipelines/Sentinel-Drift-Detect.yml), and
-the other content pipelines, this pipeline never contacts Azure Resource Manager
-or Microsoft Graph. It only reads Markdown that is already committed to the repo
-and renders it locally on the agent. Consequently:
-
-- There is **no Azure service connection** (no `sc-sentinel-as-code`).
-- There is **no OIDC / workload-identity federation** and no `AzureCLI@2` or
-  login task.
-- No API permissions or RBAC roles are required to run it.
-
-This is the key CI asymmetry to note: the deploy and drift pipelines authenticate
-to Azure via the ADO service connection (or, on GitHub, via the `azure-login-oidc`
-composite action's federated credential); the Word Report needs neither because
-its input is committed content, not live workspace state. For the OIDC setup those
-other pipelines use, see [ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md).
+The stage reads `sentinelWorkspaceName` from the `sentinel-deployment`
+variable group (already loaded by the pipeline) and the `pandocVersion`
+pipeline variable (`3.10`). It uses **no** service connection, **no** OIDC
+or workload identity federation, and **no** API permissions: it only reads
+Markdown from the run's artefact and renders it locally on the agent. For
+the OIDC setup the other stages use, see
+[ADO OIDC Setup](../Deploy/ADO-OIDC-Setup.md).
 
 ## Outputs
 
 A single build artefact, **`sentinel-word-report`**, containing the generated
-`.docx` (named per the `outputName` parameter). Download it from the build
-**Summary -> Published artefacts**. Nothing is written back to the repository and
-no PR is opened.
+`<workspace>.docx`. Download it from the run **Summary -> Published
+artefacts**. Nothing is written back to the repository and no PR is opened
+by this stage.
 
 ## Failure conditions
 
-The build fails (non-zero exit, logged via `##vso[task.logissue type=error]`) if:
+The stage fails (non-zero exit, logged via `##vso[task.logissue type=error]`)
+if:
 
+- The `Document` stage failed (the stage then does not run at all).
 - The install step cannot fetch pandoc or the apt packages.
-- `sourcePath` does not resolve on the agent.
-- `Convert-MarkdownToWord.ps1` returns non-zero or does not write the `.docx`.
-- The baked table of contents is empty (zero `__RefHeading` anchors), indicating
-  the LibreOffice bake did not populate the field.
+- `<docsRoot>/<workspace>` is not in the artefact.
+- `Export-iSOCBlueprintWord` returns non-zero or does not write the `.docx`.
+- The baked table of contents is empty (zero `__RefHeading` anchors),
+  indicating the LibreOffice bake did not populate the field.
+
+A failed Word report never undoes the `Document` stage: the Markdown artefact
+and the docs pull request stand, and "Rerun failed stages" on the run page
+renders the same snapshot again.
 
 ## GitHub Actions parity
 
-**This pipeline is ADO-only.** There is no `*word*` workflow under
-[`.github/workflows/`](../../.github/workflows) and no GitHub mirror.
+**This stage is ADO-only.** There is no `*word*` workflow under
+[`.github/workflows/`](../../.github/workflows) and no GitHub mirror, and the
+GitHub Blueprint workflow has no equivalent input.
 
-This is one of the two documented asymmetries between the seven ADO pipelines and
-the seven GitHub workflows (the other being the GitHub-only
-`sentinel-deploy-nightly.yml` E2E smoke test). The reasons the Word Report stays
-ADO-only are practical:
+The reasons are practical:
 
-- The page-numbered contents needs LibreOffice plus `python3-uno` on the agent,
-  which the Ubuntu ADO image installs cleanly.
-- The Documenter Markdown it consumes is committed to the private ADO mirror in
-  the first place, so the source is already on the ADO side.
+- The page-numbered contents needs LibreOffice plus `python3-uno` on the
+  agent, which the Ubuntu ADO image installs cleanly.
+- The report is a hand-over document for stakeholders who work from the
+  private ADO side, where the Markdown pull request also lands.
 
-The underlying converter is cross-platform and can be run locally on any OS (with
-a static-contents fallback when LibreOffice + `python3-uno` are absent); see the
-tool page for that. Only the CI wiring is ADO-specific.
+The underlying converter is cross-platform and can be run locally on any OS
+(with a static-contents fallback when LibreOffice + `python3-uno` are
+absent); see the tool page for that. Only the CI wiring is ADO-specific.
 
 ## Related
 
-- [Sentinel Word Report (tool / renderer)](../Tools/Documenter/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
-- [Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) - the tool that produces the Markdown this pipeline renders.
-- [Pipelines overview](README.md) - the full set of seven ADO pipelines and their GitHub parity table.
+- [iSOC Blueprint Word Report (tool / renderer)](../Modules/iSOCBlueprint/Sentinel-Word-Report.md) - what the converter does, the reference template, and running it locally.
+- [Blueprint pipeline](Blueprint.md) - the pipeline this stage belongs to, with the other two outputs.
+- [iSOC Blueprint](../Modules/iSOCBlueprint/Sentinel-Blueprint.md) - the tool that produces the Markdown this stage renders.

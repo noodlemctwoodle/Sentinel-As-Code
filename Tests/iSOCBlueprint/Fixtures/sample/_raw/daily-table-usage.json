@@ -1,0 +1,1652 @@
+[
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 0,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 1,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 2,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 3,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 4,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 5,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 6,
+    "GB": 17.1429
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 7,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 8,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 9,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 10,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 11,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 12,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 13,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 14,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 15,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 16,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 17,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 18,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 19,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 20,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 21,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 22,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 23,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 24,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 25,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 26,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 27,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 28,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "SecurityEvent",
+    "DaysAgo": 29,
+    "GB": 16.5217
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 0,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 1,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 2,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 3,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 4,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 5,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 6,
+    "GB": 10.0
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 7,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 8,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 9,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 10,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 11,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 12,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 13,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 14,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 15,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 16,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 17,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 18,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 19,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 20,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 21,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 22,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 23,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 24,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 25,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 26,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 27,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 28,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "Syslog",
+    "DaysAgo": 29,
+    "GB": 9.1304
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 0,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 1,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 2,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 3,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 4,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 5,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 6,
+    "GB": 10.7143
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 7,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 8,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 9,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 10,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 11,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 12,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 13,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 14,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 15,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 16,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 17,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 18,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 19,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 20,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 21,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 22,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 23,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 24,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 25,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 26,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 27,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 28,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "CommonSecurityLog",
+    "DaysAgo": 29,
+    "GB": 9.7826
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 0,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 1,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 2,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 3,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 4,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 5,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 6,
+    "GB": 1.7143
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 7,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 8,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 9,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 10,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 11,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 12,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 13,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 14,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 15,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 16,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 17,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 18,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 19,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 20,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 21,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 22,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 23,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 24,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 25,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 26,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 27,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 28,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "DaysAgo": 29,
+    "GB": 1.6522
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 0,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 1,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 2,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 3,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 4,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 5,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 6,
+    "GB": 71.4286
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 7,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 8,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 9,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 10,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 11,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 12,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 13,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 14,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 15,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 16,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 17,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 18,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 19,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 20,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 21,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 22,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 23,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 24,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 25,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 26,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 27,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 28,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "FirewallLogs_CL",
+    "DaysAgo": 29,
+    "GB": 65.2174
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 0,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 1,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 2,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 3,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 4,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 5,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 6,
+    "GB": 13.5714
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 7,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 8,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 9,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 10,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 11,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 12,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 13,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 14,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 15,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 16,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 17,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 18,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 19,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 20,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 21,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 22,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 23,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 24,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 25,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 26,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 27,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 28,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "OfficeActivity",
+    "DaysAgo": 29,
+    "GB": 13.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 0,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 1,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 2,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 3,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 4,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 5,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 6,
+    "GB": 3.5714
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 7,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 8,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 9,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 10,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 11,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 12,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 13,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 14,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 15,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 16,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 17,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 18,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 19,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 20,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 21,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 22,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 23,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 24,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 25,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 26,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 27,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 28,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SigninLogs",
+    "DaysAgo": 29,
+    "GB": 3.2609
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 0,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 1,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 2,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 3,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 4,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 5,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 6,
+    "GB": 0.0714
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 7,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 8,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 9,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 10,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 11,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 12,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 13,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 14,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 15,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 16,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 17,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 18,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 19,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 20,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 21,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 22,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 23,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 24,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 25,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 26,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 27,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 28,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "SecurityIncident",
+    "DaysAgo": 29,
+    "GB": 0.0652
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 0,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 1,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 2,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 3,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 4,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 5,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 6,
+    "GB": 0.2857
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 7,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 8,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 9,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 10,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 11,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 12,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 13,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 14,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 15,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 16,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 17,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 18,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 19,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 20,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 21,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 22,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 23,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 24,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 25,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 26,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 27,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 28,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "LegacyCLv1_CL",
+    "DaysAgo": 29,
+    "GB": 0.3478
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 0,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 1,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 2,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 3,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 4,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 5,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 6,
+    "GB": 0.0071
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 7,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 8,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 9,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 10,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 11,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 12,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 13,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 14,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 15,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 16,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 17,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 18,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 19,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 20,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 21,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 22,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 23,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 24,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 25,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 26,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 27,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 28,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "DaysAgo": 29,
+    "GB": 0.0152
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 0,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 1,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 2,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 3,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 4,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 5,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 6,
+    "GB": 0.4286
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 7,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 8,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 9,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 10,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 11,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 12,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 13,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 14,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 15,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 16,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 17,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 18,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 19,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 20,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 21,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 22,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 23,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 24,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 25,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 26,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 27,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 28,
+    "GB": 0.3913
+  },
+  {
+    "DataType": "AZFWNetworkRule",
+    "DaysAgo": 29,
+    "GB": 0.3913
+  }
+]

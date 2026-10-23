@@ -75,6 +75,7 @@ canonical instructions in
 | Security-review a playbook / script / workflow | The file in question | Agent `security-reviewer` |
 | Triage a drift auto-PR or fix the drift detector | [Docs/Tools/Sentinel-Drift-Detection.md](Docs/Tools/Sentinel-Drift-Detection.md) | Agent `drift-engineer` |
 | Fix wrong output in `dependencies.json` or extend the KQL discovery extractor | [Docs/Tools/Dependency-Manifest.md](Docs/Tools/Dependency-Manifest.md) | Agent `dependencies-engineer` |
+| Develop or show the Blueprint report and dashboard without a tenant | [Docs/Tools/Blueprint-Demo-Workspace.md](Docs/Tools/Blueprint-Demo-Workspace.md) | `./Tools/New-BlueprintDemoWorkspace.ps1 -Build` |
 | Refresh `dependencies.json` (routine regeneration) | [Docs/Tools/Dependency-Manifest.md](Docs/Tools/Dependency-Manifest.md) | Prompt `/regenerate-deps` |
 
 ## Test before you ship

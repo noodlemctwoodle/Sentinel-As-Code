@@ -1,0 +1,18 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/linkedServices/Automation",
+    "name": "law-sentinel-test/Automation",
+    "properties": {
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.Automation/automationAccounts/aa-sentinel",
+      "provisioningState": "Succeeded"
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/linkedServices/adx-archive",
+    "name": "law-sentinel-test/adx-archive",
+    "properties": {
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.Kusto/clusters/adxsentinelarchive",
+      "provisioningState": "Succeeded"
+    }
+  }
+]

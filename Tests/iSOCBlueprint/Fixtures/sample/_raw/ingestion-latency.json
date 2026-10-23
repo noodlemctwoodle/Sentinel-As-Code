@@ -1,0 +1,3 @@
+[
+  { "OperationKey": "Data collection rule transform failed for stream Custom-FirewallLogs_CL", "Resource": "Ingestion", "Failures": 14, "Last": "2026-05-06T07:12:00Z" }
+]

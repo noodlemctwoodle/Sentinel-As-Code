@@ -1,0 +1,120 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "name": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "kind": "Scheduled",
+    "properties": {
+      "displayName": "Suspicious sign-in from rare country",
+      "severity": "High",
+      "enabled": true,
+      "tactics": [
+        "InitialAccess",
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1078",
+        "T1078.004",
+        "T1110"
+      ],
+      "alertRuleTemplateName": "tmpl-suspicious-signin",
+      "templateVersion": "1.0.0",
+      "lastModifiedUtc": "2024-01-15T08:00:00Z",
+      "query": "let recent = SigninLogs | where ResultType == 0;\nrecent\n| join kind=inner (AuditLogs | project UserPrincipalName) on UserPrincipalName\n| union imAuthentication",
+      "entityMappings": [
+        {
+          "entityType": "Account",
+          "fieldMappings": [
+            {
+              "identifier": "FullName",
+              "columnName": "UserPrincipalName"
+            }
+          ]
+        }
+      ],
+      "incidentConfiguration": {
+        "createIncident": true,
+        "groupingConfiguration": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "name": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "kind": "NRT",
+    "properties": {
+      "displayName": "Lateral movement detected",
+      "severity": "High",
+      "enabled": false,
+      "tactics": [
+        "LateralMovement"
+      ],
+      "techniques": [
+        "T1021"
+      ],
+      "subTechniques": [
+        "T1021.001"
+      ],
+      "alertRuleTemplateName": null
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "name": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "kind": "Fusion",
+    "properties": {
+      "displayName": "Fusion (built-in)",
+      "severity": "High",
+      "enabled": true,
+      "tactics": []
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "name": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "kind": "MicrosoftSecurityIncidentCreation",
+    "properties": {
+      "displayName": "Create incidents from MDE alerts",
+      "enabled": true,
+      "productFilter": "Microsoft Defender Advanced Threat Protection",
+      "severitiesFilter": [
+        "High",
+        "Medium"
+      ],
+      "displayNamesFilter": [],
+      "displayNamesExcludeFilter": [
+        "Test alert",
+        "Benign sample"
+      ]
+    }
+  },
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/alertRules/eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "name": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "kind": "Scheduled",
+    "properties": {
+      "displayName": "Failed logons across multiple accounts",
+      "severity": "Medium",
+      "enabled": true,
+      "tactics": [
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1110"
+      ],
+      "subTechniques": [
+        "T1110.003"
+      ],
+      "alertRuleTemplateName": null,
+      "lastModifiedUtc": "2026-09-01T08:00:00Z",
+      "query": "ThreatIntelligenceIndicator\n| where Active == true\n| join kind=inner (SigninLogs | project IPAddress) on $left.NetworkIP == $right.IPAddress",
+      "incidentConfiguration": {
+        "createIncident": false,
+        "groupingConfiguration": {
+          "enabled": false
+        }
+      }
+    }
+  }
+]

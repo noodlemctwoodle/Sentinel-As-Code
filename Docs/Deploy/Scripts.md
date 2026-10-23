@@ -6,6 +6,7 @@ one-time bootstrap and ad-hoc maintenance tooling.
 | Script | Purpose | Doc anchor |
 | --- | --- | --- |
 | `Setup-ServicePrincipal.ps1` | One-time bootstrap of all required service-principal permissions | [#setup-serviceprincipalps1](#setup-serviceprincipalps1) |
+| `Setup-SharePointPublisher.ps1` | One-time bootstrap of the SharePoint publisher identity: app registration, Sites.Selected consent, ADO service connection, federated credential | [#setup-sharepointpublisherps1](#setup-sharepointpublisherps1) |
 | `Deploy-SentinelContentHub.ps1` | Deploys Content Hub solutions and OoB content | [#deploy-sentinelcontenthubps1](#deploy-sentinelcontenthubps1) |
 | `Deploy-CustomContent.ps1` | Deploys repo-authored custom content | [#deploy-customcontentps1](#deploy-customcontentps1) |
 | `Deploy-DefenderDetections.ps1` | Deploys Defender XDR custom detections via Graph | [#deploy-defenderdetectionsps1](#deploy-defenderdetectionsps1) |
@@ -184,6 +185,136 @@ Both `SubscriptionId` and `ServicePrincipalAppId` are mandatory, so every invoca
 6. **Completion**: Prints confirmation that setup is complete and the pipeline is ready to run autonomously
 
 ---
+
+## Setup-SharePointPublisher.ps1
+
+**Location:** `Deploy/setup/Setup-SharePointPublisher.ps1`
+
+One-time bootstrap of the identity the Blueprint pipeline's SharePoint
+stage signs in with. It replaces the six manual steps (Entra app, SharePoint
+permission, admin consent, Azure role, ADO service connection, federated
+credential) with one idempotent run, and prints the
+`Initialize-iSOCBlueprintSite` command to run next.
+
+### Key Features
+
+- Finds or creates the publisher app registration and its service
+  principal. No secret, no certificate.
+- Declares the **SharePoint Online** application permission `Sites.Selected`
+  (not Microsoft Graph's) and grants admin consent through an app role
+  assignment on the SharePoint Online service principal.
+- Grants the publisher Reader on one empty resource group, so the
+  `AzureCLI@2` task can select a subscription after it signs in.
+- Creates the `sc-sentinel-sharepoint` Azure Resource Manager service
+  connection in the ADO project with workload identity federation (manual
+  mode), scoped to that subscription, and reads back the issuer and subject
+  ADO assigned.
+- Adds the federated credential (issuer, subject, audience
+  `api://AzureADTokenExchange`) to the app.
+- Optionally authorises `Sentinel-Blueprint` to use the connection and
+  writes `sharePointSiteUrl` into the `sentinel-deployment` variable group.
+- Supports `-WhatIf`; every step checks before it changes anything, so
+  re-running after a partial failure finishes the job.
+
+### Prerequisites
+
+- Signed in with `Connect-AzAccount` as a user who can create app
+  registrations and grant admin consent in Entra ID (Application
+  Administrator plus Privileged Role Administrator, or Global
+  Administrator), assign roles on the resource group, and create service
+  connections in the ADO project. Microsoft Graph sign-in is prompted when
+  needed (`Application.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`).
+- Azure DevOps access. By default the script uses your own sign-in: it
+  asks the signed-in Azure account for an Azure DevOps OAuth token, which
+  works when the organisation is connected to the same Entra tenant and the
+  account is a member. Otherwise pass a personal access token with
+  `-AdoPersonalAccessToken` (scopes: Project and Team read; Service
+  Connections read, query and manage; Variable Groups read and manage;
+  Build read and execute).
+- An existing, preferably empty, resource group for the Reader grant.
+- Modules: Az.Accounts, Az.Resources, Microsoft.Graph.Applications
+  (auto-installed when missing).
+
+### Parameter Reference
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `-AdoOrganizationUrl` | Yes | The organisation, for example `https://dev.azure.com/contoso`. |
+| `-AdoProject` | Yes | The project that holds the Blueprint pipeline. |
+| `-SubscriptionId` | Yes | Subscription the connection is scoped to. |
+| `-ReaderResourceGroup` | Yes | Existing resource group the publisher gets Reader on. |
+| `-ServiceConnectionName` | No | Defaults to `sc-sentinel-sharepoint`, what the pipeline expects. |
+| `-PublisherAppName` | No | Display name of the app to find or create. Default `iSOC Blueprint SharePoint publisher`. When no app has that name, an app under an earlier default (`Sentinel Blueprint SharePoint publisher`, then `Sentinel Documenter SharePoint publisher`) is renamed to it rather than a second publisher created. |
+| `-PublisherAppId` | No | Use an existing app registration instead of creating one. |
+| `-SharePointSiteUrl` | No | Written to `sharePointSiteUrl` in the variable group. |
+| `-VariableGroupName` | No | Defaults to `sentinel-deployment`. |
+| `-AuthorizePipeline` | No | Pipeline to authorise for the connection. Default `Sentinel-Blueprint`; empty string skips. |
+| `-AdoPersonalAccessToken` | No | SecureString PAT, only when your own sign-in cannot reach the organisation (different tenant, or not a member). |
+| `-WhatIf` | No | Print every change without making it. |
+
+### Usage Examples
+
+#### Preview everything first
+
+```powershell
+./Deploy/setup/Setup-SharePointPublisher.ps1 `
+    -AdoOrganizationUrl 'https://dev.azure.com/contoso' `
+    -AdoProject 'sentinel-as-code' `
+    -SubscriptionId '00000000-0000-0000-0000-000000000000' `
+    -ReaderResourceGroup 'rg-sentinel-publisher' `
+    -SharePointSiteUrl 'https://contoso.sharepoint.com/sites/isoc-blueprint' `
+    -WhatIf
+```
+
+#### Create the lot
+
+```powershell
+./Deploy/setup/Setup-SharePointPublisher.ps1 `
+    -AdoOrganizationUrl 'https://dev.azure.com/contoso' `
+    -AdoProject 'sentinel-as-code' `
+    -SubscriptionId '00000000-0000-0000-0000-000000000000' `
+    -ReaderResourceGroup 'rg-sentinel-publisher' `
+    -SharePointSiteUrl 'https://contoso.sharepoint.com/sites/isoc-blueprint'
+```
+
+### How It Works
+
+1. Verifies the Azure context, switches to the subscription and connects
+   to Microsoft Graph with the two application scopes.
+2. Looks the app up by `-PublisherAppId` or display name; creates it with
+   `New-MgApplication` (single tenant) and its service principal when
+   absent.
+3. Adds SharePoint Online (`00000003-0000-0ff1-ce00-000000000000`) role
+   `Sites.Selected` (`20d37865-089c-4dee-8c41-6967602d4ac8`) to the app's
+   required permissions and creates the app role assignment that is admin
+   consent.
+4. Assigns Reader on the resource group with `New-AzRoleAssignment
+   -ObjectType ServicePrincipal`, which skips the directory lookup, so a
+   service principal created seconds earlier is not rejected while it
+   replicates.
+5. Calls the ADO REST API: looks the project up, creates the `azurerm`
+   endpoint with `authorization.scheme = WorkloadIdentityFederation`,
+   `creationMode = Manual` and subscription scope, then reads
+   `workloadIdentityFederationIssuer` and `workloadIdentityFederationSubject`
+   back. New connections get Entra-issued values
+   (`https://login.microsoftonline.com/<tenant id>/v2.0` and
+   `/eid1/c/pub/t/.../sc/<org id>/<connection id>`); the script falls back
+   to `https://vstoken.dev.azure.com/<org id>` and
+   `sc://<org>/<project>/<name>` only when the API returns neither.
+6. Adds the federated credential with `New-MgApplicationFederatedIdentityCredential`.
+7. Authorises the pipeline through the `pipelinepermissions` API and, when
+   `-SharePointSiteUrl` is given, sets `sharePointSiteUrl` in the variable
+   group, keeping its other variables.
+
+Re-running is safe: every step that is already done reports so and is
+skipped, which is also how you set the site URL later.
+
+What it leaves to you: clicking Verify on the connection; preparing the
+site with `Initialize-iSOCBlueprintSite`, which needs your own PnP
+sign-in app and grants this app FullControl on that one site; and the first
+pipeline run, queued with **Export: SharePoint site** and **SharePoint:
+what-if** ticked. See
+[iSOC Blueprint SharePoint Site](../Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md#setting-it-up).
 
 ## Deploy-SentinelContentHub.ps1
 
@@ -1154,8 +1285,10 @@ them to their new home.
   content on your next commit.
 - Is idempotent: paths already at the new location are skipped. When both
   the old and new path exist (a partial migration), the old folder's
-  contents are merged into the new folder and a warning is emitted for
-  anything that would collide.
+  contents are merged into the new folder at every depth, so a
+  customisation in a subfolder both sides have still comes across. A
+  warning is emitted for each file that would collide (it is left in
+  place), and old folders the merge empties are removed.
 - Does NOT rewrite file contents, regenerate `dependencies.json`, or
   commit. After running it, review `git status`, run
   `./Tools/Build-DependencyManifest.ps1 -Mode Generate`, then commit.
@@ -1269,7 +1402,7 @@ which includes platform tables such as `AzureDiagnostics` that are fed
 by diagnostic settings. Those must never be migrated. The `_CL` suffix
 is enforced at table creation and is the authoritative custom-table
 marker, so the script excludes anything without it and says why. This
-matches the filter used by the documenter's SENT-047 check.
+matches the filter used by the blueprint's SAC-PLT-02 check.
 
 ### Two DCR shapes
 
@@ -1398,12 +1531,13 @@ Unit tests: `Tests/Test-InvokeClassicTableMigration.Tests.ps1`.
 
 ---
 
-## Documenter scripts
+## iSOCBlueprint module
 
-The repository documentation generator lives under `Tools/Documenter/`
-(`Export-SentinelInventory.ps1`, `Convert-SentinelInventoryToMarkdown.ps1`,
-`Convert-MermaidToImage.ps1`, plus the `Report/` and `Private/` helpers)
-and is documented separately. See
-[Sentinel Documenter](../Tools/Documenter/Sentinel-Documenter.md) for the
+The Blueprint (the workspace documentation, gap analysis and maturity
+assessment) is the PowerShell module
+[`Modules/iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md):
+`New-iSOCBlueprint` produces any output in one command, and eleven more
+commands run each step on its own. It is documented separately. See
+[iSOC Blueprint](../Modules/iSOCBlueprint/Sentinel-Blueprint.md) for the
 inventory export model, Markdown/Word report generation, and diagram
 rendering.

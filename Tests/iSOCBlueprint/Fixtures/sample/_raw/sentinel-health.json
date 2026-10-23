@@ -1,0 +1,4 @@
+[
+  {"SentinelResourceName": "Office 365", "SentinelResourceKind": "Office365", "SentinelResourceType": "Data connector", "Events": 168, "LastEvent": "2026-05-06T07:00:00Z", "Statuses": ["Success", "Failure"], "Failures": 6, "LastFailure": "2026-05-05T22:00:00Z"},
+  {"SentinelResourceName": "Suspicious sign-in from rare country", "SentinelResourceKind": "Scheduled", "SentinelResourceType": "Analytics Rule", "Events": 2016, "LastEvent": "2026-05-06T07:55:00Z", "Statuses": ["Success"], "Failures": 0, "LastFailure": null}
+]

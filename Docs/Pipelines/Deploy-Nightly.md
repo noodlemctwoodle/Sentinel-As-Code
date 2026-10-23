@@ -334,7 +334,7 @@ This workflow publishes no build artefacts. Its outputs are:
 
 This nightly E2E smoke test has **no Azure DevOps counterpart**. It is one
 of the two documented asymmetries between the CI systems: it is
-GitHub-only, and `Sentinel-Word-Report.yml` is ADO-only. See
+GitHub-only, and the Blueprint's Word report stage is ADO-only. See
 [Pipelines](README.md#github-actions-parity) for the full mapping.
 
 Note it is distinct from the weekly production deploy

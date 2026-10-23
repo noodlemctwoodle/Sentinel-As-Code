@@ -1,0 +1,26 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "isoc-blueprint-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/isocBlueprint/IsocBlueprintWebPart.js",
+          "manifest": "./src/webparts/isocBlueprint/IsocBlueprintWebPart.manifest.json"
+        }
+      ]
+    },
+    "isoc-blueprint-chart-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/isocBlueprintChart/IsocBlueprintChartWebPart.js",
+          "manifest": "./src/webparts/isocBlueprintChart/IsocBlueprintChartWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "IsocBlueprintWebPartStrings": "lib/webparts/isocBlueprint/loc/{locale}.js"
+  }
+}

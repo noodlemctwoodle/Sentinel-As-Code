@@ -1,0 +1,28 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "4ae8707c-ca6f-40cb-a974-c94d023de6e5",
+  "alias": "IsocBlueprintChartWebPart",
+  "componentType": "WebPart",
+
+  // The "*" signifies that the version should be taken from the package.json
+  "version": "*",
+  "manifestVersion": 2,
+
+  // Draws a chart from data the Blueprint publisher stores in the web part's
+  // own properties. It runs no script a page author supplies, so it does not
+  // need custom script enabled on the site.
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart"],
+  "supportsThemeVariants": true,
+
+  "preconfiguredEntries": [{
+    "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Advanced
+    "group": { "default": "Advanced" },
+    "title": { "default": "iSOC Blueprint chart" },
+    "description": { "default": "A chart on an iSOC Blueprint section page, drawn from data the Blueprint publisher supplies" },
+    "officeFabricIconFontName": "BarChartVertical",
+    "properties": {
+      "chartJson": ""
+    }
+  }]
+}

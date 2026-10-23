@@ -1,0 +1,4 @@
+[
+  {"Category": "AzureFirewallApplicationRule", "LogCount": 3099},
+  {"Category": "AzureFirewallNetworkRule", "LogCount": 9000}
+]

@@ -27,6 +27,7 @@ exact versions in
 | `Pester` | 5.7.1 | 5.0.0 | Runs every `Tests/*.Tests.ps1` suite |
 | `powershell-yaml` | 0.4.12 | any | YAML schema tests, dependency-manifest gate, content parsing |
 | `Az.Accounts` | 2.0.0+ | 2.0.0 | Hard dependency of `Sentinel.Common`, imported transitively by the module-unit tests |
+| `PnP.PowerShell` | `pnpVersion` in `Pipelines/Sentinel-Blueprint.yml` (3.4.1) | optional, exact version | `Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1` checks every PnP call in the SharePoint scripts against it. CI installs it and fails the suite without it; locally the suite is skipped when that version is missing |
 
 All other Az / Microsoft.Graph cmdlets used by the deploy scripts are **mocked**
 in the test suite (`Mock -ModuleName Sentinel.Common ...`), so they are not
@@ -41,7 +42,7 @@ needed to validate the project.
 | `Az.LogicApp` | Declared in [`Set-PlaybookPermissions.ps1`](../../Deploy/permissions/Set-PlaybookPermissions.ps1)'s `Requires:` header, but the script reads Logic App resources via `Get-AzResource` (`Az.Resources`) and assigns roles via `*-AzRoleAssignment`; no `Az.LogicApp` cmdlet is actually called, so the dependency is effectively unused today | `Requires:` header |
 | `Az.KeyVault` | Playbook permissions / Key Vault references (per [Scripts](Scripts.md)) | docs |
 | `Az.ManagedServiceIdentity` | Service-principal / managed-identity setup (per [Scripts](Scripts.md)) | docs |
-| `Az.OperationalInsights` | [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) and the nightly workflow (`Get-AzOperationalInsightsWorkspace`); Documenter collector | cmdlet usage |
+| `Az.OperationalInsights` | [`Sentinel-Deploy.yml`](../../Pipelines/Sentinel-Deploy.yml) and the nightly workflow (`Get-AzOperationalInsightsWorkspace`); Blueprint collector | cmdlet usage |
 | `Microsoft.Graph.Applications` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) | `Install-Module` (auto) |
 | `Microsoft.Graph.Identity.Governance` | [`Setup-ServicePrincipal.ps1`](../../Deploy/setup/Setup-ServicePrincipal.ps1) - supplies the `*-MgRoleManagementDirectoryRoleAssignment` cmdlets | `Install-Module` (auto) |
 | `powershell-yaml` | [`Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), [`Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1), [`Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1), [`Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1), [`Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) | `Install-Module` (auto) |
@@ -55,11 +56,18 @@ avoids `Az.ResourceGraph` - it lists DCRs and their associations by calling
 `Invoke-AzRestMethod` directly against the ARM REST API, so `Az.Accounts` (for
 the authenticated context) is the only module it needs.
 
-## Sentinel Documenter
+## iSOC Blueprint
 
-The read-only Documenter (`Tools/Documenter/`) pins its own module set in
-[`Documenter.psd1`](../../Tools/Documenter/Documenter.psd1). The collector
-imports the Az modules; the renderer only needs `powershell-yaml`.
+The read-only Blueprint, the
+[`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md) module, records its
+module set in
+[`Blueprint.psd1`](../../Modules/iSOCBlueprint/Engine/Blueprint.psd1). The
+collector (`Export-iSOCBlueprintInventory`) imports the Az modules; the
+renderer (`ConvertTo-iSOCBlueprint`) only needs `powershell-yaml`; publishing
+and setting up the SharePoint site need PowerShell 7.4 and PnP.PowerShell
+3.4.1. The module declares no required modules: each command needs only what
+its step uses, and `Test-iSOCBlueprintPrerequisite` lists what a machine has
+and is missing.
 
 | Module | Pinned version |
 | --- | --- |
@@ -82,8 +90,9 @@ is a standalone helper (not part of the deploy path) that needs:
 | Dependency | Required by |
 | --- | --- |
 | `git` (2.x+ on PATH) | [`Import-CommunityRules.ps1`](../../Tools/Import-CommunityRules.ps1), [`Migrate-ForkLayout.ps1`](../../Tools/Migrate-ForkLayout.ps1) |
-| `pandoc` (on PATH) | [`Convert-MarkdownToWord.ps1`](../../Tools/Documenter/Report/Convert-MarkdownToWord.ps1), [`Convert-FolderToWordReport.ps1`](../../Tools/Documenter/Report/Convert-FolderToWordReport.ps1) |
-| Node.js + `@mermaid-js/mermaid-cli` | [`Convert-MermaidToImage.ps1`](../../Tools/Documenter/Convert-MermaidToImage.ps1) |
+| `pandoc` (on PATH) | [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1) |
+| LibreOffice + `python3-uno` (optional) | [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1): page numbers in the contents |
+| Node.js + `@mermaid-js/mermaid-cli` | [`ConvertTo-iSOCBlueprintChartImage`](../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprintChartImage.ps1) |
 | Azure CLI + Bicep (`az bicep build`) | PR-validation `bicep-build` job |
 | Azure CLI (`az`) | [`Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1) (`az automation account show`, `az role assignment create` / `delete` / `list`) |
 

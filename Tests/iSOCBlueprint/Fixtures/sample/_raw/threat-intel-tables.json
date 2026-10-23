@@ -1,0 +1,5 @@
+[
+  {"Table": "ThreatIntelIndicators", "Records30d": 5120, "Records7d": 1180, "FirstSeen": "2026-04-06T00:12:00Z", "LastSeen": "2026-05-06T07:40:00Z"},
+  {"Table": "ThreatIntelObjects", "Records30d": 820, "Records7d": 190, "FirstSeen": "2026-04-06T00:12:00Z", "LastSeen": "2026-05-06T07:40:00Z"},
+  {"Table": "ThreatIntelligenceIndicator", "Records30d": 0, "Records7d": 0, "FirstSeen": null, "LastSeen": null}
+]

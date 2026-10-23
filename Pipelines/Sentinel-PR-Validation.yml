@@ -82,7 +82,7 @@ stages:
             fetchDepth: 1
 
           - task: PowerShell@2
-            displayName: "Install Pester and powershell-yaml"
+            displayName: "Install Pester, powershell-yaml and PnP.PowerShell"
             inputs:
               targetType: "inline"
               pwsh: true
@@ -94,7 +94,19 @@ stages:
                 if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
                     Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
                 }
-                Get-Module -ListAvailable Pester, powershell-yaml | Format-Table Name, Version
+                # PnP.PowerShell for Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1,
+                # which checks every PnP call in the SharePoint scripts against the
+                # version the Blueprint pipeline pins. Read from that pipeline so
+                # the two cannot drift; the suite fails in CI when it is missing.
+                $blueprint = Get-Content -Raw -LiteralPath "$(Build.SourcesDirectory)/Pipelines/Sentinel-Blueprint.yml"
+                if ($blueprint -notmatch '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') {
+                    throw 'pnpVersion not found in Pipelines/Sentinel-Blueprint.yml'
+                }
+                $pnpVersion = $Matches['v']
+                if (-not (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $pnpVersion })) {
+                    Install-Module -Name PnP.PowerShell -RequiredVersion $pnpVersion -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable Pester, powershell-yaml, PnP.PowerShell | Format-Table Name, Version
 
           - task: PowerShell@2
             displayName: "Run PR validation"

@@ -88,11 +88,25 @@ jobs:
         with:
           fetch-depth: 1
 
+      # The SharePoint PnP call check (Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1)
+      # needs the PnP.PowerShell version the Blueprint pipeline pins, read
+      # from there so the two cannot drift. The suite fails in CI without it.
+      - name: Read the pinned PnP.PowerShell version
+        id: pnp
+        shell: pwsh
+        run: |
+          $blueprint = Get-Content -Raw -LiteralPath 'Pipelines/Sentinel-Blueprint.yml'
+          if ($blueprint -notmatch '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') {
+              throw 'pnpVersion not found in Pipelines/Sentinel-Blueprint.yml'
+          }
+          "version=$($Matches['v'])" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Set up PowerShell modules
         uses: ./.github/actions/setup-pwsh-modules
         with:
           pester-version: ${{ env.PESTER_VERSION }}
           yaml-version:   ${{ env.YAML_VERSION }}
+          pnp-version:    ${{ steps.pnp.outputs.version }}
 
       # Calls the cross-platform PR-validation entrypoint that the ADO
       # pipeline also calls. Single source of truth for test discovery,

@@ -105,7 +105,10 @@ named, formatted, and validated. See [ARM to YAML Conversion](ARM-to-YAML-Conver
 Analytics rules declare the connectors they depend on in
 `requiredDataConnectors`. The Toolkit ships a Content Hub connector catalogue
 (631 connectors covering 744 tables) that maps Log Analytics tables to the
-connector that provides them. When your workspace uses connectors or tables the
+connector that provides them. The iSOC Blueprint reads the same catalogue
+(copied by `Update-iSOCBlueprintConnectorCatalogue` in the
+[iSOCBlueprint module](../../Modules/iSOCBlueprint/README.md)) to name the
+connector behind each table in a workspace. When your workspace uses connectors or tables the
 catalogue does not know about (a private or codeless connector, or a custom
 `_CL` log table), you register them so that validation and the
 **Populate Required Data Connectors from Query** command recognise them.

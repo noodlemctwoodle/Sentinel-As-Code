@@ -1,0 +1,17 @@
+[
+  {
+    "Type": "IP",
+    "Count": 4200,
+    "Indicators": 3900
+  },
+  {
+    "Type": "Domain",
+    "Count": 1800,
+    "Indicators": 1750
+  },
+  {
+    "Type": "URL",
+    "Count": 600,
+    "Indicators": 590
+  }
+]

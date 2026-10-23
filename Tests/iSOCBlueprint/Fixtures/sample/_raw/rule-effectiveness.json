@@ -1,0 +1,24 @@
+[
+  {
+    "AlertRuleId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "RuleName": "Suspicious sign-in from rare country",
+    "Incidents": 30,
+    "Closed": 24,
+    "TruePositive": 3,
+    "FalsePositive": 19,
+    "BenignPositive": 1,
+    "Undetermined": 1,
+    "FPRate": 79.2
+  },
+  {
+    "AlertRuleId": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "RuleName": "Failed logons across multiple accounts",
+    "Incidents": 10,
+    "Closed": 8,
+    "TruePositive": 1,
+    "FalsePositive": 7,
+    "BenignPositive": 0,
+    "Undetermined": 0,
+    "FPRate": 87.5
+  }
+]

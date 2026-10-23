@@ -70,9 +70,30 @@ Azure resources that host Sentinel content.
 | --- | --- |
 | [Sentinel Common Module](Modules/Sentinel-Common-Module.md) | The shared `Modules/Sentinel.Common` module (SemVer 1.1.1): `Write-PipelineMessage`, `Invoke-SentinelApi`, `Connect-AzureEnvironment` and the KQL-discovery helpers reused across the deployer scripts |
 
+### iSOC Blueprint - `Modules/iSOCBlueprint/`
+
+The iSOC Blueprint is the read-only workspace documentation, gap analysis and
+maturity assessment, shipped as the `iSOCBlueprint` PowerShell module:
+`New-iSOCBlueprint` produces JSON, Markdown, a Word report or a SharePoint site
+in one command, and eleven more commands run each step on its own. Its docs
+live in `Docs/Modules/iSOCBlueprint/`.
+
+| Doc | What it covers |
+| --- | --- |
+| [Module README](../Modules/iSOCBlueprint/README.md) | Quick start, the twelve commands, what each needs, the layout, and where each old script went |
+| [iSOC Blueprint](Modules/iSOCBlueprint/Sentinel-Blueprint.md) | The operating guide: what the iSOC Blueprint collects and produces, how to read the report, running it in CI or locally, permissions, the gap engine, the maturity assessment and the cost estimator |
+| [Renderer Design](Modules/iSOCBlueprint/Blueprint-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
+| [Section Model](Modules/iSOCBlueprint/Section-Model.md) | The JSON every Blueprint run writes per section (`sections/*.json`): blocks, text runs, charts as data, with its schema |
+| [Conventions](Modules/iSOCBlueprint/Blueprint-References.md) | Durable record of every API version, module, KQL query, and Learn page the Blueprint relies on (rendered as `99-references.md`) |
+| [Maturity Model](Modules/iSOCBlueprint/Sentinel-Maturity-Model.md) | The Sentinel-As-Code maturity assessment: eleven areas scored 0 to 5 from the gap outcomes and the captures, the roadmap, quick wins and the NIST CSF 2.0 rollup |
+| [Health check cross-reference](Modules/iSOCBlueprint/Health-Check-Coverage.md) | Where every section of the contributed health check lives in the Blueprint, page by page, with the gap rule that covers it |
+| [Data Lake Coverage](Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) | What the Blueprint captures and renders for the Microsoft Sentinel data lake tier |
+| [Word Report](Modules/iSOCBlueprint/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
+| [SharePoint Site](Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |
+
 ## Pipelines - `Pipelines/` (and `.github/workflows/`)
 
-Seven Azure DevOps pipelines mirrored by seven GitHub Actions workflows. Start at
+Eight Azure DevOps pipelines, seven of them mirrored by GitHub Actions workflows. Start at
 the index for the GitHub/ADO parity map, then the per-pipeline pages.
 
 | Doc | What it covers |
@@ -83,10 +104,11 @@ the index for the GitHub/ADO parity map, then the per-pipeline pages.
 | [Deploy](Pipelines/Deploy.md) | The main end-to-end deploy: infra, Content Hub, custom content, Defender XDR (stages, variable group, parameters, service connection, usage) |
 | [Deploy Nightly](Pipelines/Deploy-Nightly.md) | GitHub-only nightly E2E smoke test against the throwaway `Infra/test-workspace/` |
 | [Drift Detect](Pipelines/Drift-Detect.md) | Portal-drift detection and the auto-PR that absorbs it back into the repo, on both CI systems |
-| [Documenter](Pipelines/Documenter.md) | CI/CD wiring for the Sentinel Documenter (daily on GitHub, manual-trigger-only on ADO) |
+| [Blueprint](Pipelines/Blueprint.md) | CI/CD wiring for the iSOC Blueprint (daily on GitHub, manual-trigger-only on ADO) |
 | [Dependency Update](Pipelines/Dependency-Update.md) | Daily `dependencies.json` drift check and auto-PR |
 | [DCR Inventory](Pipelines/DCR-Inventory.md) | CI/CD wiring for the DCR-watchlist sync automation account and runbook |
-| [Word Report](Pipelines/Word-Report.md) | ADO-only pipeline that renders the Documenter Markdown pack into a page-numbered Word `.docx` |
+| [Word Report](Pipelines/Word-Report.md) | ADO-only stage of the Blueprint that renders the Blueprint Markdown pack into a page-numbered Word `.docx` |
+| [SharePoint Publish](Pipelines/SharePoint-Publish.md) | Publishes the generated iSOC Blueprint SharePoint site: a tick box on the ADO Blueprint run, a chained workflow on GitHub, after every Blueprint run, on both CI systems |
 
 ## Tests - `Tests/`
 
@@ -103,6 +125,7 @@ CI, maintenance, and reporting that runs *around* deployment.
 | [Dependency Manifest](Tools/Dependency-Manifest.md) | Auto-derived `dependencies.json` from KQL discovery; PR-validation drift gate; daily auto-PR refresh |
 | [Sentinel Drift Detection](Tools/Sentinel-Drift-Detection.md) | Daily detection of portal-edited rules with auto-PR back into the repo |
 | [DCR Watchlist Sync](Tools/DCR-Watchlist.md) | Auto-populated DCR inventory watchlist, billing reporting, runbook deployment |
+| [Blueprint Demo Workspace](Tools/Blueprint-Demo-Workspace.md) | `New-BlueprintDemoWorkspace.ps1`: a synthetic 2 TB a day workspace built from this repository's content, for developing and showing the Blueprint report and dashboard without a tenant |
 | [SDL Migration Workbook Export](Tools/SDL-Migration-Workbook-Export.md) | Read-only `Export-SdlMigrationWorkbook.ps1` that mirrors every Sentinel Data Lake Migration workbook dataset into one multi-sheet `.xlsx` |
 
 ### Classic to DCR - `Tools/ClassicToDcr/`
@@ -125,18 +148,6 @@ exists, this one builds a new one.
 | Doc | What it covers |
 | --- | --- |
 | [DCR from Schema](Tools/DcrFromSchema/Dcr-From-Schema.md) | Full reference for `New-DcrFromSchema.ps1`: the accepted schema shapes, table plans, every documented limit and the Microsoft page it came from, how pasted input is sanitised, the guid-to-string reconciliation, the two-template deployment order, and troubleshooting |
-
-### Documenter - `Tools/Documenter/`
-
-The read-only documentation generator.
-
-| Doc | What it covers |
-| --- | --- |
-| [Sentinel Documenter](Tools/Documenter/Sentinel-Documenter.md) | Read-only daily inventory + gap-analysis that renders a Markdown documentation pack from a live workspace |
-| [Renderer Design](Tools/Documenter/Documenter-Renderer-Design.md) | Design spec for the Markdown renderer: what drives each chart and section |
-| [References & Conventions](Tools/Documenter/Documenter-References.md) | Durable record of every API version, module, KQL query, and Learn page the Documenter relies on (rendered as `99-references.md`) |
-| [Data Lake Coverage](Tools/Documenter/Sentinel-Data-Lake-Coverage.md) | What the Documenter captures and renders for the Microsoft Sentinel data lake tier |
-| [Word Report](Tools/Documenter/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
 
 ## Toolkit - companion VS Code extension
 

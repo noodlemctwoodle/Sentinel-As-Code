@@ -13,13 +13,13 @@ one read-only pass against the workspace.
 | Export script | [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) |
 | Companion workbook | [`Content/Workbooks/SentinelDataLake/workbook.json`](../../Content/Workbooks/SentinelDataLake/workbook.json) |
 | Workbook metadata | [`Content/Workbooks/SentinelDataLake/metadata.json`](../../Content/Workbooks/SentinelDataLake/metadata.json) (`sourceId: SentinelDataLake`) |
-| Documenter coverage of Lake | [`Documenter/Sentinel-Data-Lake-Coverage.md`](Documenter/Sentinel-Data-Lake-Coverage.md) |
+| iSOC Blueprint coverage of Lake | [`Docs/Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md`](../Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) |
 
 The folder holds both the workbook (`workbook.json`, deployed like any other
 custom workbook by the Workbooks stage of
 [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1))
 and this standalone exporter. The script is **not** part of the deploy or the
-Documenter pipeline. It is an on-demand analyst tool that you run by hand when
+Blueprint pipeline. It is an on-demand analyst tool that you run by hand when
 you want the Lake migration analysis as a spreadsheet.
 
 ## What it produces
@@ -144,7 +144,7 @@ Three parameters are mandatory; everything else has a default.
 `-CompressionRatio` is a tunable modelling input here (default `10`); it is not
 the same figure as the fixed 6:1 compression Microsoft documents for the Lake
 storage meter, which is described in the
-[Data Lake coverage doc](Documenter/Sentinel-Data-Lake-Coverage.md). Adjust it
+[Data Lake coverage doc](../Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md). Adjust it
 if you want the export to model a different assumption.
 
 ### Analytics commitment-tier rates
@@ -227,28 +227,28 @@ it rejects a Windows drive-letter path (for example `C:\Reports\foo.xlsx`) up
 front with a clear message rather than failing deep in path handling, so a
 copied Windows example fails helpfully instead of cryptically.
 
-## Relationship to the Documenter Data Lake coverage
+## Relationship to the Blueprint Data Lake coverage
 
-The [Sentinel Documenter](Documenter/Sentinel-Documenter.md) renders a Data
+The [iSOC Blueprint](../Modules/iSOCBlueprint/Sentinel-Blueprint.md) renders a Data
 Lake section (Section 88) as part of its automatic inventory report; what that
 section captures and renders is documented in
-[Sentinel Data Lake, Documenter coverage](Documenter/Sentinel-Data-Lake-Coverage.md).
+[Sentinel Data Lake, iSOC Blueprint coverage](../Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md).
 
 The two tools are complementary, not overlapping:
 
-- The **Documenter** runs in the inventory pipeline and reports Lake state at
+- The **Blueprint** runs in the inventory pipeline and reports Lake state at
   the plan level (Analytics vs DataLake), driven from captured inventory JSON.
   Its coverage doc lists per-Lake-meter cost attribution as a known gap.
 - **This exporter** runs on demand and computes distinct per-table
   `LakeIngestCost`, `LakeProcCost`, and `LakeStorageCost` fields (three of the
   five Lake meters) by mirroring the workbook's KQL against the workspace. It
-  is deliberately outside the Documenter capture/render pipeline, so its output
+  is deliberately outside the Blueprint capture/render pipeline, so its output
   does not appear in Section 88. The coverage doc's "Known gaps and forward
   work" section names this script as the tool that already closes most of that
-  gap, and notes that wiring its cost KQL into the Documenter would remove most
+  gap, and notes that wiring its cost KQL into the Blueprint would remove most
   of the remaining gap without a new Cost Management capture.
 
-If you only need the plan-level picture, read the Documenter report. If you need
+If you only need the plan-level picture, read the Blueprint report. If you need
 the per-table, per-meter Lake cost model as a spreadsheet you can hand to a cost
 owner, run this exporter.
 
@@ -256,8 +256,8 @@ owner, run this exporter.
 
 - [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) - the export script
 - [`Content/Workbooks/SentinelDataLake/workbook.json`](../../Content/Workbooks/SentinelDataLake/workbook.json) - the companion in-portal workbook
-- [Sentinel Data Lake, Documenter coverage](Documenter/Sentinel-Data-Lake-Coverage.md) - what the Documenter reports about Lake
-- [Sentinel Documenter](Documenter/Sentinel-Documenter.md) - the inventory-and-report tool
+- [Sentinel Data Lake, iSOC Blueprint coverage](../Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) - what the Blueprint reports about Lake
+- [iSOC Blueprint](../Modules/iSOCBlueprint/Sentinel-Blueprint.md) - the inventory-and-report tool
 - [Microsoft Sentinel Data Lake overview](https://learn.microsoft.com/azure/sentinel/datalake/sentinel-lake-overview)
 - [Data lake tier billing](https://learn.microsoft.com/azure/sentinel/billing#data-lake-tier)
 - [ImportExcel module](https://github.com/dfinke/ImportExcel)

@@ -1,0 +1,45 @@
+[
+  {
+    "Count": 40,
+    "Closed": 32,
+    "Unified": 12,
+    "Count7d": 14,
+    "Closed7d": 10,
+    "FalsePositive7d": 3,
+    "TruePositive7d": 1,
+    "Unified7d": 5,
+    "ByStatus": {
+      "New": 5,
+      "Active": 3,
+      "Closed": 32
+    },
+    "BySeverity": {
+      "High": 6,
+      "Medium": 20,
+      "Low": 10,
+      "Informational": 4
+    },
+    "ByClassification": {
+      "TruePositive": 4,
+      "FalsePositive": 6,
+      "BenignPositive": 2,
+      "Undetermined": 15,
+      "Unclassified": 5
+    },
+    "ByProvider": {
+      "Azure Sentinel": 28,
+      "Microsoft XDR": 12
+    },
+    "OpenBySeverity": {
+      "High": 2,
+      "Medium": 4,
+      "Low": 2
+    },
+    "ClosedBy": {
+      "AutomationRule": 14,
+      "Analyst": 11,
+      "DefenderXdr": 5,
+      "Other": 2
+    }
+  }
+]

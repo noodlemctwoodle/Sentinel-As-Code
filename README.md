@@ -8,7 +8,7 @@
 
 This repository provides a complete end-to-end CI/CD solution for deploying Microsoft Sentinel environments using Azure DevOps pipelines or GitHub Actions. Starting from an empty subscription, the pipeline provisions all required infrastructure via Bicep, deploys Content Hub solutions (the source of truth for out-of-the-box content), deploys custom content (detections, watchlists, playbooks, workbooks, hunting queries, automation rules, summary rules), and deploys Defender XDR custom detection rules - all from a single repo.
 
-It ships with a five-job PR validation gate, a nightly end-to-end smoke test against a dedicated test workspace, daily portal-drift detection that absorbs edits back into the repo as PRs, an auto-derived dependency graph, a workbook round-trip exporter, and thirteen cross-platform GitHub Copilot agents that work on github.com and in every supported IDE so authors can build, edit, tune, and explain content with repo-aware AI assistance.
+It ships with a five-job PR validation gate, a nightly end-to-end smoke test against a dedicated test workspace, daily portal-drift detection that absorbs edits back into the repo as PRs, an auto-derived dependency graph, a workbook round-trip exporter, the iSOC Blueprint (workspace documentation with a best-practice and maturity assessment), and thirteen cross-platform GitHub Copilot agents that work on github.com and in every supported IDE so authors can build, edit, tune, and explain content with repo-aware AI assistance.
 
 > ### 💛 For organisations using this repository
 >
@@ -36,9 +36,11 @@ Infra/              Three subscription-scoped Bicep stacks (production Sentinel,
                     DCR-watchlist automation)
 Deploy/             Deployment scripts and sentinel-deployment.config
 Tools/              CI and maintenance tooling (dependency manifest, drift, PR validation,
-                    workbook export, community import, Documenter)
+                    workbook export, community import)
 Pipelines/          Azure DevOps pipeline definitions
-Modules/            In-repo PowerShell modules (Sentinel.Common shared deployer + KQL helpers)
+Modules/            In-repo PowerShell modules (Sentinel.Common shared deployer + KQL helpers;
+                    iSOCBlueprint, the iSOC Blueprint workspace documentation and
+                    assessment, with its SharePoint web parts)
 Tests/              Pester test suite
 Docs/               All documentation, mirroring the repo layout (start at Docs/README.md)
 dependencies.json   Auto-derived content dependency graph
@@ -58,6 +60,7 @@ For what lives inside each folder and how content is authored, see the
 - **PR validation and nightly E2E**: a five-job merge gate (Pester, Bicep build, ARM validation, KQL syntax, dependency-manifest drift) runs on every PR, and a nightly smoke test exercises every deploy path against a throwaway test workspace. See [PR Validation](Docs/Pipelines/PR-Validation.md) and [Deploy Nightly](Docs/Pipelines/Deploy-Nightly.md).
 - **Customisation protection and dry runs**: locally tuned rules are detected and skipped, and `-WhatIf` previews changes before applying.
 - **Azure Government support**: target both commercial and government cloud environments.
+- **iSOC Blueprint**: the `iSOCBlueprint` PowerShell module documents a live workspace and assesses it against best practice and a maturity model, as JSON, Markdown, a Word report or a SharePoint site, in one command (`New-iSOCBlueprint`) or step by step. See [iSOC Blueprint](Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md) and the [module README](Modules/iSOCBlueprint/README.md).
 - **Shared tooling**: the `Sentinel.Common` PowerShell module is the single source of truth for the deployer helpers and KQL discovery, and reusable GitHub Actions composites (`azure-login-oidc`, `setup-pwsh-modules`) pin every dependency. See [Sentinel.Common module](Docs/Modules/Sentinel-Common-Module.md).
 - **Repo-aware AI assistance**: thirteen cross-platform GitHub Copilot agents plus path-scoped instructions and reusable prompts. See [GitHub Copilot](Docs/GitHub/GitHub-Copilot.md).
 
@@ -132,7 +135,7 @@ The [Sentinel as Code Toolkit](Docs/Toolkit/README.md) companion VS Code extensi
 Start at the [index](Docs/Pipelines/README.md) for the GitHub/ADO parity map, then
 the deep per-pipeline pages: [PR-Validation](Docs/Pipelines/PR-Validation.md),
 [Deploy](Docs/Pipelines/Deploy.md), [Deploy-Nightly](Docs/Pipelines/Deploy-Nightly.md),
-[Drift-Detect](Docs/Pipelines/Drift-Detect.md), [Documenter](Docs/Pipelines/Documenter.md),
+[Drift-Detect](Docs/Pipelines/Drift-Detect.md), [iSOC Blueprint](Docs/Pipelines/Blueprint.md),
 [Dependency-Update](Docs/Pipelines/Dependency-Update.md),
 [DCR-Inventory](Docs/Pipelines/DCR-Inventory.md), and
 [Word-Report](Docs/Pipelines/Word-Report.md).
@@ -143,6 +146,16 @@ the deep per-pipeline pages: [PR-Validation](Docs/Pipelines/PR-Validation.md),
 |------|-----|
 | Bicep | [Infra/Bicep.md](Docs/Infra/Bicep.md) |
 | Sentinel.Common module | [Modules/Sentinel-Common-Module.md](Docs/Modules/Sentinel-Common-Module.md) |
+| iSOC Blueprint module | [Module README](Modules/iSOCBlueprint/README.md): quick start and the twelve commands |
+| iSOC Blueprint | [Modules/iSOCBlueprint/Sentinel-Blueprint.md](Docs/Modules/iSOCBlueprint/Sentinel-Blueprint.md) |
+| iSOC Blueprint renderer design | [Modules/iSOCBlueprint/Blueprint-Renderer-Design.md](Docs/Modules/iSOCBlueprint/Blueprint-Renderer-Design.md) |
+| iSOC Blueprint section model | [Modules/iSOCBlueprint/Section-Model.md](Docs/Modules/iSOCBlueprint/Section-Model.md) |
+| iSOC Blueprint references | [Modules/iSOCBlueprint/Blueprint-References.md](Docs/Modules/iSOCBlueprint/Blueprint-References.md) |
+| iSOC Blueprint maturity model | [Modules/iSOCBlueprint/Sentinel-Maturity-Model.md](Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md) |
+| iSOC Blueprint health check cross-reference | [Modules/iSOCBlueprint/Health-Check-Coverage.md](Docs/Modules/iSOCBlueprint/Health-Check-Coverage.md) |
+| iSOC Blueprint data lake coverage | [Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md](Docs/Modules/iSOCBlueprint/Sentinel-Data-Lake-Coverage.md) |
+| iSOC Blueprint SharePoint site | [Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md](Docs/Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md) |
+| iSOC Blueprint Word report | [Modules/iSOCBlueprint/Sentinel-Word-Report.md](Docs/Modules/iSOCBlueprint/Sentinel-Word-Report.md) |
 
 ### Tools - `Docs/Tools/`
 
@@ -152,12 +165,6 @@ the deep per-pipeline pages: [PR-Validation](Docs/Pipelines/PR-Validation.md),
 | Sentinel Drift Detection | [Tools/Sentinel-Drift-Detection.md](Docs/Tools/Sentinel-Drift-Detection.md) |
 | DCR Watchlist Sync | [Tools/DCR-Watchlist.md](Docs/Tools/DCR-Watchlist.md) |
 | SDL Migration Workbook Export | [Tools/SDL-Migration-Workbook-Export.md](Docs/Tools/SDL-Migration-Workbook-Export.md) |
-
-Documenter (`Docs/Tools/Documenter/`): [Sentinel Documenter](Docs/Tools/Documenter/Sentinel-Documenter.md),
-[Renderer Design](Docs/Tools/Documenter/Documenter-Renderer-Design.md),
-[References](Docs/Tools/Documenter/Documenter-References.md),
-[Data Lake Coverage](Docs/Tools/Documenter/Sentinel-Data-Lake-Coverage.md), and
-[Word Report](Docs/Tools/Documenter/Sentinel-Word-Report.md).
 
 ### Tests and Copilot - `Docs/Tests/`, `Docs/GitHub/`
 

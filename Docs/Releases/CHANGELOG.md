@@ -4,6 +4,1228 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## 26.10.0
+
+The iSOC Blueprint release. The Documenter becomes `iSOCBlueprint`, a
+PowerShell module (26.10.0, its first release) whose twelve commands
+document a security operations workspace and assess it against best
+practice and a maturity model, as JSON, Markdown, a Word report or a
+SharePoint site with an interactive dashboard. The Sentinel health check
+that thinkndle gave the project is folded in: new gap rules, the maturity
+assessment and its roadmap, the estate flow, detection opportunities and
+rule effectiveness. The dashboard is shown in
+[A tour of the dashboard](../Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md#a-tour-of-the-dashboard),
+from the synthetic demo workspace. The four changes merged to `main` since
+26.09 close the list.
+
+- **Progress across runs** - each export was a snapshot, so the dashboard
+  could not say what had improved. Every site build now writes a progress
+  record for its run (the headline numbers and the findings, criteria,
+  rules, ATT&CK techniques and tables behind them), kept as a history: from
+  earlier day folders locally, and on the site by the publisher, so daily
+  pipeline runs build it up. A new **Progress** tab compares the runs kept
+  at either end of the dates chosen in the top bar (the date range below):
+  the
+  headline numbers then and now, coloured by whether each moved the right
+  way, trends across every kept run, and every change since, each finding,
+  criterion and rule opening where it lives. It is drawn in the dashboard's
+  own parts: the Overview's
+  tiles, the maturity view's area bars (the target marker in line, the
+  change a green or red segment at each bar's end) and Insights cards for
+  the trends and the changes. The history keeps the newest run and the 90
+  days before it, so the 90-day baseline has a run. The demo workspace
+  carries a quarter of runs to compare, the first 90 days back, with a
+  regression or two among the gains.
+- **Figures that agree, written one way** - an audit of every dashboard
+  tab and report page found figures that disagreed and the same thing
+  written several ways. The data lake gap finding (SAC-MON-05) now gives
+  both its high-volume total and the GB of every table no detection reads,
+  so it reconciles with the Data flow and Progress tabs; the silent-rule
+  finding (SAC-DET-12) counts rules that fired by rule id, as the Data flow
+  ring does, so the two add up to the enabled rules; the lifecycle's GB a
+  day says it counts billable and free data and splits them. Labels follow
+  the date range (the source family volumes, the monthly cost, which
+  now says the window it is projected from), and what does not follow it
+  says so (threat intelligence by source, the Progress tab). The alert
+  volumes by provider table covers the report's full window, with the last
+  7 days beside it. One house style, shared by the report pages, the
+  findings and the dashboard (`Private/Format-BlueprintText.ps1`): counts
+  with thousands separators, GB to two places, money in the workspace's
+  currency with its symbol (the data lake page printed dollars), dates as
+  "15 Oct 2026" with "21:03 UTC" where the time matters (no raw ISO
+  timestamps, no "Sept"), proper plurals instead of "table(s)", and API
+  values by name: Commitment tier, UK South, Benign positive, MITRE's
+  tactic names. Report tables sort these back by value and by date. The
+  Progress tiles keep their values in line when a label wraps, and the
+  demo's What's new carries its own items, not the test fixture's.
+- **Dashboard labels** - the data flow's ring and incident figures have
+  thousands separators ("10,123 of 10,292"), as every other tab; the
+  maturity view's area badge says it is the confidence in the score ("Good
+  confidence"), so it is not read as the score itself on an amber bar; and
+  a key/value table on a report page (the Headline table, for one) no
+  longer shows an empty header row of sort arrows. On a phone, the area
+  bars put the area's name on its own row so the bar keeps its width.
+- **Summaries open the rows behind them** - on the dashboard's report
+  pages, a small summary table's values are links when a bigger table on
+  the same page groups by them: select a plan in Summary by plan to see its
+  operational tables, a severity to see its alert volumes, a role to see
+  its assignments. The bigger table filters to that value, with a chip to
+  show every row again.
+- **Microsoft Sentinel pricing from the solution's SKU** - the collector no
+  longer probes `Microsoft.SecurityInsights/pricings`, which is not a
+  documented resource and never answered (on some regions it printed a long
+  error every run). The workspace page's SKU table and the cost page's new
+  "How the workspace is billed" table say whether Sentinel is on simplified
+  or classic pricing, read from the Microsoft Sentinel solution's SKU, and
+  the commitment tier from the workspace's. The cost estimate records the
+  billed model, and a workspace billed on classic pricing gets a caveat
+  that it is priced at the simplified rate.
+- **Threat intelligence counts fixed** - the query behind the threat
+  intelligence counts named a column (`Source`) the indicator tables do not
+  have, so it failed on every workspace and the counts read as zero. The
+  new run output surfaced it. A query naming a column its tables lack is
+  now reported as failed rather than not available, so any other such slip
+  shows up the same way.
+- **Hunting judged on recent activity** - rule SAC-HNT-01 now also fires
+  when hunts or bookmarks exist but none was created or changed within the
+  run's lookback (a workspace can hold hundreds of bookmarks nobody has
+  touched in a year), and maturity criterion SAC-HNT-02 "Findings are
+  bookmarked" is met by a bookmark created or changed within the lookback
+  rather than by any bookmark ever saved. Hunts are dated by their
+  resource timestamps and bookmarks by their own or the HuntingBookmark
+  table's; where the evidence cannot cover the lookback the outcome is
+  unknown, never a gap.
+- **Long tables in full on SharePoint** - a table longer than 500 rows
+  still shows its first 500 on its native page (within Microsoft's
+  page-weight guidance), and is now also published whole as a CSV file in
+  the site's `BlueprintAssets` library, linked from the note under the cut,
+  so every row is in SharePoint and opens in Excel. The build writes them
+  to the bundle's `tables/` folder; the publisher uploads them every run
+  and recycles ones a later bundle no longer has. Cells that would run as
+  Excel formulas are written as text.
+- **A clearer end to a Blueprint run** - a capture that could not be read
+  is now reported as one of three outcomes, each in its own colour as it
+  happens and under its own heading in the capture summary: not available
+  (a table, column or endpoint the workspace does not have), no permission
+  (HTTP 401 or 403, a missing Graph permission; expected without the role,
+  so its line is short and the summary says what to grant) and failed (any
+  other error). About 45 KQL and REST captures that wrote an empty file
+  without a word on any error now say which it was. The run history and role
+  assignments of playbooks are reported in one line naming the playbooks
+  that could not be read, not one warning a playbook. The capture summary
+  lists only the key captures that hold no data, the renderer ends in one
+  line instead of a line a page, the SharePoint build notes its cut tables
+  once, and `New-iSOCBlueprint` closes with a short summary of the run. The
+  failed captures are kept in `run-context.json` as `CaptureIssues`.
+- **Bookmarks listed even when the API refuses them** - the Sentinel
+  bookmarks API refuses its list over about 8 MB and has no paging, so a
+  workspace with many bookmarks showed only their count on the hunting
+  page, with a warning in the run log. The collector now reads the list from
+  the `HuntingBookmark` table instead (each bookmark's latest entry, less
+  the deleted ones), and the page tables them with the service's count
+  beside them. The table keeps only its retention, so the page says when it
+  holds fewer than the service counted. When it holds none, the page says
+  no bookmark has been created, changed or deleted within the table's
+  retention (for example 90 days), which is itself a sign of how active
+  hunting is. The warning now appears only when the table cannot be read
+  either.
+- **Choose the cost estimate's currency** - `New-iSOCBlueprint` and
+  `Export-iSOCBlueprintInventory` take `-Currency`, the Azure DevOps
+  pipeline a `currency` parameter and the GitHub workflow a `currency` input
+  (or the `BLUEPRINT_CURRENCY` repository variable on a schedule). `Auto`,
+  the default, takes the currency from the workspace's region (UK regions
+  GBP, EU regions EUR, and so on); any currency the Azure Retail Prices API
+  supports can be named instead. Prices were previously always fetched in
+  US dollars. The cost page says which currency it used and why.
+- **Cost estimates priced as Microsoft bills them** - the price fetch now
+  reads the Retail Prices API's `Sentinel` service (it asked for
+  "Microsoft Sentinel", which matches nothing, so the Sentinel prices never
+  arrived). Analytics data is priced at the simplified Microsoft Sentinel
+  rate, which covers Log Analytics ingestion, with the classic pair as the
+  fallback; Basic at the Basic logs rate; data-lake-only tables at lake
+  ingestion plus processing. A workspace on a commitment tier pays the
+  tier's price a day and the GB above it at the tier's effective rate, and
+  the what-if prices every published tier and suggests the cheapest. Data
+  grants are no longer priced at zero: the Microsoft 365 E5 and Defender
+  for Servers Plan 2 lists now match Microsoft's (CommonSecurityLog,
+  Syslog and others were wrongly on them), the tables they cover are priced
+  at list, and the report lists what each grant could save. Estimates
+  change from the next collection.
+- **A demo workspace for the Blueprint** - `Tools/New-BlueprintDemoWorkspace.ps1`
+  writes a complete synthetic inventory for a fictitious 2 TB a day
+  workspace, `sentinel-blog-uks-law`, with its people and hosts on the
+  reserved `sentinel-blog.example` domain (no vendor's sample company), on a 2,000 GB a day commitment tier, built from this
+  repository's own content: its analytics rules (the Community rules as
+  Content Hub templates, some deployed from them), hunting queries, Defender
+  XDR custom detections, playbooks, workbooks, watchlists, automation and
+  summary rules. About 60 tables ingest with weekday patterns and growth,
+  and alerts, incidents, verdicts, health events, playbook runs and the
+  daily series behind the date range are simulated so they agree with
+  each other. The engine's table references, cost estimate, gap analysis
+  and maturity assessment run over it, and `-Build` renders the report and
+  the dashboard, so both can be developed and shown without a tenant. The
+  dashboard's SKU tile now names the pricing tier in words with a
+  commitment tier's size under it, and its cost reads as currency. The
+  open incidents figure under the alert lifecycle is now an incidents
+  trend, like the ingestion figure beside it: the average a day and a line
+  per severity across the window, with the open count under it, in place
+  of the severity chips the open branch already shows. The
+  Estimated Monthly Cost page and the dashboard's cost card say the
+  estimate is at public list prices, without any discount or agreement
+  that is not public.
+- **A date range on the dashboard** - the dashboard's top bar has one
+  date range in place of the snapshot date picker: a calendar of the days
+  collected (at most 90) where a first and a last day are chosen as when
+  booking dates, one day alone included, with quick choices for the last
+  7, 30 or every day, and the window and its dates named on the pill
+  ("Last 14 days, 1 Oct to 14 Oct 2026"). The header below it is now the
+  workspace's: its name, where it lives, a lead sentence on what the tab
+  showing covers (its days, as collected, or the runs Progress compares),
+  and how it stands, as a maturity ring and the open findings by severity,
+  each opening its view. The top bar carries the Blueprint version that
+  built the dashboard beside the product's name and when the data was
+  collected under it; the header holds no product label, as the Blueprint
+  is set to cover Defender XDR as well as Sentinel. Applying redraws every card
+  that counts activity for that window (the glance tiles, the alert
+  lifecycle, the estate pipeline, the billing flow and cost, the detection
+  matrix, top tables and rules, health, incident outcomes, rule
+  effectiveness, detection opportunities, playbook health and daily
+  ingestion) and reopens the tab that was showing. Configuration, threat
+  intelligence, the findings, the maturity score and the Report tab keep
+  the collected window and say so. The collector adds five daily captures
+  (table GB, alerts, incidents, incidents per detection, health events)
+  and per-day playbook runs over the lookback, at most 90 days, which the
+  site build carries into the dashboard; a run collected before them shows
+  no date range. The daily dashboard copies are still kept in the assets
+  library, but the dashboard no longer links to them. The estate's "rules
+  that fired" now counts only rules that are still enabled Scheduled or
+  NRT rules, so a rule disabled or deleted after it fired no longer takes
+  it past 100%.
+- **One lookback for every query, settable in the pipeline** - the
+  collector's KQL captures each had their own window (7, 8, 12, 14, 30 or 90
+  days). They now all read one lookback: `-LookbackDays` on
+  `New-iSOCBlueprint` and `Export-iSOCBlueprintInventory` (1 to 730, default
+  30), the `lookbackDays` parameter on Azure DevOps and the `lookback-days`
+  input (or the `BLUEPRINT_LOOKBACK_DAYS` repository variable on a
+  schedule) on GitHub. Each query declares `lookback` and `recent` (the
+  shorter of 7 days and the lookback) ahead of its text, and the window is
+  recorded in `run-context.json`. Every page heading, table header, chart
+  title, dashboard card and tooltip, finding, maturity criterion and the
+  cost estimate name that window; per-30-day thresholds compare a 30-day
+  rate, and the monthly cost is projected from the window. With the default
+  of 30, the captures that read 7 days (health, agents, raw-table hygiene,
+  playbook runs) now read 30, and those that read 90 (table presence) read
+  30; set 90 to keep the longer view.
+- **References at the foot of every page, readable headers, no em-dashes** -
+  the renderer gathers every page's reference links (the Microsoft Learn
+  pointers, a finding's Reference, "See A and B.") into one References
+  list at its end, a finding's reference naming the finding, and the
+  dashboard shows it as a link card under the tabs. Table headers read as
+  words (GB (30d), Monthly cost, Last ingested) instead of property
+  names. Em-dashes are gone from the report's headings, prose, chart
+  titles and finding titles. Selecting a rule in the detection matrix
+  opens Rule Performance filtered to it, and Rule effectiveness names a
+  Sentinel rule by its rule id rather than its alert name. A report page
+  always opens on its first tab. The navigation's Workspace & data
+  heading is Workspace, and the Retention page is Data Retention. On What's
+  New, a related maturity criterion is a green chip when met and a red one
+  when it is a gap, as on the maturity view, in place of the trailing word.
+- **Coloured callouts, Defender severity colours, tables that fit** - a
+  callout is coloured by how serious it is (blue, green, amber, red, each
+  with an icon), set by a `bp:tone` comment the renderer writes before it;
+  the summary-rules failure is red and the Conventions callouts amber (the
+  one labelled Banner is now Azure portal retirement). Severity is in the
+  Defender XDR colours everywhere: High orange-red, Medium amber, Low
+  yellow, Informational grey (web part 1.13.0). The confidentiality footer
+  is red. Report tables keep the browser's layout unless tables with the
+  same columns are on screen together, which then share measured widths; a
+  column with a long cell wraps as a whole, long code breaks at its slashes
+  and dots, and code in a header reads as plain text. A card with one
+  expandable table carries its chevron in the card's top-right corner.
+- **Link cards, whole chart labels and a new response chain** - on the
+  SharePoint site, the Microsoft Learn links that close a report page
+  (and a finding's Reference, and "See A and B.") are a card of link
+  tiles with each page's title and product area, not a run of links. The
+  cost page's top tables chart shows every table name whole (the names
+  were cut to 14 characters), and a report bar chart's label column fits
+  its longest label. A numeric table column shrinks to its figures, so
+  the maturity scale's Level sits beside its name. The alert-to-response
+  chain is redrawn as a rail of glowing phase nodes joined by gradient
+  connectors, each phase's steps on a spine beneath, with a count of
+  steps in place and at risk; its heading and introduction are reworded.
+- **Conventions as tables; RBAC page renamed** - the Conventions page's
+  Modules, Authentication pattern, REST-only gaps and Recurring KQL queries
+  sections were dense bullet lists. They are now tables: modules with their
+  pinned version and use, the Az cmdlets called, each role with its scope,
+  each REST-only surface with its endpoint and why, and every KQL capture
+  with the tables it reads, its window and what it gives, grouped by topic.
+  The sourceControls fallback joins the one-off versions table and the
+  Microsoft Learn pointer is gone (the pages are on Microsoft References).
+  On the SharePoint site, tables on one page with the same columns now line
+  up, with short columns kept on one line. The RBAC page is now Access
+  Control (RBAC).
+- **Conventions brought up to date; Microsoft References reorganised** - the
+  Conventions page now lists every API the Blueprint calls: the Sentinel
+  endpoints it was missing (onboarding state, connector definitions,
+  workbook content templates, the pricings fallback), Resource Graph under
+  the data lake capture where it belongs, and a new Other services table
+  (the Log Analytics query API, Microsoft Graph for custom detections, the
+  Azure Retail Prices API, Microsoft Learn's What's new Markdown, the
+  Toolkit's connector catalogue and SharePoint through PnP). Its
+  best-practice Learn links move to the report's Microsoft References page
+  (renamed from Useful Microsoft References), which now tables every Learn
+  page by topic with what each is for, each link once.
+- **No "?" for an unnamed principal** - findings from a snapshot collected
+  before unnamed principals were named showed "?" in their evidence; the
+  report and the SharePoint site now say "Unnamed (no name in this
+  snapshot)". A new collection names them by object id.
+- **Detection matrix on the Data flow tab** - every enabled analytics rule
+  and Defender XDR custom detection that reads a workspace table, one row
+  each: the source families (or every table) it reads, its health (Working,
+  Silent, Failing) and its incidents in 30 days by verdict with the share
+  of closed ones that were true positives. A summary strip, chips for
+  source and health, a search box, Failing first, the first 25 rows with a
+  chevron for the rest, and a footer counting the rules that read each
+  column.
+- **Dashboard template solutions fixed** - the site build passed the
+  Content Hub package lists as a single item, so the dashboard's detection
+  opportunities showed every template as Built-in and the deprecated-solution
+  filter did not apply there; both now match the report page.
+- **Health statuses read as words** - the Sentinel health tables showed a
+  resource's statuses as JSON (`["Success","Failure"]`) because Log
+  Analytics returns a set as JSON text; they now read "Success, Failure".
+  The date columns there and on the rule health table read "Last event"
+  and "Last failure".
+- **Shorter page titles** - the report's What's new page is titled
+  "What's New" and the Blueprint's own references page "Conventions", in
+  the report, its menu and the SharePoint site.
+- **A clear privacy notice at the foot of the dashboard** - the faint line
+  "Generated from the iSOC Blueprint _raw snapshot" is now an amber-tinted
+  Confidential notice with a lock, the date of the run, what the page holds
+  and how to share it.
+- **Data flow tab leads with the estate flow; the ingest and billing flow
+  redrawn** - the estate flow moves from the Overview to the top of the
+  Data flow tab, above the ingest and billing flow, which is redrawn in the
+  alert lifecycle's style: source families as glowing dots, every table as
+  a pill in its family's colour, each plan and tier as a ring with its share
+  of the GB, and billed and free benefit as glowing nodes with their totals,
+  joined by GB strands with beads (filters, Every table and the Other pill
+  work as before). The estate strip gives Defender XDR alerts a tile of
+  their own, and the report's Alerts stage reads "N Sentinel alerts and N
+  Defender XDR alerts", with thousands separators. In the alert lifecycle
+  the figures sit centred on their lines and the incidents branch starts
+  clear of its count. The header's Open gap analysis button is gone; the
+  findings tile and the Assessment tab lead there.
+- **Templates from deprecated solutions are no longer offered** - the
+  detection opportunities listed templates as ready to enable even when the
+  only Content Hub solution shipping them is deprecated, such as the old
+  Threat Intelligence solution (replaced by Threat Intelligence (NEW)),
+  whose TI map templates read the retiring ThreatIntelligenceIndicator
+  table. The catalogue's deprecation flag now decides: a template a live
+  solution also ships is credited to the live one, and one only deprecated
+  solutions ship is left out of the ready list, the solution chips, the
+  counts and SAC-MON-05's suggestions. Page 28 lists those templates under
+  Templates from deprecated solutions, with the replacement solution where
+  the catalogue names one.
+- **Alerts from Sentinel and Defender XDR, into the same incidents** - the
+  alert lifecycle counted only Sentinel's scheduled and NRT rule alerts
+  against every incident, and in a workspace joined to the Defender portal
+  every incident is a Defender XDR one, so it could show more incidents
+  than alerts. It now draws two alert nodes, Sentinel's (fed by the source
+  families, by GB) and Defender XDR's (a strand from each family whose
+  Microsoft products raised alerts, by alerts), both feeding the incidents,
+  with exact counts throughout, and alerts per incident uses them both. The
+  estate flow splits after Detection into a Defender XDR alerts ring and
+  the Sentinel alerts ring, which merge into Incidents; its strip and the
+  report's Alerts stage give both counts, the overview's
+  Alerts figure counts every product, and
+  the collector now counts each alert once rather than once per status
+  change.
+- **Chip key that filters, and solution chips that show their templates**
+  - the colour key on a table of solution chips is now the dashboard's
+  filter chips with a swatch and a row count, and selecting one filters the
+  table to those rows and each row to those chips, every one of them. A solution chip lists its templates in its tooltip and opens the
+  page's template list showing exactly those, with a chip to clear it; a
+  single solution is a chip too. The table search now matches every word
+  or quoted phrase.
+- **Tables open with a chevron, and chip colours have a key** - in the
+  dashboard, a table whose further rows are hidden, and a table cell whose
+  chips are cut at three, now open with the square chevron button the
+  finding cards use rather than a "Show all N" button. It holds the top
+  right (the table's header row, or beside the cell's first chips), so it
+  does not move as the list opens, and turns over when open; "Show all N"
+  and "Show fewer" are its tooltip and what a screen reader announces.
+  Lists outside tables keep their labelled Show all button. In the solution
+  chips behind a table's templates, Built-in now takes the same green as an
+  installed solution (both are ready to enable), grey means the solution
+  is not installed, and the table's tool bar shows a key.
+- **A folder per day, so a run no longer overwrites the last** - the
+  module now writes each run to `SecurityDocs/<workspace>/<yyyy-MM-dd>/`
+  (UTC), so earlier runs stay where they are; a second run on the same day
+  replaces that day. Commands that take `-Path` accept the workspace folder
+  and use its newest day, and `New-iSOCBlueprint -SkipCollection` renders
+  the newest day. The SharePoint bundle for a day carries the earlier
+  days' dashboards in `history/`, so the date picker works from disk, and
+  publishing seeds the days the site does not have yet. `-NoDateFolder`
+  keeps the old flat layout, and both pipelines pass it, so their docs pull
+  request and artefact are unchanged.
+- **Look back up to 90 days** - every publish keeps the day's dashboard on
+  the site, and a date picker beside the light and dark toggle opens the
+  dashboard as it was on any kept day, with a banner and a way back to the
+  latest. The daily pipeline adds a day each run until 90 days are kept;
+  older days go to the recycle bin (`-HistoryDays` on the publish changes
+  the window, 0 turns it off). The maturity score trend now also shows on
+  SharePoint: it had read its file from the frame's own address, which on
+  SharePoint has no folder. Dashboard web part 1.11.0.
+- **SIEM Overview, finding cards and a shorter Overview tab** - the
+  report's first page is now "SIEM Overview", and its top findings are
+  cards on SharePoint and in the dashboard: severity, id and title, what
+  was found beside how to fix it, and links to the finding and to
+  Microsoft Learn. The Live snapshot points to them rather than listing
+  the same five again. The dashboard's Overview tab no longer ends with a
+  contents card per family; the Report tab and the site's menu already
+  list every page. On SharePoint, links inside diagrams to findings and
+  pages now resolve against the site. Chart web part 1.10.0.
+- **What's new in Sentinel and Defender, in the report** - a new page
+  (03) lists what Microsoft released, previewed and announced for
+  retirement in Microsoft Sentinel and Microsoft Defender XDR over the
+  last 12 months, read from their What's new pages on Microsoft Learn when
+  the collector runs. Retirements and calls to action come first, soonest
+  deadline first, a passed deadline marked. Each item links to its entry
+  on Learn and to the report pages and maturity criteria it touches, with
+  this workspace's status for each, and to the finding when one fired.
+  It replaces the dashboard's What's new panel, which showed general
+  Azure news from an RSS feed fetched by the site build; the site build
+  now makes no network call. Table cells with two or three short items
+  show as chips too.
+- **Show all is the site's button, and no repeated figure tiles** - a long
+  list in the new graphics (source families, roles) shows its first rows
+  and the rest behind the site's Show all button, which sits under the
+  list and reads Show fewer once open. The figure tiles under the
+  Detection Opportunities and Content Hub graphics repeated what the
+  graphics show and are left to the Markdown and Word exports; the two
+  detection figures the graphic did not show (enabled rules, tables with
+  no detection) now sit in a strip beneath it. Chart web part 1.9.0.
+- **The estate flow, the retirement runway and the workspace history,
+  and no repeated diagrams** - on SharePoint and in the dashboard the
+  estate flow shows the four pipeline stages with each one's share and
+  rating, and every source family's GB split into what a detection reads
+  and what nothing reads; the deprecation runway places each deadline on
+  a time axis with today marked and says whether this workspace still
+  uses what it retires; the workspace history shows its age, terms and
+  what it holds. The Live snapshot no longer repeats the Overview's
+  findings chart and estate flow, the workspace history no longer
+  repeats the platform deadlines, and a table a graphic shows in full is
+  left to the Markdown and Word exports. The Overview's maturity line
+  reads as tiles again. Chart web part 1.8.0.
+- **One cost view, an access matrix and a data lake graphic** - the
+  Estimated Monthly Cost page drew the same data four ways (a bar chart,
+  a mind map, a flow diagram and a compact flow); the mind map and the
+  compact flow are gone, and on SharePoint the flow diagram becomes one
+  cost breakdown: the monthly estimate, GB and cost by plan, and every
+  source family's GB opening to every one of its tables. RBAC's
+  who-grants-what diagram becomes role assignments in bands (broad roles
+  tagged with the SAC-GOV findings, Microsoft Sentinel roles, Log
+  Analytics and monitoring, the rest) split by users, groups and service
+  principals. The data lake's architecture diagram shows this
+  workspace's tables per tier and the ways the lake is used. Chart web
+  part 1.7.0.
+- **Purpose-built graphics for the rule kinds, the response chain, the
+  topology, detection headroom and Content Hub** - the SharePoint site and
+  the dashboard no longer draw these from their Mermaid. The rule taxonomy
+  is a card per kind with how many are deployed and enabled, what it does
+  and its own settings; the alert-to-response chain shows its phases with
+  this workspace's figures and tags any step a fired finding marks missing
+  or at risk; the workspace topology lists every source family (the rest
+  behind Show all), the table plans in use and the destinations; detection
+  headroom and Content Hub show proportions (templates deployed or not and
+  ready to enable by solution; packages by status and by source) instead
+  of charts that repeated their figures. Figure tiles after a chart now
+  sit in their own row rather than stacked inside the chart's card, and a
+  donut's total no longer overflows its ring. Chart web part 1.6.0.
+- **A purpose-built incident lifecycle and a journey map** - the
+  incident lifecycle on the Incidents page was a generic state diagram;
+  on SharePoint and in the dashboard it is now its own graphic: stage
+  tiles for Raised, New, Active and Closed with each one's share, MTTA
+  and the acknowledged closures on the arrows, the path straight from New
+  to Closed (red, tagged SAC-INC-05, when that check fired), and the open
+  incidents by severity and the closed ones by classification and by who
+  closed them. The analyst journey is a journey map: a curve through
+  every step's score, so the pain points read as dips. The report writes
+  the lifecycle's figures on a comment line in its Mermaid, so the
+  Markdown export is unchanged. A diagram no longer repeats the heading
+  above it as its own title, and the Report's headings and notes lose
+  their coloured edge bars. Chart web part 1.5.0.
+- **Area scores on the Overview's maturity card** - the card lists every
+  capability area's score against the target, weakest first, with the
+  areas below target in amber; selecting one opens the Assessment with the
+  criteria filtered to that area. Quick wins beside it fill to the same
+  height, so the two cards end level with their buttons in line.
+- **Every diagram draws in the dashboard** - the Report tab drew only pie
+  and bar charts, so 14 diagrams across 11 pages (the incident lifecycle
+  and analyst journey, flowcharts, sankeys, a gantt, a timeline, a mind
+  map, a class and a sequence diagram) left an empty heading. It now
+  draws them with the chart web part's own renderers, bundled into the
+  page, so a diagram has one implementation and looks the same in the
+  dashboard and on its SharePoint page; diagrams follow the light or dark
+  theme, and a node linking to a section or finding opens it.
+- **Watchlist freshness, a clearer Content Hub page, RBAC figures and
+  readable ingestion dates** - the watchlists page marks each watchlist
+  maintained in the workspace Current, Stale (not updated in 90 days) or
+  Stale, used by rules, with its age and the enabled rules that read it,
+  most urgent first; Content Hub watchlists are labelled as the
+  solution's reference data. New gap rule SAC-DET-15 (Warning) fires on a
+  stale watchlist an enabled analytics rule reads. Content Hub shows each
+  installed package once with a Status (Update available, Up to date,
+  Deprecated, Not in catalogue), comparing versions as numbers, and drops
+  the separate deprecated table and the UpdateAvailable column that
+  repeated Latest. RBAC opens with headline figures (assignments,
+  principals by type, high-privilege share, Owners, Sentinel roles,
+  guests, unnamed principals). Daily ingestion labels read "13 Sep", and
+  a chart's key sits above its bars. Status words in report tables show
+  as coloured pills.
+- **Detection opportunities name each template's solution** - the rule
+  templates do not say which Content Hub solution they come from, so the
+  page listed every template name in one cell per table. The Blueprint now
+  reads the solutions' own content lists (installed and catalogue) to
+  name each template's solution and whether it is installed: the tables
+  view shows a template count and the solutions they come from, the
+  ready-to-enable list gains Solution and Solution installed columns, and
+  the dashboard's opportunity pills show the solution on hover. In the
+  Report tab any long semicolon list in a table cell shows as chips with
+  Show all instead of a wall of text.
+- **Report pages end level with the contents list; inner tabs on tall
+  pages** - no Report page runs past the bottom of the contents list. A
+  page that fits grows its tables into any space left; a taller page
+  shows a tab at a time, a tab per substantial section with small
+  sections folded into the tab before them while they fit (Analytics
+  Rules: Overview, All rules, Microsoft-managed rules, Recent
+  modifications, By Content Hub solution), labelled with the rows each
+  holds; a tab still too tall shrinks its tables and, as a last resort,
+  scrolls inside the panel. The tabs are underlined page tabs rather than
+  a switch track. A line of figures on a report page (MTTA, MTTR, closed
+  and acknowledged incidents, the maturity summary) shows as aligned
+  tiles, with durations in days and hours. Every report page now opens
+  with a sentence saying what it covers (written in for the twenty-one
+  pages that did not), kept above the tabs, and the Dedicated Cluster
+  page reads an empty capture as no cluster rather than a broken table.
+- **Sortable report tables** - every table in the dashboard's Report tab
+  sorts by a column when you select its title: ascending, descending, then
+  back to the page's order, with an arrow showing which. Numbers sort by
+  value, units and sizes included, text in natural order, empty cells
+  last, and the row filter keeps working on the sorted rows.
+- **One button template; evidence never shows "?" or an empty bullet** -
+  every dashboard button now comes from one template (`sbtn()` and the
+  `.sbtn` class), so Show all, Expand, Clear filters, Close, zoom, the
+  report buttons and the page links share one size, shape and colour,
+  with an arrow on those that open something. The Overview's top alerting
+  rules show the eight busiest and then a button to Rule Performance
+  rather than expanding to every rule. In the gap analysis a principal or
+  rule with no display name is named by its id ("Unnamed service
+  principal, object id ... (deleted or not readable)") instead of "?", a
+  blank name falls back the same way, and a rule whose name starts with
+  a Markdown marker ("* Detection ...") stays one bullet in the report
+  rather than an empty bullet over a nested one.
+- **Insights cards end level and link to the report; report pages read by
+  title; the roadmap opens its criterion** - each Insights card that lists
+  things now fills to the height of the tallest card in its row and ends
+  with a button, lined up across the row, to the report page that holds every entry (for example
+  "All 2,780 rules in the report" opens Rule Performance), instead of a
+  "Show all" that could expand into thousands of rows; Detection
+  opportunities shows twelve tables and the same button. The Report tab
+  and the native pages show a section's title where the Markdown pages
+  wrote its file name (`90-gap-analysis.md` reads "Gap Analysis"), and the
+  overview's "See the rest of this folder" line now reads "The deep-dive
+  sections". Selecting a roadmap entry or a quick win filters the
+  criteria list to that criterion, with Clear filters to go back, and each
+  criterion links to the findings behind it. The NIST CSF 2.0 rollup sits
+  above the roadmap. The Overview's top findings show only the critical
+  ones, with a button to every finding in the Assessment tab, and with the
+  data lake enrolled the billing plan card shows a Data lake plan row and
+  says how many tables are mirrored to the lake.
+- **Search jobs and restores are collected, so SAC-INV-02 is no longer
+  always Unknown** - the maturity criterion "Search or restore has been
+  exercised" and the Report's search and restore page read
+  `search-jobs.json` and `restore-logs.json`, but nothing wrote them, so
+  every real run showed the criterion as Unknown and the page as empty.
+  The collector now picks the search job (`_SRCH`) and restored (`_RST`)
+  tables out of the table list it already saves and writes both files;
+  the maturity engine and the renderer read them from
+  `workspace-tables.json` when a snapshot predates them. Re-rendering an
+  existing run fills the search and restore page; the maturity score is
+  saved at collection, so SAC-INV-02 updates on the next collection (or
+  `Get-iSOCBlueprintMaturity`, which scores now). The search and
+  restore page now lists each table with its source table, time range,
+  creation date, retention and, for a search job, its query. The maturity
+  view's basis and scope sit in two matching tiles in place of the
+  amber-edged note.
+- **One button style across the dashboard** - every button that does
+  something ("Show all", "Show fewer", the "Show all N" pills, "Expand",
+  "Clear filters", the zoom buttons, and the buttons and links that open
+  another page) is now white on the brand gradient in light and dark
+  mode, the same colour a selected tab or switch takes, so buttons are
+  easy to pick out on every tab. Selected filter chips on the data flow
+  take the same gradient, and the links in card descriptions work from
+  the keyboard.
+- **ATT&CK coverage grid, every rule on the MITRE page, a linked
+  dashboard** - the dashboard's Insights tab replaces its tactic bars with
+  an ATT&CK grid laid out like MITRE's Navigator: a column per tactic in
+  kill-chain order, a cell per technique shaded by the enabled rules that
+  map it, sub-techniques as chips, and a column of its own for a tactic
+  outside the Enterprise matrix (ATT&CK for ICS); "Sub-techniques" lists
+  each sub-technique by its full id under its technique, shaded violet
+  against the techniques' green, with its own rules;
+  "Include disabled" shows what the disabled rules would cover (dashed),
+  "Every technique" shows the gaps at either level, a search finds a rule,
+  technique or sub-technique, and selecting a cell or sub-technique lists
+  the rules mapped to it. The grid sits directly above Detection
+  opportunities, and its scrollbar follows the light or dark theme. Page 25's rule table now lists every rule, enabled
+  and disabled, with a Status column, and says how many techniques the
+  disabled rules would add; its tactic tables still count enabled rules.
+  The page and the grid read one helper (`Get-AttackCoverage`) and link to
+  each other. The content inventory's tiles open their pages, and the four
+  estate pipeline cards become a strip of figures inside the estate flow
+  card, each opening its page. The dashboard model gains `attack`.
+- **Dark mode cards and the estate flow restyled** - in dark mode every
+  dashboard card takes the alert lifecycle's look, a teal-tinted glow
+  fading to near-black, with a darker base panel colour so donut holes and
+  table headers inside the cards match; the coloured posture cards keep
+  their colours, and light mode is unchanged. The estate flow keeps its
+  layout and links but is drawn in the same style: glowing source dots,
+  glowing ring arcs with larger percentages, and the closed and open
+  incidents as glowing nodes with their counts.
+- **Estate flow and Data flow animated** - the Overview's estate flow now
+  moves like the alert lifecycle: beads run along every strand a detection rule reads, the
+  band between the rings and the closed and open incident branches, faster
+  for more data; the dashed strands of data no detection rule reads creep
+  towards the "No detection rule" pool; and each ring's arc draws in when
+  the page opens. Hover highlighting dims the beads with their strands, and
+  nothing moves for reduced motion. The Data flow tab's Sankey gets beads
+  along its ribbons and sweeps in from the left when the tab opens and after
+  each filter change.
+- **Alert lifecycle on the dashboard Overview** - a new panel under
+  "Workspace at a glance", in the light and dark themes, modelled on a SOC command
+  centre: source families with strands sized by GB run into
+  the alerts they raised, an animated core, and the incidents those became;
+  each incident branch then shows how it ended (closed by an automation
+  rule, by an analyst, in Defender XDR, by another identity, or open, with
+  open incidents by severity). A strip underneath gives ingestion per day
+  with a sparkline, alerts per incident, open incidents, mean time to
+  resolve and the share closed by automation, and every part opens its
+  page. The collector's `incidents-summary` capture gains two count bags
+  for it, `OpenBySeverity` and `ClosedBy` (each closed incident sorted by
+  the record that first shows it closed: `ModifiedBy contains
+  "Automation"`, Defender XDR, a user principal name, or other; only the
+  category leaves the workspace). A snapshot collected before this shows a
+  single Closed branch. The dashboard model gains `alertLifecycle`.
+- **Pages with tables of a few thousand rows render** - a live workspace's
+  rule effectiveness table (2,728 rows) made Markdig refuse page 21 as "too
+  deeply nested", which stopped the render there. Tables longer than 500
+  rows are now parsed in chunks and joined back into one table, so the
+  section model keeps every row.
+- **Blueprint output kept off the public GitHub repo** - a new
+  `.githooks/pre-push` hook refuses any push to a `github.com` remote whose
+  commits add Blueprint output (`SecurityDocs/`, `BlueprintRuns/`, or a
+  `_raw/` folder outside a test `Fixtures/` folder), from any worktree once
+  installed (`cp .githooks/pre-push "$(git rev-parse
+  --git-common-dir)/hooks/pre-push"`, then `chmod +x`). Pushes to Azure
+  DevOps, where the pipeline keeps its review-only snapshot branches, are
+  not checked. `.gitignore` adds `BlueprintRuns/` and any `_raw/` outside
+  the fixtures, and the module suite fails the PR gate if any output is
+  tracked. See "Keeping the output off a public GitHub repo" in the
+  operating guide.
+- **MITRE coverage with sub-techniques, and no wall of rule names** - page
+  25 now covers tactics, techniques and sub-techniques. Sentinel returns a
+  rule's sub-techniques in a separate `subTechniques` array that every GA
+  version of the alert rules API leaves out, so the collector reads alert
+  rules with the preview version (`2024-10-01-preview`, falling back to GA
+  with a warning) and the renderer reads both arrays; a snapshot collected
+  before this shows no sub-techniques until it is collected again. Each
+  technique now sits under the tactics ATT&CK gives it rather than every
+  tactic on the rule (a rule tagged Initial Access and Credential Access no
+  longer puts Brute Force under Initial Access). Each tactic's table lists
+  its techniques, then their sub-techniques on rows of their own, with the
+  number of enabled rules and how many of the technique's sub-techniques
+  are covered ("1 of 4"); tactics nothing covers are listed in one line.
+  The rule names leave the technique tables for a new table at the end of
+  the page, one row per enabled rule with its tactics, techniques and
+  sub-techniques. The tactic summary under the chart, which printed no
+  numbers, is filled in.
+- **Dashboard: real charts, working links, pages that open at the top** -
+  in the Report tab the dashboard now draws each section's own pie and bar
+  charts (the maturity page's area scores, for example) instead of
+  dropping them; a chart drawn from a table appears only on a section
+  with no chart of its own and only from a column that holds an amount,
+  so the maturity Areas table is no longer charted by its Unknown count.
+  Links to another section or to a finding, which showed as bold text that
+  did nothing (so some ids were bold and others not), are now links: a
+  section opens in the Report tab, a finding in the findings view (or the
+  gap analysis page when the run's list does not hold it). Following any
+  link or tab starts at the top of what it opens: on SharePoint the page
+  scrolls, not the dashboard's iframe, so the dashboard now scrolls the
+  page. Finding cards no longer show the "was SENT-NNN" chip; the old ids
+  are listed in the operating guide, and the findings search still finds
+  a finding by its old id.
+- **iSOC Blueprint names throughout** - the GitHub workflow is now "iSOC
+  Blueprint", and the SharePoint publish workflow triggers on that name
+  (both change together; a `workflow_run` trigger only fires once the
+  default branch carries the new names). The ADO pipeline's log sections
+  and snapshot commit author, the publisher app's default name (`iSOC
+  Blueprint SharePoint publisher`; the set-up script renames an app it
+  finds under the Sentinel Blueprint or Sentinel Documenter name rather
+  than creating a second one), the report footer, page publish comments
+  and the web part's package details (web part 1.4.2, so the publisher
+  redeploys it) all say iSOC Blueprint. The ADO pipeline's display name is
+  set in Azure DevOps, not in the YAML, and is unchanged.
+
+- **What the maturity score covers, and a findings summary** - the maturity
+  assessment now says what it is based on and what it covers wherever the
+  score appears (page 91, the overview's maturity line, the dashboard's
+  maturity card and maturity view): a custom model based on the SOC-CMM
+  framework, not an official SOC-CMM rating or certification and not
+  affiliated with or endorsed by the SOC-CMM project; and a score based
+  strictly on the Sentinel infrastructure and configuration and the findings
+  raised against them, with people and processes not assessed. The wording
+  lives once, as `methodology.basis` and `methodology.scope` in
+  `maturity-criteria.json` (criteria 1.2.0), and is copied into
+  `maturity.json`. On the dashboard, the Findings view opens with the same
+  kind of summary as the Maturity view (findings by severity and by effect on
+  the score, stacked bars by area and by category, and every scored finding
+  ranked by its lift), each part filtering the list below, which gains an
+  area filter and a Clear button. The switch between the two views is now a
+  clear segmented control with a count on each side.
+- **iSOCBlueprint PowerShell module** - the Blueprint is now also a module,
+  [`Modules/iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md), so a
+  Blueprint of any type comes from one command and the module can be used
+  outside this repository: `New-iSOCBlueprint -ResourceGroup rg -WorkspaceName
+  law -Format Json, Markdown, Word, SharePoint`. Eleven more commands run each
+  step on its own (collect, render, chart images, Word, build the site,
+  publish, set up the site, findings, maturity, a prerequisite check and the
+  connector catalogue refresh), chain on the pipeline, and check only the
+  tools the chosen formats need. The Blueprint scripts run unchanged inside
+  the module, apart from a short list of edits: they no longer reach into the
+  rest of the repository, the Blueprint version recorded with each run is the
+  module version (26.10.0, following the repository release), and the four
+  links from the report into the repository point at GitHub. The module is
+  named for the iSOC rather than Sentinel so other sources, such as Defender
+  XDR, can follow. The Blueprint pipelines (Azure DevOps and both GitHub
+  workflows) run the module. The Blueprint now lives in
+  `Modules/iSOCBlueprint` (its scripts under `Engine/`), its tests in
+  `Tests/iSOCBlueprint` and its docs in `Docs/Modules/iSOCBlueprint` (beside
+  the Sentinel.Common module doc, as `Docs/` mirrors the repository), with the
+  SharePoint web part source in `Modules/iSOCBlueprint/WebParts`;
+  [`MIGRATION.md`](../../Modules/iSOCBlueprint/MIGRATION.md) records where
+  each file went. The README and the docs call the product the iSOC
+  Blueprint (page 99 of the report takes the new title too); the pipeline
+  and workflow names are unchanged. `Convert-FolderToWordReport.ps1`, a
+  generic folder-to-Word dump that nothing called, is retired.
+- **Findings and maturity grouped as the Assessment** - the gap analysis
+  (page 90) and the maturity assessment (page 91) are now presented as one
+  assessment. On SharePoint both pages and the findings list sit under one
+  Assessment navigation heading (the reference pages move to their own
+  References heading), and the dashboard's separate Maturity and Findings
+  tabs become one Assessment tab with a switch between them. Each finding
+  now says which maturity criterion it decides and how much closing it
+  lifts the overall score, or that it is a hygiene or cost check the score
+  does not count: a Maturity column and a line on every card on page 90,
+  and a chip on every finding on the dashboard with a filter for findings
+  that move the score. Pages 90 and 91 link to each other. Maturity lifts
+  are shown as stored, to three decimals, everywhere they appear.
+- **Blueprint pages split to the health check's granularity** - five new
+  pages take sections from the pages that had grown largest:
+  `02-deprecated-legacy-features.md` (the deadline runway and the legacy
+  features still in use, from 01), `16-alerts.md` (alert volume by
+  severity, detection source and provider, from 15),
+  `21-rule-performance.md` (alert volume per rule, rule effectiveness and
+  a new noisy-rules table, from 20 and 15, which carried the effectiveness
+  table twice), `22-rule-health-quality.md` (run failures, complexity,
+  stale rules, template drift, and two new tables for rules without entity
+  mappings and rules that create no incidents, from 20) and
+  `89-retention.md` (the retention checks and per-table overrides from 81,
+  the retention that rolls into the lake and ingestion validation from
+  88). Existing page names are unchanged; the source pages link to the new
+  ones, the contents page and SharePoint navigation include them, and
+  `Health-Check-Coverage.md` gains a map from the report's 28 sections to
+  the Blueprint pages.
+- **Blueprint data connector catalogue** - the Blueprint now reads the
+  Sentinel as Code Toolkit's connector catalogue (about 630 Content Hub
+  connectors and the tables each writes, from Microsoft's Solutions
+  Analyzer), copied to `Private/Resources/connector-catalogue.json` by the
+  new `Update-iSOCBlueprintConnectorCatalogue`. Page 10 matches each
+  connected connector against it (receiving data, silent, not in the
+  catalogue, deprecated) and names the connector behind every table in the
+  effective view; page 81 names the connector that would fill each empty
+  catalogue table; page 28 names the solutions that ship each table with no
+  template; page 01 lists deprecated connectors still connected. SAC-PLT-10
+  checks every connected connector the catalogue knows, and measures all
+  volume over 7 days, so free tables such as OfficeActivity no longer look
+  silent (catalogue 3.1.1). The two captures nothing read are now shown:
+  saved searches that are neither hunting queries nor parsers (page 35) and
+  the Sentinel pricings endpoint (page 84).
+- **SharePoint publish no longer fails every chart page** - the publisher
+  wrote a chart as a table, when the chart web part was missing, through a
+  function it never loaded, so 25 of 35 pages failed. It now loads it, and
+  a new test follows each SharePoint entry script through the files it
+  loads and fails on any command none of them defines. The chart web part
+  check read the component list with a raw POST that PnP sends with the
+  body `null`, and any error read as "not there yet", so a run waited five
+  minutes and gave up; it now uses `Get-PnPAvailablePageComponents`
+  through an existing page (the lookup the dashboard already relies on),
+  prints a failing lookup, and says whether the dashboard web part from the
+  same package is listed. Creating the assets library or the findings list
+  survives PnP's 100-second timeout when SharePoint finished the job anyway.
+- **Blueprint reports in full and in plain words** - nothing is cut to a
+  top N any more. The collector's queries sort but no longer `take` or
+  `top` (rule volumes, effectiveness, rule health, incidents by rule, CEF,
+  Syslog and SecurityEvent contributors, duplicates, event IDs, Azure
+  diagnostics), the lake query-usage capture covers every lake-retained
+  table in batches, finding evidence names every item instead of "(+ N
+  more)", SAC-MON-05 suggests every candidate template, and the maturity
+  quick wins list every Low-effort gap (the dashboard shows five with
+  Show all). The pages list every catalogue-only schema, costed table,
+  rule modification, lake migration candidate, watchlist description and
+  rule per MITRE technique; the overview's top five findings say how many
+  there are in all. Charts that fold a tail into one "Other" slice keep
+  the pie summing to the total and sit beside a table with every item,
+  and the SharePoint chart web part (1.4.1) shows whole axis and Gantt
+  labels, wrapping instead of clipping, with full names passed through a
+  `%% x-labels` comment where the Markdown axis uses short ones. The
+  coloured-circle emoji badges are gone: severities, coverage, criterion
+  status and estate ratings are plain words, and the Word report colours
+  them by column instead.
+- **Blueprint closes the gaps against health-check build 38** - a section
+  by section, query by query comparison of the health-check script and its
+  HTML report against the Blueprint, written up in
+  `Docs/Modules/iSOCBlueprint/Health-Check-Coverage.md`. The collector gains six
+  captures (linked storage accounts, the agent heartbeat mix, per-table
+  threat intelligence volumes, indicator health, TAXII clients and Azure
+  Firewall diagnostic categories) and extends nine (connector health
+  failures, 7-day incident and alert counts by provider, duplicate
+  SecurityEvent counts, CEF vendors in Syslog, distinct indicators per
+  source, UEBA counts over 7 and 14 days, the signed-in identity, and the
+  2025-02-01 tables API with a fallback). The renderer adds the matching
+  subsections across fifteen pages, including a legacy features list on
+  the live snapshot, the maturity scale and open gaps on the maturity
+  page, and ingestion validation for lake-retained tables. The detection
+  opportunities page now lists every candidate template per table and the
+  tables no template covers. The gap catalogue moves to 3.1.0 with seven
+  new rules: SAC-COV-08, SAC-LOG-19 to SAC-LOG-23 and SAC-PLT-12.
+- **SharePoint pages are republished only when they change** - a section
+  page's content hash differed on every build, so every publish rebuilt
+  every page. Two causes, both from .NET randomising string hashing per
+  process: the page builder kept each page segment in a list that turned
+  it back into an unordered hashtable, so its JSON key order (and the
+  hash over it) changed run to run; and the renderer broke ties in eleven
+  count-ordered charts and tables, the cost Sankey's flows and two
+  category orders by hashtable order, so equal-valued rows swapped
+  between runs. Segments now keep their order and every such sort has the
+  name as a second key. A test rebuilds the fixture in a fresh process and
+  requires every page hash to match.
+- **A SharePoint-only Blueprint run renders no Markdown** - on ADO, the
+  renderer writes only the section model when neither **Export: Markdown**
+  nor **Export: Word report** is ticked (the new compile-time
+  `renderFormats` variable, passed as `-OutputFormat`), and the Mermaid
+  pre-render runs only when Markdown is written. With no export ticked the
+  run still writes the Markdown pack, so the artefact stays readable. The
+  run logs the raw, section and Markdown file counts, and the SharePoint
+  stage logs the section files it builds from.
+- **The iSOC Blueprint chart web part** - the `isoc-blueprint` package
+  (1.4.0) adds a second web part that draws every chart on the SharePoint
+  section pages from its data: donuts, columns and bars, lines, Sankey
+  flows, timelines, Gantt runways, mind maps, flowcharts, state, class and
+  sequence diagrams and user journeys, as SVG and HTML with no script
+  libraries, in the section's theme colours. Flowchart, state and class
+  diagrams share a layered layout that breaks cycles, routes an edge that
+  skips ranks round the nodes in between and boxes subgraphs. Links on
+  flowchart nodes go to the site page or the filtered findings list. The
+  publisher already places it; until a site has 1.4.0, charts go in as
+  tables. In the section model, a flowchart node now carries a `target`
+  for its link, the same as a text run's, and the renderer names the
+  series of its two multi-series charts (daily ingestion: Billable and
+  Free; agent fleet: AMA and MMA), so their legends say what each series
+  is.
+- **The SharePoint site is built from the section model** - the site
+  builder reads `sections/*.json` and no Markdown, so a Blueprint rendered
+  with `-OutputFormat Json` is all it needs (a snapshot from before the
+  section model is converted on the fly). Each chart on a section page is
+  now the iSOC Blueprint chart web part, carrying the chart's data in its
+  `chartJson` property, rather than a pre-rendered PNG; nothing is
+  rendered for the site any more, so the GitHub SharePoint workflow no
+  longer installs mermaid-cli. While the chart web part is not on the
+  site, a chart goes in as a table of its data (pie, sankey, bar and line)
+  and the page is rebuilt on the next run. The bundle has no `diagrams/`
+  folder, and the publisher recycles the diagram images earlier runs
+  uploaded. A table capped at 500 rows now links to the dashboard, which
+  has every row.
+- **Blueprint sections as JSON: the section model** - every run now writes
+  each section as `sections/<id>.json`, plus `sections/index.json`, in a
+  shape published as a JSON Schema (`Modules/iSOCBlueprint/Engine/Schemas/`): typed
+  blocks (heading, paragraph, list, table, note, chart, code, rule), text
+  as structured runs (bold, italic, code, links with a target that says
+  whether they point at a section, a finding, an anchor, a URL or a repo
+  path), and every chart as data (pie, sankey, xy, timeline, gantt,
+  mindmap, flowchart, sequence, state, class and journey) with its
+  Mermaid kept alongside. No Markdown in it. `ConvertTo-iSOCBlueprint
+  -Format` writes Markdown, Json or both (the default). See
+  `Docs/Modules/iSOCBlueprint/Section-Model.md`.
+- **The Documenter is now Blueprint** - the tool, its pipelines and its
+  docs take the product's name, and now live in the iSOCBlueprint module
+  (above): `Modules/iSOCBlueprint/`, `Tests/iSOCBlueprint/`,
+  `Docs/Modules/iSOCBlueprint/`; `Documenter.psd1` is `Blueprint.psd1`. The ADO pipeline is `Pipelines/Sentinel-Blueprint.yml`
+  (definition `Sentinel-Blueprint`), the GitHub workflow is
+  `.github/workflows/sentinel-blueprint.yml` ("Sentinel Blueprint"), and
+  the SharePoint workflow follows it by that name and takes
+  `blueprint-run-id`. Stored names move too, with a way across for
+  existing data: the site's assets library is `Blueprint Assets`
+  (`BlueprintAssets`); the publisher reads the publish state and maturity
+  history from the old `DocumenterAssets` library when the new one has
+  none, saves them to the new one, and recycles the old library after a
+  clean publish. `run-context.json` records `BlueprintVersion`, and older
+  snapshots with `DocumenterVersion` still read. The GitHub workflow reads
+  the `AZURE_BLUEPRINT_CLIENT_ID` secret, falling back to
+  `AZURE_DOCUMENTER_CLIENT_ID` until it exists. The publisher app's
+  default name is `Sentinel Blueprint SharePoint publisher`;
+  `Setup-SharePointPublisher.ps1` renames an app still called `Sentinel
+  Documenter SharePoint publisher` instead of creating a second one. The
+  dashboard web part's default file moves with the library (1.3.0).
+  `Tools/Migrate-ForkLayout.ps1` maps `Tools/Documenter` and
+  `Tests/Documenter` to their new homes.
+- **The ADO Blueprint publishes the SharePoint site and uses the preview
+  APIs by default** - `publishSharePointSite` (**Export: SharePoint
+  site**) and `includePreview` (**Collector: include preview APIs**) now
+  default to on in `Pipelines/Sentinel-Blueprint.yml`. Untick the
+  SharePoint export for a workspace with no site or no
+  `sc-sentinel-sharepoint` connection. The GitHub workflow's
+  `include-preview` input is unchanged (off).
+- **PR validation installs PnP.PowerShell for the SharePoint call check**
+  - both PR validation jobs install the PnP.PowerShell version the
+  Blueprint pipeline pins (`pnpVersion`, read from
+  `Pipelines/Sentinel-Blueprint.yml` so the two cannot drift): inline in
+  `Pipelines/Sentinel-PR-Validation.yml`, and through a new `pnp-version`
+  input on the `setup-pwsh-modules` composite action on GitHub (empty by
+  default, so other callers and their cache keys are unchanged).
+  `SharePoint-PnPCalls.Tests.ps1` now fails in CI when that version is
+  missing instead of skipping, so the check cannot silently drop out.
+- **SharePoint navigation publishes, and PnP calls are checked before a
+  run** - the first publish to reach the navigation step failed: it
+  cleared the top navigation with `Remove-PnPNavigationNode -Location
+  TopNavigationBar -All`, and in PnP.PowerShell 3.4.1 `-Location` and
+  `-All` sit in different parameter sets. It now removes each top-level
+  node by id. Reading the navigation used `Get-PnPNavigationNode -Tree`,
+  which returns a printed text tree rather than nodes, so the comparison
+  never matched and the navigation would have been rebuilt on every run;
+  it now reads the top-level nodes and loads each one's children by id.
+  A new suite, `Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`, checks
+  every PnP call in the SharePoint scripts against the parameter metadata
+  of the pinned PnP.PowerShell version (unknown parameters, parameter-set
+  clashes, missing mandatory parameters, `Remove-PnP*` without `-Force`),
+  so a call that cannot bind fails in Pester rather than in a pipeline.
+- **The dashboard web part lands on a new site's home page** - the first
+  real publish to a new site failed with "You cannot host text controls
+  inside a one column full width section". `Add-PnPPageWebPart -Component
+  <id>` matches the id string exactly, SharePoint returned it in another
+  form, and the miss became an empty web part that PnP refuses in a
+  full-width section. `Publish-SacDashboardPage` now finds the component
+  in `Get-PnPAvailablePageComponents` with the id normalised and passes
+  the object, reuses a full-width section an earlier failed run left on
+  the page, and when the web part never appears says so instead of
+  retrying an unrelated error for five minutes. The web part is also
+  stored with `isFullWidth = true`: PnP reads that property, not the
+  manifest, when it loads a saved page, and without it the publish failed
+  on the next save (`Set-PnPPage -Title -Publish`) with the same message.
+  A dashboard page placed without the property is rebuilt.
+- **A renamed dashboard web part replaces its old package** - SharePoint
+  keeps one catalog file per solution id and refuses the same id under a
+  second file name (`Add-PnPApp` fails with "appMetadata"). When the app
+  catalog holds this solution under another title, the publisher removes
+  that entry before adding the package; the dashboard page keeps working
+  because the web part's component id does not change. The web part is
+  `isoc-blueprint` (`isoc-blueprint.sppkg`, `IsocBlueprintWebPart`).
+- **The SharePoint stage no longer renders Mermaid** - the dashboard draws
+  its own charts, so the `SharePoint` stage of
+  `Pipelines/Sentinel-Blueprint.yml` drops its mermaid-cli install and
+  pre-render step (and the `mermaidCliVersion` variable). The section
+  pages reuse the PNGs when the Document stage already made them
+  (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegments` leaves
+  each Mermaid block out with no placeholder and no warning, and
+  `Build-SentinelDocsSite.ps1` logs how many it left out. The GitHub
+  SharePoint workflow still pre-renders.
+- **Tidier Blueprint run panel** - the queue-time options of
+  `Pipelines/Sentinel-Blueprint.yml` now read as groups with one-line
+  labels: the three exports first and side by side (`Export: SharePoint
+  site`, `Export: Markdown`, `Export: Word report`, any combination), then
+  the `SharePoint:` options, `Charts:`, `Collector:` and `Maturity:`. The
+  Markdown export is the review pull request; the Markdown itself is
+  rendered on every run because the other exports are built from it. The
+  playbook resource group field is no longer marked Required, which had
+  disabled Next: its default is now a single space, which the collector
+  step trims, and left blank it falls back to the Sentinel RG
+  (`sentinelResourceGroup`), shown on the run log's `Playbook RG` line.
+- **One Blueprint pipeline on Azure DevOps, with a tick box per output** -
+  `Pipelines/Sentinel-Blueprint.yml` now carries the three documentation
+  outputs as queue-time options that can be combined freely: the Markdown
+  pack as a review-only pull request (`openPullRequest`), the Word report
+  (`publishWordReport`, a new `WordReport` stage) and the iSOC Blueprint
+  SharePoint site (`publishSharePointSite`, a new `SharePoint` stage with
+  `sharePointWhatIf` and `deployAppPackage`). The two publish stages run
+  after `Document`, read the artefact of the same run and sign in with
+  their own identities, so a failed publish can be rerun without
+  collecting again. `Pipelines/Sentinel-SharePoint-Publish.yml` and
+  `Pipelines/Sentinel-Word-Report.yml` are removed; the GitHub SharePoint
+  workflow is unchanged.
+- **One-shot bootstrap for the SharePoint publisher identity** -
+  `Deploy/setup/Setup-SharePointPublisher.ps1` finds or creates the
+  publisher app registration, declares and consents the SharePoint Online
+  `Sites.Selected` application permission, grants Reader on one resource
+  group, creates the `sc-sentinel-sharepoint` service connection with
+  workload identity federation through the Azure DevOps REST API, adds the
+  federated credential, and optionally authorises the Blueprint pipeline
+  and sets `sharePointSiteUrl` in the variable group. Idempotent, with
+  `-WhatIf`.
+- **The Markdown pack carries everything the dashboard shows** - the
+  estate flow on the overview pages gains a Source families table (tables,
+  GB, tables read by a detection, first-party alerts beside their family)
+  and a Defender XDR custom-detection count; the incidents page gains
+  alert volume by severity and alerts by detection source; the hunting
+  page gains the bookmarks (or the service-reported count when the list
+  was too large to fetch). Tables are no longer cut to a top N: incidents
+  by rule, rule effectiveness, detection opportunities and the maturity
+  roadmap list every row, and the collector keeps up to 500 alerting rules
+  and 500 incident-producing rule titles instead of 50 and 25. The product
+  to family mapping the dashboard uses now lives in the shared
+  `Get-ProductFamily` helper, so both outputs agree.
+- **Sentinel health check folded into the Blueprint and the iSOC Blueprint
+  site** - the content of the Sentinel health-check script written by
+  thinkndle, who gave it to the project, now lands on the Blueprint's own
+  layers and is refreshed by the daily pipelines. Thirteen new gap rules
+  (SENT-036, 037, 038, 041 and 050 to 058: noisy rules, missing entity
+  mappings, alert-only rules, legacy incident-creation rules, rules on the
+  retired threat-intelligence table, high-volume tables no rule reads with
+  the templates that would cover them, silent tables that enabled rules
+  depend on, playbook failures, deprecated solutions, a single TI feed,
+  Azure Firewall logged twice, incidents closed unclassified, no hunting
+  activity), 58 in all. A maturity assessment, the Sentinel-As-Code
+  maturity assessment, scores eleven capability areas 0 to 5 from sixty
+  criteria with a roadmap, quick wins and a NIST CSF 2.0 rollup, written to
+  `maturity.json` and measured against a target level that both pipelines
+  take as a parameter (default 3). The Markdown pack gains an estate flow
+  on the overview, `28-detection-opportunities.md` and
+  `91-maturity-assessment.md`, and ten extended sections (incident
+  outcomes, rule effectiveness, STIX objects and feeds, hunts, linked
+  services, playbook run health, deprecated solutions, daily ingestion,
+  tables by detection coverage). The SharePoint dashboard's Overview is an
+  executive summary with pipeline rings, the estate flow, a maturity card
+  and quick wins; a Maturity tab and five Insights panels are new; every
+  publish records the score so the tab draws a trend. The criterion set,
+  the estate-flow view and the detection-headroom idea are thinkndle's;
+  the methodology, scoring and taxonomy are the project's own and carry no
+  third-party model's name. Also fixed on the way: the live-snapshot MITRE
+  headline counted hunting-query tags instead of the 14-tactic catalogue,
+  and `incidents-summary` returned presence flags where counts were meant.
+- **Every capture reaches a page, and the lake reaches the dashboard** -
+  three captures that nothing rendered now do: failed ingestion and schema
+  operations on the health page, the legacy management solutions on the
+  Content Hub page, and the Sentinel onboarding state (customer-managed key)
+  on the workspace page. The dashboard gains a "Data lake" glance tile and
+  an Insights panel with the enrolment status, tier distribution, top
+  extended-retention tables and lake cost split, counted by the same helper
+  as the data lake page, and the billing-flow Sankey's plan column now names
+  the lake tier each table lands in instead of one "Analytics plan" box.
+- **One id scheme for findings and criteria** - gap findings are now
+  `SAC-<AREA>-NN` like the maturity criteria, with the area taken from the
+  eleven assessment areas; a rule that decides a criterion on its own
+  carries that criterion's id, so the finding and the gap it causes share
+  a name. Every rule keeps its retired id as `legacyId` (catalogue 3.0.0),
+  page anchors, finding links and the SharePoint findings list follow the
+  new ids, and an existing list item under the old id is moved rather than
+  resolved and re-added. The mapping:
+
+  | Retired | New |
+  | --- | --- |
+  | SENT-001 | SAC-LOG-03 |
+  | SENT-002 | SAC-LOG-07 |
+  | SENT-003 | SAC-LOG-08 |
+  | SENT-004 | SAC-COV-07 |
+  | SENT-005 | SAC-COV-05 |
+  | SENT-006 | SAC-MON-04 |
+  | SENT-007 | SAC-DET-05 |
+  | SENT-008 | SAC-DET-09 |
+  | SENT-009 | SAC-GOV-06 |
+  | SENT-010 | SAC-PLT-08 |
+  | SENT-011 | SAC-AUT-05 |
+  | SENT-012 | SAC-LOG-09 |
+  | SENT-013 | SAC-DET-07 |
+  | SENT-014 | SAC-PLT-11 |
+  | SENT-015 | SAC-LOG-10 |
+  | SENT-016 | SAC-LOG-02 |
+  | SENT-017 | SAC-LOG-11 |
+  | SENT-018 | SAC-LOG-12 |
+  | SENT-019 | SAC-LOG-13 |
+  | SENT-020 | SAC-PLT-05 |
+  | SENT-021 | SAC-PLT-06 |
+  | SENT-022 | SAC-PLT-09 |
+  | SENT-023 | SAC-LOG-14 |
+  | SENT-024 | SAC-GOV-07 |
+  | SENT-025 | SAC-GOV-08 |
+  | SENT-026 | SAC-INV-01 |
+  | SENT-027 | SAC-INV-04 |
+  | SENT-028 | SAC-PLT-10 |
+  | SENT-029 | SAC-INC-06 |
+  | SENT-030 | SAC-INC-05 |
+  | SENT-031 | SAC-DET-04 |
+  | SENT-032 | SAC-DET-10 |
+  | SENT-033 | SAC-DET-11 |
+  | SENT-034 | SAC-AUT-01 |
+  | SENT-035 | SAC-DET-12 |
+  | SENT-036 | SAC-DET-06 |
+  | SENT-037 | SAC-DET-03 |
+  | SENT-038 | SAC-MON-01 |
+  | SENT-039 | SAC-GOV-05 |
+  | SENT-040 | SAC-GOV-04 |
+  | SENT-041 | SAC-DET-08 |
+  | SENT-042 | SAC-GOV-03 |
+  | SENT-043 | SAC-LOG-15 |
+  | SENT-044 | SAC-LOG-16 |
+  | SENT-045 | SAC-LOG-17 |
+  | SENT-046 | SAC-LOG-18 |
+  | SENT-047 | SAC-PLT-02 |
+  | SENT-048 | SAC-PLT-03 |
+  | SENT-049 | SAC-TI-01 |
+  | SENT-050 | SAC-TI-02 |
+  | SENT-051 | SAC-MON-05 |
+  | SENT-052 | SAC-MON-06 |
+  | SENT-053 | SAC-AUT-02 |
+  | SENT-054 | SAC-DET-13 |
+  | SENT-055 | SAC-TI-05 |
+  | SENT-056 | SAC-LOG-06 |
+  | SENT-057 | SAC-INC-02 |
+  | SENT-058 | SAC-HNT-01 |
+  | SENT-059 | SAC-DET-14 |
+
+- **Defender XDR custom detections count as coverage** - a new
+  `defender-custom-detections` capture reads the tenant's custom detection
+  rules through Microsoft Graph (`CustomDetection.Read.All`) and resolves
+  the tables each one queries; an enabled custom detection now counts as
+  detection coverage in the estate flow, on the table-coverage view, on
+  the detection-opportunities page and in rule SAC-MON-05, and the
+  analytics page lists the rules with their tables, state, severity and
+  period. When the permission is missing the pages and the flow say the
+  capture did not run rather than showing zero.
+- **Coverage means Sentinel rules, and says so** - the estate flow, its
+  detail panel and page 28 state that "read by a rule" means an enabled
+  Sentinel analytics rule; first-party detections (Defender XDR, Entra ID
+  Protection, Defender for Identity, Defender for Cloud) do not read
+  workspace tables and are now listed per family in the detail panel from
+  the alert volumes by product. The disabled-rules finding names a bulk
+  change day when most disabled rules share a last-modified date and lists
+  the disabled rules that still produced alerts in the last 30 days.
+- **Interactive estate flow** - hover a source family to spotlight its
+  strands; click a family or the "Not monitored" pool for the tables behind
+  it (GB, rules reading each, monitored or not); click a ring to open its
+  page and the Closed or Open box to open the incidents page. Unmonitored
+  strands keep their family colour and run dashed into the pool, so the
+  legend reads by family at both ends. Report tables right-align the header
+  of every numeric column with its figures.
+- **Findings and criteria as cards** - the Findings tab, the Overview
+  findings and the maturity criteria share one card layout: a card per
+  item with the pill, id and title on one line and a chevron at its right,
+  chips beneath (category, area, the retired id; area, kind and effort for
+  criteria), then Evidence beside Remediation or Guidance, each clamped to
+  three lines, with Microsoft Learn under the remediation and "Open
+  finding" under a criterion's evidence. Every card is the same height
+  when collapsed, and the chevron (or a click on the clamped text) opens
+  both blocks. Findings filter by severity, category and
+  search; criteria by status, area and search, and a criterion that shares
+  its id with a fired finding links to it.
+- **Dashboard reading comfort** - long evidence, remediation and guidance
+  cells clamp to three lines with an Expand control (semicolon lists open
+  as bullets), so table rows stay uniform and nothing is cut; the Overview
+  alerting-rules table shows eight with "Show all"; finding ids never wrap;
+  the per-section view is the "Report" tab and sits before Maturity; Report
+  section titles and subsection headings are more prominent; doc-table
+  cells longer than 40 characters wrap instead of overflowing; the estate
+  flow and Sankey no longer shorten any label. Blueprint version 0.2.0.
+  The estate flow keeps its layout but reads cleanly: ring captions wrap
+  onto two lines with a panel-coloured halo, the "Not monitored" pool is
+  sized to its text and sits below the rings, and the unmonitored strands
+  drop early and run in from the left instead of crossing the ingestion
+  ring and its captions.
+- **Six new captures close the last health-check gaps** - `rule-health`
+  (analytics rules whose runs failed, with the recorded reason; new rule
+  SENT-059 and a "Rule run failures" table on the analytics page),
+  `incident-title-stats` (frequent incident titles with closure speed and
+  verdicts, rendered as "Automation opportunities" on the automation page
+  with a suggested response per title family), `threat-intel-by-type`
+  (indicators by observable type on the threat-intelligence page),
+  `syslog-contributors` and `securityevent-top-hosts` (log composition by
+  host on the data-source hygiene page) and `table-query-usage` (audited
+  queries per lake-retained table, the last column of the lake usage
+  evidence). `best-practices.json` is 2.3.0 with 59 rules. A new
+  [Health-Check-Coverage.md](../Modules/iSOCBlueprint/Health-Check-Coverage.md)
+  maps every section of the contributed health check to its Blueprint
+  page.
+- **Sections cross-referenced with the health check** - six subsections
+  the health check had and the pages did not, all from captures already
+  taken: Defender XDR unification and the Defender for Cloud connectors on
+  the connectors page; Entra ID table presence on the coverage page; a
+  rule-complexity heuristic on the analytics page; a resilience summary
+  (replication, Private Link, public access, customer-managed key, managed
+  identity, daily cap, locks) on the workspace page; the silent tables in
+  detail, split by detection impact, and a classic (Data Collector API)
+  custom-table inventory with last ingestion and an action per table on
+  the table-plans page; lake usage evidence and the tables without extended
+  lake retention on the data lake page.
+- **Interactive billing flow and nothing hidden behind "N more"** - the
+  Data flow Sankey is rebuilt in the browser from every ingesting table:
+  click a source family (or its chip) to see every table in that family,
+  click "Other" or "Every table" to see them all. Every dashboard list
+  (findings, tables by volume, alerting rules, health operations, rule
+  effectiveness, detection opportunities and their templates, extended-
+  retention tables, failing playbooks, the roadmap) shows its first entries
+  with a "Show all N" control, and the model carries the full lists.
+- **Dashboard layout** - Insights cards sit in bands of similar height
+  (donuts, bar lists, tables) separated by the full-width panels, so a long
+  table never shares a row with a short donut; a short last row widens to
+  fill its band. Sankey columns size to their longest label, stacking the
+  value under the label when the two cannot share a line, so names neither
+  overlap nor truncate. The Sankey lives on the Data flow tab only; the
+  Overview no longer carries a second copy. The posture-card percentage
+  rings are masked donuts, so the value sits in a real hole instead of
+  behind a translucent disc, and the flow box, grid lines and table-node
+  labels follow the dark theme.
+- **One analytics page** - the four analytics deep-dives (by alert volume,
+  Microsoft-managed rules, recent modifications, by Content Hub solution)
+  are now subsections of `20-analytics-rules.md` rather than separate
+  files, so the Detection family reads as one rules page. A site published
+  from an earlier run retires the four old pages on its next publish.
+- **Hardening from the release review** - the dashboard web part (1.15.0)
+  loads and runs only files in the site's `BlueprintAssets` library, the one
+  the publisher writes to, so the page's dashboard path can no longer point
+  it at another file in the site; a path that walks out of the library, or
+  carries a query, fragment or encoded character, is refused with a message
+  saying so. The `.githooks/pre-push` hook (1.0.1) reads commit paths
+  NUL-separated, so Blueprint output under a non-ASCII name is caught
+  instead of slipping past as a quoted path. `Tools/Migrate-ForkLayout.ps1`
+  (0.1.4) merges a partly migrated folder at every depth, so a customisation
+  in a subfolder both layouts have comes across; a file both have is left in
+  place with a warning, and old folders the merge empties are removed.
+- **A failed sign-in burst rule and hunting query, and connector metadata
+  across the rules** - a new analytics rule and matching hunting query flag a
+  single IP address producing ten or more failed Entra ID sign-ins within an
+  hour, the general per-IP case the existing Entra ID rules did not cover,
+  and the `requiredDataConnectors` metadata is updated across the existing
+  analytics rules. Contributed by @bbusch12 (PR #60).
+- **Nightly failure issues close when the stage recovers** - the nightly
+  pipeline closes the issue it opened for a failing stage once that stage
+  passes again, so the open issues are the live failures (PR #59).
+- **Toolkit docs in line with its 26.10 release** - the Sentinel as Code
+  Toolkit pages (commands, configuration, schemas and validation, ARM to
+  YAML conversion) describe the extension's current release (PR #61).
+- **Drift sync regenerates the dependency manifest** - a drift-sync run that
+  brings portal edits back into the repository regenerates
+  `dependencies.json` so the dependency-manifest gate passes on its pull
+  request, and the lease push that publishes the branch is fixed (PR #64).
+
 ## 26.09
 
 Connector, workbook and content-hygiene release, plus a repository-wide

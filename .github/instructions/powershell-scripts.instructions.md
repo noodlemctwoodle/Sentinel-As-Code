@@ -1,7 +1,7 @@
 ---
 name: PowerShell scripts and modules
-description: Conventions for Deploy/**/*.ps1, Tools/**/*.ps1 and Modules/**/*.psm1 files.
-applyTo: "Deploy/**/*.ps1,Tools/**/*.ps1,Modules/**/*.psm1,Modules/**/*.psd1"
+description: Conventions for Deploy/**/*.ps1, Tools/**/*.ps1 and Modules/** PowerShell files.
+applyTo: "Deploy/**/*.ps1,Tools/**/*.ps1,Modules/**/*.ps1,Modules/**/*.psm1,Modules/**/*.psd1"
 ---
 
 # PowerShell scripts and modules
@@ -214,9 +214,13 @@ than no reference, because it implies the contract was checked.
 ### Variants
 
 **Files that define functions rather than run** (`Modules/**/*.psm1`,
-`Tools/Documenter/Private/*.ps1`): the file-level block describes the
-file and carries `.NOTES`. Per-parameter and per-example detail lives
-on each function's own help block, not the file's.
+`Modules/iSOCBlueprint/Public/*.ps1`, `Modules/iSOCBlueprint/Private/*.ps1`,
+`Modules/iSOCBlueprint/Engine/Private/*.ps1`): the file-level block
+describes the file and carries `.NOTES`. Per-parameter and per-example
+detail lives on each function's own help block, not the file's. Put a
+comment line between the file block and the first `function`: with only
+a blank line between them, PowerShell reads the file block as that
+function's help and `Get-Help` shows the wrong text.
 
 **Pester test files** (`Tests/**/*.Tests.ps1`): no `.PARAMETER`, since
 they take none. `.EXAMPLE` carries the `Invoke-Pester` invocations a
@@ -255,6 +259,12 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
    inline duplication caused bug-fix-in-one-copy regressions. If a
    shared helper doesn't fit your need, add a new export to
    `Sentinel.Common.psm1` (with a Pester test) rather than inlining.
+   The one sanctioned copy is the `iSOCBlueprint` module's
+   `Engine/Private/Vendor/SentinelCommon.Kql.ps1`, which carries
+   `Remove-KqlComments` and `Get-KqlBareIdentifiers` so the module stands
+   alone. `Tests/iSOCBlueprint/Vendored.Tests.ps1` fails while either
+   differs from `Sentinel.Common`: fix the shared module first, then copy
+   the function across.
 2. **PSGallery module pins.** Every workflow / pipeline pins
    `powershell-yaml` and `Pester` to specific versions (env vars
    `YAML_VERSION` / `PESTER_VERSION`). New scripts that need a

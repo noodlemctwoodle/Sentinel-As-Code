@@ -1,0 +1,30 @@
+{
+  "$comment": "Topics for the What's new page (03-whats-new.md). An item from the Microsoft Sentinel or Defender XDR What's new page whose title or summary matches a topic's pattern (case-insensitive .NET regex) is linked to that topic's report page and maturity criteria, with this workspace's status for each criterion. Keep patterns specific: a broad word such as 'incident' or 'connector' would tie most items to everything.",
+  "version": 1,
+  "topics": [
+    { "id": "portal", "label": "Defender portal move", "match": "Azure portal|Defender portal|unified security operations|unified SecOps", "section": "02-deprecated-legacy-features", "criteria": [] },
+    { "id": "connectors", "label": "Data connectors", "match": "data connector|connector builder|codeless connector|\\bCCF\\b", "section": "10-data-connectors", "criteria": ["SAC-PLT-07", "SAC-COV-01"] },
+    { "id": "sap", "label": "SAP", "match": "\\bSAP\\b", "section": "10-data-connectors", "criteria": [] },
+    { "id": "health", "label": "Health and audit", "match": "health monitoring|SentinelHealth|auditing", "section": "11-sentinel-health", "criteria": ["SAC-MON-02"] },
+    { "id": "soc-optimization", "label": "SOC optimisation", "match": "SOC optimi[sz]ation", "section": "12-soc-optimization", "criteria": [] },
+    { "id": "incidents", "label": "Incidents", "match": "incident (queue|page|graph|summar|task)|\\bincidents? (and|or) alerts\\b|split incidents|account entity naming", "section": "15-incidents", "criteria": ["SAC-INC-01", "SAC-INC-02"] },
+    { "id": "analytics-rules", "label": "Analytics rules", "match": "analytics rule|scheduled rule|near.real.time|\\bNRT\\b|rule template", "section": "20-analytics-rules", "criteria": ["SAC-DET-01", "SAC-DET-07"] },
+    { "id": "custom-detections", "label": "Custom detections", "match": "custom detection", "section": "20-analytics-rules", "criteria": ["SAC-DET-02"] },
+    { "id": "mitre", "label": "MITRE ATT&CK", "match": "MITRE|ATT&CK", "section": "25-mitre-coverage", "criteria": ["SAC-MON-03"] },
+    { "id": "ueba", "label": "UEBA", "match": "\\bUEBA\\b|entity behaviou?r|behaviou?rs? layer|anomal(y|ies)", "section": "26-ueba", "criteria": ["SAC-COV-05", "SAC-COV-06"] },
+    { "id": "threat-intelligence", "label": "Threat intelligence", "match": "threat intelligence|\\bSTIX\\b|\\bTAXII\\b|indicators? of compromise|\\bMDTI\\b", "section": "27-threat-intelligence", "criteria": ["SAC-TI-03", "SAC-TI-06"] },
+    { "id": "hunting", "label": "Hunting", "match": "advanced hunting|hunting (graph|query|queries)|\\bbookmark", "section": "30-hunting-queries", "criteria": ["SAC-HNT-01", "SAC-HNT-03"] },
+    { "id": "search-restore", "label": "Search and restore", "match": "search job|\\brestore\\b", "section": "37-search-restore", "criteria": ["SAC-INV-02"] },
+    { "id": "summary-rules", "label": "Summary rules", "match": "summary rule", "section": "38-summary-rules", "criteria": ["SAC-LOG-05"] },
+    { "id": "workbooks", "label": "Workbooks", "match": "workbook", "section": "40-workbooks", "criteria": [] },
+    { "id": "watchlists", "label": "Watchlists", "match": "watchlist", "section": "50-watchlists", "criteria": ["SAC-AUT-04"] },
+    { "id": "automation", "label": "Automation", "match": "playbook|automation rule|Logic App|update (your )?automation", "section": "60-automation-rules-playbooks", "criteria": ["SAC-AUT-01", "SAC-AUT-03"] },
+    { "id": "content", "label": "Content Hub and repositories", "match": "Content hub|content as code|repositor", "section": "70-content-hub", "criteria": ["SAC-DET-07"] },
+    { "id": "tables", "label": "Table plans and retention", "match": "table management|\\bretention\\b|Basic logs|Auxiliary logs|table plan", "section": "81-table-plans-retention", "criteria": ["SAC-LOG-01", "SAC-LOG-02"] },
+    { "id": "data-collection", "label": "Data collection rules", "match": "data collection rule|\\bDCRs?\\b|transformation|filter and split|Logs Ingestion API", "section": "83-data-collection", "criteria": ["SAC-PLT-01"] },
+    { "id": "cost", "label": "Cost", "match": "\\bcost\\b|billing|pricing|commitment tier", "section": "84-cost-estimate", "criteria": ["SAC-LOG-03"] },
+    { "id": "access", "label": "Access", "match": "\\bRBAC\\b|role-based|row-level access|scoping|least.privilege|permission", "section": "85-rbac", "criteria": ["SAC-GOV-01", "SAC-GOV-02"] },
+    { "id": "agents", "label": "Azure Monitor Agent", "match": "Azure Monitor Agent|\\bAMA\\b|Log Analytics agent|\\bMMA\\b", "section": "87-azure-monitor-agents", "criteria": ["SAC-PLT-03"] },
+    { "id": "data-lake", "label": "Data lake", "match": "data lake|lake tier|OneLake|data federation", "section": "88-sentinel-data-lake", "criteria": ["SAC-LOG-04"] }
+  ]
+}

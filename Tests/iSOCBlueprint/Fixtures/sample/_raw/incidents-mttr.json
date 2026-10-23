@@ -1,0 +1,11 @@
+[
+  {
+    "ClosedCount": 32,
+    "AcknowledgedCount": 12,
+    "MTTAMinutes": 95.5,
+    "MTTRMinutes": 1620.0,
+    "ClosedCount7d": 10,
+    "MTTAMinutes7d": 60.5,
+    "MTTRMinutes7d": 900.0
+  }
+]

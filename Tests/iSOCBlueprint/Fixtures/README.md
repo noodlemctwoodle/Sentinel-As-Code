@@ -1,0 +1,106 @@
+# Blueprint test fixtures
+
+> **These are NOT a snapshot of any real Sentinel workspace.**
+> They are hand-authored synthetic data used by the Pester suite under
+> [`Tests/iSOCBlueprint/`](..) to verify the renderer and the gap-analysis
+> engine offline.
+
+## Why fixtures exist
+
+The PR-validation gate (`.github/workflows/pr-validation.yml`) runs Pester
+with **no Azure auth**. That means every test must be deterministic and
+self-contained. Without checked-in fixtures the only way to test the
+renderer or the gap engine would be a live tenant — which would gate the
+test suite on credentials and make every PR untestable in CI.
+
+## Why this fixture is deliberately broken
+
+`sample/_raw/` encodes a workspace that violates many best-practice rules
+on purpose, so each `Test-*` function in
+[`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
+has at least one positive case to prove against. Each rule's expected
+firing condition is documented in the comment block at the top of
+[`Get-SentinelGap.Tests.ps1`](../Get-SentinelGap.Tests.ps1).
+
+Examples of the brokenness:
+
+| File | Brokenness |
+|---|---|
+| `workspace.json` | `dailyQuotaGb = -1`, `retentionInDays = 30`, `replication.enabled = false`, `publicNetworkAccessForIngestion = Enabled`, `disableLocalAuth = false` |
+| `workspace-tables.json` | `FirewallLogs_CL` on Analytics with 730d retention; `OrphanTable_CL` with no data |
+| `tables-with-data.json` | `AuditLogs` has data 90d ago but none last 7d (silent table) |
+| `alert-rules.json` | One NRT rule disabled |
+| `rbac-workspace.json` | A legacy admin group holds `Owner` at workspace scope |
+| `resource-providers.json` | `Microsoft.Insights` is `NotRegistered` |
+| `alert-rules.json` | Rule `eeee` is enabled with no `entityMappings`, `createIncident: false` and a query on `ThreatIntelligenceIndicator`; rule `dddd` is an enabled `MicrosoftSecurityIncidentCreation` rule |
+| `rule-table-references.json`, `template-table-references.json` | Hand-authored output of `Get-KqlTableReferences.ps1` for the fixture rules and templates; `FirewallLogs_CL`, `SecurityEvent` and `OfficeActivity` are read by no enabled rule, and the only template for `FirewallLogs_CL` is `[Deprecated]` |
+| `tables-with-data.json` | `AuditLogs` has `IngestedLast7d: 0` while rule `aaaa` reads it; `AZFWNetworkRule` carries data alongside the `AzureFirewall*` categories in `azure-diagnostics-categories.json` |
+| `rule-effectiveness.json` | `aaaa` closed 24 incidents, 19 of them false positive; `eeee` closed 8 (under the floor) |
+| `playbook-runs.json` | `IncidentEnrich-IP` failed 5 of 42 runs; `NotifyOnHighSev` is clean |
+| `hunts.json`, `bookmarks.json` | Both `[]`, so hunting activity is absent |
+| `incidents-summary.json` | 32 closed, 20 of them `Undetermined` or `Unclassified` |
+| `content-packages.json`, `content-product-packages.json` | `legacy-feed` is installed but missing from the catalogue; `office365` is marked `isDeprecated` |
+| `data-connectors-classic.json`, `threat-intel-counts.json` | `MicrosoftThreatIntelligence` is the only TI feed; no third-party indicator source |
+| `sentinel-data-lake.json` | One platform-services resource, so the workspace counts as lake-enrolled; every fixture table has total retention equal to analytics retention, so the tier profile is all "Analytics + Lake mirror" |
+| `solutions-installed.json`, `onboarding-state.json`, `ingestion-latency.json` | One legacy OMS solution, an onboarding state without a customer-managed key, and one failed DCR transform, so pages 70, 80 and 11 render their tables |
+| `rule-health.json` | One rule with three failed runs and a timeout reason, so SAC-DET-14 fires and page 20 lists it |
+| `incident-title-stats.json` | Three incident titles: a phishing title that closes fast and mostly as false positive, a rare-country sign-in that closes mostly as false positive, a brute-force title that closes within the hour |
+| `threat-intel-by-type.json` | IP, Domain and URL indicator counts for the by-type pie on page 27 |
+| `syslog-contributors.json`, `securityevent-top-hosts.json` | Two Syslog hosts and two SecurityEvent hosts for the contributor tables on page 13 |
+| `table-query-usage.json` | Empty: no fixture table keeps data in the lake beyond its analytics retention |
+| `defender-custom-detections.json`, `custom-detection-table-references.json` | Two Defender XDR custom detections, one enabled (reads DeviceProcessEvents and EmailEvents) and one paused, for the page-20 inventory and the coverage counts |
+| `security-event-duplicates.json` | `dc01.contoso.local` sent 310 duplicated SecurityEvent records, so SAC-LOG-22 fires and page 13 lists the host |
+| `cef-in-syslog.json` | `syslog-forwarder-01` put 2310 Palo Alto CEF messages into `Syslog`, so SAC-LOG-23 fires and page 13 shows the vendor |
+| `sentinel-health.json` | The Office 365 connector has 6 failed health events, so page 11 lists it under connector and DCR health issues |
+| `incidents-summary.json`, `incidents-mttr.json` | 7-day counts, 12 of 40 incidents raised through Microsoft XDR, and the per-provider bag for the incident metrics and unification rows on pages 15 and 10 |
+| `analytics-rule-volumes.json` | `ProviderName` and `Alerts7d` per rule (ASI Scheduled, ASI NRT and IPC alerts) for the alert volumes by provider on page 15; no row uses the retired Azure Security Center name, so that legacy row on page 01 reads zero |
+| `top-event-ids.json`, `ueba-data-presence.json`, `threat-intel-counts.json` | `LogCount` per event ID; 7-, 12- and 14-day UEBA source counts; a distinct indicator count per TI source |
+| `run-context.json` | The signed-in account and its type for page 86, and the window: `LookbackDays` 30, `RecentDays` 7, `DailyDays` 30 |
+| `daily-table-usage.json`, `daily-alerts.json`, `daily-incidents.json`, `daily-rule-incidents.json`, `daily-health.json` | The daily series behind the dashboard's window slider, one row per day ago (0 to 29). Over the 30 days they add up to the collected figures: billable GB to `tables-with-data.json` (the last 7 days carrying `BillableLast7d`), alerts to `analytics-rule-volumes.json`, incidents to `incidents-summary.json` and the resolve times to `incidents-mttr.json`, verdicts to `rule-effectiveness.json`, events to `sentinel-health-summary.json`. The NRT alert that `rules-fired.json` leaves out is in `daily-alerts.json` as the volumes have it, so below 30 days the rules' alert total counts it |
+| `playbook-runs.json` | Each playbook's runs and failures per day ago (`Daily`), adding up to its `Runs7d` and `Failed7d` |
+| `data-exports.json`, `linked-services.json`, `linked-storage-accounts.json` | One Event Hub export, one ADX cluster link and one linked storage account for page 36 |
+| `agent-heartbeat-mix.json` | Azure Monitor Agent and legacy Direct Agent (MMA) hosts, so page 87 shows the mix and page 01 lists MMA as legacy |
+| `threat-intel-tables.json`, `threat-intel-health.json`, `taxii-clients.json` | Both new TI tables receiving data and the retired `ThreatIntelligenceIndicator` empty (migration complete), indicator health counts, and one TAXII client for page 27 |
+| `azure-firewall-categories.json` | Rows for the legacy `AzureFirewall*` categories alongside the `AZFW*` tables, for page 14 and the legacy features list |
+| `maturity.json` | Generated by `Get-SentinelMaturity` from this fixture (see the regeneration snippet in `Docs/Modules/iSOCBlueprint/Engine/Sentinel-Maturity-Model.md`); the maturity test compares a fresh run against it |
+
+## How real workspaces produce JSON
+
+When you run `Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1` against your
+live workspace the collector writes JSON to `SecurityDocs/<workspace>/_raw/`
+at the **repo root**. That folder is `.gitignore`'d so the data stays local
+and rides out via the workflow's private artefact — it never lands in this
+fixture directory.
+
+Workflow → JSON path:
+```
+.github/workflows/sentinel-blueprint.yml
+  → Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1
+    → SecurityDocs/<workspace>/_raw/*.json    ← gitignored, real data
+```
+
+Test → JSON path:
+```
+.github/workflows/pr-validation.yml
+  → Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1
+    → Tests/iSOCBlueprint/Fixtures/sample/_raw/*.json   ← tracked, synthetic data
+```
+
+## Updating the fixture
+
+Update the fixture only when:
+
+- A new gap rule lands that needs a positive case to fire against, OR
+- A real Azure REST shape changes meaningfully (e.g. a new property on a
+  workspace `tables` response that the renderer must surface).
+
+When the API shape changes, refresh by running the collector against a real
+workspace, **scrubbing identifiers and any tenant-specific values**, then
+copying the relevant subset into `sample/_raw/`. Never copy a real
+workspace's data verbatim.
+
+After any update, run:
+
+```powershell
+Invoke-Pester -Path Tests/iSOCBlueprint -Output Detailed
+```

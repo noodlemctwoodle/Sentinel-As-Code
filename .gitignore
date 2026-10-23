@@ -29,9 +29,15 @@ Tools/Test-DefenderSentinelParity.ps1
 Tools/GUIDE-DefenderSentinelParity.md
 Tools/Export-Playbooks.ps1
 
-# Sentinel documenter output — contains tenant configuration; never commit.
+# iSOC Blueprint output: contains tenant configuration; never commit.
 # Delivered via the workflow's private GitHub Actions artefact instead.
+# BlueprintRuns/ and any <folder>/<workspace>/_raw/ cover output written
+# with -OutputPath; the test fixtures' _raw folders stay tracked.
+# .githooks/pre-push refuses a GitHub push that carries any of it.
 SecurityDocs/
+BlueprintRuns/
+_raw/
+!Tests/**/Fixtures/**/_raw/
 .sentinel-connectors.json
 Demo
 

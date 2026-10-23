@@ -1,0 +1,996 @@
+# iSOC Blueprint SharePoint Site
+
+Generates and publishes an **iSOC Blueprint** SharePoint Online site for one
+Sentinel workspace from the iSOC Blueprint's output. Every page, the
+navigation, the findings list and the dashboard home page are generated; a
+pipeline keeps the site in step with every Blueprint run.
+
+> Companion pages: [iSOC Blueprint](Sentinel-Blueprint.md) produces the
+> snapshot and the [section model](Section-Model.md) this site is built from.
+> [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md) covers
+> the CI/CD wiring, identity and secrets.
+
+## What gets generated
+
+One communication site per workspace, containing:
+
+| Part | What it is | Where |
+| --- | --- | --- |
+| **Dashboard** (home page) | The interactive dashboard: an executive overview (glance tiles, the alert lifecycle, posture cards, the maturity card with quick wins, and the critical findings with a button to every finding), the data flow (the estate flow with its pipeline figures, the detection matrix, then the ingest and billing flow), insights, every section with charts and table filters, an Assessment tab that switches between the maturity assessment and the findings, and a Progress tab that compares this run with an earlier one (see [Progress across runs](#progress-across-runs)). The maturity view states what the score is based on and that it covers the Sentinel workspace only. The findings view opens with a summary (by severity, by effect on the maturity score, by area, by category, and every scored finding ranked by its lift), where every legend entry, bar and row filters the list below; each finding shows what closing it does to the maturity score, and the list filters by severity, area, category and that effect. Each section links to its native page. | `SitePages/Dashboard.aspx`, set as the home page |
+| **Section pages** | One modern page per Blueprint section (35 or so): the text as native text web parts, so it is searchable, printable and readable without JavaScript, and each chart as the iSOC Blueprint chart web part, which draws it from the chart's data. | `SitePages/sac-<NN>-<name>.aspx` |
+| **Navigation** | The top navigation (mega menu): Dashboard, one heading per section family (Overview, Data sources, Operational health, Detection, Hunting & content, Automation, Workspace, Cost & access, Assessment, References) with its pages. Assessment holds the gap analysis, the maturity assessment and the findings list. | Top navigation bar |
+| **Findings list** | Every gap-analysis finding, with severity, category, evidence, remediation and Learn link, plus history: `FirstSeen`, `LastSeen`, `Status` (Open, Resolved, Retired) and `ResolvedOn`. Finding links on the pages open the list filtered to that finding. An item still filed under a retired `SENT-NNN` id is recognised through the rule's `legacyId` and updated in place under its `SAC-<AREA>-NN` id, so history carries over the rename. | `Lists/SentinelFindings` |
+| **Assets** | The dashboard HTML and data, the publisher's state file, the maturity score history, the progress history, a copy of the dashboard per day (`dashboard/history/`), and each table cut on its page, whole, as CSV (`tables/`). | `BlueprintAssets` library |
+
+The generator owns all of the above. Manual edits to generated pages or the
+top navigation are overwritten on the next run that changes them.
+
+## A tour of the dashboard
+
+The screenshots below come from the synthetic demo workspace
+(`sentinel-blog-uks-law`, built by
+[`New-BlueprintDemoWorkspace.ps1`](../../Tools/Blueprint-Demo-Workspace.md)),
+not from a customer. Each view is described in full under
+[Dashboard panels](#dashboard-panels).
+
+**Date range.** One date range in the top bar drives every view: a calendar of the collected days, a first and a last day chosen as when booking dates, or the quick choices. The header under it names the workspace and says what the tab showing covers.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/date-range.gif"
+       alt="The top bar date range: the calendar opens, the last 7 days are chosen, then a custom range, then every collected day, with the Overview redrawing each time" />
+</p>
+
+**Overview.** Posture cards, the maturity card with every area against the target, and the quick wins.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/posture-maturity.jpg"
+       alt="The Overview: posture cards for detection coverage by ATT&amp;CK tactic, operational health and cost and governance, the maturity card with the overall score and every area against the target, and the quick wins" />
+</p>
+
+**Overview: the alert lifecycle.** Source families into the alerts raised on them, Sentinel and Defender XDR, then into incidents and how each one was closed.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/alert-lifecycle.jpg"
+       alt="The alert lifecycle: source families flow into Sentinel alerts and Defender XDR alerts, through a core into incidents, and out to how each incident was closed" />
+</p>
+
+**Data flow.** The estate flow from source family to incident. The pool at the foot is ingested data that no enabled rule or custom detection reads.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/data-flow.jpg"
+       alt="The estate flow on the Data flow tab: source families on the left run through rings for ingestion, detection, alerts and incidents, with a pool of ingested data that no detection reads" />
+</p>
+
+**Data flow: the detection matrix.** Every enabled analytics rule and custom detection that reads a workspace table, failing rules first, with the data it reads and how its incidents closed.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/detection-matrix.jpg"
+       alt="The detection matrix: a summary of rules by health with incidents by verdict, filters, and a row per rule with the source families it reads, its health and how its incidents closed" />
+</p>
+
+**Insights.** The chart board.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/insights.jpg"
+       alt="The top of the Insights tab: cards for analytics rules enabled, findings by severity and category, incident outcomes, billed versus data grant eligible volume and ingestion by billing plan" />
+</p>
+
+**Insights: the ATT&CK grid.** Laid out like MITRE's Navigator, shaded by the enabled rules that map each technique; select a cell for its rules.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/insights-attack.jpg"
+       alt="The ATT&amp;CK grid: a column per tactic and a cell per technique, shaded by how many enabled rules map to it, with switches for sub-techniques and disabled rules and a search box" />
+</p>
+
+**Insights: detection opportunities.** Tables receiving data with no detection reading them, largest first, each with the Content Hub templates that would cover it.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/insights-opportunities.jpg"
+       alt="The Detection opportunities card: tables with data that no enabled rule reads, each with its source family, its GB over the window and the templates ready to enable" />
+</p>
+
+**Report.** Every section of the Blueprint, searchable, with the section families down the side.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/report.jpg"
+       alt="The Report tab: a searchable list of documentation sections grouped into families on the left, and the open section on the right" />
+</p>
+
+**Assessment: findings.** The summary by severity, maturity effect, area and category; every legend entry, bar and row filters the cards below.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/findings.jpg"
+       alt="The Assessment tab with the Findings view: donuts of findings by severity and by maturity effect, and bars by maturity area and by category" />
+</p>
+
+**Assessment: finding cards.** Evidence beside remediation, with the lift each gives the maturity score.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/findings-cards.jpg"
+       alt="Finding cards under filters for severity, area, category and maturity effect: each with its id, title, evidence, remediation and the maturity lift closing it gives" />
+</p>
+
+**Assessment: maturity.** What the score is based on and what it leaves out, the overall score against the target, and every capability area.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/maturity.jpg"
+       alt="The Assessment tab with the Maturity view: the basis and scope of the model, the overall score against the target level, and a bar per capability area" />
+</p>
+
+**Progress.** The runs kept at either end of the chosen dates, compared figure by figure and area by area; green is better, red is worse.
+
+<p align="center">
+  <img src="../../../.images/isoc-blueprint/progress.jpg"
+       alt="The Progress tab: the header naming the two runs compared, tiles with each headline figure and its change, and the maturity areas with what each gained or lost" />
+</p>
+
+### Finding history
+
+A finding that stops firing is not deleted. The Blueprint's gap engine now
+records an outcome for every rule in `_raw/gap-checks.json` (Fired, Passed,
+Errored, Undefined), and the publisher uses it:
+
+| This run | Open item | Resolved or retired item |
+| --- | --- | --- |
+| Fired | Updated (`LastSeen`) | Reopened |
+| Passed | **Resolved** (`ResolvedOn` set) | Unchanged |
+| Errored or Undefined | Left open: the check could not tell | Unchanged |
+| Rule no longer in the rule set | **Retired** | Unchanged |
+
+Snapshots collected before `gap-checks.json` existed fall back to "not fired
+means resolved". A snapshot with no gap analysis at all resolves nothing.
+
+## The pieces
+
+The three SharePoint commands of the [iSOCBlueprint module](../../../Modules/iSOCBlueprint/README.md),
+each running a script under
+[`Modules/iSOCBlueprint/Engine/SharePoint/`](../../../Modules/iSOCBlueprint/Engine/SharePoint),
+with the dashboard template and the web part source:
+
+| Command (script) | Job |
+| --- | --- |
+| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
+| `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
+| `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
+| [`templates/sharepoint-dashboard.html`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
+| [`Modules/iSOCBlueprint/WebParts/`](../../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Modules/iSOCBlueprint/WebParts/README.md). |
+| `Private/` | Section families, section-to-page conversion, the sync planners and the PnP wrappers. |
+
+### The bundle
+
+`New-iSOCBlueprintSite -Path <workspace>` writes:
+
+| File | Contents |
+| --- | --- |
+| `index.html` | The self-contained dashboard (inline CSS and JS, data embedded as JSON with HTML-safe escaping) |
+| `model.json` | The dashboard's data model |
+| `site.json` | Product name, workspace, section list with page names, families and content hashes, build warnings. Its `diagrams` list is always empty now that charts are data; the publisher recycles the images earlier bundles uploaded. |
+| `pages/<page>.json` | Per section: title and ordered segments, `html` for a text web part or `chart` (kind, title, data) for the chart web part |
+| `progress.json` | This run's progress record: the headline numbers and the lists the Progress tab compares (see [Progress across runs](#progress-across-runs)) |
+| `progress-history.json` | Every kept day's record, oldest first, gathered from the earlier day folders' bundles |
+| `tables/<name>.csv` | Each table longer than `-MaxTableRows`, whole, as CSV (UTF-8 with a byte order mark, so Excel reads accents and symbols as they are). Named from the section and the heading above the table. `site.json` lists them in `tables` |
+| `findings.json` | Findings plus per-check outcomes |
+
+Nothing in the build contacts SharePoint, Azure or anything else on the
+network, so you can inspect a bundle before anything is published. What's
+new in Sentinel and Defender is a report page (03), read by the collector;
+`-SkipWhatsNew`, `-WhatsNewFeedUrl` and `-WhatsNewCount` are still accepted
+so existing scripts run, and do nothing.
+
+### Dashboard panels
+
+The dashboard reads one embedded JSON model. Beyond the workspace headline,
+counts, cost, findings, MITRE coverage and the billing flow, the model
+carries the health-check views the Blueprint computes:
+
+The header under the top bar is the workspace's: an eyebrow with where it
+lives (region and resource group), the workspace's name
+(the product's is the top bar's), a lead sentence on what the tab showing
+covers. The Blueprint version that built the dashboard and when the
+data was collected are in the top bar, beside and under the product's
+name. The lead follows the tab: the days chosen for the activity views
+("Showing activity in the last 90 days, 19 Jul to 16 Oct 2026"), that the
+Assessment and the Report are as collected whatever dates are chosen, and
+on Progress the two runs compared. On the right, how the workspace stands:
+the maturity score as a ring (amber below the target level) with its
+level and target, and the open findings with a bar by severity; each
+opens its view in the Assessment tab.
+
+The glance tiles name the pricing tier in words with the API's SKU under
+it (Pay-as-you-go over `PerGB2018`), or on a commitment tier or dedicated
+cluster its size ("Commitment tier", "2,000 GB a day", from the
+workspace's `sku.capacityReservationLevel`), the region by the portal's
+name with the programmatic one under it (UK South over `uksouth`), and
+show money in its currency with thousands separators ("£70,575"). The
+monthly cost says which window it is projected from, as it follows the
+date range while the Report tab's cost page keeps the collected window.
+
+Figures, money and dates are written as the report pages write them (see
+[Writing figures](Blueprint-Renderer-Design.md#writing-figures)): GB to two
+places ("56,941.81 GB"), amounts with the currency's symbol, dates as
+"15 Oct 2026" (with "21:03 UTC" where the time matters), API values in
+words ("Benign positive"). The alert lifecycle's GB a day counts billable
+and free data, with the split under it, since the findings and the
+Progress tab quote the billable figure.
+
+Under the glance tiles, the **alert lifecycle** follows the light or dark theme
+(dark keeps a black "screen" behind the glow):
+source families on the left run into the alerts raised on them, split in two:
+Sentinel's (strand width = GB) and Defender XDR's (the Microsoft security
+products: Entra ID Protection, Defender for Endpoint, Office 365, Identity
+and Cloud, Purview and the rest; a strand from each family whose products
+raised alerts, width = alerts). Both feed an animated core and the incidents
+those became, so alerts and incidents count the same things: in a workspace
+joined to the Defender portal every incident is a Defender XDR one,
+whichever product raised its alerts. Alerts are counted once each, however
+often a status change wrote them again, and every figure is the exact count.
+A snapshot with no Defender XDR alerts shows one Alerts node. On the right
+each
+incident branch shows how it ended, closed by an automation rule, by an
+analyst, in Defender XDR or by another identity, or still open with its
+severities (strand width = incidents). A strip underneath gives ingestion per
+day with a sparkline, alerts per incident (with the Sentinel and Defender
+XDR split), incidents, mean time to
+resolve and the share closed by automation. The incidents figure works
+like the ingestion one beside it: the average a day over the window and a
+line per severity, in its Defender colour, of the incidents each day (on
+the day each was last updated, which for a closed one is the day it
+closed), a trailing 7-day average past three weeks so the trend reads,
+with how many are still open under it. A snapshot without the daily
+series shows the open count and its severity chips instead. Every part opens its page (the
+sources open the Data flow tab). A snapshot collected before the closure
+counts shows one Closed branch and says the automation share was not
+captured. The particles stop for anyone who asks for reduced motion, and the
+drawing pauses while the Overview is not on screen.
+
+In dark mode every card (the header, panels, glance tiles, insight, contents,
+section and finding cards) uses the alert lifecycle's screen, a teal-tinted
+glow fading to near-black, and the base panel colour is darker to match; the
+coloured posture cards keep their colours. The estate flow, at the top of
+the Data flow tab, is drawn in the same style: glowing source dots, ring arcs with a glow and spaced capitals
+for the captions, and the closed and open incidents as glowing nodes with
+their counts. When Defender XDR raised alerts, the band splits after
+Detection into two rings centred on the line, Defender XDR alerts above
+(Defender XDR's share of every alert, in its colour, since a share is not a
+score, with the exact count under it) and Sentinel alerts below (the rules
+that fired, as before), and the two merge into Incidents, which count both;
+Defender XDR's products read no workspace table, so the rings before the
+split do not count them. The strip of figures under the flow follows the
+split: Sentinel alerts (the rules that fired, with their alerts) and
+Defender XDR alerts (their count against every alert, its bar in the
+Defender XDR colour) are tiles of their own, and the Alerts stage on the
+report's overview page names both counts.
+
+The estate flow moves too: beads run along the strands a detection rule
+reads, the band between the rings and the incident branches (faster for more
+data), the dashed "no detection rule" strands creep towards their pool, and
+each ring's arc draws in once when the page opens. Hovering a family dims the
+other strands and their beads; none of it runs for reduced motion.
+
+Under it, the detection matrix lists every enabled analytics rule and
+Defender XDR custom detection that reads a workspace table, one row each,
+with a SEN or XDR badge for its source and its kind and table count under
+its name (a long name wraps to two lines). Its columns are source families,
+each with how many of its tables the rules read; a dot means the rule reads
+one of the family's tables and a numbered bubble that many (the bubble's
+number in white or near-black, whichever contrasts more with its colour).
+Every table switches to one column per table, grouped by family, with the
+names angled and given the room the longest needs. Then each rule's health
+(Working: raised alerts or incidents in 30 days; Silent: raised none;
+Failing: had run failures in 7 days, from SentinelHealth), a bar of its
+incidents in 30 days by verdict (true positive, false positive, benign
+positive, undetermined, closed but unclassified, still open), and its
+incidents with the share of closed ones that were true positives (the
+tooltip gives the basis). Rows run Failing, Working, Silent, the most
+incidents first; the first 25 show and the chevron in the header shows the
+rest. A summary strip above counts the rules by source and health and
+totals their verdicts; chips filter by source (All, Analytics rules, Custom
+detections) and health (All, Failing, Working, Silent), and a search box
+finds a rule, detection or table. The header and rule names stay in place
+as the matrix scrolls, hovering a column highlights it, and the footer
+counts the rules reading each column. Custom detections show when the
+collector captured them (it needs a Graph sign-in); their health has no
+run-failure data, so they are Working or Silent. Selecting a rule (its row,
+or its name from the keyboard) opens Report > Rule Performance with each
+table there filtered to that rule, on the Rule effectiveness tab when it has
+incidents (else its alert volume), with its row highlighted. A note above
+the tabs names the rule and has a Show every rule button; when no table
+lists the rule it says why (no alerts or incidents in the collected window,
+or alerts filed under the alert names the rule gives them).
+
+The ingest and billing flow under it is drawn the same way: source families
+as glowing dots on the left, every table as a pill tinted in its family's
+colour with its GB inside (a long name is shortened, with the full name in
+its tooltip), each billing plan and lake tier as a ring showing its share of
+the GB shown with the GB under it, and the billed and grant-eligible outcomes
+(the GB a Microsoft 365 E5 or Defender for Servers data grant may cover, up
+to its allowance) as glowing nodes with their totals and shares. Strands carry GB (width on a
+square-root scale) with beads, and sweep in from the left when the tab opens
+and after each filter change (the sweep starts from a fully drawn chart, so
+it never leaves the strands hidden). Hovering a family spotlights its
+strands and tables; selecting one, or its filter chip, shows every one of
+its tables, and the Other pill shows every table.
+
+The estate flow is interactive: hovering a source family spotlights its
+strands, clicking a family or the "Not monitored" pool opens a table of the
+tables behind it (GB, rules reading each, monitored or not, with "Show all"),
+clicking a ring opens the matching page (table plans, detection
+opportunities, analytics rules, incidents) and the Closed and Open boxes open
+the incidents page. Unmonitored strands keep their family colour and run
+dashed into the pool. The rings count enabled Sentinel analytics rules and
+enabled Defender XDR custom detections that read a table
+(`estate.customDetections` carries whether the Graph capture ran and the
+enabled and total counts); product alerts raised inside Defender XDR, Entra
+ID Protection, Defender for Identity or Defender for Cloud do not read
+workspace tables, so the detail panel lists them per family
+(`estate.productAlerts`, Sentinel's own rules excluded). The coverage column
+reads "Sentinel rule reads it", "Custom detection reads it", "Rule and
+custom detection" or "No detection rule". The model's `estate.tables` carries every table receiving
+data with its family, GB, rule count and coverage.
+
+Findings (on their tab and on the Overview) and the maturity criteria use
+one card layout: a card per item with the pill, id and title on the first
+line and a chevron at its far right, chips beneath (category, area and
+what closing it does to the maturity score; area, kind and effort for
+criteria; ids from before the SAC scheme are not shown, though the
+findings search still finds a finding by its old id, see
+[Sentinel-Blueprint.md](Sentinel-Blueprint.md#ids-before-the-sac-scheme)), the criterion's impact
+line, then Evidence beside Remediation (or Guidance), each clamped to
+three lines. The Microsoft Learn link sits under the remediation text and
+a criterion's "Open finding" link under its evidence. Every card is the
+same height when collapsed: each block reserves its three lines and its
+link line, and the chevron (shown only when a block is clamped) opens
+both blocks; clicking the clamped text does the same. Findings
+filter by severity, category and free text; criteria by status, area and
+free text, and a criterion whose id a fired finding shares carries an
+"Open finding" link.
+
+Every list on the dashboard is complete, either on the card or one click
+away. The Insights cards that list things (top tables by volume, top
+alerting rules, alerts by detection source, operational health, rule
+effectiveness, failing playbooks, the data lake's extended tables) show at
+least eight entries and then as many more as fit beside the tallest card
+in their row, so a row's cards end level, and close with a button at the
+foot of the card (the buttons in a row line up) such as
+"All 2,780 rules in the report" that opens the report page holding every
+entry (Rule Performance, Alerts, Sentinel Health and Resilience, Estimated
+Monthly Cost, Automation Rules and Playbooks, Microsoft Sentinel Data
+Lake; the data lake card keeps its button even when every table fits, as
+its only link to that page). The Overview's top alerting rules show the
+eight busiest, then "All N rules in the report". Detection opportunities
+shows twelve tables, then the same kind of
+button. Nothing expands in place there, so a list of thousands never
+turns into a long scroll; a card whose report page is missing from the
+run keeps a Show all control instead. Elsewhere (the Overview's quick
+wins, ten roadmap gaps, a table's templates) Show all reveals the rest. In
+a table it is a chevron rather than a labelled button, held at the top
+right so it does not move as the list opens: in the top-right corner of the
+card (its header when it has one) when the card holds one such table, in the
+table's header row when a card holds two, or beside the first chips in a
+cell. It turns over
+when open, and "Show all N" or "Show fewer" is its tooltip and what a
+screen reader announces. The Overview's top findings are the critical ones only,
+with a button to the findings view, which lists every finding. With the
+data lake enrolled, the Insights tab's ingestion by billing plan card
+shows a Data lake plan row (0 GB when no table is lake-only) and a line
+saying how many Analytics-plan tables are mirrored to the lake at no extra
+ingestion charge and how many keep data there beyond analytics retention. The model carries the full lists (every effectiveness
+row, every uncovered table with every template that reads it, every
+alerting rule, every extended-retention table, every roadmap entry, every
+table by cost).
+
+Every button is made one way, so they look the same on every tab. The
+template's `sbtn(label, attrs, opts)` writes a `.sbtn` button (or a link,
+for "Open as a page"): white on the brand gradient a selected tab or
+switch takes, one size (12.5px, 7px by 14px padding), one shape (10px
+corners), with an arrow when it opens something. `.sbtn.icon` is the
+square form for a symbol (zoom, a card's expand chevron, a table's Show
+all chevron). That covers
+"Show all" and "Show fewer", "Expand", "Clear filters", Close, the
+report buttons ("All 2,780 rules in the report"), the finding links on a
+criterion, and "Open the assessment", "Open the MITRE page", "Open the
+ATT&CK grid" and "Open as a page". Any other class on a button only
+places it. Toggles (the tabs, the Assessment switch, the ATT&CK grid's
+switches, the data flow's filter chips) sit on a tinted track and take
+the same gradient when selected. The gradient is one pair of variables,
+`--btn-bg` and `--btn-shadow`, set for light and dark. Links to outside
+documentation (Microsoft Learn, ATT&CK) and the contents lists stay plain
+links.
+
+The Insights tab lays its cards out in bands of similar height (donut and
+pie cards, bar-list cards, table cards), with the full-width panels
+(content inventory, the ATT&CK grid directly above detection
+opportunities) between them, so a long table never shares a
+row with a short donut. The
+**ATT&CK grid** is laid out like MITRE's Navigator: a column per tactic in
+kill-chain order with the techniques covered out of the total (every
+tactic header the same height, so the cells start level), and a cell
+per technique an analytics rule maps, shaded by the enabled rules that map
+it, with its sub-techniques as chips by their full id. Techniques shade
+green and sub-techniques violet, light to dark for 1 rule, 2 to 3 and 4 or
+more. "Sub-techniques" switches the grid to list each mapped sub-technique
+(full id, name and rule count) under its technique, shaded by its own
+rules, and each tactic's header counts sub-techniques covered out of the
+total instead; with "Every technique" it lists every sub-technique ATT&CK
+defines, so the gaps show at that level too. A tactic a rule names that the
+Enterprise matrix does not have (an ATT&CK for ICS one such as Impair
+Process Control) gets a column of its own after the fourteen, so every
+mapped technique shows. "Include disabled" adds the disabled
+rules (a cell only they cover is dashed: covered once they are enabled),
+"Every technique" adds the uncovered techniques, the search finds a rule or
+a technique, and selecting a cell lists every rule mapped to it with its
+status, severity, kind and sub-techniques; selecting a sub-technique lists
+only the rules that map it. The grid scrolls sideways with a scrollbar in
+the theme's colours. Its switches look like the dashboard's tabs, and an
+"Open the MITRE page" button at the right of them opens page 25, which
+links back to the grid. The content inventory's tiles
+open their pages in the Report tab.
+Every card grid balances its rows (five cards become three and two,
+never four and one) and a short last row widens to fill the band.
+
+The Report tab shows every section from the section model. It draws the
+section's own pie and xy (bar) charts from their data, and every other
+chart kind (incident lifecycle, journey, state, flowchart, sankey, gantt,
+timeline, mindmap, class, sequence) with the chart web part's own renderers, so a diagram
+looks the same in the dashboard and on the section's SharePoint page and
+has one implementation. The site build puts those renderers into the page
+from `templates/dashboard-charts.js`, which
+`Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1` bundles from
+the web part's TypeScript; a Pester test fails when the TypeScript changes
+and the bundle is not regenerated. A diagram follows the light or dark
+theme, and a node linking to a section or a finding opens it in the
+dashboard. A diagram whose title repeats the heading above it shows the
+heading only, here and on the SharePoint pages. Headings run into a
+hairline and notes sit in a softly tinted box; nothing in the Report is
+marked with a coloured edge bar. A section with no chart of its own gets one drawn from a short
+table, and only when a column clearly holds an amount (a count, cost,
+volume or total); a table with no such column gets no chart. A link to
+another section opens it in the Report tab, and a link to a finding opens
+it in the findings view, or the gap analysis page when this run's
+findings list does not hold it. Every table's column titles sort it:
+select one for ascending, again for descending, and a third time for the
+page's own order; a small arrow shows which. A column of numbers sorts by
+value, units included (sizes from KB to TB are scaled, so 512 MB sorts
+below 65 GB, and days, percentages and currency read as numbers), and any
+other column in natural order (Rule 2 before Rule 10); empty cells go last.
+A date ("15 Oct 2026 21:03 UTC") sorts by time, an amount by value in any
+currency (£, US$, SEK) and a trace ("<0.01") as its bound.
+A key/value table (a Headline or Summary table with no column titles) has
+no header row to sort by, as on the site's pages.
+Sorting and the row filter work together. No page runs past the bottom
+of the contents list beside it. A page that fits reads top to bottom, and
+its scrolling tables (cut off at 620px) grow into any space above the
+list's foot. A taller page with two or more main sections shows a tab at
+a time below its intro: a section with 20 or more table rows starts a
+tab, a smaller one (a short table or only text) joins the tab before it
+while there is room, under its own heading, and small sections at the
+start make an Overview tab (a tall intro opens that tab rather than
+sitting above the strip). A tab or page still too tall shrinks its
+tallest tables first, to 200px, and as a last resort scrolls inside the
+panel. A tab is labelled with its heading (a bracketed qualifier moves
+to the tooltip and the top of the tab) and the rows it holds; the arrow
+keys move between tabs. Every card, label and tooltip names the window the
+collector read (`window` in the model, from `run-context.json`: "last 30
+days", "(30d)"), and the cost graphic says its month is projected from it.
+A page always opens on its first tab; the tab
+it is on holds while it stays open (on a resize, say). Every page's
+reference links sit at its foot: the renderer gathers them into one
+References list, and the page shows it as a card of link tiles under the
+tabs, the same on every tab.
+The layout is worked out when a page or tab opens, on resize and when
+the contents search changes the list; on a narrow screen, where the list
+sits above the page, the page reads top to bottom. Every page opens with
+a sentence or two saying what it covers, which stays under the title
+above any tabs; the renderer writes it for the pages whose opening did
+not already say. The tabs are
+underlined page tabs on a hairline rule, the selected one in full ink with
+the button gradient beneath it. A callout is coloured by how serious what it
+says is, from the renderer's `bp:tone` comment: blue to note, green for good
+news, amber to act on (a deadline, a hand-kept setting) and red for
+something broken (summary rules in error), each with its own icon and the
+tone read out to a screen reader; the SharePoint pages show it as a plain
+quote, as their text web parts drop colour. Severity everywhere (the open
+incidents' H, M, L and I chips, severity pills, charts) is in the Defender
+XDR colours: High orange-red, Medium amber, Low yellow, Informational grey.
+The confidentiality footer is red. A line of figures in a page ("MTTA: ... ·
+MTTR: ... · Closed: ...") shows as a row of tiles, label above figure,
+lined up across the row however the labels wrap; a duration in minutes
+reads in days and hours with the exact minutes in its tooltip, and a
+bracketed qualifier ("last 30d") becomes a caption. A line that is mostly
+text, such as a finding's severity and category, stays as text. A
+paragraph or list that holds only links (the Microsoft Learn pointers
+that close a page, a finding's "Reference:", "See A and B.") shows as a
+card of link tiles under a Microsoft Learn heading (Further reading when
+other sites are among them): each tile carries the page's title, without
+its "(Microsoft Learn)" suffix, and the product area it belongs to, and
+link cards in a row merge into one. A numeric table column shrinks to its
+figures, so a short column such as Level sits beside its neighbour rather
+than at the far edge, and tables on one page with the same columns share
+their column widths so they line up. A bar chart's label column fits its
+longest label, up to half the card, so table names show whole. A table
+cell holding a list of four or more items separated by semicolons (the
+solutions behind a table's templates, a finding's evidence list) shows as
+chips: the first three, then a Show all chevron for the rest, with a lead-in such as
+"146 rule(s) disabled:" kept as text above them. A template source that is
+ready to enable, a solution marked installed or Built-in (templates that
+ship with Sentinel), is tinted green; one whose solution is not installed
+stays grey. A maturity criterion named with its state on this workspace
+(What's New's Relates to here column: "SAC-DET-07 gap") is a chip in the
+state's colour, as on the maturity view: green met, red gap, slate
+unknown, grey not assessed, with the state in its tooltip and read out to
+a screen reader; a cell holding one is chips even for a single item. The
+table's tool bar carries a key to the two in the
+dashboard's filter chips, each with the legend's swatch and how many rows
+hold that kind; selecting one shows only those rows, and in each row only
+those chips, every one of them (so Not installed shows exactly what is not
+installed), alongside the search box; selecting it again brings back the
+first chips and the chevron. The search box matches every word,
+or "quoted phrase", anywhere in the row. Each solution chip lists the
+templates behind it in its tooltip and, selected, opens the page's
+Undeployed templates ready to enable list showing exactly those templates
+(that solution, that table), with a chip in the list's tool bar to show
+every template again. A From solutions cell with one solution is a chip
+too, so every row shows its colour. A small summary table opens the rows
+behind each of its values: when its first column (Plan, Provider,
+Severity, Role) names a column of a bigger table on the same page that
+repeats those values, each value is a link (its tooltip says how many rows
+and which table), and selecting it filters that table to the rows that
+hold it, with a chip in its tool bar to show every row again. Summary by
+plan opens the operational tables on that plan, for example. A list whose
+first column repeats its own values is not a summary and gets no links. A template only a deprecated Content
+Hub solution ships (the catalogue flags it, as with Threat Intelligence,
+replaced by Threat Intelligence (NEW)) is never offered: it is left out of
+the chips, the counts and the ready list, and the page lists it under
+Templates from deprecated solutions with the replacement solution where the
+catalogue names one. A template a live solution also ships is credited to
+the live one. Status words in a table cell show as pills:
+green for Up to date and Current, amber for Update available and Stale,
+red for Deprecated, Not in catalogue and Stale, used by rules. A chart
+with more than one series shows its key above the bars. The Markdown pages refer to one another by
+file name (`90-gap-analysis.md`); the Report tab and the native pages show
+the section's title instead ("Gap Analysis"), and a file name mentioned in
+plain text becomes a link to that section.
+
+Following a link or a tab starts at the top of what it opens. On
+SharePoint the web part grows its iframe to the dashboard's full height
+and the SharePoint page does the scrolling, so the dashboard scrolls the
+host page (with `scrollIntoView`) rather than its own window.
+
+| Model key | Panel | Source captures |
+| --- | --- | --- |
+| `estate` | Data flow: the estate flow and the strip of pipeline figures under it (tables still receiving data, active tables read by a rule, enabled rules that fired, Defender XDR alerts, incidents closed; each opens its page) (source families to ingestion, detection, alerts, incidents; red strands pool under "Not monitored"). `alerts` is every product's alerts, split as `alertsSentinel` and `alertsXdr` for the alert lifecycle; `ruleAlerts` is the scheduled and NRT rules' own | `tables-with-data`, `rule-table-references`, `rules-fired`, `analytics-rule-volumes`, `incidents-summary` |
+| `alertLifecycle` | Overview: the alert lifecycle's outcome branches and strip (`closedBy`: closed incidents by automation rule, analyst, Defender XDR or other; `openBySeverity`; `mttrMinutes`), beside `estate` for sources, alerts and incidents and `usageDaily` for the sparkline | `incidents-summary` (`ClosedBy`, `OpenBySeverity`), `incidents-mttr` |
+| `attack` | Insights: the ATT&CK grid (`tactics` in kill-chain order, every base `technique` with its tactics, sub-technique total and sub-technique ids (`subs`), `subNames` for every sub-technique, every rule with `enabled`, `kind` and `severity`, and `cells`: tactic, technique and sub-techniques with the indices of the rules covering them), from Get-AttackCoverage, which page 25 uses too | `alert-rules`, `mitre-attack.json` |
+| `maturity` | Overview: the maturity card (score, level band, target marker, the Sentinel-only scope, and every capability area's score against the target, weakest first, an area below target in amber; selecting an area opens the Assessment with the criteria filtered to it) and quick wins, filled to the maturity card's height so the two cards end level with their buttons in line (the rest behind Show all; when every quick win fits, the button opens the roadmap). Assessment tab, maturity view: the basis and scope as two tiles side by side, overall donut, one bar per area against the target (its badge is the confidence in the score, such as "Good confidence": how many of the area's criteria the run could assess, not how good the score is), the score history once two runs have published, NIST CSF 2.0 rollup, roadmap, and every criterion with status, evidence, guidance and links to the findings behind it (filter and search). Selecting a roadmap entry, or a quick win on the Overview, filters the criteria to that one, as a finding does in the findings view; Clear filters brings the list back | `maturity.json` |
+| `detectionOpportunities` | Insights: tables with data but no detection and the templates that would cover them (every table; the panel shows twelve with a Show all control, and each table lists every candidate template) | `rule-table-references`, `template-table-references`, `tables-with-data` |
+| `effectiveness`, `incidentsByClassification` | Insights: rule effectiveness and incident outcomes | `rule-effectiveness`, `incidents-summary` |
+| `usageDaily` | Insights: the daily ingestion trend | `workspace-usage-daily` |
+| `playbookHealth` | Insights: runs and failures per playbook; playbooks whose run history could not be read are counted as unavailable, not as zero runs | `playbook-runs` |
+| `dataLake`, `dataLakeEnrolled` | Overview: the "Data lake" glance tile. Insights: enrolment status, the tier distribution donut (Analytics only, Analytics + Lake mirror, Analytics + Lake extended, Lake only), the top tables by lake-only retention and the lake cost split; counted over the operational tables through `Private/Get-TableTierProfile.ps1`, the same helper page 88 uses | `sentinel-data-lake`, `workspace`, `workspace-tables`, `tables-with-data`, `cost-estimate` |
+| `detectionTableFamily` | Data flow: the source family of every table in `detectionOutcomes`, for the detection matrix's columns (a rule can read a table with no ingestion) | `rule-table-references`, `custom-detection-table-references` |
+| `detectionOutcomes` | Data flow: every enabled analytics rule and Defender XDR custom detection that reads a workspace table, with its kind, source, tables, health (Working, Silent, Failing), run failures, alerts, and incidents by classification (tp, fp, bp, undetermined, unclassified, open). Failing first, then by incidents | `rule-table-references`, `custom-detection-table-references`, `rule-health`, `rules-fired`, `rule-effectiveness` |
+| `flowTables` | Data flow: every ingesting table with its family, plan label, GB and billed GB. The dashboard rebuilds the Sankey from this list: the default view keeps the nine largest tables and folds the rest into "Other"; clicking a source family (or its chip above the chart) shows every table in that family, clicking "Other" or the "Every table" chip shows them all | `cost-estimate`, `workspace-tables` |
+| `flow` | Data flow: the billing-flow Sankey as built by the site (the default view; kept for bundles built before `flowTables` existed). Its "Plan and tier" column names the lake tier each table lands in (Analytics plan, Analytics + Lake mirror, Analytics + Lake extended, Data lake only, Basic plan, Auxiliary plan), so an enrolled workspace shows its lake rather than one Analytics box; lake nodes are drawn teal and the long-tail "Other" node fans out to every tier its tables use | `cost-estimate`, `workspace-tables`, `sentinel-data-lake`, `workspace` |
+| `tiBySource`, `tiObjects` | Insights: indicators per feed | `threat-intel-counts`, `threat-intel-objects` |
+
+Every panel has an empty state: a snapshot without a capture shows "not
+available" or "not assessed" rather than a zero dressed up as a result.
+The source families used by the estate flow come from
+`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`, which the Markdown renderer
+also uses, so the Markdown pack and the dashboard agree.
+
+Nothing is pre-rendered for the site. Charts reach it as data in the
+section model: the dashboard draws its own, and the section pages place the
+chart web part.
+
+### How a section becomes a page
+
+The build reads `sections/index.json` and each `sections/<id>.json`, the
+[section model](Section-Model.md) the renderer writes. It reads no Markdown,
+so a Blueprint rendered with `-Format Json` is all it needs. A
+snapshot rendered before the section model existed has only the
+`NN-name.md` files; the build converts those with the renderer's own
+converter and logs a warning. Each section is then cut down to what a
+SharePoint text web part keeps:
+
+- The section's title becomes the page title (the metadata banner is not
+  part of the model).
+- Headings are clamped to h2 to h4, with no ids or anchor stubs.
+- Tables use the SharePoint editor's responsive table markup and are capped
+  at 500 rows (`-MaxTableRows`). A longer table says how many rows are not
+  shown and links to the dashboard, whose copy has every row and a filter.
+  The cut is display only: the findings, coverage and dashboard read every
+  row. Every row of a cut table is also in a CSV file (`tables/`) the
+  publisher puts in the `BlueprintAssets` library, and the note under the
+  cut links to it, so the whole table is in SharePoint and opens in Excel.
+  The cap keeps a page within Microsoft's page-weight guidance (under about
+  500 KB); a 5,000-row table on the page itself would be several times
+  that. A cell that starts with `=`, `+`, `-` or `@` (other than a plain
+  negative number) is written with a leading apostrophe, so Excel shows it
+  as text rather than running it as a formula: rule names and incident
+  titles can carry text from outside the SOC. The build log names the
+  pages with a cut table in one note.
+- Links follow their target in the model: another section goes to its
+  page, a finding (`SAC-<AREA>-NN`) goes to the findings list filtered on
+  that id, a web URL is kept, and a repository path or an in-page anchor
+  becomes plain text.
+- The content is split into one text web part per H2, and each chart gets
+  its own web part in the place it sits in the section.
+
+#### Charts on section pages
+
+Each chart is the iSOC Blueprint chart web part (component id
+`4ae8707c-ca6f-40cb-a974-c94d023de6e5`, in the same `isoc-blueprint`
+package as the dashboard web part from version 1.4.0). Its `chartJson`
+property holds the chart block from the section model (kind, title and
+data, see [Charts](Section-Model.md#charts)), and the web part draws it in
+the browser as SVG and HTML, with no external libraries, in the colours of
+the section's theme. A flowchart node's link goes where the same link in
+the text would (another page, or the findings list filtered on a finding).
+Kinds it cannot draw keep their Mermaid source in `chart.source` and are
+shown as text. Labels are never shortened: a long one wraps over as
+many lines as it needs, and an xy chart whose Mermaid labels are cut to
+fit under the bars takes the full names from a `%% x-labels` comment the
+renderer writes beside the axis. How each kind is drawn is in the web part's
+[README](../../../Modules/iSOCBlueprint/WebParts/README.md#how-the-charts-render).
+
+While the web part is not on the site yet (a package deployed a moment ago
+can take a few minutes to register, or the package on the site predates
+it), the publisher writes each chart as a text web part instead: a table of
+its data for pie, sankey and bar or line charts, otherwise its title and a
+note. Such a page is not recorded as published, so the next run rebuilds it
+with the web part.
+
+### What a publish does
+
+In this order, so a failure part-way leaves the site consistent:
+
+1. **Structure.** Ensure the `BlueprintAssets` library and the
+   `Sentinel Findings` list and columns exist. Creating a library can
+   outlast PnP's 100-second HTTP timeout while SharePoint still finishes;
+   when the create call fails, the list is looked up for a minute and the
+   run carries on if it is there.
+2. **App.** Deploy the web part package (the dashboard and chart web
+   parts) to the site collection app catalog,
+   only when its version differs from the deployed one (and, on ADO, when
+   **SharePoint: deploy the web part if it changed** is ticked). A package
+   with the same solution id under an older solution name is removed first,
+   because SharePoint keeps one catalog file per solution id.
+3. **Assets.** Upload the dashboard, and the CSV of each table cut on its
+   page (`BlueprintAssets/tables/`, every run, since the data changes with
+   each collection). When the bundle carries a maturity assessment, append
+   its score to the history (see below), and add the run's progress record
+   to the progress history (see [Progress across runs](#progress-across-runs)).
+4. **Pages.** Create or rebuild each section page, skipping pages whose
+   content hash matches the last publish. Pages are rebuilt in place (cleared
+   and refilled, then published once), so URLs and version history survive
+   and a failed publish leaves the last good version live. Before the first
+   page with a chart, the publisher checks the chart web part is in the
+   component list (`Get-PnPAvailablePageComponents`, read through a page
+   that already exists), waiting up to five minutes when step 2 deployed a
+   package this run. A lookup that fails is printed rather than taken for a
+   slow deployment, and when the wait ends without the chart web part the
+   log says whether the dashboard web part from the same package is
+   listed. Without it, charts go in as tables (see
+   [Charts on section pages](#charts-on-section-pages)). On a first publish
+   no page exists to read the list through, so each new page looks the web
+   part up as it is built.
+5. **Dashboard.** Point the home page's web part at the uploaded dashboard,
+   publish, and set it as the home page. On the first publish the web part
+   is added to a full-width section; the publisher looks it up in the
+   site's component list by id (ignoring braces and case) and waits up to
+   five minutes for a freshly deployed package to appear there. The web
+   part is stored with an `isFullWidth` property, which PnP needs before it
+   will save a page with a custom web part in a full-width section; a
+   dashboard page placed without it is rebuilt (the old page goes to the
+   recycle bin).
+6. **Findings.** Add, update, reopen, resolve and retire list items in one
+   batch.
+7. **Navigation.** Rebuild the top navigation from the pages that exist,
+   only when it differs from the plan.
+8. **Prune.** Send pages and table CSVs the bundle no longer has, and the
+   diagram images earlier versions uploaded, to the recycle bin, only when
+   every page published.
+
+A failed section page is reported and retried on the next run; it never
+stops the rest of the publish.
+
+### Maturity history
+
+Every publish of a bundle that carries a maturity assessment appends one
+entry to `BlueprintAssets/_state/maturity-history.json`:
+
+```json
+{ "entries": [ { "publishedUtc": "2026-10-09T06:12:00Z", "bundleBuiltUtc": "2026-10-09 06:05 UTC",
+                 "targetLevel": 3, "overall": { "score": 1.49, "level": 1 },
+                 "areas": [ { "id": "DET", "score": 1.11 }, ... ] } ] }
+```
+
+The entry is keyed on the bundle's build time, so publishing the same
+bundle twice does not add a point, and the file is capped at 180 entries
+(`Add-SacMaturityHistoryEntry -MaxEntries`). A copy is written next to the
+dashboard (`BlueprintAssets/dashboard/maturity-history.json`); the
+Assessment tab's maturity view reads it from beside the live dashboard and
+draws the overall score as a trend once two entries exist. On SharePoint
+the dashboard runs in a frame whose address is `about:srcdoc`, so the
+dashboard web part tells it the folder and reads the file for it (through
+SharePoint's REST API, as it reads the dashboard itself); served as files,
+the dashboard reads it from beside its own page. Opened from disk there is
+nothing to read and the trend panel stays hidden. Both files are readable by
+anyone who can read the dashboard, which is the same audience. `-WhatIf`
+reports what it would append and writes nothing.
+
+### Progress across runs
+
+Each export is a snapshot: the date range re-scopes its activity, but
+posture (rules enabled, findings, maturity criteria, coverage) is as it was
+on the day. To show change, every site build writes a **progress record**
+for its run (`progress.json` in the bundle, and `progress` in the dashboard
+model):
+
+- **Headline numbers**: the maturity score, criteria met and with a gap,
+  findings in total and by severity, analytics rules enabled, custom
+  detections enabled, ATT&CK techniques and tactics covered, data
+  connectors, tables ingesting, ingesting tables and GB no detection reads,
+  the estimated monthly cost, billable GB a day, open incidents and the mean
+  time to resolve. A number the run did not capture is left empty, not
+  zero.
+- **The lists a change is read from**: the findings (id, severity, title),
+  every maturity criterion with its status, the enabled analytics rules by
+  name, the ATT&CK techniques an enabled rule covers, the tables ingesting
+  and the tables no detection reads.
+
+The records are kept as a history, one a day (a second run on the same day
+replaces the first): the newest run and the `-HistoryDays` days before it
+(90 by default), so a run exactly 90 days back stays for the 90-day
+baseline:
+
+- **Locally**, a run in a day folder gathers the records the earlier day
+  folders' builds left in their bundles into `progress-history.json`.
+- **On the site**, the publisher merges the bundle's records with the
+  site's own and writes `BlueprintAssets/_state/progress-history.json` and
+  a copy beside the dashboard (`dashboard/progress-history.json`), so a
+  pipeline run, which starts with no earlier folders, still adds to it.
+
+The dashboard's **Progress** tab compares the run it shows with a baseline
+from the history, and is drawn in the dashboard's own parts:
+
+- **The dates**: the top bar's date range chooses the two runs compared:
+  the run kept on or before its last day, against the run kept on or
+  before its first day (or, when none is, the earliest inside it); a
+  single day compares that day's run with the one before. The header names
+  them ("Change from the run of 1 Sep 2026 to the run of 23 Sep 2026, 22
+  days apart"). Without daily
+  series, the snapshot's run is compared with the previous one.
+- **Progress at a glance**: the Overview's tiles (maturity score, findings,
+  critical findings, analytics rules enabled, ATT&CK techniques covered, GB
+  no detection reads, open incidents, monthly cost), each with its change
+  since the baseline coloured green where it is better and red where it is
+  worse (cost and volume are neither).
+- **Maturity by area**: the maturity view's area bars, the bar the score
+  now (amber below the target level) and the dashed marker the target, so
+  the markers line up as they do there. What an area gained since the
+  baseline is a green segment at the bar's end, what it lost a hatched red
+  one, and the badge gives the change.
+- **Over time**: Insights cards for the maturity score, findings, rules
+  enabled, techniques covered, GB no detection reads and the monthly cost
+  across the kept runs between the two compared, each scaled to its own range so a small move shows.
+- **What changed**: an Insights card per subject with a change, every one
+  listed (the first eight of a list, then Show all): findings resolved and
+  new, criteria now met and now a gap, analytics rules enabled and no longer
+  enabled, ATT&CK techniques now covered and no longer covered, tables now
+  read by a detection and no longer, tables that started and stopped
+  ingesting. Subjects with no change are named in one line rather than
+  drawn as empty cards. A current finding opens in the findings view, a
+  criterion in the maturity view and a rule on Rule Performance.
+- **Every measure**: the full table, then and now, with the change.
+
+A bundle built before progress tracking carries no record, and the tab says
+so; progress starts with the next run. On SharePoint the history is read
+the same way as the maturity history (the dashboard web part reads it for
+the frame); from disk there is nothing to read and the tab shows this run
+alone. A record is about 20 KB for a large workspace, so 90 days of history
+is a couple of megabytes.
+
+### The date range
+
+One control in the top bar, beside the light and dark toggle, chooses the
+days the whole dashboard shows. The pill names the window and its dates
+("Last 14 days", "1 Oct to 14 Oct 2026"; "30 days", "1 Sep to 30 Sep
+2026" for a window that ends earlier) and opens a calendar of the days the
+collector counted per day (the lookback, at most 90): two months side by
+side (one on a phone), the days outside the collected span greyed out.
+Choose a first and a last day, as when booking dates; one day alone is a
+window too. Quick choices above the months take the last 7, 30 or every
+collected day at once, and light up when the days chosen match one. Apply redraws the dashboard for the window
+and reopens the tab, and the report page, that was showing. The arrow keys
+move a day or a week, Home and End go to the first and last collected day,
+Enter or Space chooses, Escape closes. The choice stays for the next load
+in the same tab (it is kept in the frame's `window.name`, which the
+dashboard checks before use and never writes out as markup).
+
+The collector counts five series per day ago (0 is the last 24 hours) for
+this: billable GB per table, alerts (once each, on the day first seen, with
+their product, severity, provider and rule), incidents at their latest state
+(by severity, open or closed, classification and who closed them, with
+acknowledge and resolve times), incidents per detection with their verdicts,
+and Sentinel health events; playbook runs are counted per day too. The
+build carries them in the model as `daily`. Summing the last N days gives
+exactly the rolling N-day window the other captures read, and any N
+consecutive days within the span a window that ends earlier, so the dashboard
+rebuilds from them, before anything is drawn, every card that counts
+activity: the glance tiles, the alert lifecycle and its figures, the estate
+pipeline and its four measures, the ingest and billing flow, the detection
+matrix and its outcomes, the top tables and top alerting rules, alerts by
+source and severity, operational health, incident outcomes, rule
+effectiveness, detection opportunities, playbook health, daily ingestion,
+and the cost, projected to a month from the window. Cost and the flow are
+re-priced only when the cost estimate priced every table (it does from
+the collector that writes the series); otherwise they keep the collected
+window. Every label names the window shown ("in the last 30 days", or
+"in the 30 days to 30 Sep 2026").
+
+What does not count activity keeps the window that was collected, and says
+so: configuration and inventory, threat intelligence (its Insights card
+says the chosen dates do not re-scope it), the findings, the maturity
+score, and the Report tab's pages, which are the rendered report. The
+Progress tab compares the runs kept at either end of the chosen dates,
+each with its own collected figures.
+A run collected before the daily series has no date range and shows its
+collected window. With the window at the collected number of days the
+dashboard shows the collected figures unchanged.
+
+### Dashboard snapshots
+
+Every publish also keeps the day's dashboard as
+`BlueprintAssets/dashboard/history/<yyyy-MM-dd>.html` and lists it in
+`dashboard/history/index.json` (date, file, generated time, findings,
+critical findings, maturity score), newest first. The day is the
+inventory's, so a second publish of the same run replaces that day's copy.
+The list keeps the last `-HistoryDays` days (90 by default), counting back
+from the newest, so with the daily pipeline it grows a day at a time until
+it holds 90 days; older days go to the recycle bin. `-HistoryDays 0` keeps
+none. A copy is about the size of the dashboard (around 3 MB).
+
+The date range compares runs through their progress records rather than
+these copies, so the dashboard does not link to them; they stay in the library, each
+a complete dashboard of its day that opens on its own. Each copy runs the
+dashboard code of its own day, so it always matches its data; a later
+design change does not reach older copies. Only the dashboard has a
+history: the section pages and the findings list show the latest run.
+
+Runs from the module land in a folder per day
+(`SecurityDocs/<workspace>/<yyyy-MM-dd>/`), so a machine that runs the
+Blueprint daily holds its own history. When `New-iSOCBlueprintSite` builds a
+bundle for a day folder, it copies the dashboards of the earlier days in the
+same window from the sibling day folders into the bundle's `history/`, with
+an `index.json` in the same shape as the site's (each day's figures come from
+its `site.json`), and the publisher uploads any of those days the site does not
+have yet, so a site first published from a machine with a month of runs
+starts with that month. A day the site already holds is left as it is. A
+bundle built from a flat folder (the pipelines, `-NoDateFolder`) has no
+`history/` and relies on the site's own. `-HistoryDays` on
+`New-iSOCBlueprintSite` sets the window (90 by default, `0` for none).
+
+## Setting it up
+
+### 1. App registrations
+
+On Azure DevOps, [`Deploy/setup/Setup-SharePointPublisher.ps1`](../../../Deploy/setup/Setup-SharePointPublisher.ps1)
+creates the publisher app, grants its SharePoint permission, creates the
+`sc-sentinel-sharepoint` service connection and adds the federated
+credential in one idempotent run (`-WhatIf` first). The table below is what
+it sets up; on GitHub the federated credential is added by hand as the
+[pipeline page](../../Pipelines/SharePoint-Publish.md) describes.
+
+| App | Used by | Needs |
+| --- | --- | --- |
+| **Publisher** | The pipelines | SharePoint application permission `Sites.Selected` (admin consent). A federated credential per pipeline (see the [pipeline page](../../Pipelines/SharePoint-Publish.md)). No secrets. On ADO, Reader on one empty resource group so the `AzureCLI@2` task can select a subscription; no other Azure role. |
+| **Your PnP sign-in app** | You, for the bootstrap and local runs | Delegated SharePoint `AllSites.FullControl` and Microsoft Graph `Sites.FullControl.All` (to grant the publisher access), with admin consent. |
+
+If you do not have a PnP sign-in app yet, PnP.PowerShell creates one and
+opens a browser for consent:
+
+```powershell
+Register-PnPEntraIDAppForInteractiveLogin -ApplicationName 'PnP PowerShell (Sentinel docs site)' `
+    -Tenant 'contoso.onmicrosoft.com' `
+    -GraphDelegatePermissions 'Sites.FullControl.All' -SharePointDelegatePermissions 'AllSites.FullControl'
+```
+
+Use the `AzureAppId/ClientId` it prints as `-ClientId` below. A placeholder
+left in `-ClientId` fails sign-in with `AADSTS90013`.
+
+### 2. Bootstrap the site (once, as a SharePoint administrator)
+
+```powershell
+Import-Module ./Modules/iSOCBlueprint
+Initialize-iSOCBlueprintSite `
+    -SiteUrl        'https://contoso.sharepoint.com/sites/isoc-law-sentinel-prod' `
+    -Owner          'secops-lead@contoso.com' `
+    -PublisherAppId '<publisher-app-id>' `
+    -ClientId       '<your-pnp-app-id>' `
+    -Tenant         'contoso.onmicrosoft.com' `
+    -WhatIf
+```
+
+Drop `-WhatIf` to run it. It creates the communication site if needed,
+checks the tenant app catalog exists, adds a site collection app catalog,
+grants the publisher FullControl on this site only, turns page comments off
+and the mega menu on. Pass `-AppPackagePath` to deploy the web part straight
+away. It is safe to re-run.
+
+### 3. Point the pipeline at the site
+
+Set the site URL for the workspace: `sharePointSiteUrl` in the ADO variable
+group (the publisher bootstrap sets it when given `-SharePointSiteUrl`), or
+`SHAREPOINT_SITE_URL` on GitHub. On ADO, queue `Sentinel-Blueprint` with
+**Export: SharePoint site** and **SharePoint: what-if** ticked, read the
+plan, then queue it again without what-if; on GitHub, run the workflow with
+`what-if` first. See [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md).
+
+## Running it locally
+
+From the repository root, against a downloaded Blueprint artefact:
+
+```powershell
+Import-Module ./Modules/iSOCBlueprint
+
+# Build the bundle into ./artefact/law-sentinel-prod/sharepoint, then
+# preview the publish, signed in as you
+New-iSOCBlueprintSite -Path ./artefact/law-sentinel-prod |
+    Publish-iSOCBlueprintSite `
+        -SiteUrl 'https://contoso.sharepoint.com/sites/isoc-law-sentinel-prod' `
+        -Interactive -ClientId '<your-pnp-app-id>' -Tenant 'contoso.onmicrosoft.com' -WhatIf
+```
+
+From a live workspace instead, in one line:
+`New-iSOCBlueprint -ResourceGroup <rg> -WorkspaceName <ws> -Format SharePoint -SiteUrl <url> -Interactive -ClientId <app> -Tenant <tenant>`.
+Without `-SiteUrl` it builds the bundle and stops, so you can open
+`SecurityDocs/<ws>/<yyyy-MM-dd>/sharepoint/index.html` to preview the
+dashboard.
+
+Without a tenant, `./Tools/New-BlueprintDemoWorkspace.ps1 -Build` builds
+the whole report and dashboard for a synthetic 2 TB a day workspace made
+from this repository's content, safe to show and screenshot; see
+[Blueprint-Demo-Workspace.md](../../Tools/Blueprint-Demo-Workspace.md).
+
+The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
+web part package yourself, see its
+[README](../../../Modules/iSOCBlueprint/WebParts/README.md).
+
+## Privacy
+
+The site holds tenant configuration: workspace and subscription IDs, cost,
+findings, role assignments and every section of the documentation. Its
+membership is the privacy boundary, the same way a private repository is for
+the Markdown.
+
+- Keep the Visitors and Members groups to the people who should read it.
+  The bootstrap leaves Visitors empty.
+- The dashboard runs its script inside the home page (same origin), so
+  whoever can write to the `BlueprintAssets` library can run script for
+  everyone who opens the site. Keep write access to the publisher identity
+  and site owners.
+- The publisher's identity can reach this one site and nothing else in the
+  tenant, and has no Azure access.
+
+The dashboard ends with the same reminder: a Confidential notice with the
+date of the run, saying what the page holds and to share it only as the
+workspace itself.
+
+## What this is not
+
+- **Not live.** The site shows the last published snapshot, normally the
+  Blueprint's 06:00 run.
+- **Not a place to edit.** Generated pages and the top navigation are
+  overwritten. Add your own pages without the `sac-` prefix and they are
+  left alone, but they will not appear in the generated navigation.
+- **Not multi-workspace in one site.** One site per workspace, each with its
+  own pipeline variables.
+
+## Related
+
+- [iSOC Blueprint](Sentinel-Blueprint.md): the collector and renderer.
+- [SharePoint Publish pipeline](../../Pipelines/SharePoint-Publish.md): CI/CD wiring, identity, secrets.
+- [Blueprint section model](Section-Model.md): the JSON the pages are built from.
+- [iSOC Blueprint Word Report](Sentinel-Word-Report.md): the Blueprint as a `.docx`.

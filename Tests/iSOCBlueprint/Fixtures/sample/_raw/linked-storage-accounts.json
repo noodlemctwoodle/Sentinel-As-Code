@@ -1,0 +1,13 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/linkedStorageAccounts/CustomLogs",
+    "name": "CustomLogs",
+    "type": "Microsoft.OperationalInsights/workspaces/linkedStorageAccounts",
+    "properties": {
+      "dataSourceType": "CustomLogs",
+      "storageAccountIds": [
+        "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.Storage/storageAccounts/stsentinellogs"
+      ]
+    }
+  }
+]

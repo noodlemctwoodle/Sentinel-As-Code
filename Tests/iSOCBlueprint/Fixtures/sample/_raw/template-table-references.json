@@ -1,0 +1,58 @@
+[
+  {
+    "TemplateId": "tmpl-suspicious-signin",
+    "DisplayName": "Suspicious sign-in",
+    "Kind": "Scheduled",
+    "Severity": "High",
+    "Tactics": [
+      "InitialAccess"
+    ],
+    "AlreadyDeployed": true,
+    "Deprecated": false,
+    "Tables": [
+      "SigninLogs"
+    ]
+  },
+  {
+    "TemplateId": "tmpl-data-exfiltration",
+    "DisplayName": "Data exfiltration",
+    "Kind": "Scheduled",
+    "Severity": "High",
+    "Tactics": [
+      "Exfiltration"
+    ],
+    "AlreadyDeployed": false,
+    "Deprecated": false,
+    "Tables": [
+      "OfficeActivity"
+    ]
+  },
+  {
+    "TemplateId": "tmpl-low-noise",
+    "DisplayName": "Low-severity noise",
+    "Kind": "Scheduled",
+    "Severity": "Low",
+    "Tactics": [
+      "InitialAccess"
+    ],
+    "AlreadyDeployed": false,
+    "Deprecated": false,
+    "Tables": [
+      "SecurityEvent"
+    ]
+  },
+  {
+    "TemplateId": "tmpl-deprecated-firewall",
+    "DisplayName": "[Deprecated] Firewall port scan",
+    "Kind": "Scheduled",
+    "Severity": "Medium",
+    "Tactics": [
+      "Discovery"
+    ],
+    "AlreadyDeployed": false,
+    "Deprecated": true,
+    "Tables": [
+      "FirewallLogs_CL"
+    ]
+  }
+]

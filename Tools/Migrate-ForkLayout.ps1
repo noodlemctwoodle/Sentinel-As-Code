@@ -7,17 +7,25 @@
 
 .DESCRIPTION
     The 26.06 restructure moved the repository from a flat root into grouped
-    folders. Tracked files move automatically when you merge or rebase the
-    restructure (git rename detection reconciles your customisations). This
-    helper catches stragglers — untracked custom content or conflict leftovers
-    still sitting at an old path — and moves them to their new home.
+    folders, and the Documenter later became the iSOCBlueprint module
+    (Tools/Documenter, later Tools/Blueprint, became
+    Modules/iSOCBlueprint/Engine, its SharePoint web part became
+    Modules/iSOCBlueprint/WebParts, and Tests/Documenter became
+    Tests/iSOCBlueprint). Tracked files move automatically when you
+    merge or rebase the restructure (git rename detection reconciles your
+    customisations). This helper catches stragglers (untracked custom
+    content or conflict leftovers still sitting at an old path) and moves
+    them to their new home.
 
     The move is at the filesystem level (Move-Item), which works for both
     tracked and untracked files; git detects the renames for tracked content on
     your next commit. The helper is idempotent: paths already at the new
     location are skipped. When both the old and new path exist (a partial
-    migration), the old folder's contents are merged into the new folder and a
-    warning is emitted for anything that would collide.
+    migration), the old folder's contents are merged into the new folder at
+    every depth (a subfolder both sides have is merged in turn, so nested
+    customisations come across), a warning is emitted for each file that
+    would collide (left in place), and old folders the merge empties are
+    removed.
 
     This script does NOT rewrite file contents, regenerate dependencies.json, or
     commit. After running it: review `git status`, run
@@ -48,8 +56,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.0
-    Last Updated:   2026-09-01
+    Version:        0.1.4
+    Last Updated:   2026-10-23
     Requires:       PowerShell 7.2+, git
 #>
 
@@ -94,7 +102,43 @@ $moveMap = [ordered]@{
     'Scripts/Invoke-PRValidation.ps1'       = 'Tools/Invoke-PRValidation.ps1'
     'Scripts/Export-SentinelWorkbooks.ps1'  = 'Tools/Export-SentinelWorkbooks.ps1'
     'Scripts/Import-CommunityRules.ps1'     = 'Tools/Import-CommunityRules.ps1'
-    'Scripts/Documenter'                    = 'Tools/Documenter'
+    'Scripts/Documenter'                    = 'Modules/iSOCBlueprint/Engine'
+    'Tools/Documenter'                      = 'Modules/iSOCBlueprint/Engine'
+    'Tests/Documenter'                      = 'Tests/iSOCBlueprint'
+    'Tests/Blueprint'                       = 'Tests/iSOCBlueprint'
+    # The web part first, so the folder below does not carry it into the engine.
+    'Tools/Blueprint/SharePoint/webpart/isoc-blueprint' = 'Modules/iSOCBlueprint/WebParts'
+    'Tools/Blueprint'                       = 'Modules/iSOCBlueprint/Engine'
+}
+
+# Merges one folder into another at any depth: moves what the destination
+# lacks, recurses into folders both sides have, warns on anything else both
+# sides have (a genuine conflict, left in place), and removes a source folder
+# the merge leaves empty.
+function Merge-ForkFolder {
+    param([string]$From, [string]$To)
+
+    foreach ($item in Get-ChildItem -LiteralPath $From -Force) {
+        $dest = Join-Path $To $item.Name
+        if (-not (Test-Path -LiteralPath $dest)) {
+            if ($PSCmdlet.ShouldProcess("$($item.FullName) -> $dest", 'Move')) {
+                Move-Item -LiteralPath $item.FullName -Destination $dest
+                $script:moved++
+            }
+        }
+        elseif ($item.PSIsContainer -and (Test-Path -LiteralPath $dest -PathType Container)) {
+            Merge-ForkFolder -From $item.FullName -To $dest
+        }
+        else {
+            Write-Warning "  collision (left in place): $($item.FullName)"
+            $script:warned++
+        }
+    }
+
+    if (-not (Get-ChildItem -LiteralPath $From -Force) -and
+        $PSCmdlet.ShouldProcess($From, 'Remove empty directory')) {
+        Remove-Item -LiteralPath $From
+    }
 }
 
 Push-Location $RepoPath
@@ -124,7 +168,7 @@ try {
             continue
         }
 
-        # Old exists — make sure the destination's parent folder is present.
+        # Old exists - make sure the destination's parent folder is present.
         $newParent = Split-Path -Path $new -Parent
         if ($newParent -and -not (Test-Path -LiteralPath $newParent)) {
             if ($PSCmdlet.ShouldProcess($newParent, 'Create directory')) {
@@ -147,19 +191,9 @@ try {
             continue
         }
 
-        # Directory merge: move each child into the new folder, warning on clash.
-        Write-Warning "Both '$old' and '$new' exist — merging '$old' contents into '$new'."
+        Write-Warning "Both '$old' and '$new' exist - merging '$old' contents into '$new'."
         $warned++
-        Get-ChildItem -LiteralPath $old -Force | ForEach-Object {
-            $dest = Join-Path $new $_.Name
-            if (Test-Path -LiteralPath $dest) {
-                Write-Warning "  collision (left in place): $($_.FullName)"
-            }
-            elseif ($PSCmdlet.ShouldProcess("$($_.FullName) -> $dest", 'Move')) {
-                Move-Item -LiteralPath $_.FullName -Destination $dest
-                $moved++
-            }
-        }
+        Merge-ForkFolder -From $old -To $new
     }
 
     Write-Host ''

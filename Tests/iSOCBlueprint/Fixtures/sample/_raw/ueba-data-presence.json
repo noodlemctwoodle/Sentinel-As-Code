@@ -1,0 +1,5 @@
+[
+  {"TableName": "BehaviorAnalytics", "Count": 1247, "Count7d": 790, "Count14d": 1402},
+  {"TableName": "IdentityInfo", "Count": 318, "Count7d": 190, "Count14d": 360},
+  {"TableName": "UserPeerAnalytics", "Count": 0, "Count7d": 0, "Count14d": 0}
+]

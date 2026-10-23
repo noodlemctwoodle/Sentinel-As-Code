@@ -1,0 +1,22 @@
+[
+  {
+    "ResourceProvider": "MICROSOFT.NETWORK",
+    "Category": "AzureFirewallNetworkRule",
+    "LogCount": 9000
+  },
+  {
+    "ResourceProvider": "MICROSOFT.NETWORK",
+    "Category": "AzureFirewallApplicationRule",
+    "LogCount": 3099
+  },
+  {
+    "ResourceProvider": "MICROSOFT.KEYVAULT",
+    "Category": "AuditEvent",
+    "LogCount": 1200
+  },
+  {
+    "ResourceProvider": "MICROSOFT.STORAGE",
+    "Category": "StorageRead",
+    "LogCount": 800
+  }
+]

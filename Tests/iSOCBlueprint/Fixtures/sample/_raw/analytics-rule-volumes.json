@@ -1,0 +1,34 @@
+[
+  {
+    "AlertName": "Suspicious sign-in from rare country",
+    "ProductName": "Azure Sentinel",
+    "AlertSeverity": "High",
+    "Alerts": 412,
+    "Alerts7d": 97,
+    "ProviderName": "ASI Scheduled Alerts"
+  },
+  {
+    "AlertName": "Failed logons across multiple accounts",
+    "ProductName": "Azure Sentinel",
+    "AlertSeverity": "Medium",
+    "Alerts": 95,
+    "Alerts7d": 21,
+    "ProviderName": "ASI Scheduled Alerts"
+  },
+  {
+    "AlertName": "Privileged group membership change",
+    "ProductName": "Azure Sentinel",
+    "AlertSeverity": "High",
+    "Alerts": 18,
+    "Alerts7d": 4,
+    "ProviderName": "ASI NRT Alerts"
+  },
+  {
+    "AlertName": "Anonymous IP address",
+    "ProductName": "Azure Active Directory Identity Protection",
+    "AlertSeverity": "Medium",
+    "Alerts": 40,
+    "Alerts7d": 9,
+    "ProviderName": "IPC"
+  }
+]

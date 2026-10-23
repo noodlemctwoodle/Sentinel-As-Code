@@ -1,0 +1,9 @@
+[
+  {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-sentinel-test/providers/Microsoft.OperationalInsights/workspaces/law-sentinel-test/providers/Microsoft.SecurityInsights/onboardingStates/default",
+    "name": "default",
+    "type": "Microsoft.SecurityInsights/onboardingStates",
+    "properties": { "customerManagedKey": false },
+    "systemData": { "createdAt": "2026-02-06T00:00:00Z" }
+  }
+]

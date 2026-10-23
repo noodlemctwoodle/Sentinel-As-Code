@@ -1,0 +1,9 @@
+[
+  {
+    "RuleName": "Suspicious sign-in from rare country",
+    "Status": "Failure",
+    "Failures": 3,
+    "LastFailure": "2026-05-06T06:15:00Z",
+    "Reason": "Query execution exceeded the 2 minute timeout."
+  }
+]

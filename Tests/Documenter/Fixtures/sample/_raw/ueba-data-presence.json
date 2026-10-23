@@ -1,5 +1,0 @@
-[
-  { "TableName": "BehaviorAnalytics",  "Count": 1247 },
-  { "TableName": "IdentityInfo",       "Count": 318 },
-  { "TableName": "UserPeerAnalytics",  "Count": 0 }
-]

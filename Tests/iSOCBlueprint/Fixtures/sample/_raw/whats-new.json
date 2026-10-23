@@ -1,0 +1,16 @@
+{
+  "FetchedUtc": "2026-05-06T08:00:00.0000000Z",
+  "Months": 12,
+  "Sources": [
+    { "Product": "Microsoft Sentinel", "Url": "https://learn.microsoft.com/en-us/azure/sentinel/whats-new", "Ok": true, "Error": null, "Items": 4 },
+    { "Product": "Microsoft Defender XDR", "Url": "https://learn.microsoft.com/en-us/defender-xdr/whats-new", "Ok": true, "Error": null, "Items": 2 }
+  ],
+  "Items": [
+    { "Product": "Microsoft Sentinel", "Month": "2026-04", "Title": "Call to action: move playbooks to the new trigger before June 30, 2026", "Status": "Action needed", "Summary": "Fixture item. Playbooks on the old incident trigger stop running after the date. Move them to the new trigger.", "Details": [], "Link": "https://learn.microsoft.com/en-us/azure/sentinel/whats-new#call-to-action", "LearnMore": null, "Deadline": "2026-06-30" },
+    { "Product": "Microsoft Sentinel", "Month": "2026-04", "Title": "UEBA behaviour layer is now generally available", "Status": "Generally available", "Summary": "Fixture item. UEBA behaviours summarise raw logs into entity activity.", "Details": [], "Link": "https://learn.microsoft.com/en-us/azure/sentinel/whats-new#ueba", "LearnMore": null, "Deadline": null },
+    { "Product": "Microsoft Sentinel", "Month": "2026-03", "Title": "Query the data lake tier from advanced hunting (Preview)", "Status": "Preview", "Summary": "Fixture item. Interactive queries over the data lake tier.", "Details": [], "Link": "https://learn.microsoft.com/en-us/azure/sentinel/whats-new#data-lake", "LearnMore": null, "Deadline": null },
+    { "Product": "Microsoft Sentinel", "Month": "2026-01", "Title": "Microsoft Sentinel in the Azure portal to be retired March 2027", "Status": "Retiring", "Summary": "Fixture item. Sentinel moves to the Defender portal.", "Details": [], "Link": "https://learn.microsoft.com/en-us/azure/sentinel/whats-new#portal", "LearnMore": null, "Deadline": "2027-03" },
+    { "Product": "Microsoft Defender XDR", "Month": "2026-04", "Title": "Custom detection rules support near real-time frequency", "Status": "Preview", "Summary": "Fixture item. Custom detections can run continuously.", "Details": [], "Link": "https://learn.microsoft.com/en-us/defender-xdr/whats-new#april-2026", "LearnMore": null, "Deadline": null },
+    { "Product": "Microsoft Defender XDR", "Month": "2026-02", "Title": "Incident queue filters for sensitivity labels", "Status": "Update", "Summary": "Fixture item. Filter the incident queue by label.", "Details": [], "Link": "https://learn.microsoft.com/en-us/defender-xdr/whats-new#february-2026", "LearnMore": null, "Deadline": null }
+  ]
+}

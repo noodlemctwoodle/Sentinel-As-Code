@@ -1,0 +1,93 @@
+[
+  {
+    "name": "SecurityEvent",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 30,
+      "totalRetentionInDays": 30,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "Microsoft",
+        "tableSubType": "Any"
+      }
+    }
+  },
+  {
+    "name": "Syslog",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 30,
+      "totalRetentionInDays": 30,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "Microsoft",
+        "tableSubType": "Any"
+      }
+    }
+  },
+  {
+    "name": "FirewallLogs_CL",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 730,
+      "totalRetentionInDays": 730,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "CustomLog",
+        "tableSubType": "DataCollectionRuleBased"
+      }
+    }
+  },
+  {
+    "name": "OrphanTable_CL",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 30,
+      "totalRetentionInDays": 30,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "CustomLog",
+        "tableSubType": "DataCollectionRuleBased"
+      }
+    }
+  },
+  {
+    "name": "AuditLogs",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 30,
+      "totalRetentionInDays": 30,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "Microsoft",
+        "tableSubType": "Any"
+      }
+    }
+  },
+  {
+    "name": "LegacyCLv1_CL",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 30,
+      "totalRetentionInDays": 30,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "CustomLog",
+        "tableSubType": "Classic"
+      }
+    }
+  },
+  {
+    "name": "ThreatIntelligenceIndicator",
+    "properties": {
+      "plan": "Analytics",
+      "retentionInDays": 90,
+      "totalRetentionInDays": 90,
+      "archiveRetentionInDays": 0,
+      "schema": {
+        "tableType": "Microsoft",
+        "tableSubType": "Any"
+      }
+    }
+  }
+]
