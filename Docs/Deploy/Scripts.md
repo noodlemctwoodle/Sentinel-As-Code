@@ -354,7 +354,7 @@ Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions 
 | `SkipHuntingQueries` | switch | No | `$false` | Skip hunting query deployment |
 | `ForceSolutionUpdate` | switch | No | `$false` | Force update even if version matches |
 | `ForceContentDeployment` | switch | No | `$false` | Force redeployment of all content |
-| `ProtectCustomisedRules` | switch | No | `$true` | Skip updating locally modified rules |
+| `ProtectCustomisedRules` | bool | No | `$true` | Skip updating locally modified rules. A `[bool]`, not a switch: pass `-ProtectCustomisedRules:$false` to turn it off |
 | `IsGov` | switch | No | `$false` | Target Azure Government cloud |
 | `WhatIf` | switch | No | `$false` | Dry run (no changes applied) |
 

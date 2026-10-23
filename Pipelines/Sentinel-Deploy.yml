@@ -567,7 +567,9 @@ stages:
                 # Conditionally add switch parameters based on compile-time flag variables.
                 # Each flag variable is either the switch name (truthy) or empty string (falsy).
                 if ("$(flagDisableRules)")            { $scriptParams['DisableRules']            = $true }
-                if ("$(flagProtectCustomisedRules)")   { $scriptParams['ProtectCustomisedRules']   = $true }
+                # ProtectCustomisedRules is a [bool] defaulting to $true, not a switch:
+                # pass the value either way, or leaving it out would keep protection on.
+                $scriptParams['ProtectCustomisedRules'] = [bool]"$(flagProtectCustomisedRules)"
                 if ("$(flagSkipAnalyticsRules)")       { $scriptParams['SkipAnalyticsRules']       = $true }
                 if ("$(flagSkipWorkbooks)")            { $scriptParams['SkipWorkbooks']            = $true }
                 if ("$(flagSkipAutomationRules)")      { $scriptParams['SkipAutomationRules']      = $true }

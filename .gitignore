@@ -17,8 +17,9 @@ coverage.xml
 TestResults/
 test-results/
 
-# Smart-deployment state — per-environment, regenerated each pipeline run
-.deployment-state.json
+# Smart-deployment state - per-environment, regenerated each pipeline run.
+# Deploy-CustomContent.ps1 writes deployment-state.json (no leading dot).
+deployment-state.json
 
 # Blog drafts (kept locally)
 Blog

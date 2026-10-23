@@ -490,7 +490,9 @@ jobs:
             }
 
             if ("${{ inputs.disable_rules }}" -ne "false")             { $scriptParams['DisableRules']             = $true }
-            if ("${{ inputs.protect_customised_rules }}" -ne "false")  { $scriptParams['ProtectCustomisedRules']   = $true }
+            # [bool] parameter defaulting to $true: pass the value either way, or
+            # leaving it out when the input is false would keep protection on.
+            $scriptParams['ProtectCustomisedRules'] = ("${{ inputs.protect_customised_rules }}" -ne "false")
             if ("${{ inputs.skip_analytics_rules }}" -eq "true")       { $scriptParams['SkipAnalyticsRules']       = $true }
             if ("${{ inputs.skip_workbooks }}" -eq "true")             { $scriptParams['SkipWorkbooks']            = $true }
             if ("${{ inputs.skip_automation_rules }}" -eq "true")      { $scriptParams['SkipAutomationRules']      = $true }
@@ -523,7 +525,7 @@ jobs:
         uses: actions/cache/restore@v5
         continue-on-error: true
         with:
-          path: ${{ github.workspace }}/.deployment-state.json
+          path: ${{ github.workspace }}/deployment-state.json
           key: deployment-state-${{ env.WORKSPACE_NAME }}-
           restore-keys: |
             deployment-state-${{ env.WORKSPACE_NAME }}-
@@ -608,7 +610,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@v5
         with:
-          path: ${{ github.workspace }}/.deployment-state.json
+          path: ${{ github.workspace }}/deployment-state.json
           key: deployment-state-${{ env.WORKSPACE_NAME }}-${{ github.run_id }}
 
   # ===========================================================================

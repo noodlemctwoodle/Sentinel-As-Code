@@ -313,8 +313,10 @@ minutes.
 Steps: checkout, Azure login, then invoke
 `Deploy/content/Deploy-SentinelContentHub.ps1` with a splatted parameter
 hashtable. `SubscriptionId`, `ResourceGroup`, `Workspace`, `Region`,
-`Solutions`, and `SeveritiesToInclude` are always passed; the boolean
-toggles (`DisableRules`, `ProtectCustomisedRules`, the `Skip*` switches,
+`Solutions`, and `SeveritiesToInclude` are always passed. `ProtectCustomisedRules`
+is a `[bool]` that defaults to `$true`, so it is always passed with the
+parameter's value (leaving it out would keep protection on even when the
+parameter is off). The other toggles (`DisableRules`, the `Skip*` switches,
 `ForceSolutionUpdate`, `ForceContentDeployment`, `WhatIf`) are added only
 when their input/parameter is set. See [Scripts.md](../Deploy/Scripts.md) for
 what the script does.
@@ -350,8 +352,8 @@ or was skipped. Timeout: 60 minutes. Steps, in order:
    passed as `-PlaybookResourceGroup` when set.
 7. **Save deployment state** - always runs (`if: always()` /
    `condition: always()`, both `continue-on-error`). GitHub caches
-   `.deployment-state.json`; ADO publishes `deployment-state.json` as a
-   pipeline artefact named `deployment-state`.
+   `deployment-state.json`; ADO publishes the same file as a pipeline
+   artefact named `deployment-state`.
 
 `Deploy-CustomContent.ps1` deploys eight content types in a fixed order:
 parsers -> watchlists -> detections -> hunting queries -> playbooks ->
@@ -360,10 +362,10 @@ pre-flight gate and the smart-deployment skip apply to every content type
 (missing dependencies deploy detections disabled and skip other types).
 See [Scripts.md](../Deploy/Scripts.md) for the full ordering and gate behaviour.
 
-> **Deployment-state filename divergence**: GitHub caches the state file
-> as `.deployment-state.json` (leading dot); ADO publishes it as
-> `deployment-state.json` (no dot). Neither is canonical - they simply
-> differ per CI system.
+> **Deployment-state filename**: `Deploy-CustomContent.ps1` writes
+> `deployment-state.json` (no leading dot) and both CI systems carry that
+> file between runs. GitHub used to cache `.deployment-state.json`, a name
+> nothing writes, so its cache never restored any state.
 
 ### Stage 5 - Deploy Defender XDR custom detections
 
@@ -384,8 +386,8 @@ Graph application permission with admin consent. See
   consumed by the Stage 2 `if:` gate and the `deploySentinel` Bicep
   parameter. ADO's equivalent is the single `RESOURCES_EXIST` output
   variable.
-- **Deployment state**: `.deployment-state.json` (GitHub Actions cache) /
-  `deployment-state.json` (ADO pipeline artefact `deployment-state`),
+- **Deployment state**: `deployment-state.json`, in the GitHub Actions
+  cache and the ADO pipeline artefact `deployment-state`,
   carried between runs so smart deployment can retry previously failed
   items.
 - There are no other published build artefacts; the pipeline's real output
