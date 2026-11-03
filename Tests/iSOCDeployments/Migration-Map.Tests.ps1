@@ -15,7 +15,8 @@
       Removed does not;
     - every function row names an old function the source still defines
       (while the source exists) and a destination file that defines one
-      function named after it;
+      function named after it, or (not ported) with the edit that says
+      why;
     - every Sentinel.Common function has a row, since that module is
       absorbed whole;
     - every edit a row names is described, and every described edit is
@@ -32,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -132,6 +133,10 @@ Describe 'Function row <Label>' -ForEach $functionRows {
     }
 
     It 'goes to a file that defines one function named after it' {
+        if ($Row.Destination -eq '(not ported)') {
+            @($Row.Edits).Count | Should -BeGreaterThan 0 -Because 'a function left behind needs the edit that says why'
+            return
+        }
         $destination = Join-Path $script:repoRoot $Row.Destination
         Test-Path -LiteralPath $destination | Should -BeTrue
         @(Get-DefinedFunction $destination) | Should -Be @([System.IO.Path]::GetFileNameWithoutExtension($Row.Destination))

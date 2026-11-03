@@ -15,8 +15,8 @@ Sentinel workspaces; the public commands avoid the product name.
 > REST client, the workspace context, the YAML and KQL helpers, the
 > comparers), the content type registry, `Deploy-iSOCContent` for every
 > content type `Deploy-CustomContent.ps1` deploys and the Defender XDR
-> custom detections `Deploy-DefenderDetections.ps1` does, and the
-> dependency manifest commands. Content Hub, export, compare and sync
+> custom detections `Deploy-DefenderDetections.ps1` does, the Content Hub
+> commands, and the dependency manifest commands. Export, compare and sync
 > arrive as each area is ported; [MIGRATION.md](MIGRATION.md) tracks
 > which.
 
@@ -35,6 +35,8 @@ Deploy-iSOCContent -WhatIf
 | --- | --- | --- |
 | `Connect-iSOCWorkspace` | Points the module at one workspace through the current Az sign-in; the result is the context every other command uses | Az.Accounts, `Connect-AzAccount` |
 | `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, then Defender XDR custom detections through Microsoft Graph, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks; the `CustomDetection.ReadWrite.All` Graph permission when there are Defender detections |
+| `Get-iSOCContentHubSolution` | Where Content Hub solutions stand: installed and available versions, and what installing them would do | Az.Accounts, a connected workspace |
+| `Install-iSOCContentHubSolution` | Installs or updates Content Hub solutions, then deploys the analytics rules and workbooks they ship, protecting rules changed in the workspace, with `-WhatIf` | Az.Accounts, a connected workspace |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
@@ -46,8 +48,7 @@ Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
 `Deploy-iSOCWorkspace`, `Export-iSOCContent`, `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
-Content Hub, permission, set-up, community import and table migration
-commands.
+permission, set-up, community import and table migration commands.
 
 ## What it needs
 

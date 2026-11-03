@@ -21,8 +21,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   templates), and the Defender XDR custom detections
   `Deploy-DefenderDetections.ps1` deploys (the same Graph requests, with
   the same controls as the rest of the content, and a `-WhatIf` that reads
-  the tenant's rules to say which it would update and which create), and
-  the dependency manifest commands
+  the tenant's rules to say which it would update and which create), the
+  Content Hub commands `Get-iSOCContentHubSolution` and
+  `Install-iSOCContentHubSolution`, which replace
+  `Deploy-SentinelContentHub.ps1` (the same writes, an outcome for every
+  solution and template, and a `-WhatIf` that, unlike the script's, writes
+  no rule metadata), and the dependency manifest commands
   (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
   `Get-iSOCContentDependency`), which write `dependencies.json` byte for
   byte as `Tools/Build-DependencyManifest.ps1` does. Nothing uses it yet:

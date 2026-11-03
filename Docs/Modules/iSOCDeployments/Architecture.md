@@ -32,6 +32,7 @@ type. The rules here are enforced by the suites under
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
 | `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
 | `Private/State/` | `deployment-state.json`: reading, recording and saving |
+| `Private/ContentHub/` | Content Hub: the onboarding wait, the catalogue and solution status, solution deployment, the rule and workbook steps and the run summary ([Content Hub solutions](Content-Hub.md)) |
 
 Every `.ps1` file defines exactly one function named after the file and
 nothing else, so the loader can dot-source everything in any order. No file

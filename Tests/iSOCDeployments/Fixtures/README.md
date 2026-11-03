@@ -35,6 +35,18 @@ folder per content type the module has ported so far.
 | `repo/Content/DefenderCustomDetections/Email/FixtureExistingNoId.yaml` | A Defender detection without an `id`: updated when the tenant has it, failed when it does not |
 | `repo/Content/DefenderCustomDetections/Email/InvalidFrequency.yaml` | A Defender detection with two problems, a frequency the service does not run and an unknown tactic |
 
+`contenthub/standin.json` is a synthetic Content Hub for
+`ContentHub.Tests.ps1`, served by `_helpers/ContentHubStandIn.psm1`: five
+solutions (one behind the catalogue, one current, one new with no package,
+one the workspace lists but the catalogue does not report installed, one
+not asked for), rule templates for every path the rule step takes (new,
+current, newer, changed in the workspace, matched by name only,
+deprecated, filtered by severity, NRT, refused three ways, and with no
+rule in them), workbook templates for every path the workbook step takes,
+automation rule and hunting query templates (the hunting queries on two
+pages), the workspace's rules and workbook metadata, and the display names
+whose writes it refuses.
+
 The fixtures are synthetic and name no real tenant, workspace or
 organisation. The repository-wide content suites (`Tests/Test-*Yaml.Tests.ps1`)
 and the dependency manifest read `Content/` at the repository root only,

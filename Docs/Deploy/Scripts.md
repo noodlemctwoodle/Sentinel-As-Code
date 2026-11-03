@@ -318,6 +318,11 @@ what-if** ticked. See
 
 ## Deploy-SentinelContentHub.ps1
 
+The iSOCDeployments module has `Get-iSOCContentHubSolution` and
+`Install-iSOCContentHubSolution`, which replace this script at the 26.11.0
+cut-over; see [Content Hub solutions](../Modules/iSOCDeployments/Content-Hub.md).
+Until then the pipelines run the script described here.
+
 Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions and their packaged content via the Azure REST API (API version `2025-09-01`; analytics rules use `2025-07-01-preview`, because every GA version of the alert rules API drops the `subTechniques` and `sentinelEntitiesMappings` that solution rule templates carry).
 
 ### Key Features

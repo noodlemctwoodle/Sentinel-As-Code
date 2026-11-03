@@ -22,7 +22,8 @@ to the command's.
   reader, a validator and a request builder), and several old copies can
   land in one file (the duplicated helpers). `(script)` stands for a
   script's top-level code, outside any function. Each destination file
-  defines exactly one function, named after the file.
+  defines exactly one function, named after the file; `(not ported)`
+  marks a function left behind, with the edit that says why.
 - **Edits** lists every change in behaviour, however small, by the ID the
   function rows use. A row with `-` copies the code unchanged apart from
   the names of the helpers it calls.
@@ -34,7 +35,7 @@ to the command's.
 | `Modules/Sentinel.Common` | the private core: logging, the REST client, `Connect-iSOCWorkspace` and the KQL helpers | In progress |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-iSOCContent` | Ported |
 | `Deploy/content/Deploy-DefenderDetections.ps1` | `Deploy-iSOCContent -ContentType DefenderDetection` | Ported |
-| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` | In progress |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` | Ported |
 | `Tools/Test-SentinelRuleDrift.ps1` | `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent` | In progress |
 | `Tools/Export-SentinelWorkbooks.ps1` | `Export-iSOCContent -ContentType Workbook` | Planned |
 | `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Unmerged |
@@ -171,6 +172,35 @@ separate module, and are not part of this map.
 | `Tools/Test-SentinelRuleDrift.ps1` | `ConvertTo-IndentedSubtreeYaml` | `Modules/iSOCDeployments/Private/Yaml/ConvertTo-iSOCYamlSubtree.ps1` | E4 | |
 | `Tools/Test-SentinelRuleDrift.ps1` | `ConvertTo-ReportPath` | `Modules/iSOCDeployments/Private/Core/ConvertTo-iSOCRepoRelativePath.ps1` | - | |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-NormalisedDuration` | `Modules/iSOCDeployments/Private/Drift/ConvertTo-iSOCCanonicalDuration.ps1` | - | The second copy |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Compare-SemanticVersion` | `Modules/iSOCDeployments/Private/ContentHub/Compare-iSOCSemanticVersion.ps1` | - |  |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-ArmTemplate` | `(not ported)` | E21 | Nothing called it |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-ContentHubSolutions` | `Modules/iSOCDeployments/Private/ContentHub/Wait-iSOCWorkspaceOnboarding.ps1` | - | The onboarding wait |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-ContentHubSolutions` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubCatalogue.ps1` | E20 | The catalogue and the installed packages |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-SolutionStatus` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubSolutionStatus.ps1` | - |  |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-SolutionDeploymentJson` | `Modules/iSOCDeployments/Private/ContentHub/ConvertTo-iSOCSolutionDeploymentJson.ps1` | - |  |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-Solution` | `Modules/iSOCDeployments/Private/ContentHub/Invoke-iSOCContentHubSolutionDeploy.ps1` | E19 | An outcome instead of true or false |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-ExistingAnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/Invoke-iSOCContentHubRuleDeploy.ps1` | E3 | One paged read through the REST client |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Test-RuleIsCustomised` | `Modules/iSOCDeployments/Private/ContentHub/Test-iSOCContentHubRuleCustomised.ps1` | - |  |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Write-RuleMetadata` | `Modules/iSOCDeployments/Private/ContentHub/Set-iSOCContentHubRuleMetadata.ps1` | E7, E19 | Nothing written under `-WhatIf` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubTemplate.ps1` | - | The template read |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubSolutionLookup.ps1` | - | The solution lookups |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/Read-iSOCContentHubRuleTemplate.ps1` | - | The rule in a template |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubRuleAction.ps1` | - | Create, update, unchanged or protected |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/ConvertTo-iSOCContentHubRuleRequest.ps1` | - | The rule body, without changing the template |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/Invoke-iSOCContentHubRuleDeploy.ps1` | E19 | The loop, the send, the NRT recreation and the error classes |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-AnalyticsRules` | `Modules/iSOCDeployments/Private/ContentHub/New-iSOCContentHubResult.ps1` | E19 | The counters, now one result per item |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-Workbooks` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubTemplate.ps1` | - | The template read |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-Workbooks` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubSolutionLookup.ps1` | - | The solution lookup |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-Workbooks` | `Modules/iSOCDeployments/Private/ContentHub/ConvertTo-iSOCContentHubWorkbookRequest.ps1` | - | The workbook and metadata bodies |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Deploy-Workbooks` | `Modules/iSOCDeployments/Private/ContentHub/Invoke-iSOCContentHubWorkbookDeploy.ps1` | E19 | The loop and the saves |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-AutomationRuleStatus` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubTemplateCount.ps1` | E20 | One count for both kinds |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-AutomationRuleStatus` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubTemplate.ps1` | E20 | The template read |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-HuntingQueryStatus` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubTemplateCount.ps1` | E20 | One count for both kinds |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-HuntingQueryStatus` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubTemplate.ps1` | E20 | The template read |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-SolutionUpdateReport` | `Modules/iSOCDeployments/Private/ContentHub/Write-iSOCContentHubSolutionReport.ps1` | - |  |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Public/Install-iSOCContentHubSolution.ps1` | E2, E6, E19 | The phases |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Public/Get-iSOCContentHubSolution.ps1` | - | The solution assessment, as a command of its own |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Private/ContentHub/Write-iSOCContentHubSummary.ps1` | E19 | The summary and the exit code |
 
 ## Edits
 
@@ -195,6 +225,9 @@ separate module, and are not part of this map.
 | E16 | Workbooks: when `metadata.json` has no `displayName`, the folder name is split only where a capital follows a small letter (`ArmWrapped` becomes `Arm Wrapped`); the script's `-replace` ignored case and split between every pair of letters (`A rm Wr ap pe d`). A `metadata.json` that does not parse fails the workbook before its dependencies are checked, where the script checked them first. Every workbook in the repository sets a `displayName`, so nothing deployed from it changes; a fork's workbook without one keeps its workbookId and is renamed in place. | The split was meant to space out a PascalCase folder name. |
 | E17 | Defender XDR custom detections deploy through the engine every content type shares, so `sentinel-deployment.config` exclusions and priorities, `-Exclude`, `-SmartDeployment` and `deployment-state.json` now apply to them; `Deploy-DefenderDetections.ps1` sent every file on every run and recorded nothing. They need a connected workspace (`Connect-iSOCWorkspace`), where the script needed only an Az sign-in, and the Graph host comes from the sign-in's environment instead of `-IsGov`. A file that does not parse, holds no YAML mapping, or uses retired fields the converters cannot place fails, as before, with a message saying which; a file that fails validation is skipped with every problem on one line, as before. The warning about retired fields is logged as the rule is sent, after validation, where the script logged it before validating, so a file that fails validation is reported by its problems alone. Messages name the repository-relative path, not only the file name. | One engine and one set of controls for every content type: a fork can hold detections back, or deploy only what changed, as it can rules. |
 | E18 | Under `-WhatIf` the tenant's custom detection rules are read, so the dry run says which rules it would update and which it would create, and reports a new rule whose file has no `id` as one a real run would fail (outcome WhatIf, with that reason). The script read nothing under its `-WhatIf` switch and counted every rule as created. The rules are still read once per run. | A dry run should read what a real run reads (E12), and whether a rule is updated or created is the decision most worth seeing before a real run. |
+| E19 | Content Hub runs report one result per solution and template, with its reason (`Deployed`, `Updated`, `Unchanged`, `Protected`, `Deprecated`, `WhatIf`, `Skipped` or `Failed`), where the script kept counters per kind; the automation rules and hunting queries the solutions ship, which the script's summary counted as deployed, are reported as available. Under `-WhatIf` nothing is written: the script wrote the solution metadata of every unchanged analytics rule even under its `-WhatIf` switch, and counted what it would deploy as deployed. The one-minute wait for templates to propagate happens only after a solution was installed or updated in the run; the script waited before every rule pass, dry runs and runs that installed nothing included. The Azure DevOps variables `SentinelDeploymentFailed` and `SentinelCustomisedRulesSkipped`, which no pipeline reads, are no longer set, and the run returns `ExitCode` instead of exiting 1. A refused rule is classified on its status and the service's message: the REST client's error also names the rule's path, and a new rule's GUID can contain 400, which would read as a bad request. A failed metadata write logs its body at debug level and not its URL (as E7). A rule whose PUT answer has no id is linked by its ARM path, where the script built a URL with the host and a slash before it. Workbooks are saved through the REST client, so any 2xx answer counts as saved, not only 200 and 201. The rule body no longer changes the template it is built from. The script's parameters map as the [Parameters](#parameters) table shows. | Item outcomes are what a run on a Microsoft ISOC workspace needs, where Content Hub installs only a solution's data connectors in the preview; a dry run should write nothing; and a minute's wait that changes nothing is a minute of every pipeline run. |
+| E20 | The Content Hub catalogue, the installed packages, and the automation rule and hunting query templates are read through every page; the script read the first page of each, and followed `nextLink` only for analytics rule and workbook templates and for analytics rules. A solution on a later page of the catalogue was reported not found, and the template counts could be short. | One REST client that always pages (E3). |
+| E21 | `ConvertTo-ArmTemplate` is not ported: nothing in `Deploy-SentinelContentHub.ps1` called it. | Dead code. |
 
 ## Parameters
 
@@ -211,6 +244,15 @@ separate module, and are not part of this map.
 | `Deploy/content/Deploy-DefenderDetections.ps1` | `-BasePath` | `-RepoPath` (defaults to the repository the current folder is in) |
 | `Deploy/content/Deploy-DefenderDetections.ps1` | `-IsGov` | Read from the Az sign-in by `Connect-iSOCWorkspace` |
 | `Deploy/content/Deploy-DefenderDetections.ps1` | `-WhatIf` (a switch of its own) | `-WhatIf` (the common parameter, with `-Confirm`) |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-SubscriptionId`, `-ResourceGroup`, `-Workspace` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup -WorkspaceName`, then `Install-iSOCContentHubSolution` (or `-Context`) |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-Region`, `-IsGov` | Read from the workspace and the Az sign-in by `Connect-iSOCWorkspace` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-Solutions` | `-Name` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-SeveritiesToInclude` | `-Severity` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-DisableRules`, `-ForceSolutionUpdate`, `-ForceContentDeployment` | `-DisableRules`, `-ForceSolutionUpdate`, `-ForceContentDeployment` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-SkipSolutionDeployment` | `-ExcludeContentType Solution` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-SkipAnalyticsRules`, `-SkipWorkbooks`, `-SkipAutomationRules`, `-SkipHuntingQueries` | `-ExcludeContentType AnalyticsRule`, `Workbook`, `AutomationRule`, `HuntingQuery` |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-ProtectCustomisedRules` (a bool, on by default) | `-OverwriteCustomisedRules` (a switch: protection stays on unless it is given) |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `-WhatIf` (a switch of its own) | `-WhatIf` (the common parameter, with `-Confirm`) |
 | `Tools/Build-DependencyManifest.ps1` | `-Mode Verify` | `Test-iSOCDependencyManifest` |
 | `Tools/Build-DependencyManifest.ps1` | `-Mode Generate`, `-Mode Update` | `Update-iSOCDependencyManifest` |
 | `Tools/Build-DependencyManifest.ps1` | `-RepoPath`, `-ManifestPath` | `-RepoPath`, `-ManifestPath` |

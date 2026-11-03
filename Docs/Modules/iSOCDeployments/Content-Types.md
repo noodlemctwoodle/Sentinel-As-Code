@@ -194,7 +194,7 @@ Exporting workbooks and playbooks (`Tools/Export-SentinelWorkbooks.ps1`
 and the unmerged playbook exporter) comes to the registered types as an
 Export capability. Content Hub solutions are installed by their own
 commands rather than as a content type, since an item there is a package,
-not a file.
+not a file ([Content Hub solutions](Content-Hub.md)).
 
 ## Not representable
 
