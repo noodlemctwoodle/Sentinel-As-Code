@@ -652,6 +652,7 @@ Imports community analytical rules from external repositories into the local cod
 - **Format Conversion**: Optionally converts KQL+ARM hybrid rules to YAML format for consistency
 - **Attribution Tracking**: Automatically adds source attribution and creation metadata to imported rules
 - **Disabled by Default**: All imported rules deploy with `enabled: false` for review before activation
+- **Stable Rule Ids**: A rule keeps the id its file already has in the repository, and a rule whose upstream id another rule file uses gets a stable id of its own (RFC 4122 version 5, from the source repository and the rule's path), since the deployer names each rule in the workspace by its id. See [Community Rules](../Content/Community-Rules.md#rule-ids)
 - **Manifest Generation**: Creates `import-manifest.json` (next to the rules) with content hashes for upstream-drift detection
 - **Auto-Generated Summary**: Writes a Markdown summary to `Docs/Content/Community/{ContributorName}.md` with rule counts and per-category listings
 - **Change Detection**: Uses SHA-256 checksums to track which rules have changed between runs; only updates modified content

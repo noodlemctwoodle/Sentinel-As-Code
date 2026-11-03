@@ -17,6 +17,10 @@
     - Prepends a community attribution paragraph to the description
     - Merges tags: Community, Dalonso, ThreatHunting
     - Normalises triggerOperator short forms (gt/lt/eq/ne) to full names
+    - Keeps the id a rule already has in the repository, and gives a rule
+      whose upstream id another rule file uses a stable id of its own
+      (RFC 4122 version 5, from the source repository and the rule's path),
+      since the deployer names each rule in the workspace by its id
 
     When -IncludeKqlConversion is specified, the script also processes folders
     that use azuredeploy.json ARM templates, converting each alertRule resource
@@ -81,8 +85,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-28
-    Version:        1.1.1
-    Last Updated:   2026-09-01
+    Version:        1.2.0
+    Last Updated:   2026-11-03
     Requires:       PowerShell 7.2+, powershell-yaml (auto-installed if missing); git 2.x or later in PATH
 #>
 
@@ -237,13 +241,15 @@ function Build-RuleYaml {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)] [hashtable]$Rule,
+        [Parameter(Mandatory)] [System.Collections.IDictionary]$Rule,
         [Parameter(Mandatory)] [string]$SourceFile
     )
 
-    # Validate required fields
+    # Validate required fields. The rule may be a hashtable or an ordered
+    # dictionary; a [hashtable] parameter would convert an ordered rule and
+    # lose its key order.
     $missing = @('id', 'name', 'kind', 'severity', 'query') | Where-Object {
-        -not $Rule.ContainsKey($_) -or [string]::IsNullOrWhiteSpace($Rule[$_])
+        -not $Rule.Contains($_) -or [string]::IsNullOrWhiteSpace($Rule[$_])
     }
     if ($missing.Count -gt 0) {
         throw "Rule in '$SourceFile' is missing required fields: $($missing -join ', ')"
@@ -253,14 +259,14 @@ function Build-RuleYaml {
     $Rule['enabled'] = $false
 
     # Prepend attribution to description
-    $existing = if ($Rule.ContainsKey('description')) { $Rule['description'] } else { '' }
+    $existing = if ($Rule.Contains('description')) { $Rule['description'] } else { '' }
     $Rule['description'] = $script:AttributionPrefix + $existing
 
     # Merge tags
-    $Rule['tags'] = Merge-Tags -Existing ($Rule.ContainsKey('tags') ? $Rule['tags'] : @())
+    $Rule['tags'] = Merge-Tags -Existing ($Rule.Contains('tags') ? $Rule['tags'] : @())
 
     # Normalise triggerOperator
-    if ($Rule.ContainsKey('triggerOperator') -and $Rule['triggerOperator']) {
+    if ($Rule.Contains('triggerOperator') -and $Rule['triggerOperator']) {
         $Rule['triggerOperator'] = Format-TriggerOperator -Value $Rule['triggerOperator']
     }
 
@@ -280,9 +286,11 @@ function Import-YamlFile {
 
     try {
         $raw  = Get-Content -Path $Path -Raw -Encoding utf8
+        # -Ordered returns an OrderedDictionary, which is not a [hashtable];
+        # checking for [hashtable] here skipped every YAML source rule.
         $rule = ConvertFrom-Yaml $raw -Ordered
-        if ($null -eq $rule -or $rule -isnot [hashtable]) {
-            Write-Status "Skipping '$Path': could not parse YAML as a hashtable" -Level Warning
+        if ($null -eq $rule -or $rule -isnot [System.Collections.IDictionary]) {
+            Write-Status "Skipping '$Path': the YAML is not a mapping" -Level Warning
             return $null
         }
         return Build-RuleYaml -Rule $rule -SourceFile $Path
@@ -418,6 +426,185 @@ function Write-OutputFile {
         New-Item -Path $dir -ItemType Directory -Force | Out-Null
     }
     Set-Content -Path $FilePath -Value $Content -Encoding utf8NoBOM
+}
+
+function Get-RuleFileId {
+    <#
+    .SYNOPSIS
+        Returns the top-level id a rule YAML file declares, or $null when the
+        file does not exist or has no id line.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding utf8
+    if ([string]::IsNullOrEmpty($text)) { return $null }
+    $match = [regex]::Match($text, '(?m)^id:[ \t]*[''"]?([^''"\r\n]+?)[''"]?[ \t]*$')
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return $null
+}
+
+function Get-ReservedRuleId {
+    <#
+    .SYNOPSIS
+        Returns the ids used by rule files under a rules folder, outside the
+        folder being imported into, as a hashtable of id -> relative path.
+    .DESCRIPTION
+        These are the ids an import must not hand to a community rule: the
+        in-house rules and any other contributor's. Keys compare without
+        regard to case, as the workspace does.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$RulesRoot,
+        [Parameter(Mandatory)] [string]$ExcludePath
+    )
+
+    $ids = @{}
+    if (-not (Test-Path -LiteralPath $RulesRoot -PathType Container)) { return $ids }
+
+    $separator = [System.IO.Path]::DirectorySeparatorChar
+    $exclude   = [System.IO.Path]::GetFullPath($ExcludePath).TrimEnd('/', '\') + $separator
+    foreach ($file in Get-ChildItem -LiteralPath $RulesRoot -Recurse -File -Include '*.yaml', '*.yml') {
+        if ($file.FullName.StartsWith($exclude, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+        $id = Get-RuleFileId -Path $file.FullName
+        if ($id -and -not $ids.ContainsKey($id)) {
+            $ids[$id] = [System.IO.Path]::GetRelativePath($RulesRoot, $file.FullName).Replace('\', '/')
+        }
+    }
+    return $ids
+}
+
+function New-CommunityRuleId {
+    <#
+    .SYNOPSIS
+        Returns a name-based (RFC 4122 version 5, SHA-1) GUID for a rule, so
+        the same name gives the same id on every run.
+    .DESCRIPTION
+        Uses the RFC 4122 URL namespace. The caller passes the source
+        repository and the rule's relative path, which together name one
+        upstream rule.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Computes a GUID from a name; nothing changes.')]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    $namespace = [byte[]](0x6b, 0xa7, 0xb8, 0x11, 0x9d, 0xad, 0x11, 0xd1, 0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8)
+    $data      = [byte[]]($namespace + [System.Text.Encoding]::UTF8.GetBytes($Name))
+    $sha1      = [System.Security.Cryptography.SHA1]::Create()
+    try { $hash = $sha1.ComputeHash($data) }
+    finally { $sha1.Dispose() }
+
+    $hash[6] = ($hash[6] -band 0x0f) -bor 0x50
+    $hash[8] = ($hash[8] -band 0x3f) -bor 0x80
+    $hex = -join ($hash[0..15] | ForEach-Object { $_.ToString('x2') })
+    return '{0}-{1}-{2}-{3}-{4}' -f $hex.Substring(0, 8), $hex.Substring(8, 4), $hex.Substring(12, 4), $hex.Substring(16, 4), $hex.Substring(20, 12)
+}
+
+function Resolve-CommunityRuleId {
+    <#
+    .SYNOPSIS
+        Gives every pending rule an id no other rule file uses, keeping the
+        id a rule already has in the repository.
+    .DESCRIPTION
+        The deployer names each rule in the workspace by its id, so two files
+        with one id are one rule and every deploy overwrites one with the
+        other. Upstream repositories can reuse ids across their categories,
+        and a file in the repository may have been given a new id after an
+        earlier import. In ordinal order of relative path:
+
+        1. A rule whose destination file already exists keeps that file's
+           id, so a re-import never changes a deployed rule's identity.
+        2. Any other rule keeps its upstream id unless another rule (pending,
+           or under -ReservedIds) already has it; then it gets
+           New-CommunityRuleId for the source repository and its relative
+           path, the same on every run.
+
+        Ids compare without regard to case. Only the top-level id line of a
+        rule's YamlContent is changed, in place.
+    .PARAMETER PendingRules
+        The rules collected for this import, each a hashtable with
+        RelativePath and YamlContent.
+    .PARAMETER OutputPath
+        The folder the rules are written to.
+    .PARAMETER SourceRepo
+        The source repository URL. A trailing .git or slash is ignored.
+    .PARAMETER ReservedIds
+        Ids used by rule files outside the import, as id -> path.
+    .OUTPUTS
+        One object per rule whose id is not its upstream id: RelativePath,
+        UpstreamId, Id and Reason.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.IList]$PendingRules,
+        [Parameter(Mandatory)] [string]$OutputPath,
+        [Parameter(Mandatory)] [string]$SourceRepo,
+        [hashtable]$ReservedIds = @{}
+    )
+
+    $idLine = '(?m)^id:[ \t]*[''"]?([^''"\r\n]+?)[''"]?[ \t]*$'
+    $source = ($SourceRepo.TrimEnd('/') -replace '\.git$', '').TrimEnd('/')
+    $used   = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($key in $ReservedIds.Keys) { $used[[string]$key] = [string]$ReservedIds[$key] }
+
+    $entries = [System.Collections.Generic.List[object]]::new()
+    foreach ($rule in $PendingRules) {
+        $relative = ([string]$rule.RelativePath).Replace('\', '/')
+        $match    = [regex]::Match([string]$rule.YamlContent, $idLine)
+        if (-not $match.Success) { throw "Rule '$relative' has no top-level id line." }
+        $entries.Add([pscustomobject]@{
+            Rule     = $rule
+            Relative = $relative
+            Upstream = $match.Groups[1].Value.Trim()
+            Existing = Get-RuleFileId -Path (Join-Path $OutputPath $rule.RelativePath)
+        })
+    }
+    $entries.Sort([System.Comparison[object]] { param($a, $b) [string]::CompareOrdinal($a.Relative, $b.Relative) })
+
+    $changes = [System.Collections.Generic.List[object]]::new()
+    $assign = {
+        param($Entry, [string]$Id, [string]$Reason)
+        if ($Id -cne $Entry.Upstream) {
+            $Entry.Rule.YamlContent = [regex]::new('(?m)^id:[^\r\n]*').Replace([string]$Entry.Rule.YamlContent, "id: $Id", 1)
+            $changes.Add([pscustomobject]@{
+                RelativePath = $Entry.Relative
+                UpstreamId   = $Entry.Upstream
+                Id           = $Id
+                Reason       = $Reason
+            })
+        }
+        $used[$Id] = $Entry.Relative
+    }
+
+    # Ids the repository already gave a file are claimed first.
+    $fresh = [System.Collections.Generic.List[object]]::new()
+    foreach ($entry in $entries) {
+        if ($entry.Existing -and -not $used.ContainsKey($entry.Existing)) {
+            & $assign $entry $entry.Existing 'kept the id the repository file has'
+            continue
+        }
+        $fresh.Add($entry)
+    }
+
+    foreach ($entry in $fresh) {
+        if (-not $used.ContainsKey($entry.Upstream)) {
+            & $assign $entry $entry.Upstream ''
+            continue
+        }
+        $derived = New-CommunityRuleId -Name "$source#$($entry.Relative)"
+        if ($used.ContainsKey($derived)) {
+            throw "Rule '$($entry.Relative)': the derived id $derived is already used by '$($used[$derived])'."
+        }
+        & $assign $entry $derived "upstream id $($entry.Upstream) is already used by $($used[$entry.Upstream])"
+    }
+
+    return $changes.ToArray()
 }
 
 function Build-Readme {
@@ -615,6 +802,19 @@ function Invoke-Main {
         }
 
         Write-Status "Total rules collected: $($pendingRules.Count)"
+
+        # ---------------------------------------------------------------------------
+        # Resolve rule ids
+        # ---------------------------------------------------------------------------
+        # The deployer names a rule by its id, so no two rule files may share
+        # one. Keep the ids the repository already has and give a stable new id
+        # to any rule whose upstream id another file uses.
+        $rulesRoot   = Join-Path (Split-Path -Path $PSScriptRoot -Parent) (Join-Path 'Content' 'AnalyticalRules')
+        $reservedIds = Get-ReservedRuleId -RulesRoot $rulesRoot -ExcludePath $OutputPath
+        $idChanges   = @(Resolve-CommunityRuleId -PendingRules $pendingRules -OutputPath $OutputPath -SourceRepo $SourceRepo -ReservedIds $reservedIds)
+        foreach ($change in $idChanges) {
+            Write-Status "  ID $($change.RelativePath): $($change.Id) instead of $($change.UpstreamId) ($($change.Reason))" -Level Warning
+        }
 
         # ---------------------------------------------------------------------------
         # Write output files

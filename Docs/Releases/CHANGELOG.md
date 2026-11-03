@@ -17,6 +17,20 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   yet: every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **The community importer imports YAML rules again, and keeps rule ids
+  stable** - `Tools/Import-CommunityRules.ps1` skipped every YAML source
+  rule with "could not parse YAML as a hashtable": `ConvertFrom-Yaml
+  -Ordered` returns an ordered dictionary, which its check rejected, so a
+  re-import refreshed only the ARM-converted folders, and only with
+  `-IncludeKqlConversion`. It now reads either kind of mapping and keeps
+  the source's key order. It also settles ids
+  before it writes: a rule keeps the id its file already has in the
+  repository, and a rule whose upstream id another rule file uses gets a
+  stable version 5 GUID from the source repository and its path, so the
+  upstream's reused ids can no longer make one rule overwrite another. The
+  next import rewrites the Dalonso rules into the importer's normalised
+  form (`enabled: false`, full trigger operator names, merged tags), which
+  the files in the repository predate.
 - **Twelve Community rules get ids of their own** - twelve CommonSecurityLog
   rules under `Content/AnalyticalRules/Community/Dalonso/` shared their ids
   with twelve SigninLogs rules, because the upstream reuses ids across its
