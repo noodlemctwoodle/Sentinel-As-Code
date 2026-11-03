@@ -75,7 +75,7 @@ function Test-iSOCContentTypeDefinition {
     }
 
     foreach ($key in 'Name', 'DisplayName', 'RepoFolder', 'Layout', 'Format', 'FilePattern', 'Recurse', 'Endpoint', 'Scope',
-        'CollectionPath', 'ApiVersion', 'IdentityKey', 'DeployOrder', 'MissingDependency', 'Capabilities', 'Prerequisites',
+        'CollectionPath', 'ApiVersion', 'IdentityKey', 'DeployOrder', 'SettleSeconds', 'MissingDependency', 'Capabilities', 'Prerequisites',
         'Handlers', 'Fields') {
         if (-not $Definition.ContainsKey($key)) { $issues.Add("missing $key") }
     }
@@ -93,6 +93,7 @@ function Test-iSOCContentTypeDefinition {
     if (@($Definition.FilePattern | Where-Object { $_ }).Count -eq 0) { $issues.Add('FilePattern is empty') }
     if ($Definition.Recurse -isnot [bool]) { $issues.Add('Recurse is not $true or $false') }
     if ($Definition.DeployOrder -isnot [int]) { $issues.Add('DeployOrder is not a whole number') }
+    if ($Definition.SettleSeconds -isnot [int] -or $Definition.SettleSeconds -lt 0) { $issues.Add('SettleSeconds is not a whole number of seconds') }
 
     $apis = Get-iSOCApiVersion
     if (-not $apis.Contains([string]$Definition.ApiVersion)) { $issues.Add("ApiVersion '$($Definition.ApiVersion)' is not in the API table") }

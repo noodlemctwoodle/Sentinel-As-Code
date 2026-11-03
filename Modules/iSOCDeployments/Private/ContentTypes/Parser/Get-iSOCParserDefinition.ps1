@@ -56,8 +56,9 @@ function Get-iSOCParserDefinition {
         ApiVersion        = 'SavedSearches'
         IdentityKey       = 'id'
         DeployOrder       = 10
+        SettleSeconds     = 0
         MissingDependency = 'Deploy'
-        Capabilities      = @()
+        Capabilities      = @('Deploy')
         Prerequisites     = @('powershell-yaml')
         Handlers          = @{
             ReadRepo  = 'Read-iSOCParserRepo'

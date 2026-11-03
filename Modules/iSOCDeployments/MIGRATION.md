@@ -7,8 +7,8 @@ that ports the code, the old script keeps running the pipelines until the
 cut-over removes it, and `Tests/iSOCDeployments/Migration-Map.Tests.ps1`
 holds this file to the repository in both directions.
 
-The parameter mapping for each command lands with the pull request that
-adds the command.
+The [Parameters](#parameters) table maps each ported script's parameters
+to the command's.
 
 ## How to read it
 
@@ -91,6 +91,28 @@ separate module, and are not part of this map.
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/Read-iSOCHuntingQueryRepo.ps1` | E4 | Reading the files |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/Test-iSOCHuntingQuery.ps1` | - | The required-field check |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/ConvertTo-iSOCHuntingQueryRequest.ps1` | - | The request body and its tags |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Initialize-SmartDeployment` | `Modules/iSOCDeployments/Private/Deploy/Get-iSOCDeploymentConfig.ps1` | E11 | Reading sentinel-deployment.config |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Initialize-SmartDeployment` | `Modules/iSOCDeployments/Private/Deploy/Get-iSOCChangedFile.ps1` | - | The git diff |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Test-ShouldDeployFile` | `Modules/iSOCDeployments/Private/Deploy/Test-iSOCShouldDeployItem.ps1` | E12 | Per item, with the reason |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Test-ShouldDeployFile` | `Modules/iSOCDeployments/Private/Deploy/Get-iSOCItemFile.ps1` | - | The files behind an item (a watchlist's two) |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Get-PrioritizedFiles` | `Modules/iSOCDeployments/Private/Deploy/Get-iSOCDeployOrder.ps1` | - | With the custom-before-Community order from Deploy-CustomDetections |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Initialize-DeploymentState` | `Modules/iSOCDeployments/Private/State/Read-iSOCDeploymentState.ps1` | E12 | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Save-DeploymentState` | `Modules/iSOCDeployments/Private/State/Save-iSOCDeploymentState.ps1` | E12 | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Set-DeploymentItemState` | `Modules/iSOCDeployments/Private/State/Set-iSOCDeploymentItemState.ps1` | - | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Test-WasDeployedSuccessfully` | `Modules/iSOCDeployments/Private/State/Test-iSOCDeployedSuccessfully.ps1` | - | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Initialize-DependencyGraph` | `Modules/iSOCDeployments/Private/Deploy/Read-iSOCDependencyGraph.ps1` | - | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Invoke-PreFlightChecks` | `Modules/iSOCDeployments/Private/Deploy/Get-iSOCWorkspaceInventory.ps1` | E13 | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Test-ContentDependencies` | `Modules/iSOCDeployments/Private/Deploy/Test-iSOCItemDependency.ps1` | E13 | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomParsers` | `Modules/iSOCDeployments/Private/Deploy/Invoke-iSOCItemDeploy.ps1` | E12 | The per-item steps, shared by every type |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomWatchlists` | `Modules/iSOCDeployments/Private/Deploy/Invoke-iSOCItemDeploy.ps1` | E12 | The per-item steps, shared by every type |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/Deploy/Invoke-iSOCItemDeploy.ps1` | E12 | The per-item steps, shared by every type |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/Deploy/Invoke-iSOCItemDeploy.ps1` | E12 | The per-item steps, shared by every type |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/Invoke-iSOCAnalyticsRuleDeploy.ps1` | - | The send, and the resend disabled after a KQL error |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomParsers` | `Modules/iSOCDeployments/Private/Deploy/Send-iSOCContentRequest.ps1` | - | The PUT every type shares |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Write-DeploymentSummary` | `Modules/iSOCDeployments/Private/Deploy/Write-iSOCDeploySummary.ps1` | E12 | |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Public/Deploy-iSOCContent.ps1` | E12 | The step sequence, as a loop over the content types |
+| `Deploy/content/Deploy-CustomContent.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Deploy/New-iSOCDeployRun.ps1` | - | The script-scope state, now one object per call |
+| `Deploy/content/Deploy-CustomContent.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Deploy/New-iSOCItemResult.ps1` | E12 | The counters, now one result per item |
 | `Tools/Build-DependencyManifest.ps1` | `Build-Manifest` | `Modules/iSOCDeployments/Private/Manifest/New-iSOCDependencyManifest.ps1` | E8 | Walks the content types with the Dependencies capability |
 | `Tools/Build-DependencyManifest.ps1` | `ConvertTo-OrderedManifestJson` | `Modules/iSOCDeployments/Private/Manifest/ConvertTo-iSOCManifestJson.ps1` | - | |
 | `Tools/Build-DependencyManifest.ps1` | `Compare-Manifest` | `Modules/iSOCDeployments/Private/Manifest/Compare-iSOCDependencyManifest.ps1` | - | |
@@ -121,3 +143,22 @@ separate module, and are not part of this map.
 | E8 | The dependency manifest reads its content through the content type registry: every type with the Dependencies capability (analytics rules and hunting queries, as before), parsers for the function inventory and watchlists for the watchlist inventory. So `.yml` files count as well as `.yaml`, and the watchlists are the folders deploy reads, directly under `Content/Watchlists/`, where the script searched for `watchlist.json` at any depth; the repository has neither a `.yml` file nor a nested watchlist today, so the manifest is the same. The playbook inventory the script built and never used, and its log line, are gone. | The manifest and deploy must agree about what content there is. |
 | E9 | A `watchlist.json` without a `description` or `provider` is uploaded with the defaults the deployer's code meant (an empty description, provider Custom). Under strict mode the deployer threw reading the missing property and counted the watchlist failed. Every watchlist in the repository has both. | The defaults were the intent; failing a watchlist over an optional field was not. |
 | E10 | `-Mode Generate` and `-Mode Update` become `Update-iSOCDependencyManifest`, which writes only when an entry differs or the file is missing, always as UTF-8 without a byte order mark, with LF line endings and one final newline, entries in invariant-culture, case-insensitive path order (the order the script's sort produced). `-Mode Verify` becomes `Test-iSOCDependencyManifest`, which returns HasDrift instead of exiting 1. Missing watchlists are one warning line each, naming what reads them. The file's description still names the script until cut-over, so both write the same bytes meanwhile. | A module command never exits; the pipeline step decides what drift means. A write that changes nothing, or rewrites line endings on Windows, would make noise in PRs. |
+| E11 | `sentinel-deployment.config` is read from the repository root first, then from `Deploy/content/`, where the script read it from beside itself. | The file moves to the root at cut-over, when `Deploy/` goes; `Migrate-ForkLayout.ps1` moves a fork's. |
+| E12 | Deploy changes in how it reports and what `-WhatIf` touches, not in what it sends. Under `-WhatIf` nothing is written: no request, as before, and no `deployment-state.json`, which the script saved (and created) under its `-WhatIf` switch too; items count as Would deploy, not Deployed. The state a build artifact left in `deployment-state/` is read where it is instead of copied to the root first. An item that `sentinel-deployment.config` excludes is reported as excluded, where the script logged it as unchanged. A watchlist over the 3.5 MB inline limit is skipped without being recorded as deployed, so a smart deployment reports it each run until it is uploaded by hand; the script recorded it as deployed. Messages name an item's repository-relative path, not only its file name. The script's switches map to parameters as the [Parameters](#parameters) table shows, and the run returns a result with `ExitCode` instead of exiting 1. | One engine for every content type, a dry run that is really dry, and a log that says why each item did or did not deploy. |
+| E13 | Two faults in the pre-flight checks are fixed. The stale-state check counted state entries starting `AnalyticalRules/`, which none has had since content moved under `Content/`, so a rebuilt workspace never reset the state; it now counts `Content/AnalyticalRules/`. And when the workspace's watchlists or functions could not be listed, the script said those checks would be skipped but then reported every such dependency missing; a list that cannot be read now skips the checks that need it, as the message says. | Both were bugs: the first left smart deployment skipping rules a rebuilt workspace no longer had, and the second deployed rules disabled, or skipped hunting queries, over a failed list request. |
+
+## Parameters
+
+| Source | Parameter | Replaced by |
+| --- | --- | --- |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-SubscriptionId`, `-ResourceGroup`, `-Workspace`, `-PlaybookResourceGroup` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup -WorkspaceName -PlaybookResourceGroup`, then `Deploy-iSOCContent` (or `-Context`) |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-Region`, `-IsGov` | Read from the workspace and the Az sign-in by `Connect-iSOCWorkspace` |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-BasePath` | `-RepoPath` (defaults to the repository the current folder is in) |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-SkipParsers`, `-SkipWatchlists`, `-SkipDetections`, `-SkipHuntingQueries` | `-ExcludeContentType Parser`, `Watchlist`, `AnalyticsRule`, `HuntingQuery` |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-SkipPlaybooks`, `-SkipWorkbooks`, `-SkipAutomationRules`, `-SkipSummaryRules` | `-ExcludeContentType Playbook`, `Workbook`, `AutomationRule`, `SummaryRule`, when those types are ported |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-SkipCommunityDetections` | `-Exclude 'Content/AnalyticalRules/Community/*'` |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-SmartDeployment` | `-SmartDeployment` |
+| `Deploy/content/Deploy-CustomContent.ps1` | `-WhatIf` (a switch of its own) | `-WhatIf` (the common parameter, with `-Confirm`) |
+| `Tools/Build-DependencyManifest.ps1` | `-Mode Verify` | `Test-iSOCDependencyManifest` |
+| `Tools/Build-DependencyManifest.ps1` | `-Mode Generate`, `-Mode Update` | `Update-iSOCDependencyManifest` |
+| `Tools/Build-DependencyManifest.ps1` | `-RepoPath`, `-ManifestPath` | `-RepoPath`, `-ManifestPath` |

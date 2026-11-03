@@ -12,9 +12,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Modules/iSOCDeployments`. It has its core (logging, one REST client
   over `Invoke-AzRestMethod`, a read-only workspace context from
   `Connect-iSOCWorkspace`, the YAML and KQL helpers, comparers) and a
-  content type registry, with parsers, watchlists, analytics rules and
-  hunting queries read, validated and turned into the same requests
-  `Deploy-CustomContent.ps1` sends, and the dependency manifest commands
+  content type registry, `Deploy-iSOCContent` for parsers, watchlists,
+  analytics rules and hunting queries (sending the same requests as
+  `Deploy-CustomContent.ps1`, with smart deployment, dependency checks and a
+  `-WhatIf` that writes nothing), and the dependency manifest commands
   (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
   `Get-iSOCContentDependency`), which write `dependencies.json` byte for
   byte as `Tools/Build-DependencyManifest.ps1` does. Nothing uses it yet:

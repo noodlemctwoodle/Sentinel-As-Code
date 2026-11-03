@@ -12,6 +12,7 @@
     # never needs Az.Accounts.
     FunctionsToExport = @(
         'Connect-iSOCWorkspace'
+        'Deploy-iSOCContent'
         'Get-iSOCContentDependency'
         'Get-iSOCContentType'
         'Get-iSOCContext'

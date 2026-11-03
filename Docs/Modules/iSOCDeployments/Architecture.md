@@ -30,6 +30,8 @@ type. The rules here are enforced by the suites under
 | `Private/Drift/` | The comparers and the canonical forms they rest on |
 | `Private/ContentTypes/` | The registry, the shared YAML item reader, and one folder per content type with its definition and handlers |
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
+| `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
+| `Private/State/` | `deployment-state.json`: reading, recording and saving |
 
 Every `.ps1` file defines exactly one function named after the file and
 nothing else, so the loader can dot-source everything in any order. No file
@@ -129,6 +131,7 @@ refuses to build when one is wrong (`ContentTypes.Tests.ps1`).
 | `ApiVersion` | The API table entry | A name from the table above |
 | `IdentityKey` | What names an item | The key in the file |
 | `DeployOrder` | When the type deploys | A whole number; types deploy in ascending order |
+| `SettleSeconds` | How long deploy waits after the type when it sent anything | A whole number of seconds; 30 for watchlists, for Sentinel to index their columns |
 | `MissingDependency` | What a deploy does when an item's dependency is missing | `DeployDisabled`, `Skip`, `Deploy` |
 | `Capabilities` | What the module can do with the type | `Deploy`, `Export`, `Compare`, `Sync`, `Dependencies` |
 | `Prerequisites` | What reading or sending the type needs | Names from the requirement table |
@@ -152,7 +155,8 @@ name. Each lives in its type's folder in a file named after it.
 | `Validate` | `-Item` | The reasons the item cannot be sent; nothing when it can |
 | `ToRequest` | `-Item`, and switches the type needs (`-Disabled` for rules) | An `iSOCDeployments.Request`: `ContentType`, `Identity`, `ResourceName`, `Body`. It reads nothing outside the item, except a watchlist's `data.csv`, and sends nothing |
 | `GetQuery` | `-Item` | The KQL the item runs |
-| `ReadWorkspace`, `Classify`, `Deploy`, `Order`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with deploy, export, compare and sync |
+| `Deploy` | `-Run`, `-ContentType`, `-Item`, `-Disabled` | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error |
+| `ReadWorkspace`, `Classify`, `Order`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with export, compare and sync |
 
 An unreadable item and an invalid one are told apart, because deploy
 treats them as the scripts do: `ParseError` is set when the file is there

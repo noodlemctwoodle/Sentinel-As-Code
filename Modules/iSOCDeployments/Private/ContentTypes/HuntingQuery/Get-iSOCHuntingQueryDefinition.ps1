@@ -56,8 +56,9 @@ function Get-iSOCHuntingQueryDefinition {
         ApiVersion        = 'SavedSearches'
         IdentityKey       = 'id'
         DeployOrder       = 40
+        SettleSeconds     = 0
         MissingDependency = 'Skip'
-        Capabilities      = @('Dependencies')
+        Capabilities      = @('Deploy', 'Dependencies')
         Prerequisites     = @('powershell-yaml')
         Handlers          = @{
             ReadRepo  = 'Read-iSOCHuntingQueryRepo'

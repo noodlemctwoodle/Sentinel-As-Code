@@ -55,7 +55,7 @@ function Get-iSOCContentTypeRegistry {
         }
         $type = [ordered]@{ PSTypeName = 'iSOCDeployments.ContentType' }
         foreach ($key in 'Name', 'DisplayName', 'RepoFolder', 'Layout', 'Format', 'FilePattern', 'Recurse', 'Endpoint',
-            'Scope', 'CollectionPath', 'ApiVersion', 'IdentityKey', 'DeployOrder', 'MissingDependency', 'Capabilities',
+            'Scope', 'CollectionPath', 'ApiVersion', 'IdentityKey', 'DeployOrder', 'SettleSeconds', 'MissingDependency', 'Capabilities',
             'Prerequisites', 'Handlers', 'Fields') {
             $type[$key] = $definition[$key]
         }

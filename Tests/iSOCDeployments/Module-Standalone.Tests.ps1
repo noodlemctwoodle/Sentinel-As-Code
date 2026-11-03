@@ -88,6 +88,21 @@ Describe 'iSOCDeployments outside the repository' {
         $deps.Functions | Should -Be @('FixtureSignIns')
     }
 
+    It 'runs a -WhatIf deploy of the copied repository' {
+        Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest { throw 'no request should be sent' } -ParameterFilter { $Method -ne 'GET' }
+        Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest { } -ParameterFilter { $Method -eq 'GET' }
+        $context = InModuleScope iSOCDeployments {
+            New-iSOCContext -Value @{
+                TenantId = 't'; SubscriptionId = 's'; ResourceGroup = 'rg'; WorkspaceName = 'ws'; WorkspaceResourceId = '/w'
+                WorkspaceId = 'c'; Region = 'uksouth'; PlaybookResourceGroup = 'rg'; Environment = 'AzureCloud'; IsGov = $false
+                ArmUrl = 'https://management.azure.com'; GraphUrl = 'https://graph.microsoft.com'; Account = 'a'
+            }
+        }
+        $run = Deploy-iSOCContent -Context $context -RepoPath $script:work -WhatIf 6>$null 3>$null 2>$null
+        $run.WhatIf | Should -BeGreaterThan 0
+        $run.Deployed | Should -Be 0
+    }
+
     It 'writes and checks a dependency manifest for the copied repository' {
         (Update-iSOCDependencyManifest -RepoPath $script:work 6>$null).Changed | Should -BeTrue
         (Test-iSOCDependencyManifest -RepoPath $script:work 6>$null).HasDrift | Should -BeFalse

@@ -30,9 +30,11 @@ function Get-iSOCWatchlistDefinition {
         Each folder directly under Content/Watchlists/ is one watchlist:
         watchlist.json holds the metadata and data.csv the rows, uploaded
         inline. A watchlist is named in the workspace by its alias, and
-        deploys after the parsers and before the rules that read it. One
-        whose dependencies are missing is skipped, as Deploy-CustomContent.ps1
-        does.
+        deploys after the parsers and before the rules that read it; when
+        any watchlist was uploaded, deploy waits 30 seconds for Sentinel to
+        index the new columns before the rules that query them, as
+        Deploy-CustomContent.ps1 does. One whose dependencies are missing is
+        skipped.
 
     .OUTPUTS
         [hashtable] The definition.
@@ -58,8 +60,9 @@ function Get-iSOCWatchlistDefinition {
         ApiVersion        = 'SecurityInsights'
         IdentityKey       = 'watchlistAlias'
         DeployOrder       = 20
+        SettleSeconds     = 30
         MissingDependency = 'Skip'
-        Capabilities      = @()
+        Capabilities      = @('Deploy')
         Prerequisites     = @()
         Handlers          = @{
             ReadRepo  = 'Read-iSOCWatchlistRepo'

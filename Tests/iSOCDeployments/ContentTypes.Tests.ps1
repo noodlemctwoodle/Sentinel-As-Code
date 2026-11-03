@@ -123,6 +123,7 @@ Describe 'Test-iSOCContentTypeDefinition' {
         @{ Case = 'a comparer it does not know'; Change = { param($d) $d.Fields = @(@{ Name = 'kind'; Comparer = 'Fuzzy' }) }; Message = "field kind uses unknown comparer 'Fuzzy'" }
         @{ Case = 'a field listed twice'; Change = { param($d) $d.Fields = @(@{ Name = 'kind'; Comparer = 'Exact' }, @{ Name = 'kind'; Comparer = 'Exact' }) }; Message = 'field kind is listed twice' }
         @{ Case = 'a deploy order that is not a whole number'; Change = { param($d) $d.DeployOrder = '30' }; Message = 'DeployOrder is not a whole number' }
+        @{ Case = 'a negative settle time'; Change = { param($d) $d.SettleSeconds = -1 }; Message = 'SettleSeconds is not a whole number of seconds' }
         @{ Case = 'a name that is not one PascalCase word'; Change = { param($d) $d.Name = 'analytics rule' }; Message = "Name 'analytics rule'*" }
     ) {
         $issues = @(Get-BrokenIssue $Change)

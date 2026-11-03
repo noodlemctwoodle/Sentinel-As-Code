@@ -9,15 +9,16 @@ same details. Types deploy in the order shown, the order
 
 | Type | Repository folder | Endpoint | Identity | Deploy order | Missing dependency | Capabilities |
 | --- | --- | --- | --- | --- | --- | --- |
-| `Parser` | `Content/Parsers` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 10 | Deploy (not checked) | - |
-| `Watchlist` | `Content/Watchlists` (one folder each: `watchlist.json`, `data.csv`) | ARM, workspace, `watchlists` (2025-09-01) | `watchlistAlias` | 20 | Skip | - |
-| `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Dependencies |
-| `HuntingQuery` | `Content/HuntingQueries` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 40 | Skip | Dependencies |
+| `Parser` | `Content/Parsers` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 10 | Deploy (not checked) | Deploy |
+| `Watchlist` | `Content/Watchlists` (one folder each: `watchlist.json`, `data.csv`) | ARM, workspace, `watchlists` (2025-09-01) | `watchlistAlias` | 20 | Skip | Deploy |
+| `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Deploy, Dependencies |
+| `HuntingQuery` | `Content/HuntingQueries` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 40 | Skip | Deploy, Dependencies |
 
-Every registered type can already be read, validated and turned into the
-request deploy sends; `Deploy` joins the capabilities when the deploy
-engine lands. `Dependencies` means the type is in the dependency manifest
-([Dependency manifest](Dependency-Manifest.md)).
+`Deploy` means `Deploy-iSOCContent` deploys the type
+([Deploying content](Deploy.md)); `Dependencies` means the type is in the
+dependency manifest ([Dependency manifest](Dependency-Manifest.md)). After
+watchlists are uploaded, deploy waits 30 seconds before the rules that
+read them.
 
 ### Parser
 

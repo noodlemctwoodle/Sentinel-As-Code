@@ -60,14 +60,16 @@ function Get-iSOCAnalyticsRuleDefinition {
         ApiVersion        = 'SecurityInsightsPreview'
         IdentityKey       = 'id'
         DeployOrder       = 30
+        SettleSeconds     = 0
         MissingDependency = 'DeployDisabled'
-        Capabilities      = @('Dependencies')
+        Capabilities      = @('Deploy', 'Dependencies')
         Prerequisites     = @('powershell-yaml')
         Handlers          = @{
             ReadRepo  = 'Read-iSOCAnalyticsRuleRepo'
             Validate  = 'Test-iSOCAnalyticsRule'
             ToRequest = 'ConvertTo-iSOCAnalyticsRuleRequest'
             GetQuery  = 'Get-iSOCAnalyticsRuleKql'
+            Deploy    = 'Invoke-iSOCAnalyticsRuleDeploy'
         }
         Fields            = @(
             @{ Name = 'kind'; Comparer = 'Exact' }
