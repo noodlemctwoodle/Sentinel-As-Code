@@ -241,6 +241,23 @@ If the manual diff becomes impractical, the Dalonso importer
 (`Tools/Import-CommunityRules.ps1`) is a working reference
 implementation to fork.
 
+## Rule ids
+
+The deployer names each rule in the workspace by its `id`, so every rule
+file needs an id of its own, Community rules included. Two files with one
+id are one rule: each deploy writes the first and then overwrites it with
+the second. The Dalonso upstream reuses ids across its categories, and
+until release 26.11.0 twelve CommonSecurityLog rules shared their ids with
+twelve SigninLogs rules, so only one rule of each pair existed in a
+workspace. The CommonSecurityLog rules now have ids of their own, edited
+after import, which their entries in `import-manifest.json` predate.
+
+`Tests/Test-AnalyticalRuleYaml.Tests.ps1` checks ids are unique across the
+whole of `Content/AnalyticalRules/`, so an import that brings a shared id
+back fails the PR gate. Give the newer rule a new GUID before merging, and
+keep the id a rule already has: changing a deployed rule's id creates a new
+rule and leaves the old one in the workspace.
+
 ## Deploy + drift workflow for community rules
 
 ```

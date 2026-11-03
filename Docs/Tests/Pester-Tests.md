@@ -221,21 +221,24 @@ Policies → Branch policies for `main`:
 Once the policy is required, the merge button stays disabled until the
 pipeline reports success against the latest commit.
 
-### Community-rule relaxations
+### Community-rule relaxation
 
-Two schema rules are intentionally relaxed for files under
+One schema rule is intentionally relaxed for files under
 `Content/AnalyticalRules/Community/`:
 
-1. **GUID-format `id:`** — David Alonso's upstream repo uses
-   deliberately-non-GUID identifiers (e.g. `a1b2c3d4-0011-4a5b-8c9d-dns011certutil`).
-   We can't change upstream content, and community rules are opt-in
-   (`-SkipCommunityDetections` defaults to true) and force-disabled at deploy.
-2. **Cross-file `id:` uniqueness** — David's upstream reuses ids across
-   categories (e.g. `b2c3d4e5...` is used for both SigninLogs and CSL
-   rules). The uniqueness check applies only to in-house rules.
+- **GUID-format `id:`** - David Alonso's upstream repo uses
+  deliberately-non-GUID identifiers (e.g. `a1b2c3d4-0011-4a5b-8c9d-dns011certutil`).
+  We can't change upstream content, and community rules are opt-in
+  (`-SkipCommunityDetections` defaults to true) and force-disabled at deploy.
 
-Both relaxations are documented in the test file and in
-[Community Rules](../Content/Community-Rules.md).
+Cross-file `id:` uniqueness is **not** relaxed. The check used to cover
+in-house rules only, because the upstream reuses ids across categories, but
+the deployer names each rule in the workspace by its id, so two files with
+one id are one rule and every deploy overwrites one with the other, disabled
+or not. Twelve CommonSecurityLog rules were overwriting twelve SigninLogs
+rules that way until they were given ids of their own (release 26.11.0),
+and the check now covers the whole tree. See
+[Community Rules](../Content/Community-Rules.md#rule-ids).
 
 ## Test file layout
 

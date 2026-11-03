@@ -48,8 +48,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-04-29
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 
     powershell-yaml is auto-installed by the harness if missing. Install
@@ -265,15 +265,15 @@ Describe 'Analytical rules: cross-file invariants' {
         $repoRoot = Split-Path -Parent $PSScriptRoot
         $rulesPath = Join-Path $repoRoot 'Content/AnalyticalRules'
 
-        # Community rules under Content/AnalyticalRules/Community/ are imported from
-        # third-party repos. David's upstream deliberately reuses ids across
-        # categories. Since community rules are opt-in and force-disabled at
-        # deploy, an upstream id collision should not block our PR gate.
-        # Scope the uniqueness check to in-house rules only.
+        # Community rules are checked too. The deployer names each rule in the
+        # workspace by its id, so two files with one id are one rule: every
+        # deploy overwrites the first with the second, disabled or not. The
+        # Community/Dalonso upstream reuses ids across its categories, which is
+        # how 12 CommonSecurityLog rules came to overwrite 12 SigninLogs rules
+        # until they were given ids of their own.
         $script:idMap = @{}
         if (Test-Path $rulesPath) {
-            Get-ChildItem -Path $rulesPath -Recurse -Filter '*.yaml' -File |
-                Where-Object { $_.FullName -notmatch '[/\\]Community[/\\]' } |
+            Get-ChildItem -Path $rulesPath -Recurse -Include '*.yaml', '*.yml' -File |
                 ForEach-Object {
                     try {
                         $yaml = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
@@ -290,7 +290,7 @@ Describe 'Analytical rules: cross-file invariants' {
         }
     }
 
-    It 'every rule id is unique across in-house Content/AnalyticalRules/ (excluding Community/)' {
+    It 'every rule id is unique across Content/AnalyticalRules/, Community rules included' {
         $duplicates = $script:idMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {

@@ -17,6 +17,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   yet: every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **Twelve Community rules get ids of their own** - twelve CommonSecurityLog
+  rules under `Content/AnalyticalRules/Community/Dalonso/` shared their ids
+  with twelve SigninLogs rules, because the upstream reuses ids across its
+  categories. The deployer names a rule by its id, so with community rules
+  deployed (both deploy pipelines skip them by default) each deploy
+  overwrote one rule of every pair and only twelve of the twenty-four
+  existed. The CommonSecurityLog rules now have new ids, and the id
+  uniqueness check in `Tests/Test-AnalyticalRuleYaml.Tests.ps1`, which used
+  to skip `Community/`, covers the whole tree. **For forks that deploy
+  community rules:** the next deploy creates the twelve CommonSecurityLog
+  rules under their new ids, and the old ids hold the SigninLogs rules.
 - **Defender XDR custom detections move to the current Graph rule shape** -
   Microsoft removed the original custom detection fields from the Graph
   beta API on 1 October 2026: `isEnabled`, `schedule.period`,
