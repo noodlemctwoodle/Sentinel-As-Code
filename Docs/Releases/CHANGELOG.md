@@ -18,7 +18,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   (sending the same requests and running the same playbook deployments as
   the script, with smart deployment, dependency checks and a `-WhatIf` that
   writes nothing and, unlike the script's, really validates playbook
-  templates), and the dependency manifest commands
+  templates), and the Defender XDR custom detections
+  `Deploy-DefenderDetections.ps1` deploys (the same Graph requests, with
+  the same controls as the rest of the content, and a `-WhatIf` that reads
+  the tenant's rules to say which it would update and which create), and
+  the dependency manifest commands
   (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
   `Get-iSOCContentDependency`), which write `dependencies.json` byte for
   byte as `Tools/Build-DependencyManifest.ps1` does. Nothing uses it yet:

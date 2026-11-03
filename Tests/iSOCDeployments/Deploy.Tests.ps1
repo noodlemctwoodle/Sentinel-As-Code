@@ -10,7 +10,7 @@
     state, smart deployment, deploy order, the dependency graph, the
     pre-flight reads and the dependency check), then Deploy-iSOCContent end
     to end over a copy of the fixture repository with the REST client and
-    the Az.Resources wrappers mocked: outcomes per item for all eight
+    the Az.Resources wrappers mocked: outcomes per item for all nine
     types, deploy order, the wait after watchlists, the state file,
     -WhatIf, type and path selection, the Az.Resources check made only when
     there are playbooks, smart deployment, missing dependencies, an
@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
@@ -320,7 +320,8 @@ Describe 'Deploy-iSOCContent' {
         Mock -ModuleName iSOCDeployments Start-Sleep { }
         Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
         Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest {
-            if ($Method -eq 'PUT') { $script:sent.Add([pscustomobject]@{ Path = $Path; ApiVersion = $ApiVersion; Body = $Body }) }
+            if ($Method -eq 'GET' -and $Path -eq '/security/rules/detectionRules') { return [pscustomobject]@{ id = 'tenant-rule-1'; displayName = 'Fixture: mail rule the tenant already has' } }
+            if ($Method -in 'PUT', 'PATCH', 'POST') { $script:sent.Add([pscustomobject]@{ Method = $Method; Path = $Path; ApiVersion = $ApiVersion; Body = $Body }) }
         }
         Mock -ModuleName iSOCDeployments New-iSOCAzResourceGroupDeployment { $script:deployments.Add([pscustomobject]@{ Name = $Name; Parameters = $Parameters }) }
         Mock -ModuleName iSOCDeployments Test-iSOCAzResourceGroupDeployment { }
@@ -330,7 +331,7 @@ Describe 'Deploy-iSOCContent' {
     It 'deploys every type in order and reports each item' {
         $run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy
         $run.PSObject.TypeNames | Should -Contain 'iSOCDeployments.DeployRun'
-        @($run.Results.ContentType | Select-Object -Unique) | Should -Be @('Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule')
+        @($run.Results.ContentType | Select-Object -Unique) | Should -Be @('Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule', 'DefenderDetection')
         Get-Outcome $run 'FixtureSignInParser.yaml' | Should -Be 'Deployed'
         Get-Outcome $run 'MissingAlias.yaml' | Should -Be 'Skipped'
         Get-Outcome $run 'emptyFolder' | Should -Be 'Skipped'
@@ -353,14 +354,18 @@ Describe 'Deploy-iSOCContent' {
         Get-Outcome $run 'FixtureSummary.json' | Should -Be 'Deployed'
         Get-Outcome $run 'BadBinSize.json' | Should -Be 'Skipped'
         Get-Outcome $run 'NoSuffix.json' | Should -Be 'Skipped'
-        $run.Deployed | Should -Be 13
+        Get-Outcome $run 'FixtureExistingNoId.yaml' | Should -Be 'Deployed'
+        Get-Outcome $run 'FixtureEncodedPowerShell.yaml' | Should -Be 'Deployed'
+        Get-Outcome $run 'FixtureLegacySpray.yaml' | Should -Be 'Deployed'
+        Get-Outcome $run 'InvalidFrequency.yaml' | Should -Be 'Skipped'
+        $run.Deployed | Should -Be 16
         $run.Failed | Should -Be 1
         $run.ExitCode | Should -Be 1
     }
 
     It 'sends each request to its type''s collection with its api-version, Community rules last' {
         Deploy-iSOCContent -Context $script:context -RepoPath $script:copy | Out-Null
-        $script:sent.Count | Should -Be 10
+        $script:sent.Count | Should -Be 13
         $script:sent[0].Path | Should -BeExactly '/w/savedSearches/3c7a1e52-9b1d-4f0e-8a2b-6d5c4e3f2a10'
         $script:sent[0].ApiVersion | Should -Be '2025-07-01'
         $script:sent[1].Path | Should -BeExactly '/w/providers/Microsoft.SecurityInsights/watchlists/vipUsers'
@@ -374,6 +379,12 @@ Describe 'Deploy-iSOCContent' {
             @{ Path = '/w/summarylogs/FixtureSummary'; ApiVersion = '2025-07-01' }
         )
         foreach ($e in $expected) { ($script:sent | Where-Object Path -CEQ $e.Path).ApiVersion | Should -Be $e.ApiVersion -Because $e.Path }
+        $graph = @($script:sent | Select-Object -Last 3)
+        @($graph | ForEach-Object { "$($_.Method) $($_.Path) $($_.ApiVersion)" }) | Should -Be @(
+            'PATCH /security/rules/detectionRules/tenant-rule-1 beta'
+            'POST /security/rules/detectionRules beta'
+            'POST /security/rules/detectionRules beta'
+        )
     }
 
     It 'deploys playbooks as resource group deployments, modules first in the order they call each other' {
@@ -416,6 +427,8 @@ Describe 'Deploy-iSOCContent' {
         $keys | Should -Not -Contain 'Content/Workbooks/FixtureOverview/metadata.json'
         $keys | Should -Not -Contain 'Content/AnalyticalRules/Broken.yaml'
         $keys | Should -Not -Contain 'Content/Parsers/MissingAlias.yaml'
+        $keys | Should -Contain 'Content/DefenderCustomDetections/Identity/FixtureLegacySpray.yaml'
+        $keys | Should -Not -Contain 'Content/DefenderCustomDetections/Email/InvalidFrequency.yaml'
     }
 
     It 'changes nothing with -WhatIf: no request, no state file, no wait' {
@@ -425,7 +438,7 @@ Describe 'Deploy-iSOCContent' {
         Should -Invoke -ModuleName iSOCDeployments Test-iSOCAzResourceGroupDeployment -Times 3 -Exactly
         Test-Path -LiteralPath (Join-Path $script:copy 'deployment-state.json') | Should -BeFalse
         Should -Invoke -ModuleName iSOCDeployments Start-Sleep -Times 0 -Exactly
-        $run.WhatIf | Should -Be 13
+        $run.WhatIf | Should -Be 16
         $run.Deployed | Should -Be 0
         Get-Outcome $run 'CommunityRule.yml' | Should -Be 'WhatIf'
     }
@@ -435,7 +448,7 @@ Describe 'Deploy-iSOCContent' {
         @($run.Results.ContentType | Select-Object -Unique) | Should -Be @('AnalyticsRule')
         Get-Outcome $run 'CommunityRule.yml' | Should -BeNullOrEmpty
         $other = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ExcludeContentType Parser, Watchlist
-        @($other.Results.ContentType | Select-Object -Unique) | Should -Be @('AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule')
+        @($other.Results.ContentType | Select-Object -Unique) | Should -Be @('AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule', 'DefenderDetection')
     }
 
     It 'refuses a content type it does not know' {

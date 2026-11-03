@@ -2,8 +2,9 @@
 
 Every content type the module knows, or will, and what it can do with
 each so far. `Get-iSOCContentType` returns the registered ones with the
-same details. Types deploy in the order shown, the order
-`Deploy/content/Deploy-CustomContent.ps1` uses today.
+same details. Types deploy in the order shown: the order
+`Deploy/content/Deploy-CustomContent.ps1` uses today, then the Defender
+detections the pipelines deploy in a later stage.
 
 ## Registered
 
@@ -17,6 +18,7 @@ same details. Types deploy in the order shown, the order
 | `Workbook` | `Content/Workbooks` (one folder each: `workbook.json`, `metadata.json`) | ARM, resource group, `Microsoft.Insights/workbooks` (2022-04-01) | `workbookId`, else derived | 60 | Skip | Deploy |
 | `AutomationRule` | `Content/AutomationRules` (JSON, any depth) | ARM, workspace, `automationRules` (2025-09-01) | `automationRuleId` | 70 | Skip | Deploy |
 | `SummaryRule` | `Content/SummaryRules` (JSON, any depth) | ARM, workspace, `summarylogs` (2025-07-01) | `name` | 80 | Skip | Deploy |
+| `DefenderDetection` | `Content/DefenderCustomDetections` (YAML, any depth) | Microsoft Graph, tenant, `security/rules/detectionRules` (beta) | `displayName` | 90 | Deploy (not checked) | Deploy |
 
 `Deploy` means `Deploy-iSOCContent` deploys the type
 ([Deploying content](Deploy.md)); `Dependencies` means the type is in the
@@ -153,11 +155,39 @@ E15).
   `Tests/iSOCDeployments/SummaryRule.Tests.ps1` holds every rule to the
   request the script builds.
 
+### DefenderDetection
+
+- **Read**: every `*.yaml` and `*.yml` file under
+  `Content/DefenderCustomDetections/`, named by its `displayName`. A file
+  written with the Graph fields retired on 2026-10-01 (`isEnabled`,
+  `schedule.period`, `category`, `mitreTechniques`, `impactedAssets`,
+  `responseActions`, `scopeNames`) is translated to the current shape as
+  it is read. A file that does not parse, holds no mapping, or names an
+  impacted asset or response action the translation cannot place is
+  failed.
+- **Validate**: `displayName`, `queryCondition.queryText` and a
+  `schedule.frequency` of PT1H, PT3H, PT12H or P1D; a known `status` when
+  set; an alert template with a title, a known severity and at least one
+  known tactic, with well-formed techniques; known entity mapping
+  collections and automated action members, each action entry with the
+  columns it needs. Every problem is reported on one line.
+- **Request**: the Graph detectionRule body: status enabled unless the
+  file says otherwise, the severity in lower case, the canonical
+  frequency, an empty `automatedActions` and a null `organizationalScope`
+  unless the file sets them, so the file stays the source of truth.
+- **Deploy**: the tenant's rules are read once per run (under `-WhatIf`
+  too, MIGRATION.md edit E18). A rule the tenant has under the same
+  display name, in any case, is updated in place with PATCH; a new one is
+  created with POST and the file's `id`, and fails when the file has none.
+  The service principal needs the `CustomDetection.ReadWrite.All` Graph
+  application permission; Microsoft does not offer the API in US
+  Government clouds. `Tests/iSOCDeployments/DefenderDetection.Tests.ps1`
+  holds every detection to the request the script sends.
+
 ## Planned
 
 | Type | Repository folder | Replaces |
 | --- | --- | --- |
-| `DefenderDetection` | `Content/DefenderCustomDetections` | `Deploy/content/Deploy-DefenderDetections.ps1` |
 | `WorkspaceSetting` | (pipeline parameters) | The UEBA, Entity Analytics and onboarding steps in the deploy pipelines |
 
 Exporting workbooks and playbooks (`Tools/Export-SentinelWorkbooks.ps1`

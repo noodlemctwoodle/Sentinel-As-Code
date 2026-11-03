@@ -14,9 +14,10 @@ Sentinel workspaces; the public commands avoid the product name.
 > still run every pipeline. What is here today is the core (logging, the
 > REST client, the workspace context, the YAML and KQL helpers, the
 > comparers), the content type registry, `Deploy-iSOCContent` for every
-> content type `Deploy-CustomContent.ps1` deploys, and the dependency
-> manifest commands. Defender detections, Content Hub, export, compare and
-> sync arrive as each area is ported; [MIGRATION.md](MIGRATION.md) tracks
+> content type `Deploy-CustomContent.ps1` deploys and the Defender XDR
+> custom detections `Deploy-DefenderDetections.ps1` does, and the
+> dependency manifest commands. Content Hub, export, compare and sync
+> arrive as each area is ported; [MIGRATION.md](MIGRATION.md) tracks
 > which.
 
 ```powershell
@@ -33,7 +34,7 @@ Deploy-iSOCContent -WhatIf
 | Command | What it does | Needs |
 | --- | --- | --- |
 | `Connect-iSOCWorkspace` | Points the module at one workspace through the current Az sign-in; the result is the context every other command uses | Az.Accounts, `Connect-AzAccount` |
-| `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks |
+| `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, then Defender XDR custom detections through Microsoft Graph, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks; the `CustomDetection.ReadWrite.All` Graph permission when there are Defender detections |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
@@ -44,7 +45,7 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCContent -ContentType DefenderDetection`, `Deploy-iSOCWorkspace`, `Export-iSOCContent`, `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
+`Deploy-iSOCWorkspace`, `Export-iSOCContent`, `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
 Content Hub, permission, set-up, community import and table migration
 commands.
 

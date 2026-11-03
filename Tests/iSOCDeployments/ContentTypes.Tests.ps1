@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -99,7 +99,7 @@ Describe 'Content type <Name>' -ForEach $types {
     }
 
     It 'compares fields the request body has' {
-        foreach ($field in $script:type.Fields) { $field.Name | Should -Match '^(kind|properties\.[A-Za-z]+(\.[A-Za-z]+)*|[A-Za-z]+)$' }
+        foreach ($field in $script:type.Fields) { $field.Name | Should -Match '^[A-Za-z]+(\.[A-Za-z]+)*$' }
     }
 }
 
@@ -142,7 +142,7 @@ Describe 'Lookups' {
     }
 
     It 'names the types that exist when a name matches none' {
-        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: Parser, Watchlist, AnalyticsRule, HuntingQuery, Playbook, Workbook, AutomationRule, SummaryRule.*"
+        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: Parser, Watchlist, AnalyticsRule, HuntingQuery, Playbook, Workbook, AutomationRule, SummaryRule, DefenderDetection.*"
     }
 
     It 'is what Get-iSOCContentType returns' {

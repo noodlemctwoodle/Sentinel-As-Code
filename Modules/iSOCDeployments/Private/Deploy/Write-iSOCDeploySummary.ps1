@@ -18,7 +18,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -63,6 +63,8 @@ function Write-iSOCDeploySummary {
         @($Results | Where-Object { $_.Outcome -in $Outcomes }).Count
     }
 
+    $width = 15
+    foreach ($type in $ContentType) { $width = [Math]::Max($width, $type.Name.Length) }
     Write-iSOCLog ''
     Write-iSOCLog 'Deployment summary' -Level Section
     Write-iSOCLog ('=' * 60)
@@ -74,7 +76,7 @@ function Write-iSOCDeploySummary {
         $whatIf = & $count $results 'WhatIf'
         $status = if ($failed -gt 0) { 'PARTIAL' } elseif ($deployed -gt 0) { 'OK' } elseif ($whatIf -gt 0) { 'WHATIF' } else { 'SKIPPED' }
         $would = if ($whatIf -gt 0) { "  Would deploy: $whatIf" } else { '' }
-        Write-iSOCLog "  $($type.Name.PadRight(15)) Deployed: $deployed  Skipped: $skipped  Failed: $failed$would  [$status]"
+        Write-iSOCLog "  $($type.Name.PadRight($width)) Deployed: $deployed  Skipped: $skipped  Failed: $failed$would  [$status]"
     }
 
     $all = @($Run.Results)

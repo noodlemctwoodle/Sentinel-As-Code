@@ -4,7 +4,8 @@
 <#
 .SYNOPSIS
     Pester parity tests: Deploy-iSOCContent against the
-    Deploy-CustomContent.ps1 steps it replaces, over this repository.
+    Deploy-CustomContent.ps1 steps and Deploy-DefenderDetections.ps1 it
+    replaces, over this repository.
 
 .DESCRIPTION
     Both engines run over a copy of this repository's content,
@@ -12,15 +13,17 @@
     stand-in workspace: a list of tables that leaves some out (so rules
     deploy disabled and hunting queries are skipped for missing
     dependencies), no watchlists and no functions (so the repository's own
-    satisfy them, or not). The script's pre-flight step and its eight
-    content steps (parsers, watchlists, detections, hunting queries,
-    playbooks, workbooks, automation rules and summary rules) are lifted
-    out by AST and run with its REST call and the Az.Resources cmdlets
-    stood in for; Deploy-iSOCContent runs with the module's REST client and
-    Az.Resources wrappers mocked. The two must send the same requests
-    (path, api-version and body), run the same playbook deployments (every
-    parameter but the timestamped deployment name), and count the same
-    outcomes per content type.
+    satisfy them, or not), and a tenant that already has the first five
+    Defender detections. The content script's pre-flight step and its
+    eight content steps (parsers, watchlists, detections, hunting queries,
+    playbooks, workbooks, automation rules and summary rules), and the
+    Defender script's deploy step, are lifted out by AST and run with their
+    REST and Graph calls and the Az.Resources cmdlets stood in for;
+    Deploy-iSOCContent runs with the module's REST client and Az.Resources
+    wrappers mocked. The two must send the same ARM requests (path,
+    api-version and body) and Graph requests (method, URL and body), run
+    the same playbook deployments (every parameter but the timestamped
+    deployment name), and count the same outcomes per content type.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/DeployParity.Tests.ps1
@@ -33,12 +36,13 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 
-    The suite goes when Deploy-CustomContent.ps1 is removed at cut-over;
-    its captured requests are kept as golden files first.
+    The suite goes when Deploy-CustomContent.ps1 and
+    Deploy-DefenderDetections.ps1 are removed at cut-over; their captured
+    requests are kept as golden files first.
 #>
 
 BeforeAll {
@@ -64,10 +68,28 @@ BeforeAll {
     $script:workspacePath = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws'
     $script:apiHost = 'https://management.azure.com'
 
+    # The stand-in tenant: the first five Defender detections already exist.
+    $detectionFiles = @(Get-ChildItem -LiteralPath (Join-Path $script:copy 'Content/DefenderCustomDetections') -Include '*.yaml', '*.yml' -Recurse -File | Sort-Object FullName)
+    $script:tenantRules = @($detectionFiles | Select-Object -First 5 | ForEach-Object {
+            $rule = ConvertFrom-Yaml -Yaml (Get-Content -LiteralPath $_.FullName -Raw)
+            [pscustomobject]@{ id = "tenant-$($_.BaseName)"; displayName = $rule['displayName'] }
+        })
+
     # --- The script ---------------------------------------------------------
     Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
     Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-CustomContent.ps1')
+    # Both scripts define Write-DeploymentSummary and Invoke-Main, which
+    # neither run here calls.
+    Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-DefenderDetections.ps1')
     function Write-PipelineMessage { param($Message, $Level) }
+    function Invoke-GraphApi {
+        param($Uri, $Method, $Headers, $Body)
+        if ($Method -eq 'Get') { return [pscustomobject]@{ value = $script:tenantRules } }
+        $script:legacyGraph.Add([pscustomobject]@{ Method = ([string]$Method).ToUpperInvariant(); Uri = $Uri; Body = $Body })
+        if ($Method -eq 'Post') { return ($Body | ConvertFrom-Json) }
+    }
+    $script:DetectionRulesEndpoint = 'https://graph.microsoft.com/beta/security/rules/detectionRules'
+    $script:GraphAuthHeader = @{}
     function Invoke-SentinelApi {
         param($Uri, $Method, $Headers, $Body)
         if ($Method -eq 'Get') {
@@ -107,6 +129,7 @@ BeforeAll {
     $script:PlaybookRG = 'rg-playbooks'
     $script:legacyPuts = [System.Collections.Generic.List[object]]::new()
     $script:legacyDeployments = [System.Collections.Generic.List[object]]::new()
+    $script:legacyGraph = [System.Collections.Generic.List[object]]::new()
     # The script's top-level initialisers, which the AST import does not run.
     $script:DependencyGraph = @{}
     $script:WorkspaceTables = @()
@@ -133,11 +156,15 @@ BeforeAll {
         AutomationRule = Deploy-CustomAutomationRules
         SummaryRule    = Deploy-CustomSummaryRules
     }
+    $defender = Deploy-DefenderDetections
+    $script:legacyCounts.DefenderDetection = @{ Deployed = $defender.Created + $defender.Updated; Skipped = $defender.Skipped; Failed = $defender.Failed }
+    $script:legacyUpdated = $defender.Updated
     Remove-Item -LiteralPath (Join-Path $script:copy 'deployment-state.json') -ErrorAction SilentlyContinue
 
     # --- The module ---------------------------------------------------------
     $script:modulePuts = [System.Collections.Generic.List[object]]::new()
     $script:moduleDeployments = [System.Collections.Generic.List[object]]::new()
+    $script:moduleGraph = [System.Collections.Generic.List[object]]::new()
     $script:context = InModuleScope iSOCDeployments -Parameters @{ W = $script:workspacePath } {
         param($W)
         New-iSOCContext -Value @{
@@ -152,6 +179,12 @@ BeforeAll {
     Mock -ModuleName iSOCDeployments Start-Sleep { }
     Mock -ModuleName iSOCDeployments Write-iSOCLog { }
     Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest {
+        if ($Path -like '/security/*') {
+            if ($Method -eq 'GET') { return $script:tenantRules }
+            $script:moduleGraph.Add([pscustomobject]@{ Method = $Method; Uri = "https://graph.microsoft.com/$ApiVersion$Path"; Body = $Body })
+            if ($Method -eq 'POST') { return [pscustomobject]@{ id = $Body.id } }
+            return
+        }
         if ($Method -eq 'GET') {
             if ($Path -like '*/tables') { return @($script:standInTables | ForEach-Object { [pscustomobject]@{ name = $_ } }) }
             return
@@ -201,9 +234,19 @@ Describe 'Deploy-iSOCContent against Deploy-CustomContent.ps1' {
         ($new -join "`n") | Should -BeExactly ($old -join "`n")
     }
 
+    It 'sends the same Defender detection requests, updating the rules the tenant has' {
+        $script:legacyUpdated | Should -Be $script:tenantRules.Count
+        $key = { param($Call) "$($Call.Method) $($Call.Uri) $(ConvertTo-ParityJson $Call.Body)" }
+        $new = @($script:moduleGraph | ForEach-Object { & $key $_ } | Sort-Object -CaseSensitive)
+        $old = @($script:legacyGraph | ForEach-Object { & $key $_ } | Sort-Object -CaseSensitive)
+        $new.Count | Should -Be $old.Count
+        ($new -join "`n") | Should -BeExactly ($old -join "`n")
+    }
+
     It 'counts the same outcomes for <Type>' -ForEach @(
         @{ Type = 'Parser' }, @{ Type = 'Watchlist' }, @{ Type = 'AnalyticsRule' }, @{ Type = 'HuntingQuery' }
         @{ Type = 'Playbook' }, @{ Type = 'Workbook' }, @{ Type = 'AutomationRule' }, @{ Type = 'SummaryRule' }
+        @{ Type = 'DefenderDetection' }
     ) {
         $legacy = $script:legacyCounts[$Type]
         $results = @($script:run.Results | Where-Object ContentType -eq $Type)

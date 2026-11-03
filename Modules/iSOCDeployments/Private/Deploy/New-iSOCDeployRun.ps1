@@ -16,7 +16,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -51,8 +51,9 @@ function New-iSOCDeployRun {
 
     .OUTPUTS
         [pscustomobject] Context, RepoPath, Config, ChangedFiles, State,
-        Graph, Inventory (set by the pre-flight checks), Results (a list of
-        item results) and Started.
+        Graph, Inventory (set by the pre-flight checks), Cache (what a
+        content type reads once per run, such as the tenant's Defender
+        detection rules), Results (a list of item results) and Started.
 
     .EXAMPLE
         $run = New-iSOCDeployRun -Context $ctx -RepoPath $repo -Config $config -State $state -Graph $graph
@@ -89,6 +90,7 @@ function New-iSOCDeployRun {
         State        = $State
         Graph        = $Graph
         Inventory    = [pscustomobject]@{ Tables = $null; Watchlists = $null; Functions = $null; RepoFunctions = @(); RepoWatchlists = @() }
+        Cache        = @{}
         Results      = [System.Collections.Generic.List[object]]::new()
         Started      = Get-Date
     }

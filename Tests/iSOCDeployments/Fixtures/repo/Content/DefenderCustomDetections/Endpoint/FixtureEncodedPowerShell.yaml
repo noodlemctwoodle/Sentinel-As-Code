@@ -1,0 +1,39 @@
+id: fixture-encoded-powershell
+displayName: "Fixture: encoded PowerShell"
+status: enabled
+description: Fixture detection in the current Graph shape.
+queryCondition:
+  queryText: |
+    DeviceProcessEvents
+    | where FileName =~ "powershell.exe" and ProcessCommandLine has "-enc"
+    | project Timestamp, ReportId, DeviceId, DeviceName, AccountSid, ProcessCommandLine
+schedule:
+  frequency: PT24H
+detectionAction:
+  alertTemplate:
+    title: "Fixture: encoded PowerShell"
+    description: An encoded PowerShell command ran.
+    severity: Medium
+    tactics:
+      - tactic: Execution
+        techniques:
+          - technique: T1059
+            subTechniques:
+              - T1059.001
+    recommendedActions: Review the command line.
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+      accounts:
+        - sidColumn: AccountSid
+    customDetails:
+      CommandLine: ProcessCommandLine
+  automatedActions:
+    isolateDevices:
+      - deviceIdColumn: DeviceId
+        isolationType: selective
+  organizationalScope:
+    deviceGroups:
+      - Fixture servers
+  incidentConfiguration:
+    isExcludedFromIncidentCorrelation: false

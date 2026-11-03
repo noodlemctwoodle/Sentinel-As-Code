@@ -5,9 +5,9 @@
     Deploy one content item: decide, validate, check dependencies, send.
 
 .DESCRIPTION
-    The per-item steps of Deploy-CustomParsers, Deploy-CustomWatchlists,
-    Deploy-CustomDetections and Deploy-CustomHuntingQueries
-    (Deploy/content/Deploy-CustomContent.ps1), in one place for every
+    The per-item steps of every Deploy-Custom* step in
+    Deploy/content/Deploy-CustomContent.ps1 and of Deploy-DefenderDetections
+    (Deploy/content/Deploy-DefenderDetections.ps1), in one place for every
     content type, with the type's own handlers doing what differs.
 
 .NOTES
@@ -16,7 +16,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -136,7 +136,7 @@ function Invoke-iSOCItemDeploy {
             $parameters = @{ Item = $Item }
             if ((Get-Command -Name $ContentType.Handlers.ToRequest).Parameters.ContainsKey('Context')) { $parameters.Context = $Run.Context }
             $request = Invoke-iSOCContentTypeHandler -ContentType $ContentType -Handler ToRequest -Parameters $parameters
-            $sent = if ($PSCmdlet.ShouldProcess($label, "Deploy $($ContentType.DisplayName.ToLowerInvariant()) '$($Item.Name)'")) {
+            $sent = if ($PSCmdlet.ShouldProcess($label, "Deploy $(Get-iSOCContentTypeNoun -ContentType $ContentType) '$($Item.Name)'")) {
                 Send-iSOCContentRequest -Context $Run.Context -ContentType $ContentType -Request $request | Out-Null
                 @{ Outcome = 'Deployed'; Reason = '' }
             }

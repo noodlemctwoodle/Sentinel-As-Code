@@ -19,6 +19,21 @@ folder per content type the module has ported so far.
 | `repo/Content/Watchlists/vipUsers/` | A complete watchlist (`watchlist.json` and `data.csv`) |
 | `repo/Content/Watchlists/noData/` | A watchlist without its `data.csv`, and without a description or provider |
 | `repo/Content/Watchlists/emptyFolder/` | A watchlist folder without a `watchlist.json` |
+| `repo/Content/Playbooks/Module/ZuluBase.json`, `AlphaCaller.json` | Two module playbooks, `AlphaCaller` calling `ZuluBase`, so the order puts the one called first |
+| `repo/Content/Playbooks/Incident/FixtureIncident.json` | A playbook with a parameters file beside it |
+| `repo/Content/Playbooks/NotArm.json` | A JSON file that is not an ARM template, which validation rejects |
+| `repo/Content/Playbooks/Template/FixtureTemplate.json` | A file under a `Template` folder, which the reader leaves out |
+| `repo/Content/Workbooks/FixtureOverview/` | A workbook with a `metadata.json` naming it and pinning its id |
+| `repo/Content/Workbooks/ArmWrapped/` | A workbook wrapped in an ARM template, with no `metadata.json` |
+| `repo/Content/Workbooks/NoTemplate/` | A workbook folder without a `workbook.json` |
+| `repo/Content/AutomationRules/FixtureAutoClose.json` | A complete automation rule, with order 0 |
+| `repo/Content/AutomationRules/MissingActions.json` | An automation rule without its actions |
+| `repo/Content/SummaryRules/FixtureSummary.json` | A summary rule with every optional field |
+| `repo/Content/SummaryRules/BadBinSize.json`, `NoSuffix.json` | Summary rules with a bin size Log Analytics refuses, and a destination that is not a custom table |
+| `repo/Content/DefenderCustomDetections/Endpoint/FixtureEncodedPowerShell.yaml` | A Defender detection in the current Graph shape with every optional part: description, mixed-case severity, entity mappings, custom details, an automated action, device groups and incident configuration |
+| `repo/Content/DefenderCustomDetections/Identity/FixtureLegacySpray.yaml` | A Defender detection written with the fields Graph retired on 2026-10-01, which the reader translates |
+| `repo/Content/DefenderCustomDetections/Email/FixtureExistingNoId.yaml` | A Defender detection without an `id`: updated when the tenant has it, failed when it does not |
+| `repo/Content/DefenderCustomDetections/Email/InvalidFrequency.yaml` | A Defender detection with two problems, a frequency the service does not run and an unknown tactic |
 
 The fixtures are synthetic and name no real tenant, workspace or
 organisation. The repository-wide content suites (`Tests/Test-*Yaml.Tests.ps1`)

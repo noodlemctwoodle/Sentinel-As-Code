@@ -588,6 +588,12 @@ Schema details for each content type:
 
 ## Deploy-DefenderDetections.ps1
 
+The iSOCDeployments module deploys Defender detections with
+`Deploy-iSOCContent -ContentType DefenderDetection`, which replaces this
+script at the 26.11.0 cut-over; see
+[Deploying content](../Modules/iSOCDeployments/Deploy.md). Until then the
+pipelines run the script described here.
+
 Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph Security API (beta). Rules are authored as YAML files in the `Content/DefenderCustomDetections/` folder and use the Advanced Hunting KQL schema.
 
 ### Key Features

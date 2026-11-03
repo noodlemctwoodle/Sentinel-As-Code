@@ -137,12 +137,16 @@ refuses to build when one is wrong (`ContentTypes.Tests.ps1`).
 | `Capabilities` | What the module can do with the type | `Deploy`, `Export`, `Compare`, `Sync`, `Dependencies` |
 | `Prerequisites` | What reading or sending the type needs | Names from the requirement table |
 | `Handlers` | The functions that do the type's work | See below |
-| `Fields` | What a compare looks at | `@{ Name = 'properties.x'; Comparer = '...' }`, by place in the request body |
+| `Fields` | What a compare looks at | `@{ Name = 'properties.x'; Comparer = '...' }`, by dotted place in the request body (`queryCondition.queryText` for a Graph type) |
 
 `Get-iSOCContentFile` lists a type's items in ordinal order of their
 repository-relative path, so every machine walks the repository the same
 way. `Get-iSOCResourcePath` joins the scope from the context, the
-collection and an item's name.
+collection and an item's name; a `Tenant` scope adds nothing, so a Graph
+type's path starts at its collection (`/security/rules/detectionRules`).
+`Get-iSOCContentTypeNoun` gives a display name as it reads inside a
+sentence, lower-casing its first letter unless a capitalised word follows
+(`analytics rules`, but `Defender XDR custom detections`).
 
 ## Handlers
 
@@ -152,11 +156,11 @@ name. Each lives in its type's folder in a file named after it.
 
 | Handler | Takes | Returns |
 | --- | --- | --- |
-| `ReadRepo` | `-RepoPath`, `-ContentType` | One `iSOCDeployments.RepoItem` per item: `ContentType`, `Identity` (lower case), `Name`, `Path`, `RelativePath`, `Source` (`Custom` or `Community`), `Data`, `ParseError`, and anything the type needs besides (a watchlist adds `MetadataPath` and `CsvPath`, a playbook its `Category` and `ParametersPath`). An item made of more than one file lists them in `Files`, which smart deployment and the state file use; otherwise `Path` is the one file. YAML types share `Read-iSOCYamlRepoItem`, and JSON types `Read-iSOCJsonRepoItem` |
-| `Validate` | `-Item` | The reasons the item cannot be sent; nothing when it can |
+| `ReadRepo` | `-RepoPath`, `-ContentType` | One `iSOCDeployments.RepoItem` per item: `ContentType`, `Identity` (lower case), `Name`, `Path`, `RelativePath`, `Source` (`Custom` or `Community`), `Data`, `ParseError`, and anything the type needs besides (a watchlist adds `MetadataPath` and `CsvPath`, a playbook its `Category` and `ParametersPath`, a Defender detection the translated `Rule` and the `LegacyFields` it was translated from). An item made of more than one file lists them in `Files`, which smart deployment and the state file use; otherwise `Path` is the one file. YAML types share `Read-iSOCYamlRepoItem`, and JSON types `Read-iSOCJsonRepoItem` |
+| `Validate` | `-Item` | The reasons the item cannot be sent; nothing when it can. Deploy reports the first; a type with several problems to report at once joins them onto one line (Defender detections) |
 | `ToRequest` | `-Item`, `-Context` when the body needs the workspace (a workbook's region, a playbook's resource groups), and switches the type needs (`-Disabled` for rules) | An `iSOCDeployments.Request`: `ContentType`, `Identity`, `ResourceName`, `Body`. It reads nothing outside the item and the context, except a watchlist's `data.csv` and a workbook's template, and sends nothing. A playbook's `Body` is the deployment's parameters rather than a REST body |
 | `GetQuery` | `-Item` | The KQL the item runs |
-| `Deploy` | `-Run`, `-ContentType`, `-Item`, and `-Disabled` when the type deploys disabled | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error, and playbooks, which deploy through Az.Resources and validate under `-WhatIf` |
+| `Deploy` | `-Run`, `-ContentType`, `-Item`, and `-Disabled` when the type deploys disabled | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error; playbooks, which deploy through Az.Resources and validate under `-WhatIf`; and Defender detections, which Graph updates with PATCH at an existing rule's id or creates with POST, after reading the tenant's rules once per run into the run's `Cache` |
 | `Order` | `-Item` | Optional: the items in the order they must deploy. Without one, deploy takes repository order, prioritised items first and Community items last (`Get-iSOCDeployOrder`). Playbooks have one, to deploy modules before the playbooks that call them |
 | `ReadWorkspace`, `Classify`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with export, compare and sync |
 

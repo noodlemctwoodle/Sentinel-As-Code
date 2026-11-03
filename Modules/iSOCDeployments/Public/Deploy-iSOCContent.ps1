@@ -6,13 +6,14 @@
     workspace.
 
 .DESCRIPTION
-    Replaces Deploy/content/Deploy-CustomContent.ps1: parsers, watchlists,
+    Replaces Deploy/content/Deploy-CustomContent.ps1 (parsers, watchlists,
     analytics rules, hunting queries, playbooks, workbooks, automation
-    rules and summary rules. The script's -Skip<Type> switches become
-    -ExcludeContentType, -SkipCommunityDetections becomes
+    rules and summary rules) and Deploy/content/Deploy-DefenderDetections.ps1
+    (Defender XDR custom detections). The script's -Skip<Type> switches
+    become -ExcludeContentType, -SkipCommunityDetections becomes
     -Exclude 'Content/AnalyticalRules/Community/*', and -ResourceGroup,
     -Workspace, -Region and -IsGov come from Connect-iSOCWorkspace
-    (MIGRATION.md edit E12).
+    (MIGRATION.md edits E12 and E17).
 
 .NOTES
     File:         Modules/iSOCDeployments/Public/Deploy-iSOCContent.ps1
@@ -20,7 +21,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -39,7 +40,8 @@ function Deploy-iSOCContent {
     .DESCRIPTION
         Content types deploy in their deploy order: parsers, watchlists,
         analytics rules, hunting queries, playbooks, workbooks, automation
-        rules, then summary rules. For each item:
+        rules, summary rules, then Defender XDR custom detections. For each
+        item:
 
         - sentinel-deployment.config can exclude it, and with
           -SmartDeployment it deploys only when git reports it changed or
@@ -56,8 +58,19 @@ function Deploy-iSOCContent {
         through Az.Resources, which is needed only when there are playbooks
         to deploy; the templates in Module folders go first, each after the
         modules it calls. Under -WhatIf each template is validated against
-        the resource group instead. After watchlists are uploaded the command waits 30 seconds for
-        Sentinel to index them, before the rules that read them.
+        the resource group instead. After watchlists are uploaded the
+        command waits 30 seconds for Sentinel to index them, before the
+        rules that read them.
+
+        Defender XDR custom detections go to Microsoft Graph for the tenant
+        the workspace is in, which needs the CustomDetection.ReadWrite.All
+        application permission. The tenant's rules are read first; a
+        detection whose display name the tenant has is updated in place,
+        and a new one is created with the id its file gives it. Under
+        -WhatIf the rules are still read, so the dry run says which it
+        would update, which create, and which would fail for want of an
+        id.
+
         deployment-state.json records what succeeded, for smart deployment
         next time. With -WhatIf it reads everything, reports what it would
         deploy, and changes nothing: not the workspace, not the state file.
@@ -107,6 +120,12 @@ function Deploy-iSOCContent {
 
         A pipeline step: deploys what changed, holds the Community rules
         back, and fails the step when anything failed.
+
+    .EXAMPLE
+        Deploy-iSOCContent -ContentType DefenderDetection -WhatIf
+
+        Reads the tenant's custom detection rules and shows which repository
+        detections would be updated and which created, changing nothing.
 
     .EXAMPLE
         (Deploy-iSOCContent -ContentType Watchlist, AnalyticsRule).Results | Where-Object Outcome -ne Deployed
@@ -159,7 +178,7 @@ function Deploy-iSOCContent {
         $kept = @(if ($Exclude) { $items | Where-Object { $path = $_.RelativePath; -not @($Exclude | Where-Object { $path -like $_ }).Count } } else { $items })
         $found[$type.Name] = @{ Read = $items.Count; Items = $kept }
         if ($kept.Count -gt 0 -and @($type.Prerequisites).Count -gt 0) {
-            Assert-iSOCPrerequisite -Name $type.Prerequisites -Purpose "deploying $($type.DisplayName.ToLowerInvariant())"
+            Assert-iSOCPrerequisite -Name $type.Prerequisites -Purpose "deploying $(Get-iSOCContentTypeNoun -ContentType $type)"
         }
     }
 
@@ -192,11 +211,11 @@ function Deploy-iSOCContent {
 
     foreach ($type in $types) {
         Write-iSOCLog ''
-        Write-iSOCLog "Deploying $($type.DisplayName.ToLowerInvariant())..." -Level Section
+        Write-iSOCLog "Deploying $(Get-iSOCContentTypeNoun -ContentType $type)..." -Level Section
         $items = @($found[$type.Name].Items)
         $leftOut = $found[$type.Name].Read - $items.Count
         if ($leftOut -gt 0) { Write-iSOCLog "Left out $leftOut item(s) matching -Exclude." }
-        if ($items.Count -eq 0) { Write-iSOCLog "No $($type.DisplayName.ToLowerInvariant()) to deploy."; continue }
+        if ($items.Count -eq 0) { Write-iSOCLog "No $(Get-iSOCContentTypeNoun -ContentType $type) to deploy."; continue }
         Write-iSOCLog "Found $($items.Count) item(s) to process."
 
         $before = $run.Results.Count
@@ -212,7 +231,7 @@ function Deploy-iSOCContent {
 
         $sentAny = @($run.Results | Select-Object -Skip $before | Where-Object { $_.Outcome -in 'Deployed', 'DeployedDisabled' }).Count -gt 0
         if ($sentAny -and $type.SettleSeconds -gt 0) {
-            Write-iSOCLog "Waiting $($type.SettleSeconds)s for $($type.DisplayName.ToLowerInvariant()) to propagate..."
+            Write-iSOCLog "Waiting $($type.SettleSeconds)s for $(Get-iSOCContentTypeNoun -ContentType $type) to propagate..."
             Start-Sleep -Seconds $type.SettleSeconds
         }
         if (-not $WhatIfPreference) { Save-iSOCDeploymentState -State $run.State }

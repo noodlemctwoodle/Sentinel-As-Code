@@ -5,9 +5,10 @@
     Read a content type's YAML files as repository items.
 
 .DESCRIPTION
-    Analytics rules, hunting queries and parsers are all one YAML file per
-    item, named by an id key. Their ReadRepo handlers share this reader, so
-    the three types cannot drift apart in how a file becomes an item.
+    Analytics rules, hunting queries, parsers and Defender XDR custom
+    detections are all one YAML file per item, named by an id key. Their
+    ReadRepo handlers share this reader, so the four types cannot drift
+    apart in how a file becomes an item.
 
 .NOTES
     File:         Modules/iSOCDeployments/Private/ContentTypes/Read-iSOCYamlRepoItem.ps1
@@ -15,7 +16,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
