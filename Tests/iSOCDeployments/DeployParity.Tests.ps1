@@ -12,11 +12,15 @@
     stand-in workspace: a list of tables that leaves some out (so rules
     deploy disabled and hunting queries are skipped for missing
     dependencies), no watchlists and no functions (so the repository's own
-    satisfy them, or not). The script's pre-flight, parser, watchlist,
-    detection and hunting query steps are lifted out by AST and run with
-    its REST call captured; Deploy-iSOCContent runs with the module's REST
-    client mocked. The two must send the same requests (path, api-version
-    and body) and count the same outcomes per content type.
+    satisfy them, or not). The script's pre-flight step and its eight
+    content steps (parsers, watchlists, detections, hunting queries,
+    playbooks, workbooks, automation rules and summary rules) are lifted
+    out by AST and run with its REST call and the Az.Resources cmdlets
+    stood in for; Deploy-iSOCContent runs with the module's REST client and
+    Az.Resources wrappers mocked. The two must send the same requests
+    (path, api-version and body), run the same playbook deployments (every
+    parameter but the timestamped deployment name), and count the same
+    outcomes per content type.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/DeployParity.Tests.ps1
@@ -29,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 
@@ -72,6 +76,17 @@ BeforeAll {
         }
         $script:legacyPuts.Add([pscustomobject]@{ Uri = $Uri; Body = $Body })
     }
+    # Stand-ins with the real cmdlets' parameters for everything the script
+    # passes them.
+    function New-AzResourceGroupDeployment {
+        [CmdletBinding()]
+        param($Name, $ResourceGroupName, $TemplateFile, $TemplateParameterFile, $AutomationResourceGroup, $SentinelResourceGroup,
+            $SentinelResourceGroupName, $PlaybookResourceGroup, $SentinelWorkpaceName, $SentinelWorkspaceName, $SubscriptionId, $WorkspaceId)
+        $parameters = [hashtable] $PSBoundParameters
+        $parameters.Remove('ErrorAction')
+        $script:legacyDeployments.Add($parameters)
+    }
+    function Test-AzResourceGroupDeployment { }
     $script:BasePath = $script:copy
     $script:ResourceGroup = 'rg'
     $script:Workspace = 'ws'
@@ -84,7 +99,14 @@ BeforeAll {
     $script:SentinelApiVersion = '2025-09-01'
     $script:AlertRuleApiVersion = '2025-07-01-preview'
     $script:SavedSearchApiVersion = '2025-07-01'
+    $script:WorkbookApiVersion = '2022-04-01'
+    $script:SummaryRuleApiVersion = '2025-07-01'
+    $script:Region = 'uksouth'
+    $script:WorkspaceResourceId = $script:workspacePath
+    $script:WorkspaceId = 'c'
+    $script:PlaybookRG = 'rg-playbooks'
     $script:legacyPuts = [System.Collections.Generic.List[object]]::new()
+    $script:legacyDeployments = [System.Collections.Generic.List[object]]::new()
     # The script's top-level initialisers, which the AST import does not run.
     $script:DependencyGraph = @{}
     $script:WorkspaceTables = @()
@@ -104,21 +126,29 @@ BeforeAll {
     $script:legacyCounts = [ordered]@{
         Parser        = Deploy-CustomParsers
         Watchlist     = Deploy-CustomWatchlists
-        AnalyticsRule = Deploy-CustomDetections
-        HuntingQuery  = Deploy-CustomHuntingQueries
+        AnalyticsRule  = Deploy-CustomDetections
+        HuntingQuery   = Deploy-CustomHuntingQueries
+        Playbook       = Deploy-CustomPlaybooks
+        Workbook       = Deploy-CustomWorkbooks
+        AutomationRule = Deploy-CustomAutomationRules
+        SummaryRule    = Deploy-CustomSummaryRules
     }
     Remove-Item -LiteralPath (Join-Path $script:copy 'deployment-state.json') -ErrorAction SilentlyContinue
 
     # --- The module ---------------------------------------------------------
     $script:modulePuts = [System.Collections.Generic.List[object]]::new()
+    $script:moduleDeployments = [System.Collections.Generic.List[object]]::new()
     $script:context = InModuleScope iSOCDeployments -Parameters @{ W = $script:workspacePath } {
         param($W)
         New-iSOCContext -Value @{
             TenantId = 't'; SubscriptionId = '00000000-0000-0000-0000-000000000000'; ResourceGroup = 'rg'; WorkspaceName = 'ws'
-            WorkspaceResourceId = $W; WorkspaceId = 'c'; Region = 'uksouth'; PlaybookResourceGroup = 'rg'; Environment = 'AzureCloud'
+            WorkspaceResourceId = $W; WorkspaceId = 'c'; Region = 'uksouth'; PlaybookResourceGroup = 'rg-playbooks'; Environment = 'AzureCloud'
             IsGov = $false; ArmUrl = 'https://management.azure.com'; GraphUrl = 'https://graph.microsoft.com'; Account = 'a'
         }
     }
+    Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
+    Mock -ModuleName iSOCDeployments New-iSOCAzResourceGroupDeployment { $script:moduleDeployments.Add([pscustomobject]@{ Name = $Name; Parameters = $Parameters }) }
+    Mock -ModuleName iSOCDeployments Test-iSOCAzResourceGroupDeployment { }
     Mock -ModuleName iSOCDeployments Start-Sleep { }
     Mock -ModuleName iSOCDeployments Write-iSOCLog { }
     Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest {
@@ -163,8 +193,17 @@ Describe 'Deploy-iSOCContent against Deploy-CustomContent.ps1' {
         @($different) | Should -BeNullOrEmpty
     }
 
+    It 'runs the same playbook deployments, apart from the timestamped name' {
+        $script:moduleDeployments.Count | Should -Be $script:legacyDeployments.Count
+        @($script:moduleDeployments.Name) | Should -Match '^Playbook-.{1,40}-\d{14}$'
+        $old = @($script:legacyDeployments | ForEach-Object { $p = @{} + $_; $p.Remove('Name'); ConvertTo-ParityJson $p } | Sort-Object)
+        $new = @($script:moduleDeployments | ForEach-Object { ConvertTo-ParityJson $_.Parameters } | Sort-Object)
+        ($new -join "`n") | Should -BeExactly ($old -join "`n")
+    }
+
     It 'counts the same outcomes for <Type>' -ForEach @(
         @{ Type = 'Parser' }, @{ Type = 'Watchlist' }, @{ Type = 'AnalyticsRule' }, @{ Type = 'HuntingQuery' }
+        @{ Type = 'Playbook' }, @{ Type = 'Workbook' }, @{ Type = 'AutomationRule' }, @{ Type = 'SummaryRule' }
     ) {
         $legacy = $script:legacyCounts[$Type]
         $results = @($script:run.Results | Where-Object ContentType -eq $Type)

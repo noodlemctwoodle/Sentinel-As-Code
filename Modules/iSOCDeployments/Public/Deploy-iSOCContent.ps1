@@ -6,9 +6,9 @@
     workspace.
 
 .DESCRIPTION
-    Replaces Deploy/content/Deploy-CustomContent.ps1 for the content types
-    the module has ported: parsers, watchlists, analytics rules and hunting
-    queries so far. The script's -Skip<Type> switches become
+    Replaces Deploy/content/Deploy-CustomContent.ps1: parsers, watchlists,
+    analytics rules, hunting queries, playbooks, workbooks, automation
+    rules and summary rules. The script's -Skip<Type> switches become
     -ExcludeContentType, -SkipCommunityDetections becomes
     -Exclude 'Content/AnalyticalRules/Community/*', and -ResourceGroup,
     -Workspace, -Region and -IsGov come from Connect-iSOCWorkspace
@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -38,7 +38,8 @@ function Deploy-iSOCContent {
 
     .DESCRIPTION
         Content types deploy in their deploy order: parsers, watchlists,
-        analytics rules, then hunting queries. For each item:
+        analytics rules, hunting queries, playbooks, workbooks, automation
+        rules, then summary rules. For each item:
 
         - sentinel-deployment.config can exclude it, and with
           -SmartDeployment it deploys only when git reports it changed or
@@ -51,7 +52,11 @@ function Deploy-iSOCContent {
         - Community rules always deploy disabled, and a rule whose query
           the service will not validate yet is deployed disabled.
 
-        After watchlists are uploaded the command waits 30 seconds for
+        Playbooks deploy as ARM templates to the playbook resource group
+        through Az.Resources, which is needed only when there are playbooks
+        to deploy; the templates in Module folders go first, each after the
+        modules it calls. Under -WhatIf each template is validated against
+        the resource group instead. After watchlists are uploaded the command waits 30 seconds for
         Sentinel to index them, before the rules that read them.
         deployment-state.json records what succeeded, for smart deployment
         next time. With -WhatIf it reads everything, reports what it would
@@ -128,7 +133,6 @@ function Deploy-iSOCContent {
         [string] $RepoPath
     )
 
-    Assert-iSOCPrerequisite -Step Connect, Read
     $ctx = Resolve-iSOCContext -Context $Context
     $repo = Resolve-iSOCRepoPath -RepoPath $RepoPath
 
@@ -142,6 +146,21 @@ function Deploy-iSOCContent {
     }
     if ($ExcludeContentType) {
         $types = @($types | Where-Object { $typeName = $_.Name; -not @($ExcludeContentType | Where-Object { $typeName -like $_ }).Count })
+    }
+    Assert-iSOCPrerequisite -Step Connect, Read
+
+    # Every type is read before anything deploys, so a type's own
+    # prerequisite (Az.Resources for playbooks) stops the run at the start,
+    # and only when there is something of that type to deploy.
+    $found = [ordered]@{}
+    foreach ($type in $types) {
+        $items = @(Invoke-iSOCContentTypeHandler -ContentType $type -Handler ReadRepo -Parameters @{ RepoPath = $repo; ContentType = $type })
+        # Wrapped whole: an if statement's output is unrolled.
+        $kept = @(if ($Exclude) { $items | Where-Object { $path = $_.RelativePath; -not @($Exclude | Where-Object { $path -like $_ }).Count } } else { $items })
+        $found[$type.Name] = @{ Read = $items.Count; Items = $kept }
+        if ($kept.Count -gt 0 -and @($type.Prerequisites).Count -gt 0) {
+            Assert-iSOCPrerequisite -Name $type.Prerequisites -Purpose "deploying $($type.DisplayName.ToLowerInvariant())"
+        }
     }
 
     Write-iSOCLog ('=' * 60)
@@ -174,17 +193,20 @@ function Deploy-iSOCContent {
     foreach ($type in $types) {
         Write-iSOCLog ''
         Write-iSOCLog "Deploying $($type.DisplayName.ToLowerInvariant())..." -Level Section
-        $items = @(Invoke-iSOCContentTypeHandler -ContentType $type -Handler ReadRepo -Parameters @{ RepoPath = $repo; ContentType = $type })
-        if ($Exclude) {
-            $kept = @($items | Where-Object { $path = $_.RelativePath; -not @($Exclude | Where-Object { $path -like $_ }).Count })
-            if ($kept.Count -lt $items.Count) { Write-iSOCLog "Left out $($items.Count - $kept.Count) item(s) matching -Exclude." }
-            $items = $kept
-        }
+        $items = @($found[$type.Name].Items)
+        $leftOut = $found[$type.Name].Read - $items.Count
+        if ($leftOut -gt 0) { Write-iSOCLog "Left out $leftOut item(s) matching -Exclude." }
         if ($items.Count -eq 0) { Write-iSOCLog "No $($type.DisplayName.ToLowerInvariant()) to deploy."; continue }
         Write-iSOCLog "Found $($items.Count) item(s) to process."
 
         $before = $run.Results.Count
-        foreach ($item in Get-iSOCDeployOrder -Run $run -Item $items) {
+        $ordered = if ($type.Handlers.ContainsKey('Order')) {
+            Invoke-iSOCContentTypeHandler -ContentType $type -Handler Order -Parameters @{ Item = $items }
+        }
+        else {
+            Get-iSOCDeployOrder -Run $run -Item $items
+        }
+        foreach ($item in $ordered) {
             $run.Results.Add((Invoke-iSOCItemDeploy -Run $run -ContentType $type -Item $item))
         }
 

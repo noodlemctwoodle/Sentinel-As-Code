@@ -1,0 +1,6 @@
+{
+  "name": "BadBinSize",
+  "query": "SigninLogs | count",
+  "binSize": 45,
+  "destinationTable": "BadBinSize_CL"
+}

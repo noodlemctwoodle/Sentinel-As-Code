@@ -1,0 +1,10 @@
+{
+  "name": "FixtureSummary",
+  "displayName": "Fixture summary",
+  "description": "Hourly sign-ins.",
+  "query": "SigninLogs | summarize Count = count() by UserPrincipalName",
+  "binSize": 60,
+  "binDelay": 10,
+  "binStartTime": "2026-01-01T00:00:00Z",
+  "destinationTable": "FixtureSummary_CL"
+}

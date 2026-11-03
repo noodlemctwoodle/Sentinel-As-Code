@@ -1,0 +1,6 @@
+{
+  "name": "NoSuffix",
+  "query": "SigninLogs | count",
+  "binSize": 20,
+  "destinationTable": "NoSuffix"
+}

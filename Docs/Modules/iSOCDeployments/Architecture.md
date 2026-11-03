@@ -23,12 +23,12 @@ type. The rules here are enforced by the suites under
 | --- | --- |
 | `Public/` | One exported command per file. The manifest's `FunctionsToExport` is the list of these files (`Module.Tests.ps1`). |
 | `Private/Core/` | Logging, the API table, the context, repository paths, property access and the requirement table |
-| `Private/Az/` | The only files that call Az cmdlets, as thin wrappers the rest of the module mocks |
+| `Private/Az/` | The only files that call Az cmdlets, as thin wrappers the rest of the module mocks: the Az context, and the resource group deployments playbooks need |
 | `Private/Rest/` | The only files that call REST: `Invoke-iSOCRestRequest` and its helpers |
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
 | `Private/Drift/` | The comparers and the canonical forms they rest on |
-| `Private/ContentTypes/` | The registry, the shared YAML item reader, and one folder per content type with its definition and handlers |
+| `Private/ContentTypes/` | The registry, the shared YAML and JSON item readers, and one folder per content type with its definition and handlers |
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
 | `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
 | `Private/State/` | `deployment-state.json`: reading, recording and saving |
@@ -105,6 +105,7 @@ request (`Rest.Tests.ps1`):
 | `Workbooks` | 2022-04-01 | Workbooks |
 | `Deployments` | 2024-11-01 | ARM template deployments |
 | `ResourceGroups` | 2021-04-01 | Resource groups |
+| `LogicApps` | 2019-05-01 | Logic App workflows: where playbooks live, for compare and export (they deploy as templates) |
 | `GraphSecurity` | beta | Defender XDR custom detections (a Graph version segment) |
 
 ## Content types
@@ -151,12 +152,13 @@ name. Each lives in its type's folder in a file named after it.
 
 | Handler | Takes | Returns |
 | --- | --- | --- |
-| `ReadRepo` | `-RepoPath`, `-ContentType` | One `iSOCDeployments.RepoItem` per item: `ContentType`, `Identity` (lower case), `Name`, `Path`, `RelativePath`, `Source` (`Custom` or `Community`), `Data`, `ParseError`, and anything the type needs besides (a watchlist adds `MetadataPath` and `CsvPath`). YAML types share `Read-iSOCYamlRepoItem` |
+| `ReadRepo` | `-RepoPath`, `-ContentType` | One `iSOCDeployments.RepoItem` per item: `ContentType`, `Identity` (lower case), `Name`, `Path`, `RelativePath`, `Source` (`Custom` or `Community`), `Data`, `ParseError`, and anything the type needs besides (a watchlist adds `MetadataPath` and `CsvPath`, a playbook its `Category` and `ParametersPath`). An item made of more than one file lists them in `Files`, which smart deployment and the state file use; otherwise `Path` is the one file. YAML types share `Read-iSOCYamlRepoItem`, and JSON types `Read-iSOCJsonRepoItem` |
 | `Validate` | `-Item` | The reasons the item cannot be sent; nothing when it can |
-| `ToRequest` | `-Item`, and switches the type needs (`-Disabled` for rules) | An `iSOCDeployments.Request`: `ContentType`, `Identity`, `ResourceName`, `Body`. It reads nothing outside the item, except a watchlist's `data.csv`, and sends nothing |
+| `ToRequest` | `-Item`, `-Context` when the body needs the workspace (a workbook's region, a playbook's resource groups), and switches the type needs (`-Disabled` for rules) | An `iSOCDeployments.Request`: `ContentType`, `Identity`, `ResourceName`, `Body`. It reads nothing outside the item and the context, except a watchlist's `data.csv` and a workbook's template, and sends nothing. A playbook's `Body` is the deployment's parameters rather than a REST body |
 | `GetQuery` | `-Item` | The KQL the item runs |
-| `Deploy` | `-Run`, `-ContentType`, `-Item`, `-Disabled` | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error |
-| `ReadWorkspace`, `Classify`, `Order`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with export, compare and sync |
+| `Deploy` | `-Run`, `-ContentType`, `-Item`, and `-Disabled` when the type deploys disabled | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error, and playbooks, which deploy through Az.Resources and validate under `-WhatIf` |
+| `Order` | `-Item` | Optional: the items in the order they must deploy. Without one, deploy takes repository order, prioritised items first and Community items last (`Get-iSOCDeployOrder`). Playbooks have one, to deploy modules before the playbooks that call them |
+| `ReadWorkspace`, `Classify`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with export, compare and sync |
 
 An unreadable item and an invalid one are told apart, because deploy
 treats them as the scripts do: `ParseError` is set when the file is there
@@ -211,7 +213,12 @@ local console. It is the only place the module writes to the console
 -Step` stops a command before it starts when something is missing, naming
 it and how to install it; `Test-iSOCDeploymentPrerequisite` reports the
 list. powershell-yaml is loaded the first time YAML is read
-(`Import-iSOCYamlModule`), never installed.
+(`Import-iSOCYamlModule`), never installed. A content type's own
+`Prerequisites` are checked by name (`Assert-iSOCPrerequisite -Name`)
+only when there is something of that type to deploy: `Deploy-iSOCContent`
+reads every type's files first, so a missing Az.Resources stops a run
+with playbooks before anything deploys, and a repository without
+playbooks never needs it.
 
 ## Adding a content type
 

@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -48,7 +48,8 @@ function Read-iSOCWatchlistRepo {
     .OUTPUTS
         [pscustomobject] iSOCDeployments.RepoItem: ContentType, Identity (the
         alias in lower case, or nothing), Name, Path (the folder),
-        RelativePath, Source, Data, ParseError, MetadataPath and CsvPath.
+        RelativePath, Source, Data, ParseError, MetadataPath, CsvPath and
+        Files (the two).
 
     .EXAMPLE
         Read-iSOCWatchlistRepo -RepoPath $repo -ContentType $watchlists
@@ -88,6 +89,7 @@ function Read-iSOCWatchlistRepo {
             ParseError   = $parseError
             MetadataPath = $metadataPath
             CsvPath      = $csvPath
+            Files        = @($metadataPath, $csvPath)
         }
     }
 }

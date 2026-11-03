@@ -1,0 +1,10 @@
+{
+  "automationRuleId": "c4d5e6f7-a8b9-4012-c3d4-e5f6a7b8c9d0",
+  "displayName": "Fixture: no actions",
+  "order": 2,
+  "triggeringLogic": {
+    "isEnabled": true,
+    "triggersOn": "Incidents",
+    "triggersWhen": "Created"
+  }
+}

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -26,11 +26,13 @@ function Get-iSOCItemFile {
         Return the repository-relative paths an item is made of.
 
     .DESCRIPTION
-        Most items are one file. A watchlist is two, watchlist.json and
-        data.csv, and the deployment state, the exclusions and smart
-        deployment's changed-file check all see the two files, as they did
-        in Deploy-CustomContent.ps1, so a state file the script wrote still
-        applies.
+        Most items are one file, their Path. An item a folder holds lists
+        the files that stand for it in Files: a watchlist's watchlist.json
+        and data.csv, a workbook's workbook.json. The deployment state, the
+        exclusions and smart deployment's changed-file check see those
+        files, as they did in Deploy-CustomContent.ps1, so a state file the
+        script wrote still applies. The first file names the item in the
+        dependency graph.
 
     .PARAMETER Item
         A repository item.
@@ -54,6 +56,6 @@ function Get-iSOCItemFile {
         [string] $RepoPath
     )
 
-    $paths = if ($Item.PSObject.Properties['MetadataPath']) { @($Item.MetadataPath, $Item.CsvPath) } else { @($Item.Path) }
+    $paths = if ($Item.PSObject.Properties['Files']) { @($Item.Files) } else { @($Item.Path) }
     foreach ($path in $paths) { ConvertTo-iSOCRepoRelativePath -Path $path -RepoPath $RepoPath }
 }

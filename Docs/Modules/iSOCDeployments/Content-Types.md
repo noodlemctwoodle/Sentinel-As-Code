@@ -13,12 +13,19 @@ same details. Types deploy in the order shown, the order
 | `Watchlist` | `Content/Watchlists` (one folder each: `watchlist.json`, `data.csv`) | ARM, workspace, `watchlists` (2025-09-01) | `watchlistAlias` | 20 | Skip | Deploy |
 | `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Deploy, Dependencies |
 | `HuntingQuery` | `Content/HuntingQueries` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 40 | Skip | Deploy, Dependencies |
+| `Playbook` | `Content/Playbooks` (ARM templates, any depth) | ARM deployment through Az.Resources, playbook resource group | `PlaybookName` default, else the file name | 50 | Skip | Deploy |
+| `Workbook` | `Content/Workbooks` (one folder each: `workbook.json`, `metadata.json`) | ARM, resource group, `Microsoft.Insights/workbooks` (2022-04-01) | `workbookId`, else derived | 60 | Skip | Deploy |
+| `AutomationRule` | `Content/AutomationRules` (JSON, any depth) | ARM, workspace, `automationRules` (2025-09-01) | `automationRuleId` | 70 | Skip | Deploy |
+| `SummaryRule` | `Content/SummaryRules` (JSON, any depth) | ARM, workspace, `summarylogs` (2025-07-01) | `name` | 80 | Skip | Deploy |
 
 `Deploy` means `Deploy-iSOCContent` deploys the type
 ([Deploying content](Deploy.md)); `Dependencies` means the type is in the
 dependency manifest ([Dependency manifest](Dependency-Manifest.md)). After
 watchlists are uploaded, deploy waits 30 seconds before the rules that
-read them.
+read them. Every type deploys in repository order, the items
+`sentinel-deployment.config` prioritises first and Community items last,
+except playbooks, which have an order of their own (MIGRATION.md edit
+E15).
 
 ### Parser
 
@@ -79,19 +86,85 @@ read them.
 - **Compared fields**: display name, query (whitespace-insensitive) and
   tags (as JSON).
 
+### Playbook
+
+- **Read**: every `*.json` file under `Content/Playbooks/`, leaving out
+  parameter files (`*.parameters.json`) and anything in a folder named
+  `Template`. A playbook is named `<folder>/<file>`, or `<file>` alone in
+  `Content/Playbooks/` itself.
+- **Validate**: the file parses and its `$schema` is an ARM deployment
+  template.
+- **Order**: the templates in `Module` folders first, each after the
+  modules it calls (a `Microsoft.Logic/workflows/Module-<name>` reference),
+  then the rest in repository order. Calls to modules the repository does
+  not have are warned about, and modules that call each other in a cycle
+  deploy after the other modules, with a warning.
+- **Request**: a resource group deployment of the template to the
+  playbook resource group, named `Playbook-<file>-<yyyyMMddHHmmss>`, with
+  the `<file>.parameters.json` beside it when there is one. The template
+  parameters the workspace can answer are filled in, and only those the
+  template declares: `AutomationResourceGroup` and `PlaybookResourceGroup`,
+  `SentinelResourceGroup` and `SentinelResourceGroupName`,
+  `SentinelWorkspaceName` (and the common misspelling
+  `SentinelWorkpaceName`), `SubscriptionId` and `WorkspaceId`. Under
+  `-WhatIf` the template is validated against the resource group instead
+  (MIGRATION.md edit E14). Az.Resources is needed only when there are
+  playbooks to deploy. `Tests/iSOCDeployments/Playbook.Tests.ps1` holds
+  every playbook to the deployment the script runs.
+
+### Workbook
+
+- **Read**: each folder directly under `Content/Workbooks/` is one
+  workbook; `metadata.json` is parsed when there is one, and
+  `workbook.json` is read when the request is built. Only `workbook.json`
+  is recorded in the deployment state.
+- **Validate**: `workbook.json` present (a folder without it is skipped)
+  and `metadata.json`, when there is one, parses (a workbook whose
+  metadata does not is failed).
+- **Request**: a shared workbook in the workspace's resource group and
+  region, sourced from the workspace. The display name, category and
+  `workbookId` come from `metadata.json` when it sets them; otherwise the
+  folder name spaced at its capitals (MIGRATION.md edit E16), `sentinel`,
+  and a GUID made from the workspace and the folder name, so the workbook
+  keeps its name across runs. A gallery template is sent as it is; an ARM
+  template wrapping a workbook resource sends that resource's
+  `serializedData`. `Tests/iSOCDeployments/Workbook.Tests.ps1` holds every
+  workbook to the request the script builds.
+
+### AutomationRule
+
+- **Read**: every `*.json` file under `Content/AutomationRules/`.
+- **Validate**: `automationRuleId`, `displayName`, `order` (0 counts),
+  `triggeringLogic` and `actions` present.
+- **Request**: the file's display name, order, triggering logic and
+  actions as the rule's properties, as `Deploy-CustomContent.ps1` sends
+  them. `Tests/iSOCDeployments/AutomationRule.Tests.ps1` holds every rule
+  to the request the script builds.
+
+### SummaryRule
+
+- **Read**: every `*.json` file under `Content/SummaryRules/`.
+- **Validate**: `name`, `query`, `binSize` and `destinationTable` present;
+  `binSize` one of 20, 30, 60, 120, 180, 360, 720 or 1440 minutes; and the
+  destination a custom table (`_CL`).
+- **Request**: a User rule whose definition is the query, bin size and
+  destination table, with `binDelay` and `binStartTime` when the file sets
+  them, and the description and display name when it has them.
+  `Tests/iSOCDeployments/SummaryRule.Tests.ps1` holds every rule to the
+  request the script builds.
+
 ## Planned
 
 | Type | Repository folder | Replaces |
 | --- | --- | --- |
-| `Playbook` | `Content/Playbooks` | `Deploy-CustomPlaybooks`, the playbook exporter |
-| `Workbook` | `Content/Workbooks` | `Deploy-CustomWorkbooks`, `Tools/Export-SentinelWorkbooks.ps1` |
-| `AutomationRule` | `Content/AutomationRules` | `Deploy-CustomAutomationRules` |
-| `SummaryRule` | `Content/SummaryRules` | `Deploy-CustomSummaryRules` |
 | `DefenderDetection` | `Content/DefenderCustomDetections` | `Deploy/content/Deploy-DefenderDetections.ps1` |
 | `WorkspaceSetting` | (pipeline parameters) | The UEBA, Entity Analytics and onboarding steps in the deploy pipelines |
 
-Content Hub solutions are installed by their own commands rather than as a
-content type, since an item there is a package, not a file.
+Exporting workbooks and playbooks (`Tools/Export-SentinelWorkbooks.ps1`
+and the unmerged playbook exporter) comes to the registered types as an
+Export capability. Content Hub solutions are installed by their own
+commands rather than as a content type, since an item there is a package,
+not a file.
 
 ## Not representable
 

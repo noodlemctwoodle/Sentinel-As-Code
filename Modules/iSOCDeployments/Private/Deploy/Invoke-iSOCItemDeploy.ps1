@@ -16,7 +16,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -133,7 +133,9 @@ function Invoke-iSOCItemDeploy {
             $sent = Invoke-iSOCContentTypeHandler -ContentType $ContentType -Handler Deploy -Parameters $parameters
         }
         else {
-            $request = Invoke-iSOCContentTypeHandler -ContentType $ContentType -Handler ToRequest -Parameters @{ Item = $Item }
+            $parameters = @{ Item = $Item }
+            if ((Get-Command -Name $ContentType.Handlers.ToRequest).Parameters.ContainsKey('Context')) { $parameters.Context = $Run.Context }
+            $request = Invoke-iSOCContentTypeHandler -ContentType $ContentType -Handler ToRequest -Parameters $parameters
             $sent = if ($PSCmdlet.ShouldProcess($label, "Deploy $($ContentType.DisplayName.ToLowerInvariant()) '$($Item.Name)'")) {
                 Send-iSOCContentRequest -Context $Run.Context -ContentType $ContentType -Request $request | Out-Null
                 @{ Outcome = 'Deployed'; Reason = '' }

@@ -11,11 +11,13 @@
     each command checks its own step before it starts.
 
     Steps:
-      Connect   Connect-iSOCWorkspace
+      Connect   Connect-iSOCWorkspace and every command that calls Azure
       Read      reading YAML content from the repository
+      Deploy    deploying ARM templates (playbooks)
 
-    More steps join the table as the deploy, export, compare, sync and
-    manifest commands land.
+    A content type names the requirements it needs in its Prerequisites,
+    and Deploy-iSOCContent checks those for the types it is asked to
+    deploy.
 
 .NOTES
     File:         Modules/iSOCDeployments/Private/Core/Get-iSOCRequirement.ps1
@@ -23,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -49,7 +51,7 @@ function Get-iSOCRequirement {
     [OutputType([pscustomobject])]
     param()
 
-    $all = 'Connect', 'Read'
+    $all = 'Connect', 'Read', 'Deploy'
     $new = {
         param($Name, $Kind, $Step, $MinimumVersion, $Hint)
         [pscustomobject]@{
@@ -65,4 +67,5 @@ function Get-iSOCRequirement {
     & $new 'PowerShell' 'PowerShell' $all '7.2' 'Install PowerShell 7.2 or later: https://aka.ms/powershell'
     & $new 'Az.Accounts' 'Module' 'Connect' '2.0.0' 'Install-Module Az.Accounts -Scope CurrentUser, then sign in with Connect-AzAccount.'
     & $new 'powershell-yaml' 'Module' 'Read' '0.4.12' 'Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser'
+    & $new 'Az.Resources' 'Module' 'Deploy' '6.0.0' 'Install-Module Az.Resources -Scope CurrentUser; playbooks deploy as ARM templates through it.'
 }

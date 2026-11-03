@@ -9,11 +9,13 @@
     The engine's parts one at a time (the configuration, the deployment
     state, smart deployment, deploy order, the dependency graph, the
     pre-flight reads and the dependency check), then Deploy-iSOCContent end
-    to end over a copy of the fixture repository with the REST client
-    mocked: outcomes per item, deploy order, the wait after watchlists, the
-    state file, -WhatIf, type and path selection, smart deployment, missing
-    dependencies, an analytics rule retried disabled after a KQL error, and
-    configuration exclusions. DeployParity.Tests.ps1 holds the engine to
+    to end over a copy of the fixture repository with the REST client and
+    the Az.Resources wrappers mocked: outcomes per item for all eight
+    types, deploy order, the wait after watchlists, the state file,
+    -WhatIf, type and path selection, the Az.Resources check made only when
+    there are playbooks, smart deployment, missing dependencies, an
+    analytics rule retried disabled after a KQL error, and configuration
+    exclusions. DeployParity.Tests.ps1 holds the engine to
     Deploy-CustomContent.ps1 over this repository.
 
 .EXAMPLE
@@ -27,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
@@ -313,18 +315,22 @@ Describe 'Deploy-iSOCContent' {
     BeforeEach {
         $script:copy = New-FixtureCopy
         $script:sent = [System.Collections.Generic.List[object]]::new()
+        $script:deployments = [System.Collections.Generic.List[object]]::new()
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         Mock -ModuleName iSOCDeployments Start-Sleep { }
+        Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
         Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest {
             if ($Method -eq 'PUT') { $script:sent.Add([pscustomobject]@{ Path = $Path; ApiVersion = $ApiVersion; Body = $Body }) }
         }
+        Mock -ModuleName iSOCDeployments New-iSOCAzResourceGroupDeployment { $script:deployments.Add([pscustomobject]@{ Name = $Name; Parameters = $Parameters }) }
+        Mock -ModuleName iSOCDeployments Test-iSOCAzResourceGroupDeployment { }
         function Get-Outcome { param($Run, [string] $Leaf) ($Run.Results | Where-Object { $_.RelativePath -like "*$Leaf" }).Outcome }
     }
 
     It 'deploys every type in order and reports each item' {
         $run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy
         $run.PSObject.TypeNames | Should -Contain 'iSOCDeployments.DeployRun'
-        @($run.Results.ContentType | Select-Object -Unique) | Should -Be @('Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery')
+        @($run.Results.ContentType | Select-Object -Unique) | Should -Be @('Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule')
         Get-Outcome $run 'FixtureSignInParser.yaml' | Should -Be 'Deployed'
         Get-Outcome $run 'MissingAlias.yaml' | Should -Be 'Skipped'
         Get-Outcome $run 'emptyFolder' | Should -Be 'Skipped'
@@ -335,14 +341,26 @@ Describe 'Deploy-iSOCContent' {
         Get-Outcome $run 'ScheduledRule.yaml' | Should -Be 'Deployed'
         Get-Outcome $run 'CommunityRule.yml' | Should -Be 'DeployedDisabled'
         Get-Outcome $run 'FixtureHunt.yaml' | Should -Be 'Deployed'
-        $run.Deployed | Should -Be 6
+        Get-Outcome $run 'ZuluBase.json' | Should -Be 'Deployed'
+        Get-Outcome $run 'AlphaCaller.json' | Should -Be 'Deployed'
+        Get-Outcome $run 'FixtureIncident.json' | Should -Be 'Deployed'
+        Get-Outcome $run 'NotArm.json' | Should -Be 'Skipped'
+        Get-Outcome $run 'FixtureOverview' | Should -Be 'Deployed'
+        Get-Outcome $run 'ArmWrapped' | Should -Be 'Deployed'
+        Get-Outcome $run 'NoTemplate' | Should -Be 'Skipped'
+        Get-Outcome $run 'FixtureAutoClose.json' | Should -Be 'Deployed'
+        Get-Outcome $run 'MissingActions.json' | Should -Be 'Skipped'
+        Get-Outcome $run 'FixtureSummary.json' | Should -Be 'Deployed'
+        Get-Outcome $run 'BadBinSize.json' | Should -Be 'Skipped'
+        Get-Outcome $run 'NoSuffix.json' | Should -Be 'Skipped'
+        $run.Deployed | Should -Be 13
         $run.Failed | Should -Be 1
         $run.ExitCode | Should -Be 1
     }
 
     It 'sends each request to its type''s collection with its api-version, Community rules last' {
         Deploy-iSOCContent -Context $script:context -RepoPath $script:copy | Out-Null
-        $script:sent.Count | Should -Be 6
+        $script:sent.Count | Should -Be 10
         $script:sent[0].Path | Should -BeExactly '/w/savedSearches/3c7a1e52-9b1d-4f0e-8a2b-6d5c4e3f2a10'
         $script:sent[0].ApiVersion | Should -Be '2025-07-01'
         $script:sent[1].Path | Should -BeExactly '/w/providers/Microsoft.SecurityInsights/watchlists/vipUsers'
@@ -350,6 +368,35 @@ Describe 'Deploy-iSOCContent' {
         $script:sent[4].Path | Should -BeExactly '/w/providers/Microsoft.SecurityInsights/alertRules/11111111-2222-4333-8444-555555555555'
         $script:sent[4].ApiVersion | Should -Be '2025-07-01-preview'
         $script:sent[4].Body.properties.enabled | Should -BeFalse
+        $expected = @(
+            @{ Path = '/subscriptions/s/resourceGroups/rg/providers/Microsoft.Insights/workbooks/7d0f5a3e-2b1c-4e8f-9a6d-3c2b1a0f9e8d'; ApiVersion = '2022-04-01' }
+            @{ Path = '/w/providers/Microsoft.SecurityInsights/automationRules/b3c4d5e6-f7a8-4901-b2c3-d4e5f6a7b8c9'; ApiVersion = '2025-09-01' }
+            @{ Path = '/w/summarylogs/FixtureSummary'; ApiVersion = '2025-07-01' }
+        )
+        foreach ($e in $expected) { ($script:sent | Where-Object Path -CEQ $e.Path).ApiVersion | Should -Be $e.ApiVersion -Because $e.Path }
+    }
+
+    It 'deploys playbooks as resource group deployments, modules first in the order they call each other' {
+        Deploy-iSOCContent -Context $script:context -RepoPath $script:copy | Out-Null
+        @($script:deployments | ForEach-Object { Split-Path -Leaf $_.Parameters.TemplateFile }) | Should -Be @('ZuluBase.json', 'AlphaCaller.json', 'FixtureIncident.json')
+        @($script:deployments.Name) | Should -Match '^Playbook-(ZuluBase|AlphaCaller|FixtureIncident)-\d{14}$'
+        @($script:deployments.Parameters.ResourceGroupName | Select-Object -Unique) | Should -Be @('rg')
+        @($script:sent | Where-Object { $_.Path -like '*Microsoft.Logic*' }) | Should -BeNullOrEmpty
+    }
+
+    It 'checks for Az.Resources only when there are playbooks to deploy' {
+        Deploy-iSOCContent -Context $script:context -RepoPath $script:copy | Out-Null
+        Should -Invoke -ModuleName iSOCDeployments Assert-iSOCPrerequisite -Times 1 -Exactly -ParameterFilter { $Name -contains 'Az.Resources' -and $Purpose -eq 'deploying playbooks' }
+        Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ExcludeContentType Playbook | Out-Null
+        Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -Exclude 'Content/Playbooks/*' | Out-Null
+        Should -Invoke -ModuleName iSOCDeployments Assert-iSOCPrerequisite -Times 1 -Exactly -ParameterFilter { $Name -contains 'Az.Resources' }
+    }
+
+    It 'stops before anything deploys when Az.Resources is missing and there are playbooks' {
+        Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { throw 'This machine is missing what deploying playbooks needs.' } -ParameterFilter { $Name -contains 'Az.Resources' }
+        { Deploy-iSOCContent -Context $script:context -RepoPath $script:copy } | Should -Throw -ExpectedMessage '*deploying playbooks*'
+        $script:sent.Count | Should -Be 0
+        $script:deployments.Count | Should -Be 0
     }
 
     It 'waits for watchlists to propagate once some were uploaded' {
@@ -364,6 +411,9 @@ Describe 'Deploy-iSOCContent' {
         $keys | Should -Contain 'Content/Watchlists/vipUsers/watchlist.json'
         $keys | Should -Contain 'Content/Watchlists/vipUsers/data.csv'
         $keys | Should -Contain 'Content/AnalyticalRules/Community/CommunityRule.yml'
+        $keys | Should -Contain 'Content/Playbooks/Module/ZuluBase.json'
+        $keys | Should -Contain 'Content/Workbooks/FixtureOverview/workbook.json'
+        $keys | Should -Not -Contain 'Content/Workbooks/FixtureOverview/metadata.json'
         $keys | Should -Not -Contain 'Content/AnalyticalRules/Broken.yaml'
         $keys | Should -Not -Contain 'Content/Parsers/MissingAlias.yaml'
     }
@@ -371,9 +421,11 @@ Describe 'Deploy-iSOCContent' {
     It 'changes nothing with -WhatIf: no request, no state file, no wait' {
         $run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -WhatIf
         $script:sent.Count | Should -Be 0
+        $script:deployments.Count | Should -Be 0
+        Should -Invoke -ModuleName iSOCDeployments Test-iSOCAzResourceGroupDeployment -Times 3 -Exactly
         Test-Path -LiteralPath (Join-Path $script:copy 'deployment-state.json') | Should -BeFalse
         Should -Invoke -ModuleName iSOCDeployments Start-Sleep -Times 0 -Exactly
-        $run.WhatIf | Should -Be 6
+        $run.WhatIf | Should -Be 13
         $run.Deployed | Should -Be 0
         Get-Outcome $run 'CommunityRule.yml' | Should -Be 'WhatIf'
     }
@@ -383,11 +435,11 @@ Describe 'Deploy-iSOCContent' {
         @($run.Results.ContentType | Select-Object -Unique) | Should -Be @('AnalyticsRule')
         Get-Outcome $run 'CommunityRule.yml' | Should -BeNullOrEmpty
         $other = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ExcludeContentType Parser, Watchlist
-        @($other.Results.ContentType | Select-Object -Unique) | Should -Be @('AnalyticsRule', 'HuntingQuery')
+        @($other.Results.ContentType | Select-Object -Unique) | Should -Be @('AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule')
     }
 
     It 'refuses a content type it does not know' {
-        { Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ContentType Playbook } | Should -Throw -ExpectedMessage "*No content type matches 'Playbook'*"
+        { Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ContentType Nonesuch } | Should -Throw -ExpectedMessage "*No content type matches 'Nonesuch'*"
     }
 
     It 'deploys only what changed, and retries what did not succeed, under -SmartDeployment' {

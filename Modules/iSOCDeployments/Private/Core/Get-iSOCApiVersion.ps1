@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -44,6 +44,8 @@ function Get-iSOCApiVersion {
           Workbooks                Microsoft.Insights workbooks
           Deployments              Microsoft.Resources deployments
           ResourceGroups           Microsoft.Resources resource groups
+          LogicApps                Microsoft.Logic workflows (playbooks), for
+                                   reading them; they deploy as ARM templates
           GraphSecurity            Microsoft Graph security (Defender XDR
                                    custom detections), a Graph version segment
                                    rather than an api-version
@@ -74,6 +76,7 @@ function Get-iSOCApiVersion {
         Workbooks               = '2022-04-01'
         Deployments             = '2024-11-01'
         ResourceGroups          = '2021-04-01'
+        LogicApps               = '2019-05-01'
         GraphSecurity           = 'beta'
     }
 

@@ -13,10 +13,11 @@ Sentinel workspaces; the public commands avoid the product name.
 > built beside the scripts it replaces under `Deploy/` and `Tools/`, which
 > still run every pipeline. What is here today is the core (logging, the
 > REST client, the workspace context, the YAML and KQL helpers, the
-> comparers), the content type registry, `Deploy-iSOCContent` for parsers,
-> watchlists, analytics rules and hunting queries, and the dependency
-> manifest commands. The other content types, export, compare and sync
-> arrive as each area is ported; [MIGRATION.md](MIGRATION.md) tracks which.
+> comparers), the content type registry, `Deploy-iSOCContent` for every
+> content type `Deploy-CustomContent.ps1` deploys, and the dependency
+> manifest commands. Defender detections, Content Hub, export, compare and
+> sync arrive as each area is ported; [MIGRATION.md](MIGRATION.md) tracks
+> which.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -32,7 +33,7 @@ Deploy-iSOCContent -WhatIf
 | Command | What it does | Needs |
 | --- | --- | --- |
 | `Connect-iSOCWorkspace` | Points the module at one workspace through the current Az sign-in; the result is the context every other command uses | Az.Accounts, `Connect-AzAccount` |
-| `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules and hunting queries in dependency order, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace |
+| `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
@@ -43,8 +44,7 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCContent` for playbooks, workbooks, automation rules and summary
-rules, `Deploy-iSOCWorkspace`, `Export-iSOCContent`, `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
+`Deploy-iSOCContent -ContentType DefenderDetection`, `Deploy-iSOCWorkspace`, `Export-iSOCContent`, `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
 Content Hub, permission, set-up, community import and table migration
 commands.
 
@@ -57,6 +57,7 @@ nothing:
 | --- | --- |
 | Connect | Az.Accounts 2.0.0 or later, signed in with `Connect-AzAccount` (in a pipeline, the AzurePowerShell task or `azure/login`) |
 | Read | powershell-yaml 0.4.12 or later, to read YAML content |
+| Deploy | Az.Resources 6.0.0 or later, only when there are playbooks to deploy: they deploy as ARM templates through it |
 
 The cloud is the sign-in's: the ARM and Graph hosts come from its
 environment, so US Government needs no switch. Nothing the module logs

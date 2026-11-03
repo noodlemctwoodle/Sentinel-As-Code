@@ -445,8 +445,7 @@ Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions 
 ## Deploy-CustomContent.ps1
 
 The iSOCDeployments module has `Deploy-iSOCContent`, which replaces this
-script at the 26.11.0 cut-over for parsers, watchlists, analytics rules and
-hunting queries so far; see
+script at the 26.11.0 cut-over and deploys every content type it does; see
 [Deploying content](../Modules/iSOCDeployments/Deploy.md). Until then the
 pipelines run the script described here.
 

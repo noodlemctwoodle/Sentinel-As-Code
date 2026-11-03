@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -28,22 +28,37 @@ function Assert-iSOCPrerequisite {
     .PARAMETER Step
         The steps the command is about to run.
 
+    .PARAMETER Name
+        Requirements by name as well, such as the Prerequisites a content
+        type lists.
+
+    .PARAMETER Purpose
+        What the requirements are for, as the error names it; the steps
+        joined with 'and' when it is not given.
+
     .EXAMPLE
         Assert-iSOCPrerequisite -Step Connect
+
+    .EXAMPLE
+        Assert-iSOCPrerequisite -Name Az.Resources -Purpose 'deploying playbooks'
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string[]] $Step
+        [string[]] $Step = @(),
+
+        [string[]] $Name = @(),
+
+        [string] $Purpose
     )
 
     $missing = @(foreach ($requirement in Get-iSOCRequirement) {
             if (-not $requirement.Required) { continue }
-            if (@($requirement.Step | Where-Object { $_ -in $Step }).Count -eq 0) { continue }
+            if (@($requirement.Step | Where-Object { $_ -in $Step }).Count -eq 0 -and $requirement.Name -notin $Name) { continue }
             $result = Test-iSOCRequirement -Requirement $requirement
             if (-not $result.Found) { "$($result.Name): $($result.Detail)" }
         })
     if ($missing.Count -gt 0) {
-        throw "This machine is missing what $($Step -join ' and ') needs. $($missing -join ' ')"
+        $what = if ($Purpose) { $Purpose } else { $Step -join ' and ' }
+        throw "This machine is missing what $what needs. $($missing -join ' ')"
     }
 }

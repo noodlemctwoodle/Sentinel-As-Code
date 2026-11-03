@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -142,7 +142,7 @@ Describe 'Lookups' {
     }
 
     It 'names the types that exist when a name matches none' {
-        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: Parser, Watchlist, AnalyticsRule, HuntingQuery.*"
+        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: Parser, Watchlist, AnalyticsRule, HuntingQuery, Playbook, Workbook, AutomationRule, SummaryRule.*"
     }
 
     It 'is what Get-iSOCContentType returns' {
