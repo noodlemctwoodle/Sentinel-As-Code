@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -84,14 +84,7 @@ function ConvertTo-iSOCWorkbookRequest {
         if ($value) { $category = $value }
     }
 
-    if (-not $workbookId) {
-        $hashBytes = [System.Text.Encoding]::UTF8.GetBytes("$($Context.WorkspaceResourceId)-$folderName")
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
-        try { $hashResult = $sha256.ComputeHash($hashBytes) }
-        finally { $sha256.Dispose() }
-        [byte[]] $guidBytes = $hashResult[0..15]
-        $workbookId = ([guid]::new($guidBytes)).ToString()
-    }
+    if (-not $workbookId) { $workbookId = Get-iSOCWorkbookResourceName -Context $Context -FolderName $folderName }
 
     $workbookContent = Get-Content -LiteralPath $Item.WorkbookPath -Raw
     $serializedData = $workbookContent

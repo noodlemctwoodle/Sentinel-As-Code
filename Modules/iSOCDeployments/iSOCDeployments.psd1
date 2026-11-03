@@ -14,6 +14,7 @@
         'Compare-iSOCContent'
         'Connect-iSOCWorkspace'
         'Deploy-iSOCContent'
+        'Export-iSOCContent'
         'Export-iSOCDriftReport'
         'Get-iSOCContentDependency'
         'Get-iSOCContentHubSolution'

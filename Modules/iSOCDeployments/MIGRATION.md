@@ -16,7 +16,11 @@ to the command's.
   status: `Planned` (nothing ported yet), `In progress` (some functions
   ported), `Ported` (every function has a row; the script is still in the
   repository until cut-over), `Removed` (cut-over has deleted it) or
-  `Unmerged` (the code lives on a branch, not on `main`).
+  `Unmerged` (the code lives on a branch, not on `main`). An unmerged
+  source is named by its commit; once it is ported, a byte-for-byte copy
+  under `Tests/iSOCDeployments/Fixtures/legacy/` stands in for it, so the
+  parity tests and this map can read it where the commit is not
+  fetched.
 - **Functions** has one row per old function and new file. One old
   function can feed several new files (a deployer loop split into a
   reader, a validator and a request builder), and several old copies can
@@ -37,8 +41,8 @@ to the command's.
 | `Deploy/content/Deploy-DefenderDetections.ps1` | `Deploy-iSOCContent -ContentType DefenderDetection` | Ported |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` | Ported |
 | `Tools/Test-SentinelRuleDrift.ps1` | `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent` | Ported |
-| `Tools/Export-SentinelWorkbooks.ps1` | `Export-iSOCContent -ContentType Workbook` | Planned |
-| `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Unmerged |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Export-iSOCContent -ContentType Workbook` | Ported |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Ported |
 | `Tools/Build-DependencyManifest.ps1` | `Update-iSOCDependencyManifest`, `Test-iSOCDependencyManifest`, `Get-iSOCContentDependency` | Ported |
 | `Tools/Import-CommunityRules.ps1` | `Import-iSOCCommunityRule` | Planned |
 | `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` | Planned |
@@ -200,6 +204,45 @@ separate module, and are not part of this map.
 | `Tools/Test-SentinelRuleDrift.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Private/Drift/New-iSOCDriftRun.ps1` | - | The script-scope state, now one object per call |
 | `Tools/Test-SentinelRuleDrift.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Private/Drift/New-iSOCDriftItem.ps1` | E24 | One item per workspace rule instead of the drifted and orphan lists |
 | `Tools/Test-SentinelRuleDrift.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/Get-iSOCAnalyticsRuleSource.ps1` | - | The Microsoft-managed rule kinds |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Remove-WorkspaceArmId` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/ConvertTo-iSOCPortableWorkbookJson.ps1` | - |  |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Remove-WorkspaceSuffix` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/Get-iSOCWorkbookDisplayName.ps1` | - |  |
+| `Tools/Export-SentinelWorkbooks.ps1` | `ConvertTo-FolderName` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/ConvertTo-iSOCWorkbookFolderName.ps1` | - |  |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Format-WorkbookJson` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/ConvertTo-iSOCWorkbookFile.ps1` | E26 | To depth 100 |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Merge-WorkbookMetadata` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/Merge-iSOCWorkbookMetadata.ps1` | E26 |  |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Get-MetaValue` | `Modules/iSOCDeployments/Private/Core/Get-iSOCPropertyEntry.ps1` | E26 | A one-item list stays a list |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Write-WorkbookFolder` | `Modules/iSOCDeployments/Private/Export/Save-iSOCRepoItem.ps1` | E25, E26 | Each file written only when it changes |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Export-iSOCContent.ps1` | E2, E6, E25 |  |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/Read-iSOCWorkbookWorkspace.ps1` | E25 | Every page |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentHub/Get-iSOCContentHubWorkbookLookup.ps1` | - | The Content Hub exclusion set |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/Get-iSOCWorkbookSource.ps1` | E25 | The Content Hub, filter and content checks |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/Get-iSOCWorkbookRepoPath.ps1` | - |  |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentTypes/Workbook/ConvertTo-iSOCWorkbookFile.ps1` | E26 | The two files |
+| `Tools/Export-SentinelWorkbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Export/Write-iSOCExportSummary.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-SafeProperty` | `Modules/iSOCDeployments/Private/Core/Get-iSOCPropertyValue.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-PropertyNames` | `Modules/iSOCDeployments/Private/Core/Get-iSOCPropertyEntry.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-TriggerCategory` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookCategory.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-PlaybookFileName` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookFileName.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-WorkflowEntities` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookEntity.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-WorkflowDescription` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookDescription.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-ApiConnectorDisplayName` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCApiConnectorDisplayName.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-ConnectionMap` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookConnectionMap.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-ManagedApiIdExpression` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCManagedApiIdExpression.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Build-ConnectionVariables` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookConnectionVariable.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Build-ConnectionResources` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookConnectionResource.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Build-ConnectionParameters` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookConnectionParameter.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Get-PortableContext` | `Modules/iSOCDeployments/Private/Export/Get-iSOCPortableContext.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `ConvertTo-ArmStringValue` | `Modules/iSOCDeployments/Private/Export/ConvertTo-iSOCArmStringValue.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `ConvertTo-PortableValue` | `Modules/iSOCDeployments/Private/Export/ConvertTo-iSOCPortableValue.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Find-PlaintextSecret` | `Modules/iSOCDeployments/Private/Export/Find-iSOCPlaintextSecret.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Find-PlaintextSecretInNode` | `Modules/iSOCDeployments/Private/Export/Find-iSOCPlaintextSecret.ps1` | - | The walk, one function with the search |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Build-ArmTemplate` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/ConvertTo-iSOCPlaybookTemplate.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Invoke-PlaybookExport` | `Modules/iSOCDeployments/Public/Export-iSOCContent.ps1` | E2, E6, E25 |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Invoke-PlaybookExport` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Read-iSOCPlaybookWorkspace.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Invoke-PlaybookExport` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookSource.ps1` | E25 | The existing-file and definition checks |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Invoke-PlaybookExport` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Get-iSOCPlaybookRepoPath.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Invoke-PlaybookExport` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/ConvertTo-iSOCPlaybookFile.ps1` | E27 | The secret warnings and the template text |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Invoke-PlaybookExport` | `Modules/iSOCDeployments/Private/Export/Write-iSOCExportSummary.ps1` | - |  |
+| `847ef86:Tools/Export-Playbooks.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Export-iSOCContent.ps1` | - | The parameters |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-NormalisedDuration` | `Modules/iSOCDeployments/Private/Drift/ConvertTo-iSOCCanonicalDuration.ps1` | - | The second copy |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `Compare-SemanticVersion` | `Modules/iSOCDeployments/Private/ContentHub/Compare-iSOCSemanticVersion.ps1` | - |  |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-ArmTemplate` | `(not ported)` | E21 | Nothing called it |
@@ -260,6 +303,9 @@ separate module, and are not part of this map.
 | E22 | Drift compares what deploy would send. A repository rule is compared as `ConvertTo-iSOCAnalyticsRuleRequest` builds it, a Content Hub rule as its template's rule resource, and the workspace rule as the API returns it, field by field with the comparers the analytics rule type names: the query ignores whitespace but not case, and the display name is compared exactly, where the script compared both ignoring case; kind is compared too; the schedule and trigger are compared for Scheduled rules only, as the script did for NRT rules. A repository rule file that does not validate is skipped, where the script compared whatever fields it had. The differences carry each side's values as they are, not the normalised forms the script compared: a query edited in the portal is written into the YAML with its line breaks, where the script wrote it as one whitespace-collapsed line, and the report shows both queries in full with a line diff. The YAML rewrite replaces values literally (a `$` in a query is kept) and keeps a CRLF file's line endings, where the script's name and severity patterns took the line's carriage return with them. | Deploy, compare and sync then agree on what a rule is; a change of case in KQL is a real change; and absorbing a portal edit should not destroy the query's layout. |
 | E23 | The repository's rules and the Content Hub templates are always read, and a source left out with `-ExcludeSource` has its rules reported as Skipped. The script read no rule files under `-SkipCustom` and no templates under `-SkipContentHub`, so those rules were classed as orphans and, without `-ReportOnly`, exported again as new orphan YAML files: under `-SkipCustom`, every rule in the repository (`Tests/iSOCDeployments/Drift.Tests.ps1` shows both). | Leaving a source out should leave its rules alone, not duplicate them. |
 | E24 | Detecting, absorbing and reporting are three commands. `Compare-iSOCContent` returns the result: one item per workspace rule with its state (InSync, PortalEdit, ContentHubCustomised, PortalOnly, Managed or Skipped) and the reason. `Sync-iSOCContent` absorbs it, which the script did unless `-ReportOnly`; `Export-iSOCDriftReport` writes the same `reports/sentinel-drift-<UTC>.json` and `.md` files, and only when something drifted, as before. The report names each rule by its name and leaves out the full resource id the script wrote as `ruleId`, which holds the subscription id. The Markdown says what was done: the script headed its Custom section auto-synced even under `-ReportOnly`, and its Content Hub and orphan sections report-only even when it had written those rules into the repository. `-FailOnDrift` becomes the result's `HasDrift`, and nothing exits. An absorbed file is left alone only when its content is the same in case too. | Each step can run on its own (a report that changes no file, a sync checked with `-WhatIf`), and the report the bot commits should say what its pull request holds and carry no tenant detail. |
+| E25 | Workbooks and playbooks are exported by one command, `Export-iSOCContent`, over the content type registry. An item the repository already has is found by its identity (a workbook's workbookId, or the GUID deploy makes for a folder without one; a Logic App's PlaybookName), wherever its file is, and left alone unless `-Force` is given, when it is written over in its own file or folder. The scripts knew an item only by the path its display name or trigger made: the workbook script wrote over that folder unless `-OnlyMissing`, and the playbook script left that file unless `-Force`, so a workbook whose name makes another folder name (Detection Engineering Dashboard lives in `DetectionEngineering`) was written to a second folder that deploys the same workbook, even under `-OnlyMissing`. A Logic App two templates name (five pairs in this repository) is skipped as ambiguous, where the playbook script with `-Force` wrote over the one its trigger chose. A new item's path that another item already holds, or that an earlier item of the run was written to, is never written over. A file whose content would not change is left alone and reported Unchanged. Every page of the workbook list is read; the workbook script read the first. A workbook the list returns empty that then cannot be read on its own fails, where the workbook script skipped it. `-Filter` (a regular expression) and `-NameFilter` become `-Name` (wildcards); `-BasePath` and `-OutputPath` become `-Path`, under which files go to their repository-relative paths; `-WhatIf` says of each item whether it would be created or updated. Each item has an outcome, the run an `ExitCode`, and nothing exits. Nothing logged names the subscription: the workbook script logged the list URL. | The repository says which items it already has, as it does for deploy and drift; an export should never make two files deploy one item, or replace another item's file. |
+| E26 | A workbook's `metadata.json` keys are written in the order displayName, description, category, sourceId, workbookId, then the folder's own keys as they were: the script passed the ordered metadata through a `[hashtable]` parameter, so its keys came out in hash order (the committed `Content/Workbooks/MicrosoftSentinelCostGbpV2/metadata.json` starts with sourceId), and a one-item list among the folder's own keys became a single value. The template is written to depth 100; the script wrote to depth 32, so a deeper workbook lost its innermost levels. Both files have LF line endings on every platform. The script's help described a backup of the old `workbook.json`, which it never made; none is made. | An export that changes nothing changes no file, and a deep workbook survives the round trip. |
+| E27 | A playbook template that would differ from the repository's only in its `metadata.lastUpdateTime` is left as it is: the script stamped every template it wrote with the day's date, so exporting again with `-Force` always changed the file. Each plain-text secret is in the item's `Warnings` as well as the log. | A repeat export leaves the working tree clean, and the secrets can be listed from the result. |
 
 ## Parameters
 
@@ -294,6 +340,19 @@ separate module, and are not part of this map.
 | `Tools/Test-SentinelRuleDrift.ps1` | `-ReportOnly` | Leave out `Sync-iSOCContent` |
 | `Tools/Test-SentinelRuleDrift.ps1` | `-FailOnDrift` | The result's `HasDrift`: `exit [int]$drift.HasDrift` |
 | `Tools/Test-SentinelRuleDrift.ps1` | `-WhatIf` (a switch of its own) | `-WhatIf` on `Sync-iSOCContent` and `Export-iSOCDriftReport` |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-SubscriptionId`, `-ResourceGroup`, `-Workspace` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup -WorkspaceName`, then `Export-iSOCContent -ContentType Workbook` (or `-Context`) |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-Region`, `-IsGov` | Read from the workspace and the Az sign-in by `Connect-iSOCWorkspace` |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-BasePath` | `-RepoPath`, or `-Path` to write somewhere else |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-Filter` (a regular expression) | `-Name` (wildcards) |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-OnlyMissing` | The default; `-Force` writes over workbooks the repository has |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-IncludeContentHub` | `-IncludeContentHub` |
+| `Tools/Export-SentinelWorkbooks.ps1` | `-WhatIf` | `-WhatIf` |
+| `847ef86:Tools/Export-Playbooks.ps1` | `-SubscriptionId`, `-ResourceGroup`, `-Workspace`, `-PlaybookResourceGroup` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup -WorkspaceName -PlaybookResourceGroup`, then `Export-iSOCContent -ContentType Playbook` |
+| `847ef86:Tools/Export-Playbooks.ps1` | `-Region`, `-IsGov` | Read from the workspace and the Az sign-in by `Connect-iSOCWorkspace` |
+| `847ef86:Tools/Export-Playbooks.ps1` | `-OutputPath` (the `Content/Playbooks` folder) | `-Path` (the folder `Content/Playbooks/` is written under) |
+| `847ef86:Tools/Export-Playbooks.ps1` | `-NameFilter` | `-Name` |
+| `847ef86:Tools/Export-Playbooks.ps1` | `-Author`, `-Force` | The same |
+| `847ef86:Tools/Export-Playbooks.ps1` | `-WhatIf` | `-WhatIf` |
 | `Tools/Build-DependencyManifest.ps1` | `-Mode Verify` | `Test-iSOCDependencyManifest` |
 | `Tools/Build-DependencyManifest.ps1` | `-Mode Generate`, `-Mode Update` | `Update-iSOCDependencyManifest` |
 | `Tools/Build-DependencyManifest.ps1` | `-RepoPath`, `-ManifestPath` | `-RepoPath`, `-ManifestPath` |

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -23,12 +23,14 @@
 function New-iSOCDriftRun {
     <#
     .SYNOPSIS
-        Build a drift run.
+        Build the run a content type's Classify handler reads, for a
+        compare or an export.
 
     .DESCRIPTION
         Replaces the script-scope state Tools/Test-SentinelRuleDrift.ps1 kept.
         A content type's Classify handler reads what it needs once (the
-        repository's files, the templates) into the cache.
+        repository's files, the templates) into the cache. Export-iSOCContent
+        builds one too, with only ExcludeSource set.
 
     .PARAMETER Context
         The workspace context.

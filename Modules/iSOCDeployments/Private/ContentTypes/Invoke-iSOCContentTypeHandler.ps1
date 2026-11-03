@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -38,7 +38,9 @@ function Invoke-iSOCContentTypeHandler {
         listed in Docs/Modules/iSOCDeployments/Architecture.md.
 
     .PARAMETER Parameters
-        The handler's parameters, by name.
+        The parameters on offer, by name. Only those the handler declares
+        are passed, so a caller can offer what it has (the context, the
+        run) and each handler takes what it needs.
 
     .OUTPUTS
         Whatever the handler returns.
@@ -60,5 +62,10 @@ function Invoke-iSOCContentTypeHandler {
 
     $command = $ContentType.Handlers[$Handler]
     if (-not $command) { throw "Content type '$($ContentType.Name)' has no $Handler handler." }
-    & $command @Parameters
+    $declared = (Get-Command -Name $command -ErrorAction Stop).Parameters
+    $arguments = @{}
+    foreach ($key in $Parameters.Keys) {
+        if ($declared.ContainsKey($key)) { $arguments[$key] = $Parameters[$key] }
+    }
+    & $command @arguments
 }

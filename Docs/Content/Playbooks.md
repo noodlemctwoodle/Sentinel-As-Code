@@ -143,6 +143,11 @@ Parameters: `-PlaybookResourceGroup` and `-SentinelWorkspaceName` are mandatory;
 
 ## Exporting from Azure
 
+> `Export-iSOCContent -ContentType Playbook`, in the iSOCDeployments
+> module, will do this in release 26.11.0: it writes each Logic App as a
+> parameterised template in the shape below, with the cleanup done.
+> [Export](../Modules/iSOCDeployments/Export.md) describes it.
+
 To pull existing playbooks out of an Azure resource group as ARM
 templates, use the Azure CLI or `Export-AzResourceGroup` against
 individual Logic Apps:

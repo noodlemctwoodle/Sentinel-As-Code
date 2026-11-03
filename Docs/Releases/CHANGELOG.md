@@ -31,7 +31,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   (the same buckets, absorbed files and report names; a query edited in
   the portal is absorbed with its line breaks rather than collapsed onto
   one line, a source left out is skipped rather than exported again as
-  orphans, and the report no longer carries the subscription id), and the
+  orphans, and the report no longer carries the subscription id),
+  `Export-iSOCContent`, which replaces `Tools/Export-SentinelWorkbooks.ps1`
+  and brings in the playbook exporter that was never merged (the same
+  files; an item the repository has is found by its id wherever its file
+  is and written over only with `-Force`, so an export no longer writes a
+  second folder for a workbook whose name makes another folder name, and
+  a re-export no longer changes files that have not changed), and the
   dependency manifest commands
   (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
   `Get-iSOCContentDependency`), which write `dependencies.json` byte for

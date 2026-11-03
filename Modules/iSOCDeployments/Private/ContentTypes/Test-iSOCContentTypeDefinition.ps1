@@ -37,7 +37,7 @@ function Test-iSOCContentTypeDefinition {
 
         Capability   Handlers it needs
         Deploy       ReadRepo, Validate, ToRequest
-        Export       ReadWorkspace, ToRepoFile, GetRepoPath
+        Export       ReadRepo, ReadWorkspace, Classify, ToRepoFile, GetRepoPath
         Compare      ReadRepo, ReadWorkspace, Classify, ToRequest, ToComparable
         Sync         Compare's, and UpdateRepoFile, ToRepoFile, GetRepoPath
         Dependencies ReadRepo, GetQuery
@@ -70,7 +70,7 @@ function Test-iSOCContentTypeDefinition {
     'ToComparable', 'GetTemplates', 'ToRepoFile', 'UpdateRepoFile', 'GetRepoPath', 'GetQuery'
     $needs = @{
         Deploy       = 'ReadRepo', 'Validate', 'ToRequest'
-        Export       = 'ReadWorkspace', 'ToRepoFile', 'GetRepoPath'
+        Export       = 'ReadRepo', 'ReadWorkspace', 'Classify', 'ToRepoFile', 'GetRepoPath'
         Compare      = 'ReadRepo', 'ReadWorkspace', 'Classify', 'ToRequest', 'ToComparable'
         Sync         = 'ReadRepo', 'ReadWorkspace', 'Classify', 'ToRequest', 'ToComparable', 'UpdateRepoFile', 'ToRepoFile', 'GetRepoPath'
         Dependencies = 'ReadRepo', 'GetQuery'

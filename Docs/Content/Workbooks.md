@@ -80,6 +80,12 @@ Two ways to author a `workbook.json`.
 
 ### Option 1: bulk export via `Export-SentinelWorkbooks.ps1` (recommended)
 
+> `Export-iSOCContent -ContentType Workbook`, in the iSOCDeployments
+> module, will replace this script in release 26.11.0.
+> [Export](../Modules/iSOCDeployments/Export.md) maps each parameter to
+> the command and lists what changes, such as `-OnlyMissing` becoming
+> the default.
+
 For exporting many workbooks at once, or for a one-off bootstrap of a workspace into the repo:
 
 ```powershell

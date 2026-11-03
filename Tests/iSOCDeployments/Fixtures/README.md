@@ -47,6 +47,13 @@ automation rule and hunting query templates (the hunting queries on two
 pages), the workspace's rules and workbook metadata, and the display names
 whose writes it refuses.
 
+`legacy/Export-Playbooks.ps1` is the playbook exporter at commit 847ef86
+(`Tools/Export-Playbooks.ps1`), byte for byte (git blob
+`b1bf8fa848640f2a3c4bc7daa86039d60323fd4f`, which
+`Migration-Map.Tests.ps1` checks). It was never merged and the commit is
+on no remote, so `Export.Tests.ps1` runs this copy as the old side of its
+parity tests. It goes with the other parity code at cut-over.
+
 The fixtures are synthetic and name no real tenant, workspace or
 organisation. The repository-wide content suites (`Tests/Test-*Yaml.Tests.ps1`)
 and the dependency manifest read `Content/` at the repository root only,

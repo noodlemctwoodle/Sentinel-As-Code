@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -32,7 +32,8 @@ function Get-iSOCWorkbookDefinition {
         are resource group resources, named by their workbookId, or by a
         GUID derived from the workspace and the folder name when metadata
         has none. They deploy after the playbooks. One whose dependencies
-        are missing is skipped.
+        are missing is skipped. Exporting reads the workspace's Sentinel
+        workbooks and writes each to its own folder.
 
     .OUTPUTS
         [hashtable] The definition.
@@ -60,12 +61,16 @@ function Get-iSOCWorkbookDefinition {
         DeployOrder       = 60
         SettleSeconds     = 0
         MissingDependency = 'Skip'
-        Capabilities      = @('Deploy')
+        Capabilities      = @('Deploy', 'Export')
         Prerequisites     = @()
         Handlers          = @{
-            ReadRepo  = 'Read-iSOCWorkbookRepo'
-            Validate  = 'Test-iSOCWorkbook'
-            ToRequest = 'ConvertTo-iSOCWorkbookRequest'
+            ReadRepo      = 'Read-iSOCWorkbookRepo'
+            Validate      = 'Test-iSOCWorkbook'
+            ToRequest     = 'ConvertTo-iSOCWorkbookRequest'
+            ReadWorkspace = 'Read-iSOCWorkbookWorkspace'
+            Classify      = 'Get-iSOCWorkbookSource'
+            ToRepoFile    = 'ConvertTo-iSOCWorkbookFile'
+            GetRepoPath   = 'Get-iSOCWorkbookRepoPath'
         }
         Fields            = @(
             @{ Name = 'properties.displayName'; Comparer = 'Exact' }

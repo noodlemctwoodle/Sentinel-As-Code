@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
@@ -33,7 +33,9 @@ function Get-iSOCPlaybookDefinition {
         handler, and its own Order handler: the templates in Module folders
         go first, in the order their workflow references need. A Logic App
         is named by its template's PlaybookName parameter. One whose
-        dependencies are missing is skipped.
+        dependencies are missing is skipped. Exporting reads the Logic Apps
+        in the playbook resource group and writes each as a parameterised
+        template.
 
     .OUTPUTS
         [hashtable] The definition.
@@ -61,14 +63,18 @@ function Get-iSOCPlaybookDefinition {
         DeployOrder       = 50
         SettleSeconds     = 0
         MissingDependency = 'Skip'
-        Capabilities      = @('Deploy')
+        Capabilities      = @('Deploy', 'Export')
         Prerequisites     = @('Az.Resources')
         Handlers          = @{
-            ReadRepo  = 'Read-iSOCPlaybookRepo'
-            Validate  = 'Test-iSOCPlaybook'
-            ToRequest = 'ConvertTo-iSOCPlaybookRequest'
-            Deploy    = 'Invoke-iSOCPlaybookDeploy'
-            Order     = 'Get-iSOCPlaybookOrder'
+            ReadRepo      = 'Read-iSOCPlaybookRepo'
+            Validate      = 'Test-iSOCPlaybook'
+            ToRequest     = 'ConvertTo-iSOCPlaybookRequest'
+            Deploy        = 'Invoke-iSOCPlaybookDeploy'
+            Order         = 'Get-iSOCPlaybookOrder'
+            ReadWorkspace = 'Read-iSOCPlaybookWorkspace'
+            Classify      = 'Get-iSOCPlaybookSource'
+            ToRepoFile    = 'ConvertTo-iSOCPlaybookFile'
+            GetRepoPath   = 'Get-iSOCPlaybookRepoPath'
         }
         Fields            = @(
             @{ Name = 'properties.state'; Comparer = 'CaseInsensitive' }

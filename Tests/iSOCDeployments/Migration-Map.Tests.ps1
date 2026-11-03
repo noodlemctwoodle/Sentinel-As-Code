@@ -20,7 +20,10 @@
     - every Sentinel.Common function has a row, since that module is
       absorbed whole;
     - every edit a row names is described, and every described edit is
-      named by a row.
+      named by a row;
+    - an unmerged source that has been ported (named by its commit) is
+      read from its byte-for-byte copy under Fixtures/legacy/, whose git
+      blob id is checked, since the commit is not on any remote.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Migration-Map.Tests.ps1
@@ -33,7 +36,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -50,6 +53,26 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $PSScriptRoot '_helpers/Migration.psm1') -Force
     $script:map = Get-iSOCDeploymentsMigrationMap -RepoRoot $script:repoRoot
+
+    # The ported unmerged sources, by the git blob id of the file at
+    # their commit.
+    $script:frozen = @{ '847ef86:Tools/Export-Playbooks.ps1' = 'b1bf8fa848640f2a3c4bc7daa86039d60323fd4f' }
+
+    function Resolve-SourcePath {
+        param([string] $Source)
+        if ($Source -match '^[0-9a-f]{7,40}:(.+)$') { return Join-Path $script:repoRoot "Tests/iSOCDeployments/Fixtures/legacy/$(Split-Path -Leaf $Matches[1])" }
+        Join-Path $script:repoRoot $Source
+    }
+
+    function Get-GitBlobId {
+        param([string] $Path)
+        $text = [System.IO.File]::ReadAllText($Path).Replace("`r`n", "`n")
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
+        $header = [System.Text.Encoding]::ASCII.GetBytes("blob $($bytes.Length)`0")
+        $sha = [System.Security.Cryptography.SHA1]::Create()
+        try { -join ($sha.ComputeHash([byte[]]($header + $bytes)) | ForEach-Object { $_.ToString('x2') }) }
+        finally { $sha.Dispose() }
+    }
 
     function Get-DefinedFunction {
         param([string] $Path)
@@ -104,7 +127,7 @@ Describe 'Script <Source>' -ForEach $scriptRows {
     }
 
     It 'is in the repository unless removed or unmerged' {
-        $exists = Test-Path -LiteralPath (Join-Path $script:repoRoot $Row.Source)
+        $exists = Test-Path -LiteralPath (Resolve-SourcePath $Row.Source)
         switch ($Row.Status) {
             'Removed' { $exists | Should -BeFalse }
             'Unmerged' { $Row.Source | Should -Match '^[0-9a-f]{7,40}:' -Because 'an unmerged source names the commit it is on' }
@@ -115,7 +138,15 @@ Describe 'Script <Source>' -ForEach $scriptRows {
     It 'has a row for every function once ported' {
         if ($Row.Status -ne 'Ported') { Set-ItResult -Skipped -Because "it is $($Row.Status)"; return }
         $mapped = @($script:map.Functions | Where-Object { $_.Source -eq $Row.Source -and $_.Function -ne '(script)' } | ForEach-Object Function | Sort-Object -Unique)
-        @(Get-DefinedFunction (Join-Path $script:repoRoot $Row.Source) | Sort-Object) | Should -Be $mapped
+        @(Get-DefinedFunction (Resolve-SourcePath $Row.Source) | Sort-Object) | Should -Be $mapped
+    }
+
+    It 'is read, when ported from a commit, from a copy that is that commit''s file' {
+        if ($Row.Source -notmatch '^[0-9a-f]{7,40}:' -or $Row.Status -eq 'Unmerged') { Set-ItResult -Skipped -Because 'it is not a ported unmerged source'; return }
+        $script:frozen.ContainsKey($Row.Source) | Should -BeTrue -Because 'the test records the blob id of every frozen copy'
+        Get-GitBlobId (Resolve-SourcePath $Row.Source) | Should -Be $script:frozen[$Row.Source]
+        $atCommit = & git -C $script:repoRoot rev-parse --verify --quiet $Row.Source 2>$null
+        if ($LASTEXITCODE -eq 0 -and $atCommit) { $atCommit | Should -Be $script:frozen[$Row.Source] }
     }
 }
 
@@ -126,7 +157,7 @@ Describe 'Function row <Label>' -ForEach $functionRows {
     }
 
     It 'names a function the source still defines' {
-        $source = Join-Path $script:repoRoot $Row.Source
+        $source = Resolve-SourcePath $Row.Source
         if (-not (Test-Path -LiteralPath $source)) { Set-ItResult -Skipped -Because 'the source has been removed'; return }
         if ($Row.Function -eq '(script)') { Set-ItResult -Skipped -Because "it maps the script's top-level code"; return }
         Get-DefinedFunction $source | Should -Contain $Row.Function

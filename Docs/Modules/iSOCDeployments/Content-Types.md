@@ -14,8 +14,8 @@ detections the pipelines deploy in a later stage.
 | `Watchlist` | `Content/Watchlists` (one folder each: `watchlist.json`, `data.csv`) | ARM, workspace, `watchlists` (2025-09-01) | `watchlistAlias` | 20 | Skip | Deploy |
 | `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Deploy, Compare, Sync, Dependencies |
 | `HuntingQuery` | `Content/HuntingQueries` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 40 | Skip | Deploy, Dependencies |
-| `Playbook` | `Content/Playbooks` (ARM templates, any depth) | ARM deployment through Az.Resources, playbook resource group | `PlaybookName` default, else the file name | 50 | Skip | Deploy |
-| `Workbook` | `Content/Workbooks` (one folder each: `workbook.json`, `metadata.json`) | ARM, resource group, `Microsoft.Insights/workbooks` (2022-04-01) | `workbookId`, else derived | 60 | Skip | Deploy |
+| `Playbook` | `Content/Playbooks` (ARM templates, any depth) | ARM deployment through Az.Resources, playbook resource group | `PlaybookName` default, else the file name | 50 | Skip | Deploy, Export |
+| `Workbook` | `Content/Workbooks` (one folder each: `workbook.json`, `metadata.json`) | ARM, resource group, `Microsoft.Insights/workbooks` (2022-04-01) | `workbookId`, else derived | 60 | Skip | Deploy, Export |
 | `AutomationRule` | `Content/AutomationRules` (JSON, any depth) | ARM, workspace, `automationRules` (2025-09-01) | `automationRuleId` | 70 | Skip | Deploy |
 | `SummaryRule` | `Content/SummaryRules` (JSON, any depth) | ARM, workspace, `summarylogs` (2025-07-01) | `name` | 80 | Skip | Deploy |
 | `DefenderDetection` | `Content/DefenderCustomDetections` (YAML, any depth) | Microsoft Graph, tenant, `security/rules/detectionRules` (beta) | `displayName` | 90 | Deploy (not checked) | Deploy |
@@ -23,7 +23,9 @@ detections the pipelines deploy in a later stage.
 `Deploy` means `Deploy-iSOCContent` deploys the type
 ([Deploying content](Deploy.md)); `Compare` and `Sync` mean
 `Compare-iSOCContent` finds its drift and `Sync-iSOCContent` writes it into
-the repository ([Drift](Drift.md)); `Dependencies` means the type is in the
+the repository ([Drift](Drift.md)); `Export` means `Export-iSOCContent`
+writes the workspace's items into the repository ([Export](Export.md));
+`Dependencies` means the type is in the
 dependency manifest ([Dependency manifest](Dependency-Manifest.md)). After
 watchlists are uploaded, deploy waits 30 seconds before the rules that
 read them. Every type deploys in repository order, the items
@@ -127,6 +129,12 @@ E15).
   (MIGRATION.md edit E14). Az.Resources is needed only when there are
   playbooks to deploy. `Tests/iSOCDeployments/Playbook.Tests.ps1` holds
   every playbook to the deployment the script runs.
+- **Export**: the Logic Apps in the playbook resource group, each written
+  as a parameterised template to its trigger's folder, or over the
+  template whose `PlaybookName` is its name with `-Force`
+  ([Export](Export.md)).
+  `Tests/iSOCDeployments/Export.Tests.ps1` holds it to the unmerged
+  playbook exporter.
 
 ### Workbook
 
@@ -146,6 +154,12 @@ E15).
   template wrapping a workbook resource sends that resource's
   `serializedData`. `Tests/iSOCDeployments/Workbook.Tests.ps1` holds every
   workbook to the request the script builds.
+- **Export**: the workspace's Sentinel workbooks, each written to a folder
+  its display name makes, or over the folder with its `workbookId` (or
+  the GUID deploy makes for one without) with `-Force`; Content Hub
+  workbooks are left out unless asked for ([Export](Export.md)).
+  `Tests/iSOCDeployments/Export.Tests.ps1` holds it to
+  `Tools/Export-SentinelWorkbooks.ps1`.
 
 ### AutomationRule
 
@@ -204,9 +218,8 @@ E15).
 | --- | --- | --- |
 | `WorkspaceSetting` | (pipeline parameters) | The UEBA, Entity Analytics and onboarding steps in the deploy pipelines |
 
-Exporting workbooks and playbooks (`Tools/Export-SentinelWorkbooks.ps1`
-and the unmerged playbook exporter) comes to the registered types as an
-Export capability. Content Hub solutions are installed by their own
+Export comes to the other registered types as each is ported. Content Hub
+solutions are installed by their own
 commands rather than as a content type, since an item there is a package,
 not a file ([Content Hub solutions](Content-Hub.md)).
 

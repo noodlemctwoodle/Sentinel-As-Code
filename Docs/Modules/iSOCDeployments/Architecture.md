@@ -27,6 +27,7 @@ type. The rules here are enforced by the suites under
 | `Private/Rest/` | The only files that call REST: `Invoke-iSOCRestRequest` and its helpers |
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
+| `Private/Export/` | Reading, comparing and saving an item's files, the export result and summary, and making exported content portable: ARM expressions for a workspace's own values, and the plain-text secret scan ([Export](Export.md)) |
 | `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |
 | `Private/ContentTypes/` | The registry, the shared YAML and JSON item readers, and one folder per content type with its definition and handlers |
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
@@ -153,7 +154,10 @@ sentence, lower-casing its first letter unless a capitalised word follows
 
 Handlers are named functions, looked up when they are called through
 `Invoke-iSOCContentTypeHandler`, so a test can mock any one of them by
-name. Each lives in its type's folder in a file named after it.
+name. Each lives in its type's folder in a file named after it. A caller
+offers what it has (the context, the run, the item) and each handler is
+passed only the parameters it declares, so the tables below list what a
+handler may take.
 
 | Handler | Takes | Returns |
 | --- | --- | --- |
@@ -163,12 +167,12 @@ name. Each lives in its type's folder in a file named after it.
 | `GetQuery` | `-Item` | The KQL the item runs |
 | `Deploy` | `-Run`, `-ContentType`, `-Item`, and `-Disabled` when the type deploys disabled | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error; playbooks, which deploy through Az.Resources and validate under `-WhatIf`; and Defender detections, which Graph updates with PATCH at an existing rule's id or creates with POST, after reading the tenant's rules once per run into the run's `Cache` |
 | `Order` | `-Item` | Optional: the items in the order they must deploy. Without one, deploy takes repository order, prioritised items first and Community items last (`Get-iSOCDeployOrder`). Playbooks have one, to deploy modules before the playbooks that call them |
-| `ReadWorkspace` | `-Context`, `-ContentType` | The type's items in the workspace, every page, as the API returns them |
-| `Classify` | `-Run`, `-ContentType`, `-WorkspaceItem` | Where a workspace item's source of truth is: `Source` (`Custom`, `ContentHub`, `Orphan`, `Managed`), `State` when no compare is needed (`Managed`, `Skipped`, `PortalOnly`), `Reason`, `Expected` (the body to compare with, in `ToRequest`'s shape), `SourceRef`, `SourcePath` and `Solution`. What it reads for every item (the repository's items, the templates) it reads once per run into the run's `Cache` |
+| `ReadWorkspace` | `-Context`, `-ContentType` | The type's items in the workspace, every page, as the API returns them, each in full: an item the list leaves part of is read on its own, and one that then cannot be read carries the error in `ReadError` |
+| `Classify` | `-Run`, `-ContentType`, `-WorkspaceItem` | Where a workspace item's source of truth is, for compare and export: `Source` (`Custom`, `ContentHub`, `Orphan`, `Managed`), `State` when nothing more is needed (`Managed`, `Skipped`, `PortalOnly`, or `Failed` when the item could not be read), `Reason`, `Expected` (the body to compare with, in `ToRequest`'s shape), `SourceRef`, `SourcePath` and `Solution`. What it reads for every item (the repository's items, the templates) it reads once per run into the run's `Cache` |
 | `ToComparable` | `-WorkspaceItem` | The workspace's copy in the shape `ToRequest` builds, without the fields the service manages |
 | `UpdateRepoFile` | `-Path`, `-Modification` | Writes the workspace's values for the changed fields into the item's file, leaving the rest as it was; `$true` when the file changed |
-| `ToRepoFile` | `-WorkspaceItem`, `-Provenance`, `-SolutionName` | The text of a new repository file for a workspace item |
-| `GetRepoPath` | `-WorkspaceItem`, `-Provenance`, `-SolutionName` | Where that file goes, relative to the repository |
+| `ToRepoFile` | `-WorkspaceItem`, `-Provenance`, `-SolutionName`, `-Context`, `-RelativePath`, `-Existing` (what the item's files in the repository hold now), `-Author`, `-Warning` (a list to add warnings to) | The item's file text, or for a type with one item per folder its files' text by name |
+| `GetRepoPath` | `-WorkspaceItem`, `-Provenance`, `-SolutionName`, `-Context` | Where a new item's file or folder goes, relative to the repository |
 | `GetTemplates` | | Arrives with export |
 
 An unreadable item and an invalid one are told apart, because deploy
@@ -181,7 +185,7 @@ A capability needs these handlers:
 | Capability | Handlers |
 | --- | --- |
 | `Deploy` | `ReadRepo`, `Validate`, `ToRequest` |
-| `Export` | `ReadWorkspace`, `ToRepoFile`, `GetRepoPath` |
+| `Export` | `ReadRepo`, `ReadWorkspace`, `Classify`, `ToRepoFile`, `GetRepoPath` |
 | `Compare` | `ReadRepo`, `ReadWorkspace`, `Classify`, `ToRequest`, `ToComparable` |
 | `Sync` | Compare's, and `UpdateRepoFile`, `ToRepoFile`, `GetRepoPath` |
 | `Dependencies` | `ReadRepo`, `GetQuery` |
