@@ -8,10 +8,10 @@ the repo working tree.
 
 | What | Where |
 | --- | --- |
-| Test files | [`Tests/`](../../Tests) - 77 suites total: 27 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 28 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) and 22 under [`Tests/iSOCDeployments/`](../../Tests/iSOCDeployments) |
+| Test files | [`Tests/`](../../Tests) - 78 suites total: 28 root-level `<ScriptName>.Tests.ps1` (one per source script, plus content-validation suites), 28 under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint) and 22 under [`Tests/iSOCDeployments/`](../../Tests/iSOCDeployments) |
 | Convention | Pester 5+ discovery model (`Describe` / `Context` / `It` / `BeforeAll`) |
 | Isolation | `$TestDrive` for temp files; AST extraction so source scripts never run their `Main` |
-| PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) — runs every suite, emits NUnit XML, exits non-zero on any failure |
+| PR-gate entrypoint | [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1) - runs every suite, emits NUnit XML, exits non-zero when a test fails, a `BeforeAll` or `AfterAll` block fails, or a suite cannot be loaded |
 | GitHub Actions | [`.github/workflows/pr-validation.yml`](../../.github/workflows/pr-validation.yml) — triggers on `pull_request` to `main` |
 | ADO pipeline | [`Pipelines/Sentinel-PR-Validation.yml`](../../Pipelines/Sentinel-PR-Validation.yml) — wired as a build-validation policy on `main` |
 
@@ -47,8 +47,13 @@ Get-Module -ListAvailable Pester | Select-Object Name, Version
 `Invoke-PRValidation.ps1` is the single entrypoint both pipelines call. It
 installs Pester + powershell-yaml if missing, runs every suite under
 `Tests/`, writes a NUnit-2.5 XML report to `test-results/pester-results.xml`,
-and exits non-zero on any failure. Use this locally to mirror exactly what
-the PR check does.
+and exits non-zero on any failure. Pester counts three kinds of failure
+apart and the gate fails on each: a failed test; a failed `BeforeAll` or
+`AfterAll` block (its tests can still pass); and a suite that cannot be
+loaded, because its `BeforeDiscovery` or top-level code throws or it does
+not parse, which leaves its tests undiscovered rather than failed. The
+summary counts each, and the log names every failed suite and block with
+its error. Use this locally to mirror exactly what the PR check does.
 
 Pass `-InstallModules:$false` to skip the auto-install when you have the
 modules already pinned via your profile, and `-TestNameFilter '<pattern>'`
@@ -143,6 +148,7 @@ workbook-export suites.
 | Workbooks | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection; cross-directory GUID uniqueness for ARM workbooks |
 | Playbooks (structural) | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence |
 | Helper module self-test | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip |
+| PR gate | [`Tests/Test-InvokePRValidation.Tests.ps1`](../../Tests/Test-InvokePRValidation.Tests.ps1) | `Tools/Invoke-PRValidation.ps1` run against throwaway repositories: it passes when every suite passes, and fails, naming what broke, for a failed test, a suite whose discovery throws, a suite that does not parse and a failed `AfterAll` |
 | PR template validator | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | `Remove-MarkdownComment`, `Get-PullRequestSection`, `Test-PullRequestTemplateBody` (required-section + tick-box rules for the PR description) |
 | Sentinel.Common module | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | `Write-PipelineMessage` ADO/local branching · `Invoke-SentinelApi` failure handling · `Connect-AzureEnvironment` state-shape contract + government-cloud branching · KQL extractors (`Remove-KqlComments`, `Get-KqlWatchlistReferences`, `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifiers` incl. `materialize()`/`table('X')` patterns) · `Get-ContentDependencies` orchestrator |
 | Deploy-CustomContent | [`Tests/Test-DeployCustomContent.Tests.ps1`](../../Tests/Test-DeployCustomContent.Tests.ps1) | `Get-PrioritizedFiles`, `Test-ContentDependencies`, `Initialize-DependencyGraph` |
@@ -650,8 +656,11 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-All 44 suites are listed below: the 26 root-level `Tests/*.Tests.ps1` and
-the 18 under `Tests/iSOCBlueprint/`. Counts are approximate (some suites use `-ForEach`
+The table lists 45 of the 78 suites: 27 of the 28 root-level
+`Tests/*.Tests.ps1` and 18 of the 28 under `Tests/iSOCBlueprint/`. The 22
+under `Tests/iSOCDeployments/` are described in the suite table above; the
+eleven others added since this table was last brought up to date are not
+listed yet. Counts are approximate (some suites use `-ForEach`
 to generate per-file `It` blocks at discovery time, so the count grows with
 the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 
@@ -668,6 +677,7 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1) | AST extractor synthetic + real-repo round-trip | 6 |
 | [`Tests/Test-ParserYaml.Tests.ps1`](../../Tests/Test-ParserYaml.Tests.ps1) | Required fields + KQL identifier validation; functionAlias uniqueness | 4 |
 | [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1) | ARM template structure + workflow trigger/action presence | 10 |
+| [`Tests/Test-InvokePRValidation.Tests.ps1`](../../Tests/Test-InvokePRValidation.Tests.ps1) | The PR gate's exit code and log for a passing run, a failed test, a suite whose discovery throws, one that does not parse and a failed `AfterAll`, and the report written on failure | 6 |
 | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | PR-description parsing + required-section / tick-box validation | 16 |
 | [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) | Pipeline logging + REST wrapper + Az context bootstrap + KQL discovery extractors | 57 |
 | [`Tests/Test-SentinelRuleDrift.Tests.ps1`](../../Tests/Test-SentinelRuleDrift.Tests.ps1) | `Compare-SentinelRule`, `Update-RuleYamlFile`, `Get-LineDiff`, `Resolve-RuleSource`, `Save-AbsorbedRule`, `New-AbsorbedRuleYaml`, `ConvertTo-FileSlug` | 74 |

@@ -122,6 +122,18 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   dependency-update and solution-mapping bots only commit and open pull
   requests from `main`. Add the ADO build-validation policy for `release/*`
   and include `release/**` in the GitHub ruleset to make the gate required.
+- **The PR gate fails when a test suite cannot load** -
+  `Tools/Invoke-PRValidation.ps1`, which both PR pipelines run, decided
+  its exit code from Pester's failed-test count alone. Pester counts a
+  suite whose `BeforeDiscovery` or top-level code throws, or that does not
+  parse, as a failed container: none of its tests is discovered, so the
+  count stays at zero, the suite was skipped and the check passed. A
+  failed `AfterAll`, whose tests still pass, was missed the same way. The
+  gate now fails on a failed test, a failed `BeforeAll` or `AfterAll`
+  block, or a suite that cannot be loaded, counts each in its summary, and
+  names every failed suite and block with its error. A new suite,
+  `Tests/Test-InvokePRValidation.Tests.ps1`, runs the gate against
+  throwaway repositories with each kind of failure.
 
 ## 26.10.0
 
