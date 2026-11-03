@@ -97,7 +97,7 @@ function Test-iSOCContentTypeDefinition {
     $apis = Get-iSOCApiVersion
     if (-not $apis.Contains([string]$Definition.ApiVersion)) { $issues.Add("ApiVersion '$($Definition.ApiVersion)' is not in the API table") }
 
-    $requirements = @(Get-iSOCRequirement | ForEach-Object Name)
+    $requirements = @(Get-iSOCRequirement | ForEach-Object { $_.Name })
     foreach ($p in @($Definition.Prerequisites)) {
         if ($p -notin $requirements) { $issues.Add("prerequisite '$p' is not in the requirement table") }
     }
@@ -123,7 +123,7 @@ function Test-iSOCContentTypeDefinition {
 
     $comparers = (Get-Command Compare-iSOCFieldValue).Parameters['Comparer'].Attributes |
         Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] } |
-        ForEach-Object ValidValues
+        ForEach-Object { $_.ValidValues }
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($field in @($Definition.Fields)) {
         if ($field -isnot [hashtable] -or [string]::IsNullOrWhiteSpace([string]$field.Name)) { $issues.Add('a field has no Name'); continue }

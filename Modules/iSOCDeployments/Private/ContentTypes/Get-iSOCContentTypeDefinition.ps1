@@ -50,7 +50,7 @@ function Get-iSOCContentTypeDefinition {
 
     foreach ($pattern in $Name) {
         if (-not @($all | Where-Object { $_.Name -like $pattern }).Count) {
-            throw "No content type matches '$pattern'. Content types: $(($all | ForEach-Object Name) -join ', ')."
+            throw "No content type matches '$pattern'. Content types: $(($all | ForEach-Object { $_.Name }) -join ', ')."
         }
     }
     $all | Where-Object {

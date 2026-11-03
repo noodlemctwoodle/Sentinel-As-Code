@@ -20,8 +20,9 @@ adds the command.
 - **Functions** has one row per old function and new file. One old
   function can feed several new files (a deployer loop split into a
   reader, a validator and a request builder), and several old copies can
-  land in one file (the duplicated helpers). Each destination file defines
-  exactly one function, named after the file.
+  land in one file (the duplicated helpers). `(script)` stands for a
+  script's top-level code, outside any function. Each destination file
+  defines exactly one function, named after the file.
 - **Edits** lists every change in behaviour, however small, by the ID the
   function rows use. A row with `-` copies the code unchanged apart from
   the names of the helpers it calls.
@@ -37,7 +38,7 @@ adds the command.
 | `Tools/Test-SentinelRuleDrift.ps1` | `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent` | In progress |
 | `Tools/Export-SentinelWorkbooks.ps1` | `Export-iSOCContent -ContentType Workbook` | Planned |
 | `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Unmerged |
-| `Tools/Build-DependencyManifest.ps1` | `Update-iSOCDependencyManifest`, `Test-iSOCDependencyManifest`, `Get-iSOCContentDependency` | Planned |
+| `Tools/Build-DependencyManifest.ps1` | `Update-iSOCDependencyManifest`, `Test-iSOCDependencyManifest`, `Get-iSOCContentDependency` | Ported |
 | `Tools/Import-CommunityRules.ps1` | `Import-iSOCCommunityRule` | Planned |
 | `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` | Planned |
 | `Deploy/permissions/Set-RunbookPermissions.ps1` | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Planned |
@@ -74,11 +75,30 @@ separate module, and are not part of this map.
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-KqlExternalDataReferences` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCKqlExternalDataReference.ps1` | - | |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-KqlBareIdentifiers` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCKqlBareIdentifier.ps1` | - | |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentKqlQuery` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCContentKqlQuery.ps1` | E4 | |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentDependencies` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCContentFileDependency.ps1` | - | Get-iSOCContentDependency is kept for the public command |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentDependencies` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCQueryDependency.ps1` | - | The classification; reading the query is each type's GetQuery handler, or Get-iSOCContentKqlQuery for any file |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentDependencies` | `Modules/iSOCDeployments/Public/Get-iSOCContentDependency.ps1` | - | For a file, with the known functions read from the repository's parsers |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/Read-iSOCAnalyticsRuleRepo.ps1` | E4, E5 | Reading the files |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/ContentTypes/Read-iSOCYamlRepoItem.ps1` | E4, E5 | The YAML reader rules, hunting queries and parsers share |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/Test-iSOCAnalyticsRule.ps1` | - | The required-field checks |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/ConvertTo-iSOCAnalyticsRuleRequest.ps1` | - | The request body |
 | `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomDetections` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/ConvertTo-iSOCTriggerOperator.ps1` | - | The operator map |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomParsers` | `Modules/iSOCDeployments/Private/ContentTypes/Parser/Read-iSOCParserRepo.ps1` | E4 | Reading the files |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomParsers` | `Modules/iSOCDeployments/Private/ContentTypes/Parser/Test-iSOCParser.ps1` | - | The required-field check |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomParsers` | `Modules/iSOCDeployments/Private/ContentTypes/Parser/ConvertTo-iSOCParserRequest.ps1` | - | The request body |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomWatchlists` | `Modules/iSOCDeployments/Private/ContentTypes/Watchlist/Read-iSOCWatchlistRepo.ps1` | - | One item per folder |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomWatchlists` | `Modules/iSOCDeployments/Private/ContentTypes/Watchlist/Test-iSOCWatchlist.ps1` | - | The file, field and size checks |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomWatchlists` | `Modules/iSOCDeployments/Private/ContentTypes/Watchlist/ConvertTo-iSOCWatchlistRequest.ps1` | E9 | The upload, rows inline |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/Read-iSOCHuntingQueryRepo.ps1` | E4 | Reading the files |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/Test-iSOCHuntingQuery.ps1` | - | The required-field check |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-CustomHuntingQueries` | `Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/ConvertTo-iSOCHuntingQueryRequest.ps1` | - | The request body and its tags |
+| `Tools/Build-DependencyManifest.ps1` | `Build-Manifest` | `Modules/iSOCDeployments/Private/Manifest/New-iSOCDependencyManifest.ps1` | E8 | Walks the content types with the Dependencies capability |
+| `Tools/Build-DependencyManifest.ps1` | `ConvertTo-OrderedManifestJson` | `Modules/iSOCDeployments/Private/Manifest/ConvertTo-iSOCManifestJson.ps1` | - | |
+| `Tools/Build-DependencyManifest.ps1` | `Compare-Manifest` | `Modules/iSOCDeployments/Private/Manifest/Compare-iSOCDependencyManifest.ps1` | - | |
+| `Tools/Build-DependencyManifest.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Manifest/Get-iSOCDependencyInventory.ps1` | E8 | The parser and watchlist inventory |
+| `Tools/Build-DependencyManifest.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Manifest/Get-iSOCDependencyManifestState.ps1` | E10 | Discover, read and compare, shared by both commands |
+| `Tools/Build-DependencyManifest.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Test-iSOCDependencyManifest.ps1` | E10 | `-Mode Verify` |
+| `Tools/Build-DependencyManifest.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Update-iSOCDependencyManifest.ps1` | E10 | `-Mode Generate` and `-Mode Update` |
+| `Tools/Build-DependencyManifest.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Core/Write-iSOCTextFile.ps1` | E10 | Writing the file |
 | `Tools/Test-SentinelRuleDrift.ps1` | `Get-RepoAnalyticsRuleYamls` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/Read-iSOCAnalyticsRuleRepo.ps1` | E4, E5 | Keyed by the item's Identity instead of a hashtable of ids |
 | `Tools/Test-SentinelRuleDrift.ps1` | `Convert-TriggerOperator` | `Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/ConvertTo-iSOCTriggerOperator.ps1` | - | |
 | `Tools/Test-SentinelRuleDrift.ps1` | `ConvertTo-NormalisedDuration` | `Modules/iSOCDeployments/Private/Drift/ConvertTo-iSOCCanonicalDuration.ps1` | - | |
@@ -98,3 +118,6 @@ separate module, and are not part of this map.
 | E5 | A rule is a Community rule when `Community/` appears in its repository-relative path; the scripts matched the full path. | A clone that sits inside a folder called Community no longer marks every rule as Community. |
 | E6 | `Connect-iSOCWorkspace` takes no `-Region` or `-IsGov`: the region is read from the workspace and the cloud, with its ARM and Graph hosts, from the Az sign-in. A workspace that cannot be found stops the command; `Connect-AzureEnvironment` warned and carried on with no workspace id. The context is read-only. | The values the pipelines passed could disagree with the workspace, and every later step needs the workspace to exist. |
 | E7 | Nothing `Connect-iSOCWorkspace` logs names the subscription id or the workspace id. `Connect-AzureEnvironment` printed both. | Pipeline logs of a public repository are public. |
+| E8 | The dependency manifest reads its content through the content type registry: every type with the Dependencies capability (analytics rules and hunting queries, as before), parsers for the function inventory and watchlists for the watchlist inventory. So `.yml` files count as well as `.yaml`, and the watchlists are the folders deploy reads, directly under `Content/Watchlists/`, where the script searched for `watchlist.json` at any depth; the repository has neither a `.yml` file nor a nested watchlist today, so the manifest is the same. The playbook inventory the script built and never used, and its log line, are gone. | The manifest and deploy must agree about what content there is. |
+| E9 | A `watchlist.json` without a `description` or `provider` is uploaded with the defaults the deployer's code meant (an empty description, provider Custom). Under strict mode the deployer threw reading the missing property and counted the watchlist failed. Every watchlist in the repository has both. | The defaults were the intent; failing a watchlist over an optional field was not. |
+| E10 | `-Mode Generate` and `-Mode Update` become `Update-iSOCDependencyManifest`, which writes only when an entry differs or the file is missing, always as UTF-8 without a byte order mark, with LF line endings and one final newline, entries in invariant-culture, case-insensitive path order (the order the script's sort produced). `-Mode Verify` becomes `Test-iSOCDependencyManifest`, which returns HasDrift instead of exiting 1. Missing watchlists are one warning line each, naming what reads them. The file's description still names the script until cut-over, so both write the same bytes meanwhile. | A module command never exits; the pipeline step decides what drift means. A write that changes nothing, or rewrites line endings on Windows, would make noise in PRs. |

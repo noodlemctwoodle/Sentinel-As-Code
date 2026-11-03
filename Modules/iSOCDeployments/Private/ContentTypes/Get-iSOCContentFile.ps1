@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.1.1
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -59,15 +59,17 @@ function Get-iSOCContentFile {
     $root = Join-Path $RepoPath $ContentType.RepoFolder
     if (-not (Test-Path -LiteralPath $root -PathType Container)) { return }
 
-    $found = if ($ContentType.Layout -eq 'Folder') {
-        @(Get-ChildItem -LiteralPath $root -Directory)
-    }
-    else {
-        @(Get-ChildItem -LiteralPath $root -File -Recurse:([bool]$ContentType.Recurse) | Where-Object {
+    # Wrapped whole: an if statement's output is unrolled, so a type with one
+    # item would otherwise come back as a single object.
+    $found = @(if ($ContentType.Layout -eq 'Folder') {
+            Get-ChildItem -LiteralPath $root -Directory
+        }
+        else {
+            Get-ChildItem -LiteralPath $root -File -Recurse:([bool]$ContentType.Recurse) | Where-Object {
                 $fileName = $_.Name
                 @($ContentType.FilePattern | Where-Object { $fileName -like $_ }).Count -gt 0
-            })
-    }
+            }
+        })
     if ($found.Count -eq 0) { return }
 
     # [Array]::Sort with a separate items array would sort a converted copy,

@@ -216,6 +216,20 @@ Describe 'Code rules' {
         }
     }
 
+    It 'never uses the member-name form of ForEach-Object, which returns nothing under -WhatIf' {
+        $found = foreach ($file in $script:codeFiles) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
+            foreach ($call in $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)) {
+                if ($call.GetCommandName() -notin 'ForEach-Object', '%', 'foreach') { continue }
+                $arguments = @($call.CommandElements | Select-Object -Skip 1)
+                $memberName = @($arguments | Where-Object { $_ -is [System.Management.Automation.Language.CommandParameterAst] -and $_.ParameterName -like 'M*' })
+                $bare = @($arguments | Where-Object { $_ -is [System.Management.Automation.Language.StringConstantExpressionAst] })
+                if ($memberName.Count -or $bare.Count) { "$($file.Name):$($call.Extent.StartLineNumber)" }
+            }
+        }
+        @($found) | Should -BeNullOrEmpty
+    }
+
     It 'never uses Sentinel.Common or its commands' {
         $text = ($script:codeFiles | ForEach-Object {
                 $tokens = $null

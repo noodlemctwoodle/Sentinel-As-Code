@@ -1,0 +1,76 @@
+#Requires -Version 7.2
+
+<#
+.SYNOPSIS
+    The watchlist content type: one folder per watchlist, with its metadata
+    and its rows.
+
+.NOTES
+    File:         Modules/iSOCDeployments/Private/ContentTypes/Watchlist/Get-iSOCWatchlistDefinition.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-11-03
+    Version:      0.1.0
+    Last Updated: 2026-11-03
+    Requires:     PowerShell 7.2+
+
+    Docs/Modules/iSOCDeployments/Architecture.md describes every key of a
+    content type definition.
+#>
+
+# Keeps the file help above from being read as the help of the function below.
+
+function Get-iSOCWatchlistDefinition {
+    <#
+    .SYNOPSIS
+        Return the watchlist definition.
+
+    .DESCRIPTION
+        Each folder directly under Content/Watchlists/ is one watchlist:
+        watchlist.json holds the metadata and data.csv the rows, uploaded
+        inline. A watchlist is named in the workspace by its alias, and
+        deploys after the parsers and before the rules that read it. One
+        whose dependencies are missing is skipped, as Deploy-CustomContent.ps1
+        does.
+
+    .OUTPUTS
+        [hashtable] The definition.
+
+    .EXAMPLE
+        Get-iSOCWatchlistDefinition
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+
+    @{
+        Name              = 'Watchlist'
+        DisplayName       = 'Watchlists'
+        RepoFolder        = 'Content/Watchlists'
+        Layout            = 'Folder'
+        Format            = 'Json'
+        FilePattern       = @('watchlist.json')
+        Recurse           = $false
+        Endpoint          = 'Arm'
+        Scope             = 'Workspace'
+        CollectionPath    = '/providers/Microsoft.SecurityInsights/watchlists'
+        ApiVersion        = 'SecurityInsights'
+        IdentityKey       = 'watchlistAlias'
+        DeployOrder       = 20
+        MissingDependency = 'Skip'
+        Capabilities      = @()
+        Prerequisites     = @()
+        Handlers          = @{
+            ReadRepo  = 'Read-iSOCWatchlistRepo'
+            Validate  = 'Test-iSOCWatchlist'
+            ToRequest = 'ConvertTo-iSOCWatchlistRequest'
+        }
+        Fields            = @(
+            @{ Name = 'properties.displayName'; Comparer = 'Exact' }
+            @{ Name = 'properties.description'; Comparer = 'Whitespace' }
+            @{ Name = 'properties.provider'; Comparer = 'Exact' }
+            @{ Name = 'properties.itemsSearchKey'; Comparer = 'CaseInsensitive' }
+        )
+    }
+}

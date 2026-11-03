@@ -6,6 +6,11 @@ functions, and external data feeds. The deploy script reads it before
 every deploy run to decide whether each item can deploy enabled, must
 deploy disabled, or fail outright.
 
+The iSOCDeployments module has the commands that replace the build script
+at the 26.11.0 cut-over, and writes the same file; see
+[Dependency manifest commands](../Modules/iSOCDeployments/Dependency-Manifest.md).
+Until then the pipelines run the script described here.
+
 The manifest is **auto-generated from content discovery**, not
 hand-maintained. Three checks keep it correct:
 

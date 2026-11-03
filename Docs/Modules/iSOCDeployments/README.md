@@ -17,6 +17,7 @@ with any Sentinel workspace.
 | [Module README](../../../Modules/iSOCDeployments/README.md) | Quick start, the commands so far, what each step needs, the layout |
 | [Architecture](Architecture.md) | The context, the REST client, the content type definition and its handlers, the comparers, the API versions, and how to add a content type |
 | [Content types](Content-Types.md) | Each content type and what the module can do with it so far |
+| [Dependency manifest](Dependency-Manifest.md) | `Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest` and `Get-iSOCContentDependency`, and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../../../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
 
 The iSOC Blueprint ([Docs/Modules/iSOCBlueprint](../iSOCBlueprint/README.md))

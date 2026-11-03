@@ -2,16 +2,16 @@
 
 <#
 .SYNOPSIS
-    GetQuery handler for analytics rules.
+    GetQuery handler for hunting queries.
 
 .NOTES
-    File:         Modules/iSOCDeployments/Private/ContentTypes/AnalyticsRule/Get-iSOCAnalyticsRuleQuery.ps1
+    File:         Modules/iSOCDeployments/Private/ContentTypes/HuntingQuery/Get-iSOCHuntingQueryKql.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
-    Created:      2026-10-23
+    Created:      2026-11-03
     Version:      0.1.0
-    Last Updated: 2026-10-23
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -20,19 +20,19 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-function Get-iSOCAnalyticsRuleQuery {
+function Get-iSOCHuntingQueryKql {
     <#
     .SYNOPSIS
-        Return the KQL a rule runs.
+        Return the KQL a hunting query runs.
 
     .PARAMETER Item
-        A repository item from Read-iSOCAnalyticsRuleRepo.
+        A repository item from Read-iSOCHuntingQueryRepo.
 
     .OUTPUTS
         [string] The query, or nothing when the file has none.
 
     .EXAMPLE
-        Get-iSOCAnalyticsRuleQuery -Item $item
+        Get-iSOCHuntingQueryKql -Item $item
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -41,6 +41,6 @@ function Get-iSOCAnalyticsRuleQuery {
         [psobject] $Item
     )
 
-    $rule = $Item.Data
-    if ($rule -is [System.Collections.IDictionary] -and $rule.Contains('query')) { return [string]$rule['query'] }
+    $hq = $Item.Data
+    if ($hq -is [System.Collections.IDictionary] -and $hq.Contains('query')) { return [string]$hq['query'] }
 }

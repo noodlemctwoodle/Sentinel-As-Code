@@ -15,8 +15,9 @@
       original, with only the helper names changed (and the YAML loader
       call Get-iSOCContentKqlQuery adds, MIGRATION.md edit E4);
     - every content file under Content/, read by both
-      Get-ContentDependencies (Sentinel.Common) and
-      Get-iSOCContentFileDependency, which must agree, with the parser
+      Get-ContentDependencies (Sentinel.Common) and by
+      Get-iSOCContentKqlQuery with Get-iSOCQueryDependency, which must
+      agree, with the parser
       aliases the dependency manifest builder uses.
 
 .EXAMPLE
@@ -30,8 +31,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml, Az.Accounts
                   (Sentinel.Common declares it)
 
@@ -47,7 +48,6 @@ BeforeDiscovery {
         @{ Old = 'Get-KqlExternalDataReferences'; New = 'Get-iSOCKqlExternalDataReference' }
         @{ Old = 'Get-KqlBareIdentifiers'; New = 'Get-iSOCKqlBareIdentifier' }
         @{ Old = 'Get-ContentKqlQuery'; New = 'Get-iSOCContentKqlQuery' }
-        @{ Old = 'Get-ContentDependencies'; New = 'Get-iSOCContentFileDependency' }
     )
     $contentFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content') -Recurse -File -Include '*.yaml', '*.yml', '*.json') |
         ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
@@ -65,7 +65,14 @@ BeforeAll {
         'Get-KqlExternalDataReferences' = 'Get-iSOCKqlExternalDataReference'
         'Get-KqlBareIdentifiers'        = 'Get-iSOCKqlBareIdentifier'
         'Get-ContentKqlQuery'           = 'Get-iSOCContentKqlQuery'
-        'Get-ContentDependencies'       = 'Get-iSOCContentFileDependency'
+    }
+
+    function Get-FileDependency {
+        param([string] $Path, [hashtable] $KnownFunctions)
+        InModuleScope iSOCDeployments -Parameters @{ P = $Path; K = $KnownFunctions } {
+            param($P, $K)
+            Get-iSOCQueryDependency -Query (Get-iSOCContentKqlQuery -Path $P) -KnownFunctions $K
+        }
     }
 
     function Invoke-Kql {
@@ -173,7 +180,7 @@ Describe 'Get-iSOCKqlBareIdentifier' {
     }
 }
 
-Describe 'Get-iSOCContentFileDependency' {
+Describe 'Get-iSOCQueryDependency' {
     BeforeAll {
         $script:known = @{ UnifiedSignInLogs = $true }
         function New-RuleFile {
@@ -185,23 +192,23 @@ Describe 'Get-iSOCContentFileDependency' {
     }
 
     It 'files a table at a data-source position under tables' {
-        $deps = Invoke-Kql Get-iSOCContentFileDependency @{ Path = (New-RuleFile 'a.yaml' 'SigninLogs | where ResultType != "0"'); KnownFunctions = $script:known }
+        $deps = Get-FileDependency (New-RuleFile 'a.yaml' 'SigninLogs | where ResultType != "0"') $script:known
         @($deps.tables) | Should -Contain 'SigninLogs'
         @($deps.functions) | Should -BeNullOrEmpty
     }
 
     It 'files a custom log table under tables' {
-        @((Invoke-Kql Get-iSOCContentFileDependency @{ Path = (New-RuleFile 'b.yaml' 'MyCustomTable_CL | take 1'); KnownFunctions = $script:known }).tables) | Should -Contain 'MyCustomTable_CL'
+        @((Get-FileDependency (New-RuleFile 'b.yaml' 'MyCustomTable_CL | take 1') $script:known).tables) | Should -Contain 'MyCustomTable_CL'
     }
 
     It 'files a repository parser and an ASIM function under functions' {
-        @((Invoke-Kql Get-iSOCContentFileDependency @{ Path = (New-RuleFile 'c.yaml' 'UnifiedSignInLogs | take 1'); KnownFunctions = $script:known }).functions) | Should -Contain 'UnifiedSignInLogs'
-        @((Invoke-Kql Get-iSOCContentFileDependency @{ Path = (New-RuleFile 'd.yaml' 'ASimDnsActivityLogs | take 1'); KnownFunctions = $script:known }).functions) | Should -Contain 'ASimDnsActivityLogs'
+        @((Get-FileDependency (New-RuleFile 'c.yaml' 'UnifiedSignInLogs | take 1') $script:known).functions) | Should -Contain 'UnifiedSignInLogs'
+        @((Get-FileDependency (New-RuleFile 'd.yaml' 'ASimDnsActivityLogs | take 1') $script:known).functions) | Should -Contain 'ASimDnsActivityLogs'
     }
 
     It 'reads watchlists, external data and tables in one pass' {
         $query = "let bg = _GetWatchlist('breakGlassAccounts');`nlet azureRanges = externaldata(values: dynamic) [`"https://example.com/azureranges.json`"] with(format='multijson');`nSigninLogs | where UserPrincipalName in (bg) | take 1"
-        $deps = Invoke-Kql Get-iSOCContentFileDependency @{ Path = (New-RuleFile 'e.yaml' $query); KnownFunctions = $script:known }
+        $deps = Get-FileDependency (New-RuleFile 'e.yaml' $query) $script:known
         @($deps.watchlists) | Should -Contain 'breakGlassAccounts'
         @($deps.externalData) | Should -Contain 'https://example.com/azureranges.json'
         @($deps.tables) | Should -Contain 'SigninLogs'
@@ -210,7 +217,7 @@ Describe 'Get-iSOCContentFileDependency' {
     It 'returns empty buckets, and no unclassified bucket, for a file without a query' {
         $path = Join-Path $TestDrive 'no-query.yaml'
         Set-Content -LiteralPath $path -Value 'name: just metadata'
-        $deps = Invoke-Kql Get-iSOCContentFileDependency @{ Path = $path; KnownFunctions = @{} }
+        $deps = Get-FileDependency $path @{}
         foreach ($bucket in 'tables', 'watchlists', 'functions', 'externalData') { @($deps[$bucket]).Count | Should -Be 0 }
         $deps.ContainsKey('unclassified') | Should -BeFalse
     }
@@ -218,7 +225,7 @@ Describe 'Get-iSOCContentFileDependency' {
     It 'reads the query of a Defender custom detection' {
         $path = Join-Path $TestDrive 'detection.yaml'
         Set-Content -LiteralPath $path -Value "displayName: x`nqueryCondition:`n  queryText: |`n    DeviceProcessEvents | take 1"
-        @((Invoke-Kql Get-iSOCContentFileDependency @{ Path = $path; KnownFunctions = @{} }).tables) | Should -Contain 'DeviceProcessEvents'
+        @((Get-FileDependency $path @{}).tables) | Should -Contain 'DeviceProcessEvents'
     }
 }
 
@@ -249,7 +256,7 @@ Describe 'Dependencies of <Path>' -ForEach $contentFiles {
     It 'are what Sentinel.Common finds' {
         $full = Join-Path $script:repoRoot $Path
         $old = Get-ContentDependencies -Path $full -KnownFunctions $script:knownFunctions
-        $new = Invoke-Kql Get-iSOCContentFileDependency @{ Path = $full; KnownFunctions = $script:knownFunctions }
+        $new = Get-FileDependency $full $script:knownFunctions
         ConvertTo-ParityJson $new | Should -BeExactly (ConvertTo-ParityJson $old)
     }
 }

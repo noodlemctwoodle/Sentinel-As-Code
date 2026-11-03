@@ -13,10 +13,11 @@ Sentinel workspaces; the public commands avoid the product name.
 > built beside the scripts it replaces under `Deploy/` and `Tools/`, which
 > still run every pipeline. What is here today is the core (logging, the
 > REST client, the workspace context, the YAML and KQL helpers, the
-> comparers) and the content type registry with analytics rules read,
-> validated and turned into requests. The deploy, export, compare and sync
-> commands arrive as each area is ported; [MIGRATION.md](MIGRATION.md)
-> tracks which.
+> comparers), the content type registry with parsers, watchlists,
+> analytics rules and hunting queries read, validated and turned into the
+> requests deploy sends, and the dependency manifest commands. The deploy,
+> export, compare and sync commands arrive as each area is ported;
+> [MIGRATION.md](MIGRATION.md) tracks which.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -34,6 +35,9 @@ Test-iSOCDeploymentPrerequisite
 | `Connect-iSOCWorkspace` | Points the module at one workspace through the current Az sign-in; the result is the context every other command uses | Az.Accounts, `Connect-AzAccount` |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
+| `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
+| `Test-iSOCDependencyManifest` | Whether `dependencies.json` matches the content, with the differences | powershell-yaml |
+| `Update-iSOCDependencyManifest` | Rewrites `dependencies.json` when it is out of date | powershell-yaml |
 | `Test-iSOCDeploymentPrerequisite` | What this machine is missing for each step | Nothing |
 
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
@@ -41,8 +45,8 @@ Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
 `Deploy-iSOCContent`, `Deploy-iSOCWorkspace`, `Export-iSOCContent`,
 `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
-Content Hub, dependency manifest, permission, set-up, community import and
-table migration commands.
+Content Hub, permission, set-up, community import and table migration
+commands.
 
 ## What it needs
 
@@ -70,6 +74,7 @@ Private/
   Yaml/          loading powershell-yaml, reading and writing YAML
   Kql/           dependency discovery in KQL (from Sentinel.Common)
   Drift/         comparers and canonical forms
+  Manifest/      the dependency manifest
   ContentTypes/  the registry, and one folder per content type with its
                  definition and handlers
 ```

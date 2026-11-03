@@ -45,5 +45,5 @@ foreach ($folder in 'Private', 'Public') {
 Update-TypeData -TypeName 'iSOCDeployments.Context' -DefaultDisplayPropertySet 'WorkspaceName', 'ResourceGroup', 'SubscriptionId', 'Environment' -Force
 Update-TypeData -TypeName 'iSOCDeployments.ContentType' -DefaultDisplayPropertySet 'Name', 'RepoFolder', 'Endpoint', 'Capabilities' -Force
 
-$public = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Public') -Filter '*.ps1' -File | ForEach-Object BaseName)
+$public = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Public') -Filter '*.ps1' -File | ForEach-Object { $_.BaseName })
 Export-ModuleMember -Function $public

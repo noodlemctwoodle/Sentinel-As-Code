@@ -63,7 +63,7 @@ function ConvertTo-iSOCCanonicalJson {
         if ($Value -is [System.Collections.IEnumerable]) {
             return , @(foreach ($item in $Value) { , (& $sort $item) })
         }
-        $names = [string[]]@($Value.PSObject.Properties | ForEach-Object Name)
+        $names = [string[]]@($Value.PSObject.Properties | ForEach-Object { $_.Name })
         [Array]::Sort($names, [System.StringComparer]::Ordinal)
         $sorted = [ordered]@{}
         foreach ($name in $names) { $sorted[$name] = & $sort $Value.$name }

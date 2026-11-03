@@ -1,0 +1,4 @@
+id: 4d8b2f63-0c2e-4a1f-9b3c-7e6d5f4a3b21
+name: Fixture parser without an alias
+query: |
+  AuditLogs

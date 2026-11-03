@@ -45,7 +45,7 @@ function Get-iSOCContentTypeRegistry {
     [OutputType([pscustomobject])]
     param()
 
-    $names = @('AnalyticsRule')
+    $names = @('Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery')
 
     $types = foreach ($name in $names) {
         $definition = & "Get-iSOC${name}Definition"

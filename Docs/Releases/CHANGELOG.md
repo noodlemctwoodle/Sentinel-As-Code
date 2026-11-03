@@ -12,9 +12,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Modules/iSOCDeployments`. It has its core (logging, one REST client
   over `Invoke-AzRestMethod`, a read-only workspace context from
   `Connect-iSOCWorkspace`, the YAML and KQL helpers, comparers) and a
-  content type registry, with analytics rules read, validated and turned
-  into the same requests `Deploy-CustomContent.ps1` sends. Nothing uses it
-  yet: every pipeline still runs the scripts. See
+  content type registry, with parsers, watchlists, analytics rules and
+  hunting queries read, validated and turned into the same requests
+  `Deploy-CustomContent.ps1` sends, and the dependency manifest commands
+  (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
+  `Get-iSOCContentDependency`), which write `dependencies.json` byte for
+  byte as `Tools/Build-DependencyManifest.ps1` does. Nothing uses it yet:
+  every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
 - **The community importer imports YAML rules again, and keeps rule ids

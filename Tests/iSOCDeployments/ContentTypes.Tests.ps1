@@ -26,8 +26,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -73,7 +73,7 @@ Describe 'Registry' {
 
     It 'refuses to build when a definition is wrong' {
         Mock -ModuleName iSOCDeployments Test-iSOCContentTypeDefinition { 'missing Fields' }
-        { InModuleScope iSOCDeployments { Get-iSOCContentTypeRegistry } } | Should -Throw -ExpectedMessage "*'AnalyticsRule' is defined wrongly: missing Fields*"
+        { InModuleScope iSOCDeployments { Get-iSOCContentTypeRegistry } } | Should -Throw -ExpectedMessage "*'Parser' is defined wrongly: missing Fields*"
     }
 }
 
@@ -141,7 +141,7 @@ Describe 'Lookups' {
     }
 
     It 'names the types that exist when a name matches none' {
-        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: AnalyticsRule*"
+        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: Parser, Watchlist, AnalyticsRule, HuntingQuery.*"
     }
 
     It 'is what Get-iSOCContentType returns' {
@@ -154,13 +154,13 @@ Describe 'Lookups' {
 
 Describe 'Invoke-iSOCContentTypeHandler' {
     It 'calls the function the type names, with the parameters given' {
-        Mock -ModuleName iSOCDeployments Get-iSOCAnalyticsRuleQuery { "query of $($Item.Name)" }
+        Mock -ModuleName iSOCDeployments Get-iSOCAnalyticsRuleKql { "query of $($Item.Name)" }
         $result = InModuleScope iSOCDeployments {
             $type = Get-iSOCContentTypeDefinition -Name AnalyticsRule
             Invoke-iSOCContentTypeHandler -ContentType $type -Handler GetQuery -Parameters @{ Item = [pscustomobject]@{ Name = 'r1' } }
         }
         $result | Should -Be 'query of r1'
-        Should -Invoke -ModuleName iSOCDeployments Get-iSOCAnalyticsRuleQuery -Times 1 -Exactly
+        Should -Invoke -ModuleName iSOCDeployments Get-iSOCAnalyticsRuleKql -Times 1 -Exactly
     }
 
     It 'says which handler a type does not have' {
@@ -204,6 +204,19 @@ Describe 'Get-iSOCContentFile' {
             })
         @($folders.Name) | Should -Be @('Community', 'Identity')
         $folders[0] | Should -BeOfType [System.IO.DirectoryInfo]
+    }
+
+    It 'returns a type with one item as a list of one' {
+        $repo = Join-Path $TestDrive 'one'
+        New-Item -ItemType Directory -Path (Join-Path $repo 'Content/AnalyticalRules') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $repo 'Content/AnalyticalRules/Only.yaml') -Value 'id: x'
+        $files = @(InModuleScope iSOCDeployments -Parameters @{ R = $repo } {
+                param($R)
+                Set-StrictMode -Version Latest
+                Get-iSOCContentFile -RepoPath $R -ContentType (Get-iSOCContentTypeDefinition -Name AnalyticsRule)
+            })
+        $files.Count | Should -Be 1
+        $files[0].Name | Should -Be 'Only.yaml'
     }
 
     It 'has no items when the type''s folder is not there' {

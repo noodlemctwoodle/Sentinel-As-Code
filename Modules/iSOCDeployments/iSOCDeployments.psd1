@@ -12,9 +12,12 @@
     # never needs Az.Accounts.
     FunctionsToExport = @(
         'Connect-iSOCWorkspace'
+        'Get-iSOCContentDependency'
         'Get-iSOCContentType'
         'Get-iSOCContext'
+        'Test-iSOCDependencyManifest'
         'Test-iSOCDeploymentPrerequisite'
+        'Update-iSOCDependencyManifest'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()

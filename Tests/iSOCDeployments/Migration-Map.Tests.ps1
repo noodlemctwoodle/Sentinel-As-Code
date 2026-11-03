@@ -32,8 +32,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -113,7 +113,7 @@ Describe 'Script <Source>' -ForEach $scriptRows {
 
     It 'has a row for every function once ported' {
         if ($Row.Status -ne 'Ported') { Set-ItResult -Skipped -Because "it is $($Row.Status)"; return }
-        $mapped = @($script:map.Functions | Where-Object Source -eq $Row.Source | ForEach-Object Function | Sort-Object -Unique)
+        $mapped = @($script:map.Functions | Where-Object { $_.Source -eq $Row.Source -and $_.Function -ne '(script)' } | ForEach-Object Function | Sort-Object -Unique)
         @(Get-DefinedFunction (Join-Path $script:repoRoot $Row.Source) | Sort-Object) | Should -Be $mapped
     }
 }
@@ -127,6 +127,7 @@ Describe 'Function row <Label>' -ForEach $functionRows {
     It 'names a function the source still defines' {
         $source = Join-Path $script:repoRoot $Row.Source
         if (-not (Test-Path -LiteralPath $source)) { Set-ItResult -Skipped -Because 'the source has been removed'; return }
+        if ($Row.Function -eq '(script)') { Set-ItResult -Skipped -Because "it maps the script's top-level code"; return }
         Get-DefinedFunction $source | Should -Contain $Row.Function
     }
 

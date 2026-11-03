@@ -67,7 +67,7 @@ function Get-iSOCAnalyticsRuleDefinition {
             ReadRepo  = 'Read-iSOCAnalyticsRuleRepo'
             Validate  = 'Test-iSOCAnalyticsRule'
             ToRequest = 'ConvertTo-iSOCAnalyticsRuleRequest'
-            GetQuery  = 'Get-iSOCAnalyticsRuleQuery'
+            GetQuery  = 'Get-iSOCAnalyticsRuleKql'
         }
         Fields            = @(
             @{ Name = 'kind'; Comparer = 'Exact' }

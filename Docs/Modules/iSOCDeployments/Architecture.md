@@ -28,13 +28,22 @@ type. The rules here are enforced by the suites under
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
 | `Private/Drift/` | The comparers and the canonical forms they rest on |
-| `Private/ContentTypes/` | The registry, and one folder per content type with its definition and handlers |
+| `Private/ContentTypes/` | The registry, the shared YAML item reader, and one folder per content type with its definition and handlers |
+| `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
 
 Every `.ps1` file defines exactly one function named after the file and
 nothing else, so the loader can dot-source everything in any order. No file
 calls `exit` or installs a module, and no file carries `#Requires
 -Modules`: the module imports with nothing beyond PowerShell 7.2 and checks
 each step's needs when it runs.
+
+The module runs in strict mode, which shapes two habits. A value that may
+be one item or several is wrapped in `@()` before `.Count`, and `$null`
+filtered out first where a helper can return nothing (`@($null)` counts
+as one). And `ForEach-Object` always takes a script block: its
+member-name form (`ForEach-Object Name`) honours ShouldProcess, so under
+`-WhatIf` it returns nothing. `Module.Tests.ps1` fails on the member-name
+form.
 
 ## The workspace context
 
@@ -139,11 +148,16 @@ name. Each lives in its type's folder in a file named after it.
 
 | Handler | Takes | Returns |
 | --- | --- | --- |
-| `ReadRepo` | `-RepoPath`, `-ContentType` | One `iSOCDeployments.RepoItem` per item: `ContentType`, `Identity` (lower case), `Name`, `Path`, `RelativePath`, `Source` (`Custom` or `Community`), `Data`, `ParseError` |
+| `ReadRepo` | `-RepoPath`, `-ContentType` | One `iSOCDeployments.RepoItem` per item: `ContentType`, `Identity` (lower case), `Name`, `Path`, `RelativePath`, `Source` (`Custom` or `Community`), `Data`, `ParseError`, and anything the type needs besides (a watchlist adds `MetadataPath` and `CsvPath`). YAML types share `Read-iSOCYamlRepoItem` |
 | `Validate` | `-Item` | The reasons the item cannot be sent; nothing when it can |
-| `ToRequest` | `-Item`, and switches the type needs (`-Disabled` for rules) | An `iSOCDeployments.Request`: `ContentType`, `Identity`, `ResourceName`, `Body`. Pure: it reads nothing outside the item |
+| `ToRequest` | `-Item`, and switches the type needs (`-Disabled` for rules) | An `iSOCDeployments.Request`: `ContentType`, `Identity`, `ResourceName`, `Body`. It reads nothing outside the item, except a watchlist's `data.csv`, and sends nothing |
 | `GetQuery` | `-Item` | The KQL the item runs |
 | `ReadWorkspace`, `Classify`, `Deploy`, `Order`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with deploy, export, compare and sync |
+
+An unreadable item and an invalid one are told apart, because deploy
+treats them as the scripts do: `ParseError` is set when the file is there
+but does not parse (deploy fails the item), and `Validate` reports
+everything else, such as a missing field or file (deploy skips the item).
 
 A capability needs these handlers:
 

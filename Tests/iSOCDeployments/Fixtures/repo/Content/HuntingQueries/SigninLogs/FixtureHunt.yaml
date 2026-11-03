@@ -1,0 +1,18 @@
+id: 5e9c3a74-1d3f-4b2a-8c4d-8f7e6a5b4c32
+name: Fixture hunting query
+description: |
+  A hunting query used by the iSOCDeployments tests.
+tactics:
+  - CredentialAccess
+  - InitialAccess
+techniques:
+  - T1110
+  - T1110.003
+tags:
+  - name: owner
+    value: soc
+query: |
+  FixtureSignIns
+  | join kind=inner (_GetWatchlist('vipUsers')) on $left.UserPrincipalName == $right.SearchKey
+  | join kind=inner (_GetWatchlist('notInRepo')) on UserPrincipalName
+version: 1.0.0

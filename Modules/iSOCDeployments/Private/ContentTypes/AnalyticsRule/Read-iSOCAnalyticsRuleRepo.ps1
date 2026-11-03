@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     Needs powershell-yaml when it runs. Import-iSOCYamlModule loads it
@@ -34,13 +34,13 @@ function Read-iSOCAnalyticsRuleRepo {
         Read every analytics rule file in the repository.
 
     .DESCRIPTION
-        One item per file, in repository order. A file that does not parse is
-        still returned, with ParseError set and no Data, so each caller
-        decides what an unreadable file means (deploy fails it, drift skips
-        it). A rule under a Community folder is marked Source Community; the
-        folder is matched in the repository-relative path, so a clone that
-        itself sits in a folder called Community is not mistaken for one
-        (MIGRATION.md edit E5).
+        One item per file, in repository order, read by Read-iSOCYamlRepoItem.
+        A file that does not parse is still returned, with ParseError set and
+        no Data, so each caller decides what an unreadable file means (deploy
+        fails it, drift skips it). A rule under a Community folder is marked
+        Source Community; the folder is matched in the repository-relative
+        path, so a clone that itself sits in a folder called Community is not
+        mistaken for one (MIGRATION.md edit E5).
 
     .PARAMETER RepoPath
         The repository root.
@@ -66,27 +66,5 @@ function Read-iSOCAnalyticsRuleRepo {
         [psobject] $ContentType
     )
 
-    foreach ($file in Get-iSOCContentFile -RepoPath $RepoPath -ContentType $ContentType) {
-        $relative = ConvertTo-iSOCRepoRelativePath -Path $file.FullName -RepoPath $RepoPath
-        $data = $null
-        $parseError = $null
-        try { $data = Read-iSOCYamlFile -Path $file.FullName }
-        catch { $parseError = $_.Exception.Message }
-
-        $isMapping = $data -is [System.Collections.IDictionary]
-        $id = if ($isMapping -and $data.Contains('id') -and -not [string]::IsNullOrWhiteSpace([string]$data['id'])) { [string]$data['id'] } else { $null }
-        $name = if ($isMapping -and $data.Contains('name') -and -not [string]::IsNullOrWhiteSpace([string]$data['name'])) { [string]$data['name'] } else { $file.BaseName }
-
-        [pscustomobject]@{
-            PSTypeName   = 'iSOCDeployments.RepoItem'
-            ContentType  = $ContentType.Name
-            Identity     = if ($id) { $id.ToLowerInvariant() } else { $null }
-            Name         = $name
-            Path         = $file.FullName
-            RelativePath = $relative
-            Source       = if ($relative -match '(^|/)Community/') { 'Community' } else { 'Custom' }
-            Data         = $data
-            ParseError   = $parseError
-        }
-    }
+    Read-iSOCYamlRepoItem -RepoPath $RepoPath -ContentType $ContentType
 }

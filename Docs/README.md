@@ -105,6 +105,7 @@ docs live in `Docs/Modules/iSOCDeployments/`.
 | [Module README](../Modules/iSOCDeployments/README.md) | Quick start, the commands so far, what each step needs, the layout |
 | [Architecture](Modules/iSOCDeployments/Architecture.md) | The context, the REST client, content type definitions and handlers, comparers, API versions, and how to add a content type |
 | [Content types](Modules/iSOCDeployments/Content-Types.md) | Each content type and what the module can do with it so far |
+| [Dependency manifest](Modules/iSOCDeployments/Dependency-Manifest.md) | The module's manifest commands and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
 
 ## Pipelines - `Pipelines/` (and `.github/workflows/`)

@@ -263,10 +263,10 @@ Describe 'ConvertTo-iSOCTriggerOperator' {
     }
 }
 
-Describe 'Get-iSOCAnalyticsRuleQuery' {
+Describe 'Get-iSOCAnalyticsRuleKql' {
     It 'returns the query, or nothing for a file without one' {
-        InModuleScope iSOCDeployments -Parameters @{ I = (Get-Item1 'NrtRule.yaml') } { param($I) Get-iSOCAnalyticsRuleQuery -Item $I } | Should -Match '^AuditLogs'
-        InModuleScope iSOCDeployments -Parameters @{ I = (Get-Item1 'Broken.yaml') } { param($I) Get-iSOCAnalyticsRuleQuery -Item $I } | Should -BeNullOrEmpty
+        InModuleScope iSOCDeployments -Parameters @{ I = (Get-Item1 'NrtRule.yaml') } { param($I) Get-iSOCAnalyticsRuleKql -Item $I } | Should -Match '^AuditLogs'
+        InModuleScope iSOCDeployments -Parameters @{ I = (Get-Item1 'Broken.yaml') } { param($I) Get-iSOCAnalyticsRuleKql -Item $I } | Should -BeNullOrEmpty
     }
 }
 

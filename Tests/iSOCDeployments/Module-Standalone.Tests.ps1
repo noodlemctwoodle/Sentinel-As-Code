@@ -11,9 +11,10 @@
     Sentinel-As-Code repository. This suite copies Modules/iSOCDeployments
     to a folder outside the repository, imports it from there, and reads
     the fixture repository through the registry: list the content types,
-    read the rules, validate them, build their requests and read their
-    dependencies. A step that still reached into this repository (the
-    shared module, a path two folders up) would fail here.
+    read the rules, validate them, build their requests, read a query's
+    dependencies, and write and check a dependency manifest. A step that
+    still reached into this repository (the shared module, a path two
+    folders up) would fail here.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Module-Standalone.Tests.ps1
@@ -26,8 +27,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
@@ -81,11 +82,14 @@ Describe 'iSOCDeployments outside the repository' {
         @($result.Requests.ResourceName) | Should -Contain '0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d'
     }
 
-    It 'reads a rule''s dependencies' {
-        $deps = InModuleScope iSOCDeployments -Parameters @{ P = (Join-Path $script:work 'Content/AnalyticalRules/Identity/ScheduledRule.yaml') } {
-            param($P)
-            Get-iSOCContentFileDependency -Path $P -KnownFunctions @{}
-        }
-        @($deps.tables) | Should -Be @('SigninLogs')
+    It 'reads a hunting query''s dependencies, with the parser the copied repository defines' {
+        $deps = Get-iSOCContentDependency -Path (Join-Path $script:work 'Content/HuntingQueries/SigninLogs/FixtureHunt.yaml') -RepoPath $script:work
+        $deps.Path | Should -Be 'Content/HuntingQueries/SigninLogs/FixtureHunt.yaml'
+        $deps.Functions | Should -Be @('FixtureSignIns')
+    }
+
+    It 'writes and checks a dependency manifest for the copied repository' {
+        (Update-iSOCDependencyManifest -RepoPath $script:work 6>$null).Changed | Should -BeTrue
+        (Test-iSOCDependencyManifest -RepoPath $script:work 6>$null).HasDrift | Should -BeFalse
     }
 }
