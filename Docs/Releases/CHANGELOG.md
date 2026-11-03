@@ -26,7 +26,13 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Install-iSOCContentHubSolution`, which replace
   `Deploy-SentinelContentHub.ps1` (the same writes, an outcome for every
   solution and template, and a `-WhatIf` that, unlike the script's, writes
-  no rule metadata), and the dependency manifest commands
+  no rule metadata), `Compare-iSOCContent`, `Sync-iSOCContent` and
+  `Export-iSOCDriftReport`, which replace `Tools/Test-SentinelRuleDrift.ps1`
+  (the same buckets, absorbed files and report names; a query edited in
+  the portal is absorbed with its line breaks rather than collapsed onto
+  one line, a source left out is skipped rather than exported again as
+  orphans, and the report no longer carries the subscription id), and the
+  dependency manifest commands
   (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
   `Get-iSOCContentDependency`), which write `dependencies.json` byte for
   byte as `Tools/Build-DependencyManifest.ps1` does. Nothing uses it yet:

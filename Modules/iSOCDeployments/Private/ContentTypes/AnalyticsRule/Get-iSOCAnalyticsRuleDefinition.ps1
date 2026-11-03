@@ -11,8 +11,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     Docs/Modules/iSOCDeployments/Architecture.md describes every key of a
@@ -33,8 +33,13 @@ function Get-iSOCAnalyticsRuleDefinition {
         whose dependencies are missing is deployed disabled, as
         Deploy-CustomContent.ps1 does.
 
-        The fields are the ones Tools/Test-SentinelRuleDrift.ps1 compares
-        today, by their place in the request body.
+        The fields are the ones Tools/Test-SentinelRuleDrift.ps1 compares,
+        by their place in the request body and in its order, with kind
+        added; the schedule and trigger are compared for Scheduled rules
+        only, as an NRT rule has none. Drift reads the workspace's rules,
+        classes each by where its source of truth is (a repository file, a
+        Content Hub template, or nothing), and absorbs changes by rewriting
+        the file or writing a new one.
 
     .OUTPUTS
         [hashtable] The definition.
@@ -62,24 +67,30 @@ function Get-iSOCAnalyticsRuleDefinition {
         DeployOrder       = 30
         SettleSeconds     = 0
         MissingDependency = 'DeployDisabled'
-        Capabilities      = @('Deploy', 'Dependencies')
+        Capabilities      = @('Deploy', 'Dependencies', 'Compare', 'Sync')
         Prerequisites     = @('powershell-yaml')
         Handlers          = @{
-            ReadRepo  = 'Read-iSOCAnalyticsRuleRepo'
-            Validate  = 'Test-iSOCAnalyticsRule'
-            ToRequest = 'ConvertTo-iSOCAnalyticsRuleRequest'
-            GetQuery  = 'Get-iSOCAnalyticsRuleKql'
-            Deploy    = 'Invoke-iSOCAnalyticsRuleDeploy'
+            ReadRepo       = 'Read-iSOCAnalyticsRuleRepo'
+            Validate       = 'Test-iSOCAnalyticsRule'
+            ToRequest      = 'ConvertTo-iSOCAnalyticsRuleRequest'
+            GetQuery       = 'Get-iSOCAnalyticsRuleKql'
+            Deploy         = 'Invoke-iSOCAnalyticsRuleDeploy'
+            ReadWorkspace  = 'Read-iSOCAnalyticsRuleWorkspace'
+            Classify       = 'Get-iSOCAnalyticsRuleSource'
+            ToComparable   = 'ConvertTo-iSOCAnalyticsRuleComparable'
+            UpdateRepoFile = 'Update-iSOCAnalyticsRuleYaml'
+            ToRepoFile     = 'ConvertTo-iSOCAnalyticsRuleYaml'
+            GetRepoPath    = 'Get-iSOCAnalyticsRuleRepoPath'
         }
         Fields            = @(
             @{ Name = 'kind'; Comparer = 'Exact' }
-            @{ Name = 'properties.displayName'; Comparer = 'Exact' }
-            @{ Name = 'properties.severity'; Comparer = 'CaseInsensitive' }
             @{ Name = 'properties.query'; Comparer = 'Whitespace' }
-            @{ Name = 'properties.queryFrequency'; Comparer = 'Duration' }
-            @{ Name = 'properties.queryPeriod'; Comparer = 'Duration' }
-            @{ Name = 'properties.triggerOperator'; Comparer = 'CaseInsensitive' }
-            @{ Name = 'properties.triggerThreshold'; Comparer = 'Number' }
+            @{ Name = 'properties.queryFrequency'; Comparer = 'Duration'; Kind = 'Scheduled' }
+            @{ Name = 'properties.queryPeriod'; Comparer = 'Duration'; Kind = 'Scheduled' }
+            @{ Name = 'properties.triggerOperator'; Comparer = 'CaseInsensitive'; Kind = 'Scheduled' }
+            @{ Name = 'properties.triggerThreshold'; Comparer = 'Number'; Kind = 'Scheduled' }
+            @{ Name = 'properties.severity'; Comparer = 'CaseInsensitive' }
+            @{ Name = 'properties.displayName'; Comparer = 'Exact' }
         )
     }
 }

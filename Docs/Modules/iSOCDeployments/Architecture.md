@@ -27,7 +27,7 @@ type. The rules here are enforced by the suites under
 | `Private/Rest/` | The only files that call REST: `Invoke-iSOCRestRequest` and its helpers |
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
-| `Private/Drift/` | The comparers and the canonical forms they rest on |
+| `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |
 | `Private/ContentTypes/` | The registry, the shared YAML and JSON item readers, and one folder per content type with its definition and handlers |
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
 | `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
@@ -138,7 +138,7 @@ refuses to build when one is wrong (`ContentTypes.Tests.ps1`).
 | `Capabilities` | What the module can do with the type | `Deploy`, `Export`, `Compare`, `Sync`, `Dependencies` |
 | `Prerequisites` | What reading or sending the type needs | Names from the requirement table |
 | `Handlers` | The functions that do the type's work | See below |
-| `Fields` | What a compare looks at | `@{ Name = 'properties.x'; Comparer = '...' }`, by dotted place in the request body (`queryCondition.queryText` for a Graph type) |
+| `Fields` | What a compare looks at | `@{ Name = 'properties.x'; Comparer = '...' }`, by dotted place in the request body (`queryCondition.queryText` for a Graph type), with `Kind = '...'` when the field is compared only for items of that kind (a Scheduled rule's schedule) |
 
 `Get-iSOCContentFile` lists a type's items in ordinal order of their
 repository-relative path, so every machine walks the repository the same
@@ -163,7 +163,13 @@ name. Each lives in its type's folder in a file named after it.
 | `GetQuery` | `-Item` | The KQL the item runs |
 | `Deploy` | `-Run`, `-ContentType`, `-Item`, and `-Disabled` when the type deploys disabled | Optional: sends the item itself, checking ShouldProcess, and returns Outcome and Reason. Without one, deploy sends the ToRequest body as it is. Analytics rules have one, to resend a rule disabled after a KQL error; playbooks, which deploy through Az.Resources and validate under `-WhatIf`; and Defender detections, which Graph updates with PATCH at an existing rule's id or creates with POST, after reading the tenant's rules once per run into the run's `Cache` |
 | `Order` | `-Item` | Optional: the items in the order they must deploy. Without one, deploy takes repository order, prioritised items first and Community items last (`Get-iSOCDeployOrder`). Playbooks have one, to deploy modules before the playbooks that call them |
-| `ReadWorkspace`, `Classify`, `ToComparable`, `GetTemplates`, `ToRepoFile`, `UpdateRepoFile`, `GetRepoPath` | | Arrive with export, compare and sync |
+| `ReadWorkspace` | `-Context`, `-ContentType` | The type's items in the workspace, every page, as the API returns them |
+| `Classify` | `-Run`, `-ContentType`, `-WorkspaceItem` | Where a workspace item's source of truth is: `Source` (`Custom`, `ContentHub`, `Orphan`, `Managed`), `State` when no compare is needed (`Managed`, `Skipped`, `PortalOnly`), `Reason`, `Expected` (the body to compare with, in `ToRequest`'s shape), `SourceRef`, `SourcePath` and `Solution`. What it reads for every item (the repository's items, the templates) it reads once per run into the run's `Cache` |
+| `ToComparable` | `-WorkspaceItem` | The workspace's copy in the shape `ToRequest` builds, without the fields the service manages |
+| `UpdateRepoFile` | `-Path`, `-Modification` | Writes the workspace's values for the changed fields into the item's file, leaving the rest as it was; `$true` when the file changed |
+| `ToRepoFile` | `-WorkspaceItem`, `-Provenance`, `-SolutionName` | The text of a new repository file for a workspace item |
+| `GetRepoPath` | `-WorkspaceItem`, `-Provenance`, `-SolutionName` | Where that file goes, relative to the repository |
+| `GetTemplates` | | Arrives with export |
 
 An unreadable item and an invalid one are told apart, because deploy
 treats them as the scripts do: `ParseError` is set when the file is there
@@ -176,13 +182,17 @@ A capability needs these handlers:
 | --- | --- |
 | `Deploy` | `ReadRepo`, `Validate`, `ToRequest` |
 | `Export` | `ReadWorkspace`, `ToRepoFile`, `GetRepoPath` |
-| `Compare` | `ReadRepo`, `ReadWorkspace`, `ToRequest`, `ToComparable` |
+| `Compare` | `ReadRepo`, `ReadWorkspace`, `Classify`, `ToRequest`, `ToComparable` |
 | `Sync` | Compare's, and `UpdateRepoFile`, `ToRepoFile`, `GetRepoPath` |
 | `Dependencies` | `ReadRepo`, `GetQuery` |
 
 Compare works on what deploy would send: `ToRequest` builds the body from
 the repository file, and `ToComparable` maps the workspace's copy into the
 same shape, so a field is compared once, by its place in the body.
+`Compare-iSOCContentBody` walks the type's `Fields` in order, skips one
+whose `Kind` is not the workspace item's and one the source leaves unset,
+and returns each difference with both values as they are.
+[Drift](Drift.md) describes the commands built on it.
 
 ## Comparers
 

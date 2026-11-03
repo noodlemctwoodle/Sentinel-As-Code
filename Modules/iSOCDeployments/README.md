@@ -16,9 +16,10 @@ Sentinel workspaces; the public commands avoid the product name.
 > comparers), the content type registry, `Deploy-iSOCContent` for every
 > content type `Deploy-CustomContent.ps1` deploys and the Defender XDR
 > custom detections `Deploy-DefenderDetections.ps1` does, the Content Hub
-> commands, and the dependency manifest commands. Export, compare and sync
-> arrive as each area is ported; [MIGRATION.md](MIGRATION.md) tracks
-> which.
+> commands, compare, sync and the drift report for analytics rules, and
+> the dependency manifest commands. Export, and compare and sync for the
+> other types, arrive as each area is ported; [MIGRATION.md](MIGRATION.md)
+> tracks which.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -37,6 +38,9 @@ Deploy-iSOCContent -WhatIf
 | `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, then Defender XDR custom detections through Microsoft Graph, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks; the `CustomDetection.ReadWrite.All` Graph permission when there are Defender detections |
 | `Get-iSOCContentHubSolution` | Where Content Hub solutions stand: installed and available versions, and what installing them would do | Az.Accounts, a connected workspace |
 | `Install-iSOCContentHubSolution` | Installs or updates Content Hub solutions, then deploys the analytics rules and workbooks they ship, protecting rules changed in the workspace, with `-WhatIf` | Az.Accounts, a connected workspace |
+| `Compare-iSOCContent` | What was changed in the workspace and not in the repository: each analytics rule classed by its source of truth and compared with it field by field | Az.Accounts, powershell-yaml, a connected workspace |
+| `Sync-iSOCContent` | Writes a compare's drift into the repository: portal edits into their files, customised Content Hub and portal-only rules into new ones, with `-WhatIf` | powershell-yaml |
+| `Export-iSOCDriftReport` | Writes a compare's result as the JSON and Markdown drift report, when anything drifted | Nothing |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
@@ -47,8 +51,8 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCWorkspace`, `Export-iSOCContent`, `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent`, the
-permission, set-up, community import and table migration commands.
+`Deploy-iSOCWorkspace`, `Export-iSOCContent`, the permission, set-up,
+community import and table migration commands.
 
 ## What it needs
 
@@ -76,10 +80,11 @@ Private/
   Rest/          the only files that call REST (Invoke-AzRestMethod)
   Yaml/          loading powershell-yaml, reading and writing YAML
   Kql/           dependency discovery in KQL (from Sentinel.Common)
-  Drift/         comparers and canonical forms
+  Drift/         comparers, canonical forms, the drift run and its report
   Manifest/      the dependency manifest
   Deploy/        the deploy engine
   State/         deployment-state.json
+  ContentHub/    Content Hub solutions
   ContentTypes/  the registry, and one folder per content type with its
                  definition and handlers
 ```

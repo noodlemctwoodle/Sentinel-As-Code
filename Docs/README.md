@@ -107,6 +107,7 @@ docs live in `Docs/Modules/iSOCDeployments/`.
 | [Content types](Modules/iSOCDeployments/Content-Types.md) | Each content type and what the module can do with it so far |
 | [Deploying content](Modules/iSOCDeployments/Deploy.md) | `Deploy-iSOCContent` and how it maps to `Deploy/content/Deploy-CustomContent.ps1` and `Deploy/content/Deploy-DefenderDetections.ps1` |
 | [Content Hub solutions](Modules/iSOCDeployments/Content-Hub.md) | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` and how they map to `Deploy/content/Deploy-SentinelContentHub.ps1` |
+| [Drift](Modules/iSOCDeployments/Drift.md) | `Compare-iSOCContent`, `Sync-iSOCContent`, `Export-iSOCDriftReport` and how they map to `Tools/Test-SentinelRuleDrift.ps1` |
 | [Dependency manifest](Modules/iSOCDeployments/Dependency-Manifest.md) | The module's manifest commands and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
 

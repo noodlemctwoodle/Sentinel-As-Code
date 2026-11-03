@@ -12,7 +12,7 @@ detections the pipelines deploy in a later stage.
 | --- | --- | --- | --- | --- | --- | --- |
 | `Parser` | `Content/Parsers` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 10 | Deploy (not checked) | Deploy |
 | `Watchlist` | `Content/Watchlists` (one folder each: `watchlist.json`, `data.csv`) | ARM, workspace, `watchlists` (2025-09-01) | `watchlistAlias` | 20 | Skip | Deploy |
-| `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Deploy, Dependencies |
+| `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Deploy, Compare, Sync, Dependencies |
 | `HuntingQuery` | `Content/HuntingQueries` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 40 | Skip | Deploy, Dependencies |
 | `Playbook` | `Content/Playbooks` (ARM templates, any depth) | ARM deployment through Az.Resources, playbook resource group | `PlaybookName` default, else the file name | 50 | Skip | Deploy |
 | `Workbook` | `Content/Workbooks` (one folder each: `workbook.json`, `metadata.json`) | ARM, resource group, `Microsoft.Insights/workbooks` (2022-04-01) | `workbookId`, else derived | 60 | Skip | Deploy |
@@ -21,7 +21,9 @@ detections the pipelines deploy in a later stage.
 | `DefenderDetection` | `Content/DefenderCustomDetections` (YAML, any depth) | Microsoft Graph, tenant, `security/rules/detectionRules` (beta) | `displayName` | 90 | Deploy (not checked) | Deploy |
 
 `Deploy` means `Deploy-iSOCContent` deploys the type
-([Deploying content](Deploy.md)); `Dependencies` means the type is in the
+([Deploying content](Deploy.md)); `Compare` and `Sync` mean
+`Compare-iSOCContent` finds its drift and `Sync-iSOCContent` writes it into
+the repository ([Drift](Drift.md)); `Dependencies` means the type is in the
 dependency manifest ([Dependency manifest](Dependency-Manifest.md)). After
 watchlists are uploaded, deploy waits 30 seconds before the rules that
 read them. Every type deploys in repository order, the items
@@ -71,10 +73,22 @@ E15).
   details, alert details override, event grouping and incident
   configuration pass through. `Tests/iSOCDeployments/AnalyticsRule.Tests.ps1`
   holds every rule in the repository to the request the script builds.
-- **Compared fields**: kind, display name, severity (any case), query
-  (whitespace-insensitive), frequency and period (as durations), trigger
-  operator (any case) and threshold (as a number), the fields the drift
-  script compares today.
+- **Compared fields**: kind and display name (exactly), severity (any
+  case), query (ignoring whitespace, not case), and for Scheduled rules
+  frequency and period (as durations), trigger operator (any case) and
+  threshold (as a number): the fields `Tools/Test-SentinelRuleDrift.ps1`
+  compares, with the changes in MIGRATION.md edit E22.
+- **Compare**: every rule in the workspace, read with the preview alert
+  rules API, is classed as Microsoft-managed (Fusion, ML, threat
+  intelligence and incident creation rules), governed by the repository
+  file with its id, from a Content Hub template, or portal-only, and
+  compared with its source ([Drift](Drift.md)).
+- **Sync**: a portal edit is written into the rule's file in place, its
+  patch version raised; a customised Content Hub rule and a portal-only
+  rule are written to new files under
+  `Content/AnalyticalRules/AbsorbedFromPortal/`.
+  `Tests/iSOCDeployments/Drift.Tests.ps1` holds compare, sync and the
+  report to what the drift script does.
 
 ### HuntingQuery
 

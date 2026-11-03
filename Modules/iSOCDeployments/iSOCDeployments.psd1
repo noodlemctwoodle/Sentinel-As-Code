@@ -11,13 +11,16 @@
     # (Test-iSOCDeploymentPrerequisite), so reading repository content offline
     # never needs Az.Accounts.
     FunctionsToExport = @(
+        'Compare-iSOCContent'
         'Connect-iSOCWorkspace'
         'Deploy-iSOCContent'
+        'Export-iSOCDriftReport'
         'Get-iSOCContentDependency'
         'Get-iSOCContentHubSolution'
         'Get-iSOCContentType'
         'Get-iSOCContext'
         'Install-iSOCContentHubSolution'
+        'Sync-iSOCContent'
         'Test-iSOCDependencyManifest'
         'Test-iSOCDeploymentPrerequisite'
         'Update-iSOCDependencyManifest'

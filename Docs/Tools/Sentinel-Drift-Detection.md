@@ -15,6 +15,12 @@ review.
 | Auto-sync branch | `auto/sentinel-drift-sync` (rolling, force-pushed each run) |
 | Schedule | Daily at 06:00 UTC (both CI systems) |
 
+> The iSOCDeployments module's `Compare-iSOCContent`, `Sync-iSOCContent`
+> and `Export-iSOCDriftReport` will replace the script in release 26.11.0;
+> the pipelines run the script until then.
+> [Drift](../Modules/iSOCDeployments/Drift.md) maps each parameter to the
+> commands and lists what changes.
+
 The same detection script drives two CI implementations. GitHub Actions is the
 repo's primary CI; the Azure DevOps pipeline is a functional mirror. Both invoke
 `Test-SentinelRuleDrift.ps1` on an identical daily schedule, reset the rolling

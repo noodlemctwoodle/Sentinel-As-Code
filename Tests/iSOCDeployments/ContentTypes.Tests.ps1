@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.4.0
+    Version:      0.6.0
     Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+, Pester 5+
 #>
@@ -118,8 +118,11 @@ Describe 'Test-iSOCContentTypeDefinition' {
         @{ Case = 'a prerequisite not in the table'; Change = { param($d) $d.Prerequisites = @('Az.Magic') }; Message = "prerequisite 'Az.Magic'*" }
         @{ Case = 'a handler name it does not know'; Change = { param($d) $d.Handlers.Frobnicate = 'Get-iSOCApiVersion' }; Message = "unknown handler 'Frobnicate'" }
         @{ Case = 'a handler the module does not define'; Change = { param($d) $d.Handlers.ToRequest = 'ConvertTo-iSOCNothing' }; Message = "handler ToRequest names 'ConvertTo-iSOCNothing'*" }
-        @{ Case = 'a capability without its handlers'; Change = { param($d) $d.Capabilities = @('Export') }; Message = 'capability Export needs a ReadWorkspace handler' }
+        @{ Case = 'a capability without its handlers'; Change = { param($d) $d.Capabilities = @('Export'); $d.Handlers.Remove('ReadWorkspace') }; Message = 'capability Export needs a ReadWorkspace handler' }
         @{ Case = 'a capability it does not know'; Change = { param($d) $d.Capabilities = @('Teleport') }; Message = "unknown capability 'Teleport'" }
+        @{ Case = 'Compare without a Classify handler'; Change = { param($d) $d.Capabilities = @('Compare'); $d.Handlers.Remove('Classify') }; Message = 'capability Compare needs a Classify handler' }
+        @{ Case = 'a field whose Kind is blank'; Change = { param($d) $d.Fields = @(@{ Name = 'kind'; Comparer = 'Exact'; Kind = ' ' }) }; Message = 'field kind has a Kind that is not a name' }
+        @{ Case = 'a field with a key it does not know'; Change = { param($d) $d.Fields = @(@{ Name = 'kind'; Comparer = 'Exact'; When = 'Scheduled' }) }; Message = "field kind has unknown key 'When'" }
         @{ Case = 'a comparer it does not know'; Change = { param($d) $d.Fields = @(@{ Name = 'kind'; Comparer = 'Fuzzy' }) }; Message = "field kind uses unknown comparer 'Fuzzy'" }
         @{ Case = 'a field listed twice'; Change = { param($d) $d.Fields = @(@{ Name = 'kind'; Comparer = 'Exact' }, @{ Name = 'kind'; Comparer = 'Exact' }) }; Message = 'field kind is listed twice' }
         @{ Case = 'a deploy order that is not a whole number'; Change = { param($d) $d.DeployOrder = '30' }; Message = 'DeployOrder is not a whole number' }
@@ -165,8 +168,8 @@ Describe 'Invoke-iSOCContentTypeHandler' {
     }
 
     It 'says which handler a type does not have' {
-        { InModuleScope iSOCDeployments { Invoke-iSOCContentTypeHandler -ContentType (Get-iSOCContentTypeDefinition -Name AnalyticsRule) -Handler ToRepoFile } } |
-            Should -Throw -ExpectedMessage "*'AnalyticsRule' has no ToRepoFile handler*"
+        { InModuleScope iSOCDeployments { Invoke-iSOCContentTypeHandler -ContentType (Get-iSOCContentTypeDefinition -Name AnalyticsRule) -Handler GetTemplates } } |
+            Should -Throw -ExpectedMessage "*'AnalyticsRule' has no GetTemplates handler*"
     }
 }
 

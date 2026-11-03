@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-03
     Requires:     PowerShell 7.2+
 
     Docs/Modules/iSOCDeployments/Architecture.md lists the keys, the values
@@ -31,12 +31,14 @@ function Test-iSOCContentTypeDefinition {
         version and prerequisites name entries in their tables, that every
         handler names a function the module has, that every capability has
         the handlers it needs, and that every field names a comparer
-        Compare-iSOCFieldValue knows.
+        Compare-iSOCFieldValue knows. A field may also name the Kind of item
+        it applies to (a Scheduled rule's schedule, say), and has no other
+        keys.
 
         Capability   Handlers it needs
         Deploy       ReadRepo, Validate, ToRequest
         Export       ReadWorkspace, ToRepoFile, GetRepoPath
-        Compare      ReadRepo, ReadWorkspace, ToRequest, ToComparable
+        Compare      ReadRepo, ReadWorkspace, Classify, ToRequest, ToComparable
         Sync         Compare's, and UpdateRepoFile, ToRepoFile, GetRepoPath
         Dependencies ReadRepo, GetQuery
 
@@ -69,8 +71,8 @@ function Test-iSOCContentTypeDefinition {
     $needs = @{
         Deploy       = 'ReadRepo', 'Validate', 'ToRequest'
         Export       = 'ReadWorkspace', 'ToRepoFile', 'GetRepoPath'
-        Compare      = 'ReadRepo', 'ReadWorkspace', 'ToRequest', 'ToComparable'
-        Sync         = 'ReadRepo', 'ReadWorkspace', 'ToRequest', 'ToComparable', 'UpdateRepoFile', 'ToRepoFile', 'GetRepoPath'
+        Compare      = 'ReadRepo', 'ReadWorkspace', 'Classify', 'ToRequest', 'ToComparable'
+        Sync         = 'ReadRepo', 'ReadWorkspace', 'Classify', 'ToRequest', 'ToComparable', 'UpdateRepoFile', 'ToRepoFile', 'GetRepoPath'
         Dependencies = 'ReadRepo', 'GetQuery'
     }
 
@@ -130,6 +132,8 @@ function Test-iSOCContentTypeDefinition {
         if ($field -isnot [hashtable] -or [string]::IsNullOrWhiteSpace([string]$field.Name)) { $issues.Add('a field has no Name'); continue }
         if ($field.Comparer -notin $comparers) { $issues.Add("field $($field.Name) uses unknown comparer '$($field.Comparer)'") }
         if (-not $seen.Add([string]$field.Name)) { $issues.Add("field $($field.Name) is listed twice") }
+        if ($field.ContainsKey('Kind') -and ($field.Kind -isnot [string] -or [string]::IsNullOrWhiteSpace($field.Kind))) { $issues.Add("field $($field.Name) has a Kind that is not a name") }
+        foreach ($k in @($field.Keys | Where-Object { $_ -notin 'Name', 'Comparer', 'Kind' })) { $issues.Add("field $($field.Name) has unknown key '$k'") }
     }
 
     $issues.ToArray()
