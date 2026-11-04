@@ -160,6 +160,11 @@ The CI service principal does not have `roleAssignments/write`. After the first 
     -SentinelResourceGroup '<sentinel-resource-group>'
 ```
 
+> `Grant-iSOCRunbookPermission` and `Revoke-iSOCRunbookPermission`, in the
+> iSOCDeployments module, will replace the script in release 26.11.0.
+> [Permissions](../Modules/iSOCDeployments/Permissions.md) maps each
+> parameter to the commands.
+
 The script resolves the Automation Account's managed-identity principal ID, prints a permission summary and disclaimer, then prompts interactively (`Y/N`) before making any change. It supports `-WhatIf` (via `SupportsShouldProcess`) to preview the assignments without applying them.
 
 This assigns:

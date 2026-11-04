@@ -141,6 +141,11 @@ HTTP actions targeting Microsoft Graph (`graph.microsoft.com`) or the Defender A
 
 Parameters: `-PlaybookResourceGroup` and `-SentinelWorkspaceName` are mandatory; `-SentinelResourceGroup` defaults to the playbook resource group; `-SubscriptionId` falls back to the current Az context; `-KeyVaultName` is required only when playbooks reference Key Vault.
 
+> `Grant-iSOCPlaybookPermission`, in the iSOCDeployments module, will replace
+> the script in release 26.11.0.
+> [Permissions](../Modules/iSOCDeployments/Permissions.md) maps each parameter
+> to the command.
+
 ## Exporting from Azure
 
 > `Export-iSOCContent -ContentType Playbook`, in the iSOCDeployments

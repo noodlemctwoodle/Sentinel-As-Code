@@ -32,7 +32,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   the portal is absorbed with its line breaks rather than collapsed onto
   one line, a source left out is skipped rather than exported again as
   orphans, and the report no longer carries the subscription id),
-  `Import-iSOCCommunityRule`, which replaces `Tools/Import-CommunityRules.ps1`
+  `Grant-iSOCPlaybookPermission`, `Grant-iSOCRunbookPermission` and
+  `Revoke-iSOCRunbookPermission`, which replace the scripts under
+  `Deploy/permissions/` (the same role assignments, through the REST
+  client rather than Az.Resources and the az CLI, with `-WhatIf` and a
+  confirmation prompt), `Import-iSOCCommunityRule`, which replaces
+  `Tools/Import-CommunityRules.ps1`
   (the same rules and ids, from a source definition rather than settings
   fixed in the script; a `-WhatIf` that tells new rules from updated ones,
   and a repeat import that changes no file), `Export-iSOCContent`, which
@@ -49,6 +54,21 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **Playbook permissions grant only what each playbook needs** -
+  `Deploy/permissions/Set-PlaybookPermissions.ps1` looked for a PUT
+  request with the pattern `method.*put`, which matches any method
+  followed anywhere by "inputs" or "outputs", so it gave Microsoft
+  Sentinel Contributor to 44 of the 90 playbooks in this repository that
+  otherwise needed Responder or nothing from Sentinel. It now matches a
+  `"method": "put"` pair. Its check for an assignment the identity already
+  has compared the role's full resource id with the bare GUID
+  `Get-AzRoleAssignment` returns, so it never matched (a run relied on
+  Azure refusing the duplicate, and `-WhatIf` listed every role as one it
+  would assign); it now compares the GUID and counts an assignment
+  inherited from above. It also read workflow properties a playbook may not
+  have, which the strict mode it runs under refuses. **For forks:**
+  assignments the earlier script made stay until someone removes them;
+  review Microsoft Sentinel Contributor on the playbooks' identities.
 - **The community importer imports rules again, and keeps rule ids
   stable** - `Tools/Import-CommunityRules.ps1` imported nothing. It
   skipped every YAML source rule with "could not parse YAML as a

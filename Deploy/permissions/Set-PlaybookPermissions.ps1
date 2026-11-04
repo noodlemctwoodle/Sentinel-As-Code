@@ -49,8 +49,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-28
-    Version:        1.0.1
-    Last Updated:   2026-09-01
+    Version:        1.0.2
+    Last Updated:   2026-11-04
     Permissions:    User Access Administrator OR Owner on the playbook resource
                     group (and Sentinel resource group, if different).
                     The deployment SPN's ABAC-conditioned UAA does NOT
@@ -118,7 +118,10 @@ $ConnectorRoleMap = @{
 $ContributorActionPatterns = @(
     '/Incidents',             # Update/close incidents
     '/Watchlists',            # Create/modify watchlists
-    'method.*put',            # PUT requests to Sentinel
+    '"method"\s*:\s*"put"',   # PUT requests. The pattern was method.*put, which
+                              # matched any method followed anywhere by "inputs"
+                              # or "outputs", so nearly every workflow got
+                              # Microsoft Sentinel Contributor.
     'Update_incident'         # Named action for updating incidents
 )
 
@@ -149,8 +152,17 @@ function Get-PlaybookRequiredRoles {
     $roles = [System.Collections.Generic.Dictionary[string, string]]::new()
     $json = $LogicAppProperties | ConvertTo-Json -Depth 50 -Compress
 
-    # 1. Detect API connectors from $connections parameter values
-    $connParams = $LogicAppProperties.parameters.'$connections'.value
+    # 1. Detect API connectors from $connections parameter values. Read
+    # through PSObject.Properties: under Set-StrictMode -Version Latest a
+    # workflow without parameters or connections would otherwise throw.
+    $connParams = $null
+    $parameters = $LogicAppProperties.PSObject.Properties['parameters']
+    if ($parameters -and $parameters.Value) {
+        $connections = $parameters.Value.PSObject.Properties['$connections']
+        if ($connections -and $connections.Value -and $connections.Value.PSObject.Properties['value']) {
+            $connParams = $connections.Value.value
+        }
+    }
     if ($connParams) {
         foreach ($prop in $connParams.PSObject.Properties) {
             $connValue = $prop.Value
@@ -301,8 +313,12 @@ foreach ($la in $logicApps) {
 
     # Get the Logic App details
     $laDetail = Get-AzResource -ResourceId $la.ResourceId -ExpandProperties -ErrorAction Stop
-    $identityType = $laDetail.Properties.identity.type
-    if (-not $identityType) { $identityType = $laDetail.Identity.Type }
+    # A workflow's identity is beside its properties, not in them; reading
+    # Properties.identity throws under Set-StrictMode -Version Latest.
+    $identityType = $null
+    $propertyIdentity = $laDetail.Properties.PSObject.Properties['identity']
+    if ($propertyIdentity -and $propertyIdentity.Value) { $identityType = $propertyIdentity.Value.type }
+    if (-not $identityType -and $laDetail.Identity) { $identityType = $laDetail.Identity.Type }
 
     if (-not $identityType -or $identityType -eq 'None') {
         Write-Host "    [SKIP] No managed identity configured." -ForegroundColor DarkGray
@@ -360,13 +376,13 @@ foreach ($la in $logicApps) {
             continue
         }
 
-        $fullRoleDefId = "/subscriptions/$SubscriptionId/providers/Microsoft.Authorization/roleDefinitions/$roleDefId"
-
-        # Check if assignment already exists
+        # Check if assignment already exists, at the scope or inherited from
+        # above it. Get-AzRoleAssignment returns RoleDefinitionId as the bare
+        # GUID, so comparing it with $fullRoleDefId never matched.
         $existing = $existingAssignments | Where-Object {
             $_.ObjectId -eq $principalId -and
-            $_.RoleDefinitionId -eq $fullRoleDefId -and
-            $_.Scope -eq $scope
+            ([string]$_.RoleDefinitionId -split '/')[-1] -eq $roleDefId -and
+            ($_.Scope -eq $scope -or $scope.StartsWith("$($_.Scope)/", [System.StringComparison]::OrdinalIgnoreCase))
         }
 
         if ($existing) {

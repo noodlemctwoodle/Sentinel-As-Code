@@ -37,8 +37,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.2.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -66,7 +66,7 @@ BeforeAll {
     $script:ContributorActionPatterns = @(
         '/Incidents'
         '/Watchlists'
-        'method.*put'
+        '"method"\s*:\s*"put"'
         'Update_incident'
     )
     $script:HttpMsiAudienceRoles = @{
@@ -232,5 +232,23 @@ Describe 'Get-PlaybookRequiredRoles' {
             $roles = Get-PlaybookRequiredRoles -LogicAppProperties $props
             $roles.Count | Should -Be 0 -Because 'Graph audiences are auth-via-app-registration, not RBAC'
         }
+    }
+}
+
+Describe 'The Contributor upgrade and strict mode' {
+    It 'does not give Contributor to a workflow that only reads, though it has inputs and a method' {
+        $props = [pscustomobject]@{ definition = [pscustomobject]@{ actions = [pscustomobject]@{ Get = [pscustomobject]@{ type = 'Http'; inputs = [pscustomobject]@{ method = 'GET'; uri = 'https://graph.microsoft.com/v1.0/users' } } } } }
+        $roles = & { Set-StrictMode -Version Latest; Get-PlaybookRequiredRoles -LogicAppProperties $props }
+        $roles.ContainsKey('Microsoft Sentinel Contributor') | Should -BeFalse
+    }
+
+    It 'gives Contributor to a workflow that sends a PUT' {
+        $props = [pscustomobject]@{ definition = [pscustomobject]@{ actions = [pscustomobject]@{ Put = [pscustomobject]@{ type = 'Http'; inputs = [pscustomobject]@{ method = 'PUT'; uri = 'https://example.invalid/x' } } } } }
+        (Get-PlaybookRequiredRoles -LogicAppProperties $props).ContainsKey('Microsoft Sentinel Contributor') | Should -BeTrue
+    }
+
+    It 'reads a workflow without parameters under Set-StrictMode -Version Latest, as the script runs' {
+        $props = [pscustomobject]@{ definition = [pscustomobject]@{ actions = [pscustomobject]@{} } }
+        { & { Set-StrictMode -Version Latest; Get-PlaybookRequiredRoles -LogicAppProperties $props } } | Should -Not -Throw
     }
 }

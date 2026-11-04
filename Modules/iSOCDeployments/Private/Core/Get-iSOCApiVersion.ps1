@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-03
+    Version:      0.3.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -77,6 +77,8 @@ function Get-iSOCApiVersion {
         Deployments             = '2024-11-01'
         ResourceGroups          = '2021-04-01'
         LogicApps               = '2019-05-01'
+        Authorization           = '2022-04-01'
+        Automation              = '2023-11-01'
         GraphSecurity           = 'beta'
     }
 

@@ -45,8 +45,8 @@ to the command's.
 | `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Ported |
 | `Tools/Build-DependencyManifest.ps1` | `Update-iSOCDependencyManifest`, `Test-iSOCDependencyManifest`, `Get-iSOCContentDependency` | Ported |
 | `Tools/Import-CommunityRules.ps1` | `Import-iSOCCommunityRule` | Ported |
-| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` | Planned |
-| `Deploy/permissions/Set-RunbookPermissions.ps1` | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Planned |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` | Ported |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Ported |
 | `Deploy/setup/Setup-ServicePrincipal.ps1` | `Initialize-iSOCServicePrincipal` | Planned |
 | `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` | `Get-iSOCTableMigrationImpact`, `Export-iSOCTableMigrationReport` | Planned |
 | `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` | `Invoke-iSOCClassicTableMigration` | Planned |
@@ -267,6 +267,23 @@ separate module, and are not part of this map.
 | `Tools/Import-CommunityRules.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Private/Community/New-iSOCCommunityResult.ps1` | E28 | One result per rule |
 | `Tools/Import-CommunityRules.ps1` | `Invoke-Main` | `Modules/iSOCDeployments/Private/Community/Write-iSOCCommunityImportSummary.ps1` | - |  |
 | `Tools/Import-CommunityRules.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Community/Get-iSOCCommunitySource.ps1` | E28 | The constants: attribution, tags, folder maps, README text |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Get-PlaybookRequiredRoles` | `Modules/iSOCDeployments/Private/Permissions/Get-iSOCPlaybookRequiredRole.ps1` | - | As the script has it from 1.0.2 |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Resolve-Scope` | `Modules/iSOCDeployments/Private/Permissions/Resolve-iSOCRoleScope.ps1` | - |  |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Grant-iSOCPlaybookPermission.ps1` | E2, E32 |  |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Get-iSOCRoleDefinitionId.ps1` | - | $RoleDefinitions |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Get-iSOCRoleAssignment.ps1` | E32 | Get-AzRoleAssignment |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Find-iSOCRoleAssignment.ps1` | - | The already-assigned check, as the script has it from 1.0.2 |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/New-iSOCRoleAssignment.ps1` | E32 | New-AzRoleAssignment |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Get-iSOCManagedIdentityPrincipal.ps1` | - | The identity checks |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/ContentTypes/Playbook/Read-iSOCPlaybookWorkspace.ps1` | E32 | Get-AzResource |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/New-iSOCPermissionResult.ps1` | E32 | One result per role |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/New-iSOCPermissionRun.ps1` | E32 | The summary |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Grant-iSOCRunbookPermission.ps1` | E2, E33 | Without -Remove |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Public/Revoke-iSOCRunbookPermission.ps1` | E33 | With -Remove |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Get-iSOCRunbookRole.ps1` | - | $roles |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Get-iSOCAutomationPrincipal.ps1` | E33 | az automation account show |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Permissions/Remove-iSOCRoleAssignment.ps1` | E33 | az role assignment delete |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `(script)` | `Modules/iSOCDeployments/Private/Core/ConvertTo-iSOCNameBasedGuid.ps1` | E32 | The assignment names |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-NormalisedDuration` | `Modules/iSOCDeployments/Private/Drift/ConvertTo-iSOCCanonicalDuration.ps1` | - | The second copy |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `Compare-SemanticVersion` | `Modules/iSOCDeployments/Private/ContentHub/Compare-iSOCSemanticVersion.ps1` | - |  |
 | `Deploy/content/Deploy-SentinelContentHub.ps1` | `ConvertTo-ArmTemplate` | `(not ported)` | E21 | Nothing called it |
@@ -334,6 +351,8 @@ separate module, and are not part of this map.
 | E29 | Every file ends with one newline. The script wrote each rule, the manifest and the README with `Set-Content` after text that already ended in one, so rules and the README ended with a blank line, and its unchanged check compared the file (with that line) against the new text (without it), so a re-import reported every rule Updated and rewrote it. Here a rule whose file holds its text is reported Unchanged and not written, and the manifest's hash is of the file written. The manifest and the README keep their `importDate` when the source commit and every rule's hash are as the manifest records, so an import that finds nothing new changes no file. | A scheduled or repeated import leaves the working tree clean unless the upstream changed. |
 | E30 | The README's description column shows each rule's own first line. The script took the first line of the description, which is the attribution every community rule starts with, so every row of the committed `Docs/Content/Community/Dalonso.md` reads the same. The README names `Import-iSOCCommunityRule` as the way to re-import. | The table should say what each rule does. |
 | E31 | An ARM rule with no `alertRuleTemplateName` is given a version 5 GUID from the source repository, its category and its file name, the same on every run; the script gave it a new random GUID each time, so a first import never repeated. `Get-FileHash256` is not ported: nothing called it. | Stable ids, as the deployer needs; and no dead code. |
+| E32 | Playbook permissions are granted by `Grant-iSOCPlaybookPermission` through the REST client rather than Az.Resources (`Get-AzResource`, `Get-AzRoleAssignment`, `New-AzRoleAssignment`); the script also required Az.LogicApp, which it never used. The subscription, the resource groups and the workspace come from the context, and the subscription id is not logged. `-WhatIf` is the common parameter, and `-Name` limits the run to Logic Apps by wildcard. Each assignment is created with the principal type ServicePrincipal, so Azure does not look the identity up first, and is named by a GUID made from its scope, principal and role, so sending it twice changes nothing. Each role of each playbook has a result (Assigned, Unchanged, Skipped with the reason, Failed or WhatIf), and the run an `ExitCode`; nothing exits. The role analysis and the already-assigned check are as `Set-PlaybookPermissions.ps1` 1.0.2 has them: that release fixed a PUT pattern that gave Microsoft Sentinel Contributor to 44 of the 90 playbooks here, a check that never found an assignment, and reads strict mode refused (CHANGELOG). | One REST client for every write, least privilege, and a run that says what it did to each playbook. |
+| E33 | Runbook permissions are two commands, `Grant-iSOCRunbookPermission` and `Revoke-iSOCRunbookPermission` (the script's `-Remove`), through the REST client rather than the az CLI, which is no longer needed. The subscription and the Sentinel resource group come from the context. The script's consent prompt (`Read-Host`) is ShouldProcess with ConfirmImpact High: each change asks for confirmation unless `-Confirm:$false` is given, and `-WhatIf` changes nothing. A role the identity already has at the scope or above is left alone and reported Unchanged, where the script asked az to create it again. A failed assignment or removal is Failed and sets `ExitCode`, where the script only warned on a failed create and never checked a delete. Removing deletes only an assignment at the role's own scope, not one inherited from above. The identity's assignments afterwards are in the result's `Assignments`, where the script printed az's table. The script's help said Microsoft Sentinel Contributor was assigned at subscription scope and that the account and resource group had defaults; it assigned at the Sentinel resource group, and both were mandatory. | Changes that can be previewed and confirmed the PowerShell way, and a result that says what failed. |
 
 ## Parameters
 
@@ -385,6 +404,14 @@ separate module, and are not part of this map.
 | `Tools/Import-CommunityRules.ps1` | `-DryRun` | `-WhatIf` |
 | `Tools/Import-CommunityRules.ps1` | (the David Alonso settings, fixed in the script) | `-Source Dalonso`, the default |
 | `Tools/Import-CommunityRules.ps1` | (none) | `-SourcePath`, a checkout to read instead of cloning; `-RepoPath` |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `-SubscriptionId`, `-PlaybookResourceGroup`, `-SentinelResourceGroup`, `-SentinelWorkspaceName` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup -WorkspaceName -PlaybookResourceGroup`, then `Grant-iSOCPlaybookPermission` (or `-Context`) |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `-KeyVaultName` | The same |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `-WhatIf` (a switch of its own) | `-WhatIf` (the common parameter, with `-Confirm`) |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | (none) | `-Name`, Logic Apps by wildcard |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `-SubscriptionId`, `-SentinelResourceGroup` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup`, then `Grant-iSOCRunbookPermission` (or `-Context`) |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `-AutomationAccountName`, `-AutomationResourceGroup` | The same |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `-Remove` | `Revoke-iSOCRunbookPermission` |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | (the Read-Host consent prompt) | The confirmation prompt; `-Confirm:$false`, `-WhatIf` |
 | `Tools/Build-DependencyManifest.ps1` | `-Mode Verify` | `Test-iSOCDependencyManifest` |
 | `Tools/Build-DependencyManifest.ps1` | `-Mode Generate`, `-Mode Update` | `Update-iSOCDependencyManifest` |
 | `Tools/Build-DependencyManifest.ps1` | `-RepoPath`, `-ManifestPath` | `-RepoPath`, `-ManifestPath` |

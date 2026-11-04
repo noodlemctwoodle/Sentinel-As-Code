@@ -28,6 +28,7 @@ type. The rules here are enforced by the suites under
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
 | `Private/Community/` | Community rule import: the sources, the checkout, reading and normalising rules, settling ids, the manifest hash and the README ([Community rule import](Community-Import.md)) |
+| `Private/Permissions/` | Role assignments over REST (reading, finding one that applies at a scope or above, creating under a stable name, deleting), the playbook role analysis and the runbook's roles ([Permissions](Permissions.md)) |
 | `Private/Git/` | The only file that runs git: `Invoke-iSOCGit` (`Module.Tests.ps1`) |
 | `Private/Export/` | Reading, comparing and saving an item's files, the export result and summary, and making exported content portable: ARM expressions for a workspace's own values, and the plain-text secret scan ([Export](Export.md)) |
 | `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |
@@ -109,7 +110,9 @@ request (`Rest.Tests.ps1`):
 | `Workbooks` | 2022-04-01 | Workbooks |
 | `Deployments` | 2024-11-01 | ARM template deployments |
 | `ResourceGroups` | 2021-04-01 | Resource groups |
-| `LogicApps` | 2019-05-01 | Logic App workflows: where playbooks live, for compare and export (they deploy as templates) |
+| `LogicApps` | 2019-05-01 | Logic App workflows: where playbooks live, for compare, export and permissions (they deploy as templates) |
+| `Authorization` | 2022-04-01 | Role assignments |
+| `Automation` | 2023-11-01 | Automation Accounts, for the runbook's identity |
 | `GraphSecurity` | beta | Defender XDR custom detections (a Graph version segment) |
 
 ## Content types
