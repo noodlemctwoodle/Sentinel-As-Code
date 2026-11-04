@@ -18,8 +18,8 @@ Sentinel workspaces; the public commands avoid the product name.
 > custom detections `Deploy-DefenderDetections.ps1` does, the Content Hub
 > commands, compare, sync and the drift report for analytics rules,
 > export for workbooks and playbooks, community rule import, playbook and
-> runbook permissions, the service principal setup, and the dependency
-> manifest commands. Export, compare and sync for the other types arrive as each
+> runbook permissions, the service principal setup, the classic table
+> migration review, and the dependency manifest commands. Export, compare and sync for the other types arrive as each
 > area is ported; [MIGRATION.md](MIGRATION.md) tracks which.
 
 ```powershell
@@ -48,6 +48,8 @@ Deploy-iSOCContent -WhatIf
 | `Export-iSOCContent` | Writes the workspace's workbooks and playbooks into the repository, ready to deploy: new items to new files, items the repository has only with `-Force`, environment values made portable, with `-WhatIf` | Az.Accounts, a connected workspace |
 | `Export-iSOCDriftReport` | Writes a compare's result as the JSON and Markdown drift report, when anything drifted | Nothing |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
+| `Get-iSOCTableMigrationImpact` | The classic custom log tables and what depends on each, directly or through parser functions, with their Content Hub solutions; read-only | Az.Accounts, a connected workspace |
+| `Export-iSOCTableMigrationReport` | Writes a table migration review as CSV, JSON and a self-contained HTML report | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
 | `Test-iSOCDependencyManifest` | Whether `dependencies.json` matches the content, with the differences | powershell-yaml |
@@ -57,7 +59,8 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCWorkspace` and the table migration commands.
+`Deploy-iSOCWorkspace`, `Invoke-iSOCClassicTableMigration` and the
+migration rehearsal aids.
 
 ## What it needs
 
@@ -86,7 +89,8 @@ Private/
   Az/            the only files that call Az cmdlets
   Rest/          the only files that call REST (Invoke-AzRestMethod)
   Yaml/          loading powershell-yaml, reading and writing YAML
-  Kql/           dependency discovery in KQL (from Sentinel.Common)
+  Kql/           dependency discovery in KQL (from Sentinel.Common), and the
+                 code-only reading the parser chains use
   Drift/         comparers, canonical forms, the drift run and its report
   Export/        an item's files, export results, portable values, the secret scan
   Community/     community rule import
@@ -97,6 +101,7 @@ Private/
   Deploy/        the deploy engine
   State/         deployment-state.json
   ContentHub/    Content Hub solutions
+  MigrationKits/ the classic table migration review
   ContentTypes/  the registry, and one folder per content type with its
                  definition and handlers
 ```

@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -46,6 +46,7 @@ function Get-iSOCApiVersion {
           ResourceGroups           Microsoft.Resources resource groups
           LogicApps                Microsoft.Logic workflows (playbooks), for
                                    reading them; they deploy as ARM templates
+          DataCollectionRules      Microsoft.Insights data collection rules
           GraphSecurity            Microsoft Graph security (Defender XDR
                                    custom detections), a Graph version segment
                                    rather than an api-version
@@ -79,6 +80,7 @@ function Get-iSOCApiVersion {
         LogicApps               = '2019-05-01'
         Authorization           = '2022-04-01'
         Automation              = '2023-11-01'
+        DataCollectionRules     = '2022-06-01'
         GraphSecurity           = 'beta'
     }
 

@@ -60,8 +60,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-07-28
-    Version:      0.2.1
-    Last Updated: 2026-09-01
+    Version:      0.2.2
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Az.Accounts 2.13.0+
 
     Provenance:
@@ -317,14 +317,30 @@ function Get-WorkspaceContent {
 
     Write-Info 'Loading Workbooks...'
     $workbookPath = "/subscriptions/$SubscriptionId/providers/Microsoft.Insights/workbooks"
+    # Without canFetchContent the list returns summary content only: no
+    # serializedData, so no workbook ever had a query to scan.
     try {
         $workbooks = Invoke-ArmRequest -Path $workbookPath -Query @{
-            'api-version' = $script:ApiInsights
-            'category'    = 'sentinel'
+            'api-version'     = $script:ApiInsights
+            'category'        = 'sentinel'
+            'canFetchContent' = 'true'
         }
     } catch {
         Write-Warn2 "Workbook load failed: $($_.Exception.Message)"
         $workbooks = @()
+    }
+    # A workbook the list still returns without content (an inherited
+    # Content Hub one, for example) is read on its own.
+    $workbooks = foreach ($wb in @($workbooks)) {
+        if ($wb.id -and $wb.properties -and -not $wb.properties.serializedData) {
+            try {
+                $detail = @(Invoke-ArmRequest -Path $wb.id -Query @{ 'api-version' = $script:ApiInsights; 'canFetchContent' = 'true' })[0]
+                if ($detail.properties.serializedData) { $wb = $detail }
+            } catch {
+                Write-Warn2 "Workbook '$($wb.properties.displayName)' content load failed: $($_.Exception.Message)"
+            }
+        }
+        $wb
     }
 
     Write-Info 'Loading Data Collection Rules...'

@@ -23,6 +23,7 @@ with any Sentinel workspace.
 | [Drift](Drift.md) | `Compare-iSOCContent`, `Sync-iSOCContent` and `Export-iSOCDriftReport`: what a compare finds, what a sync writes, the report, and how they map to `Tools/Test-SentinelRuleDrift.ps1` |
 | [Permissions](Permissions.md) | `Initialize-iSOCServicePrincipal`, `Grant-iSOCPlaybookPermission`, `Grant-iSOCRunbookPermission` and `Revoke-iSOCRunbookPermission`: the grants, the result, and how they map to the setup and permission scripts |
 | [Community rule import](Community-Import.md) | `Import-iSOCCommunityRule`: sources, what an import writes, the result, and how it maps to `Tools/Import-CommunityRules.ps1` |
+| [Classic table migration](Table-Migration.md) | `Get-iSOCTableMigrationImpact` and `Export-iSOCTableMigrationReport`: what the review finds, where its parser chains stop, the reports, and how they map to `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` |
 | [Dependency manifest](Dependency-Manifest.md) | `Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest` and `Get-iSOCContentDependency`, and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../../../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
 

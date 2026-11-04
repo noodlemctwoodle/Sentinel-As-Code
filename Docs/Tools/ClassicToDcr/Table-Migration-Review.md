@@ -8,8 +8,14 @@ if you migrate it, so the migration is a decision rather than a surprise.
 It is **read-only**. It issues `GET` calls to ARM and writes files to a local output folder.
 Nothing in the workspace is changed, so it is safe to run against production at any time.
 
-The version documented here is **0.2.0**, the release that added indirect (parser-chain)
-dependency resolution.
+The version documented here is **0.2.2**. 0.2.0 added indirect (parser-chain) dependency
+resolution; 0.2.2 lists workbooks with their content, without which no workbook dependency was
+ever found.
+
+The iSOCDeployments module has `Get-iSOCTableMigrationImpact` and
+`Export-iSOCTableMigrationReport`, which replace this script at the 26.11.0 cut-over; see
+[Classic table migration](../../Modules/iSOCDeployments/Table-Migration.md). Until then use the
+script described here.
 
 | What | Where |
 | --- | --- |
@@ -52,7 +58,7 @@ needs bumping.
 | `Microsoft.OperationalInsights/workspaces/tables` | `2023-09-01` | `ApiTables` | Table inventory: type, subtype, plan, retention, columns |
 | `Microsoft.SecurityInsights/*` | `2024-03-01` | `ApiSentinel` | `alertRules` and `contentProductPackages` |
 | `Microsoft.OperationalInsights/workspaces/savedSearches` | `2020-08-01` | `ApiSavedLogs` | Saved searches, which are the source of both hunting queries and parsers |
-| `Microsoft.Insights/workbooks` | `2023-06-01` | `ApiInsights` | Workbooks, filtered to `category=sentinel` |
+| `Microsoft.Insights/workbooks` | `2023-06-01` | `ApiInsights` | Workbooks, filtered to `category=sentinel`, with `canFetchContent=true` so the list carries each workbook's `serializedData`; a workbook it still returns without content is read on its own |
 | `Microsoft.Insights/dataCollectionRules` | `2022-06-01` | `ApiDcr` | Listing DCRs so their `transformKql` can be scanned |
 | `Microsoft.Logic/workflows` | `2019-05-01` | `ApiLogic` | Playbooks |
 

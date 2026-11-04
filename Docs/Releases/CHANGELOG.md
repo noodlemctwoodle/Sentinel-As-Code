@@ -32,6 +32,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   the portal is absorbed with its line breaks rather than collapsed onto
   one line, a source left out is skipped rather than exported again as
   orphans, and the report no longer carries the subscription id),
+  `Get-iSOCTableMigrationImpact` and `Export-iSOCTableMigrationReport`,
+  which replace `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` (the
+  same dependents, chains and reports; the review is returned as an
+  object, and the report's copyable commands are the module's),
   `Initialize-iSOCServicePrincipal`, which replaces
   `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
   sign-in with every scope it needs, which the script's second Graph step
@@ -58,6 +62,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **The table migration review finds workbooks again** -
+  `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` listed the
+  workspace's Sentinel workbooks without `canFetchContent`, and without it
+  Azure returns each workbook's summary only, with no content, so no
+  workbook ever showed as depending on a classic table. 0.2.2 lists them
+  with their content and reads on its own any workbook the list still
+  returns without it. **For forks:** a review run before this release
+  under-reported workbooks; run it again before migrating a table.
 - **Playbook permissions grant only what each playbook needs** -
   `Deploy/permissions/Set-PlaybookPermissions.ps1` looked for a PUT
   request with the pattern `method.*put`, which matches any method
