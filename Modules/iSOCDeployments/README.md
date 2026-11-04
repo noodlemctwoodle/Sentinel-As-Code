@@ -19,7 +19,8 @@ Sentinel workspaces; the public commands avoid the product name.
 > commands, compare, sync and the drift report for analytics rules,
 > export for workbooks and playbooks, community rule import, playbook and
 > runbook permissions, the service principal setup, the classic table
-> migration and its review, and the dependency manifest commands. Export, compare and sync for the other types arrive as each
+> migration with its review and rehearsal aids, and the dependency manifest
+> commands. Export, compare and sync for the other types arrive as each
 > area is ported; [MIGRATION.md](MIGRATION.md) tracks which.
 
 ```powershell
@@ -50,6 +51,8 @@ Deploy-iSOCContent -WhatIf
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCTableMigrationImpact` | The classic custom log tables and what depends on each, directly or through parser functions, with their Content Hub solutions; read-only | Az.Accounts, a connected workspace |
 | `Invoke-iSOCClassicTableMigration` | Migrates classic custom log tables to DCR-based ones and writes, and with `-Deploy` deploys, a data collection rule for each, asking before each migration | Az.Accounts, Az.OperationalInsights, Az.Resources with `-Deploy`, a connected workspace |
+| `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` | Make a throwaway classic table with synthetic data through the Data Collector API (or stream into one), and delete it again, to rehearse a migration on | Az.Accounts, a connected test workspace |
+| `Test-iSOCDcrIngestion` | Streams synthetic records into a data collection rule as a service principal and counts their arrival | Az.Accounts, Az.OperationalInsights with `-Follow`, a service principal with Monitoring Metrics Publisher |
 | `Export-iSOCTableMigrationReport` | Writes a table migration review as CSV, JSON and a self-contained HTML report | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
@@ -60,7 +63,7 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCWorkspace`, the migration rehearsal aids and `New-iSOCDcrFromSchema`.
+`Deploy-iSOCWorkspace`, `New-iSOCDependencyFixture` and `New-iSOCDcrFromSchema`.
 
 ## What it needs
 
@@ -96,13 +99,14 @@ Private/
   Export/        an item's files, export results, portable values, the secret scan
   Community/     community rule import
   Git/           the only file that runs git
+  Http/          the only file that calls endpoints outside ARM and Graph
   Permissions/   role assignments, playbook and runbook roles, service principal setup
   Graph/         the only files that run Graph SDK commands
   Manifest/      the dependency manifest
   Deploy/        the deploy engine
   State/         deployment-state.json
   ContentHub/    Content Hub solutions
-  MigrationKits/ the classic table migration and its review
+  MigrationKits/ the classic table migration, its review and rehearsal aids
   ContentTypes/  the registry, and one folder per content type with its
                  definition and handlers
 ```

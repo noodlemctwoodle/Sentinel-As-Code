@@ -62,7 +62,7 @@ before you run it.
 
 | Thing | Status | Consequence |
 | --- | --- | --- |
-| HTTP Data Collector API | Retires **2026-09-14** | After that date it can neither create classic tables nor ingest into them. Anything still sending over it stops. The rehearsal fixtures also stop working, because nothing can create a classic table any more. |
+| HTTP Data Collector API | Support ended **2026-09-14** | It still accepts data from clients using TLS 1.2 or later (TLS 1.0 and 1.1 stopped on 2026-03-01), so senders and the rehearsal fixtures still work, but with no SLA and only critical security fixes. Microsoft's earlier notice said the endpoints would stop; its current guidance says ingestion continues. Do not plan on it lasting. |
 | MMA / Log Analytics agent | Already retired (**2024-08-31**) | Any table fed by MMA text-log collection must move to the Azure Monitor Agent with a text-log DCR. This is not optional. |
 
 A migrated table also unlocks things a classic table cannot do: it can be mirrored to the
@@ -120,7 +120,7 @@ is a working reference implementation of the new sender.
 
 There is no ingestion gap in this case. The Data Collector API keeps writing to **existing
 columns** after migration, so you can migrate, update the application at your own pace, then
-retire the old path. It cannot add new columns, and it retires on 2026-09-14, so do not linger.
+retire the old path. It cannot add new columns, and its support ended on 2026-09-14, so do not linger.
 
 ### Case B, the MMA agent reading text log files
 

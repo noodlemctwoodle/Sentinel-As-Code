@@ -31,6 +31,7 @@ type. The rules here are enforced by the suites under
 | `Private/Permissions/` | Role assignments over REST (reading, finding one that applies at a scope or above, creating under a stable name, deleting), the playbook role analysis and the runbook's roles ([Permissions](Permissions.md)) |
 | `Private/Graph/` | The only files that run Microsoft Graph SDK commands: a sign-in with the delegated scopes the service principal setup needs, and requests through it (`Module.Tests.ps1`) |
 | `Private/Git/` | The only file that runs git: `Invoke-iSOCGit` (`Module.Tests.ps1`) |
+| `Private/Http/` | The only file that calls endpoints outside ARM and Graph, which take other credentials: the Data Collector API (signed with the workspace key), the Entra token endpoint and the Logs Ingestion API; `Invoke-iSOCHttpRequest` logs nothing of the request (`Module.Tests.ps1`) |
 | `Private/Export/` | Reading, comparing and saving an item's files, the export result and summary, and making exported content portable: ARM expressions for a workspace's own values, and the plain-text secret scan ([Export](Export.md)) |
 | `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |
 | `Private/ContentTypes/` | The registry, the shared YAML and JSON item readers, and one folder per content type with its definition and handlers |
@@ -39,6 +40,7 @@ type. The rules here are enforced by the suites under
 | `Private/State/` | `deployment-state.json`: reading, recording and saving |
 | `Private/ContentHub/` | Content Hub: the onboarding wait, the catalogue and solution status, solution deployment, the rule and workbook steps and the run summary ([Content Hub solutions](Content-Hub.md)) |
 | `Private/MigrationKits/ClassicToDcr/` | The classic table migration and its review: the table inventory and row counts, the migrate operation, the stream, transform and rule template, the rule deployment and ingestion role, the content read, the parser alias index and chains, the impact per table, the Content Hub mapping and the report writers ([Classic table migration](Table-Migration.md)) |
+| `Private/MigrationKits/Rehearsal/` | The rehearsal aids: the Data Collector signature, fixture records and posts, the workspace key, the stream and its records, the token request, the settings and `.env` reader, the ingestion role check, the ingestion stream and the arrival check |
 | `Resources/ClassicToDcr/` | The solution mapping and the HTML report template the review ships with (not code, so outside the one-function-per-file rule) |
 
 Every `.ps1` file defines exactly one function named after the file and
@@ -117,6 +119,7 @@ request (`Rest.Tests.ps1`):
 | `Authorization` | 2022-04-01 | Role assignments |
 | `Automation` | 2023-11-01 | Automation Accounts, for the runbook's identity |
 | `DataCollectionRules` | 2023-03-11 | Data collection rules: read by the table migration review for their transforms, and authored by the classic table migration; 2023-03-11 is the first version with `endpoints`, so a Direct rule gets its own logs ingestion endpoint |
+| `SharedKeys` | 2020-08-01 | A workspace's `sharedKeys` action, for signing the classic table fixture's Data Collector posts |
 | `GraphSecurity` | beta | Defender XDR custom detections (a Graph version segment) |
 
 ## Content types

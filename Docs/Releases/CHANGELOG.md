@@ -40,6 +40,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` (the same
   migrations, rule templates, deployments and grants, through the REST
   client, with a run result and exit code),
+  `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` and
+  `Test-iSOCDcrIngestion`, which replace the classic table fixture and the
+  ingestion test under `Tools/ClassicToDcr/Rehearsal/` (the same signed
+  posts, token requests and ingestion; a `.env` file's settings are no
+  longer left in the session's environment),
   `Initialize-iSOCServicePrincipal`, which replaces
   `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
   sign-in with every scope it needs, which the script's second Graph step
@@ -66,6 +71,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **A classic table fixture stream ends when its posts fail** -
+  `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1 -Stream
+  -BatchCount` counted only the batches that were accepted, so a stream
+  whose posts all failed (a wrong key, a network fault) never reached its
+  limit and ran until stopped. 1.0.2 counts every batch. Its help, the kit
+  README and the toolkit page also said the HTTP Data Collector API stops
+  working on 2026-09-14; Microsoft ended support on that date but still
+  accepts data from TLS 1.2 clients, and the wording now says so.
 - **Classic table migration templates are the same file each time** -
   `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` built each data
   collection rule template's top level as a hashtable, whose key order

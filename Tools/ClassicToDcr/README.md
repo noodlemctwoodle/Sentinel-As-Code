@@ -275,8 +275,8 @@ this new sender.
 
 **No gap in this case:** the Data Collector API keeps writing to
 **existing columns** after migration, so you migrate, update the app at
-your own pace, then retire the old path. It cannot add new columns, and it
-retires on 2026-09-14, so do not linger.
+your own pace, then retire the old path. It cannot add new columns, and its
+support ended on 2026-09-14, so do not linger.
 
 ### Case B: the MMA / Log Analytics agent reading text log files
 
@@ -412,9 +412,10 @@ tracked.
 
 ## Retirement timeline
 
-- **HTTP Data Collector API**: retires **2026-09-14**. After that it cannot
-  create classic tables or ingest, so the fixture (and any real Case A
-  source that has not moved) stops working.
+- **HTTP Data Collector API**: support ended **2026-09-14**. It still
+  accepts data from clients using TLS 1.2 or later, so the fixture (and any
+  real Case A source that has not moved) still works, but with no SLA and
+  only critical security fixes, so move off it rather than rely on it.
 - **MMA / Log Analytics agent**: already retired (2024-08-31). Case B
   migration to AMA is mandatory.
 

@@ -28,8 +28,10 @@
 
     Use -Remove to delete a fixture table afterwards.
 
-    The Data Collector API is retired on 2026-09-14. After that date this
-    script can no longer create classic tables, because nothing can.
+    Microsoft ended support for the Data Collector API on 2026-09-14. It
+    still accepts data from clients using TLS 1.2 or later, so this script
+    still creates classic tables, but with no SLA and only critical
+    security fixes, so do not rely on it lasting.
 
     IMPORTANT: only ever point this at a throwaway or dedicated test
     workspace. It writes real data and creates a real billable table.
@@ -77,8 +79,9 @@
     Stop streaming after this many seconds. Omit for no time limit.
 
 .PARAMETER BatchCount
-    Stop streaming after this many batches. Omit for no batch limit. With
-    neither -DurationSeconds nor -BatchCount, streaming runs until Ctrl-C.
+    Stop streaming after this many batches, counting any that fail. Omit for
+    no batch limit. With neither -DurationSeconds nor -BatchCount, streaming
+    runs until Ctrl-C.
 
 .PARAMETER Remove
     Delete the fixture table instead of creating it. Irreversible for that
@@ -120,15 +123,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-07-23
-    Version:      1.0.1
-    Last Updated: 2026-09-01
+    Version:      1.0.2
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
 
     API versions:
       - Log Analytics tables : 2023-09-01
       - Data Collector API   : 2016-04-01 (the classic ingestion path this
-                               fixture deliberately exercises; it retires on
-                               2026-09-14)
+                               fixture deliberately exercises; its support
+                               ended on 2026-09-14)
 
     Runs standalone. Nothing from this repository needs to be alongside it.
 
@@ -547,15 +550,17 @@ if ($Stream) {
             if ($BatchCount -and $batchIndex -ge $BatchCount)          { break }
 
             $records = New-FixtureRecord -Count $RecordCount -ReferenceTime ([datetime]::UtcNow)
+            # A batch that fails still counts towards -BatchCount, or a
+            # stream whose posts all fail would never end.
+            $batchIndex++
             try {
                 Send-DataCollectorBatch -IngestUri $ingestUri -WorkspaceId $workspaceId `
                                         -SharedKey $sharedKey -LogType $logType -Record $records
                 $sent += $RecordCount
-                $batchIndex++
                 Write-PipelineMessage "[$((Get-Date).ToString('HH:mm:ss'))] legacy batch $batchIndex OK (+$RecordCount, total $sent)"
             }
             catch {
-                Write-PipelineMessage "legacy batch failed: $($_.Exception.Message.Split([char]10)[0])" -Level Warning
+                Write-PipelineMessage "legacy batch $batchIndex failed: $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             }
 
             $moreToDo = (-not ($BatchCount -and $batchIndex -ge $BatchCount)) -and

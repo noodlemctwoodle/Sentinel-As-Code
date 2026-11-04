@@ -4,15 +4,18 @@ Three commands take a classic (CLv1, MMA or Data Collector API) custom log
 table to a DCR-based one. The review finds what each table is, what
 depends on it and which Content Hub solution covers it; the migration
 converts the table and writes, and can deploy, its data collection rule.
+Three more rehearse it on throwaway tables first.
 
 | Command | Replaces |
 | --- | --- |
 | `Get-iSOCTableMigrationImpact` | The assessment in `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` |
 | `Export-iSOCTableMigrationReport` | Its CSV, JSON and HTML reports |
 | `Invoke-iSOCClassicTableMigration` | `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` |
+| `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` | `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1` |
+| `Test-iSOCDcrIngestion` | `Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1` |
 
-They replace the scripts at the 26.11.0 cut-over. The rehearsal aids
-under `Tools/ClassicToDcr/Rehearsal/` are ported next.
+They replace the scripts at the 26.11.0 cut-over.
+`Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` is ported next.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -159,6 +162,52 @@ inventory), `Results` (per table: `TableName`, `SubTypeAfter`, `Migrated`,
 `Endpoint`, `Granted`, `Error`), `Migrated`, `Deployed`, `Failed` and
 `ExitCode` (1 when any table failed).
 
+## Rehearsing a migration
+
+A migration cannot be undone, so rehearse it in a test workspace first:
+
+```powershell
+# A classic table with 50 synthetic records, made through the Data Collector API.
+New-iSOCClassicTableFixture -TableName SacMigrationTest
+
+# Migrate it and deploy its rule, letting a test service principal send to it.
+Invoke-iSOCClassicTableMigration -TableName SacMigrationTest_CL -Deploy -GrantIngestionRoleTo $appId
+
+# Send through the new path and watch the rows arrive.
+Test-iSOCDcrIngestion -DcrName dcr-sacmigrationtest -DcrResourceGroupName rg-scratch -BatchCount 3 -Follow
+
+# Tidy up: migrate it if it is still classic, then delete it.
+Remove-iSOCClassicTableFixture -TableName SacMigrationTest -MigrateBeforeRemove
+```
+
+**`New-iSOCClassicTableFixture`** posts synthetic records (strings,
+doubles, booleans and GUIDs, so the table gets `_s`, `_d`, `_b` and `_g`
+columns) through the HTTP Data Collector API, the only way to make a real
+classic table, signed with the workspace key, which it reads through the
+Az sign-in and never shows. It waits for the table and reports its sub
+type. With `-Stream` it posts batches on an interval instead, as the legacy
+source in a cut-over test. Microsoft ended support for the Data Collector
+API on 14 September 2026; it still accepts data from TLS 1.2 clients, with
+no SLA.
+
+**`Remove-iSOCClassicTableFixture`** deletes the table, asking first. The
+Tables API cannot delete a classic table, so one that is still classic is
+left unless `-MigrateBeforeRemove`. It returns the outcome: Removed,
+NotFound, StillClassic or Skipped.
+
+**`Test-iSOCDcrIngestion`** reads the rule for its endpoint, immutable id,
+stream and destination, then posts records matching the stream through the
+Logs Ingestion API as a service principal (client credentials). The tenant,
+client id and secret come from the parameters, the environment
+(`DCR_INGEST_*` or `AZURE_*`) or a `.env` file in the current folder; the
+environment is never changed and the secret never shown. The principal
+needs Monitoring Metrics Publisher on the rule (`-GrantIngestionRole`).
+With `-Follow` it counts the run's rows as they arrive and waits for them
+afterwards. It returns the batches and records sent and, with `-Follow`,
+the rows that arrived.
+
+All three need a test workspace: they write real, billable data.
+
 ## From the scripts
 
 | `Invoke-TableMigrationReview.ps1` | The module |
@@ -175,6 +224,17 @@ inventory), `Results` (per table: `TableName`, `SubTypeAfter`, `Migrated`,
 | `-OutputDirectory` | `-Path` |
 | Every other parameter | The same |
 | The result list, the listing under `-ListOnly`, or nothing | The run |
+
+| `New-ClassicTableFixture.ps1` | The module |
+| --- | --- |
+| `-SubscriptionId`, `-ResourceGroupName`, `-WorkspaceName` | `Connect-iSOCWorkspace` first (or `-Context`) |
+| `-Remove`, `-MigrateBeforeRemove` | `Remove-iSOCClassicTableFixture`, `-MigrateBeforeRemove` |
+| Every other parameter | The same, on `New-iSOCClassicTableFixture` |
+
+| `Test-DcrIngestion.ps1` | `Test-iSOCDcrIngestion` |
+| --- | --- |
+| `-SubscriptionId` | `Connect-iSOCWorkspace -SubscriptionId` first (or `-Context`) |
+| Every other parameter | The same |
 
 The solution mapping and the report template ship in the module, under
 `Resources/ClassicToDcr/`. The mapping is the script's file, which the
@@ -196,7 +256,12 @@ migrated, beside the command, across listing, every classic table with
 deployment and grants, named tables, templates only, text log rules, a
 transform, `-WhatIf` and an unreadable Usage table: the same migrations,
 deployments and grants in order, the same template files and the same
-result per table. `MIGRATION.md` edits E35 to E37 list how the commands
+result per table. `Tests/iSOCDeployments/Rehearsal.Tests.ps1` runs the two
+rehearsal scripts unchanged the same way, over a stand-in that checks each
+Data Collector signature against the workspace key, issues and checks
+tokens, and checks every ingested record against the stream: the same
+posts, migrations, deletions, token requests, ingestion posts and grants,
+and the same result. `MIGRATION.md` edits E35 to E39 list how the commands
 differ from the scripts.
 
 Release 26.11.0 also fixes both scripts. The review (0.2.2) listed

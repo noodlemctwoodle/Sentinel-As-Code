@@ -45,8 +45,8 @@ function Resolve-iSOCPrincipal {
         An application id or an object id.
 
     .OUTPUTS
-        [pscustomobject] ObjectId and PrincipalType (ServicePrincipal, User,
-        Group or empty).
+        [pscustomobject] ObjectId, PrincipalType (ServicePrincipal, User,
+        Group or empty) and IsApplication (found by application id).
 
     .EXAMPLE
         Resolve-iSOCPrincipal -Context $ctx -Identity $appId
@@ -65,7 +65,7 @@ function Resolve-iSOCPrincipal {
         $filter = [Uri]::EscapeDataString("appId eq '$Identity'")
         $sp = @(Invoke-iSOCRestRequest -Method GET -Api Graph -ApiVersion 'v1.0' -Path "/servicePrincipals?`$filter=$filter" -Context $Context) | Select-Object -First 1
         $id = [string](Get-iSOCPropertyValue -InputObject $sp -Path 'id')
-        if ($id) { return [pscustomobject]@{ ObjectId = $id; PrincipalType = 'ServicePrincipal' } }
+        if ($id) { return [pscustomobject]@{ ObjectId = $id; PrincipalType = 'ServicePrincipal'; IsApplication = $true } }
     }
     catch {
         Write-iSOCLog "Not an application ID, treating '$Identity' as an object ID: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
@@ -85,5 +85,5 @@ function Resolve-iSOCPrincipal {
     catch {
         Write-iSOCLog "Could not read the type of '$Identity': $($_.Exception.Message.Split([char]10)[0])" -Level Debug
     }
-    [pscustomobject]@{ ObjectId = $Identity; PrincipalType = $type }
+    [pscustomobject]@{ ObjectId = $Identity; PrincipalType = $type; IsApplication = $false }
 }

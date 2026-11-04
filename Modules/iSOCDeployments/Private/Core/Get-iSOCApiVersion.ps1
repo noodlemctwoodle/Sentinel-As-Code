@@ -48,6 +48,8 @@ function Get-iSOCApiVersion {
                                    reading them; they deploy as ARM templates
           DataCollectionRules      Microsoft.Insights data collection rules;
                                    2023-03-11 is the first with endpoints
+          SharedKeys               A Log Analytics workspace's sharedKeys
+                                   action, for the classic table fixture
           GraphSecurity            Microsoft Graph security (Defender XDR
                                    custom detections), a Graph version segment
                                    rather than an api-version
@@ -82,6 +84,7 @@ function Get-iSOCApiVersion {
         Authorization           = '2022-04-01'
         Automation              = '2023-11-01'
         DataCollectionRules     = '2023-03-11'
+        SharedKeys              = '2020-08-01'
         GraphSecurity           = 'beta'
     }
 

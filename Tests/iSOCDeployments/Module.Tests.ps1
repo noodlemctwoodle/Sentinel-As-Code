@@ -218,8 +218,10 @@ Describe 'Code rules' {
         foreach ($call in $gitCalls) { $call.Path | Should -Be 'Modules/iSOCDeployments/Private/Git/Invoke-iSOCGit.ps1' -Because "git at $($call.Path):$($call.Line)" }
     }
 
-    It 'makes no web request except through Invoke-AzRestMethod' {
-        @(Get-CommandCall -Pattern '^(Invoke-RestMethod|Invoke-WebRequest|irm|iwr|curl|wget)$') | Should -BeNullOrEmpty
+    It 'makes a web request other than through Invoke-AzRestMethod only from Private/Http/' {
+        foreach ($call in @(Get-CommandCall -Pattern '^(Invoke-RestMethod|Invoke-WebRequest|irm|iwr|curl|wget)$')) {
+            $call.Path | Should -Be 'Modules/iSOCDeployments/Private/Http/Invoke-iSOCHttpRequest.ps1' -Because "$($call.Command) at $($call.Path):$($call.Line)"
+        }
     }
 
     It 'writes to the console only through Write-iSOCLog' {
