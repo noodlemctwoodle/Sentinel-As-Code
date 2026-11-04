@@ -109,6 +109,7 @@ docs live in `Docs/Modules/iSOCDeployments/`.
 | [Content Hub solutions](Modules/iSOCDeployments/Content-Hub.md) | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` and how they map to `Deploy/content/Deploy-SentinelContentHub.ps1` |
 | [Export](Modules/iSOCDeployments/Export.md) | `Export-iSOCContent` and how it maps to `Tools/Export-SentinelWorkbooks.ps1` and the unmerged playbook exporter |
 | [Drift](Modules/iSOCDeployments/Drift.md) | `Compare-iSOCContent`, `Sync-iSOCContent`, `Export-iSOCDriftReport` and how they map to `Tools/Test-SentinelRuleDrift.ps1` |
+| [Community rule import](Modules/iSOCDeployments/Community-Import.md) | `Import-iSOCCommunityRule` and how it maps to `Tools/Import-CommunityRules.ps1` |
 | [Dependency manifest](Modules/iSOCDeployments/Dependency-Manifest.md) | The module's manifest commands and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
 

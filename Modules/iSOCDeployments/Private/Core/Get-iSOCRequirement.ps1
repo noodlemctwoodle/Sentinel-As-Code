@@ -25,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-03
+    Version:      0.3.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -41,7 +41,7 @@ function Get-iSOCRequirement {
         The requirement definitions, unevaluated.
 
     .OUTPUTS
-        [pscustomobject] Name, Kind (PowerShell or Module), Step, Required,
+        [pscustomobject] Name, Kind (PowerShell, Module or Command), Step, Required,
         MinimumVersion and Hint (how to install it).
 
     .EXAMPLE
@@ -51,7 +51,7 @@ function Get-iSOCRequirement {
     [OutputType([pscustomobject])]
     param()
 
-    $all = 'Connect', 'Read', 'Deploy'
+    $all = 'Connect', 'Read', 'Deploy', 'Import'
     $new = {
         param($Name, $Kind, $Step, $MinimumVersion, $Hint)
         [pscustomobject]@{
@@ -68,4 +68,5 @@ function Get-iSOCRequirement {
     & $new 'Az.Accounts' 'Module' 'Connect' '2.0.0' 'Install-Module Az.Accounts -Scope CurrentUser, then sign in with Connect-AzAccount.'
     & $new 'powershell-yaml' 'Module' 'Read' '0.4.12' 'Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser'
     & $new 'Az.Resources' 'Module' 'Deploy' '6.0.0' 'Install-Module Az.Resources -Scope CurrentUser; playbooks deploy as ARM templates through it.'
+    & $new 'git' 'Command' 'Import' '2.0.0' 'Install git 2.x and put it on the PATH: https://git-scm.com/downloads'
 }

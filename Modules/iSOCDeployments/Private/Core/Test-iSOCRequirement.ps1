@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -61,6 +61,20 @@ function Test-iSOCRequirement {
                 $version = $module.Version.ToString()
                 $found = ($null -eq $minimum) -or ($module.Version -ge $minimum)
                 $where = $module.ModuleBase
+            }
+        }
+        'Command' {
+            $command = Get-Command -Name $Requirement.Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($command) {
+                $where = $command.Source
+                $text = try { & $command.Source --version 2>$null | Select-Object -First 1 } catch { $null }
+                if ("$text" -match '(\d+\.\d+(\.\d+)?)') {
+                    $version = $Matches[1]
+                    $found = ($null -eq $minimum) -or ([version]$version -ge $minimum)
+                }
+                else {
+                    $found = $null -eq $minimum
+                }
             }
         }
     }

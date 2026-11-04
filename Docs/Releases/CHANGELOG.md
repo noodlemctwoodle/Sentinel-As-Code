@@ -32,7 +32,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   the portal is absorbed with its line breaks rather than collapsed onto
   one line, a source left out is skipped rather than exported again as
   orphans, and the report no longer carries the subscription id),
-  `Export-iSOCContent`, which replaces `Tools/Export-SentinelWorkbooks.ps1`
+  `Import-iSOCCommunityRule`, which replaces `Tools/Import-CommunityRules.ps1`
+  (the same rules and ids, from a source definition rather than settings
+  fixed in the script; a `-WhatIf` that tells new rules from updated ones,
+  and a repeat import that changes no file), `Export-iSOCContent`, which
+  replaces `Tools/Export-SentinelWorkbooks.ps1`
   and brings in the playbook exporter that was never merged (the same
   files; an item the repository has is found by its id wherever its file
   is and written over only with `-Force`, so an export no longer writes a
@@ -45,13 +49,20 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
-- **The community importer imports YAML rules again, and keeps rule ids
-  stable** - `Tools/Import-CommunityRules.ps1` skipped every YAML source
-  rule with "could not parse YAML as a hashtable": `ConvertFrom-Yaml
-  -Ordered` returns an ordered dictionary, which its check rejected, so a
-  re-import refreshed only the ARM-converted folders, and only with
-  `-IncludeKqlConversion`. It now reads either kind of mapping and keeps
-  the source's key order. It also settles ids
+- **The community importer imports rules again, and keeps rule ids
+  stable** - `Tools/Import-CommunityRules.ps1` imported nothing. It
+  skipped every YAML source rule with "could not parse YAML as a
+  hashtable": `ConvertFrom-Yaml -Ordered` returns an ordered dictionary,
+  which its check rejected. And under the `Set-StrictMode -Version Latest`
+  it runs with, its required-field check read `.Count` of a result that
+  was empty or a single field name, which throws, so every rule missing
+  no more than one field was skipped, YAML and ARM alike; an ARM rule
+  without one of the optional properties (custom details, alert details
+  override, entity mappings, incident configuration) also failed where it
+  read that property. It now reads either
+  kind of mapping in the source's key order, checks the fields safely, and
+  reads only the ARM properties a rule has; `Tests/Test-ImportCommunityRules.Tests.ps1`
+  now runs those functions under strict mode, as the script does. It also settles ids
   before it writes: a rule keeps the id its file already has in the
   repository, and a rule whose upstream id another rule file uses gets a
   stable version 5 GUID from the source repository and its path, so the

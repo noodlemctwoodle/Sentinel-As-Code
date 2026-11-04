@@ -53,6 +53,11 @@ the import is self-organising.
 Full credit for the detection logic, KQL queries, and rule design belongs
 to David Alonso.
 
+> `Import-iSOCCommunityRule`, in the iSOCDeployments module, will replace
+> the import script in release 26.11.0.
+> [Community rule import](../Modules/iSOCDeployments/Community-Import.md)
+> maps each parameter to the command and lists what changes.
+
 The folder is fully managed by the import script. Running it (re)clones
 the upstream repo, normalises every rule, and writes:
 

@@ -27,6 +27,8 @@ type. The rules here are enforced by the suites under
 | `Private/Rest/` | The only files that call REST: `Invoke-iSOCRestRequest` and its helpers |
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
+| `Private/Community/` | Community rule import: the sources, the checkout, reading and normalising rules, settling ids, the manifest hash and the README ([Community rule import](Community-Import.md)) |
+| `Private/Git/` | The only file that runs git: `Invoke-iSOCGit` (`Module.Tests.ps1`) |
 | `Private/Export/` | Reading, comparing and saving an item's files, the export result and summary, and making exported content portable: ARM expressions for a workspace's own values, and the plain-text secret scan ([Export](Export.md)) |
 | `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |
 | `Private/ContentTypes/` | The registry, the shared YAML and JSON item readers, and one folder per content type with its definition and handlers |
@@ -231,7 +233,9 @@ local console. It is the only place the module writes to the console
 `Get-iSOCRequirement` lists what each step needs; `Assert-iSOCPrerequisite
 -Step` stops a command before it starts when something is missing, naming
 it and how to install it; `Test-iSOCDeploymentPrerequisite` reports the
-list. powershell-yaml is loaded the first time YAML is read
+list. A requirement is PowerShell itself, a module, or a command on the
+PATH (git, for the Import step, whose version is read from `--version`).
+powershell-yaml is loaded the first time YAML is read
 (`Import-iSOCYamlModule`), never installed. A content type's own
 `Prerequisites` are checked by name (`Assert-iSOCPrerequisite -Name`)
 only when there is something of that type to deploy: `Deploy-iSOCContent`

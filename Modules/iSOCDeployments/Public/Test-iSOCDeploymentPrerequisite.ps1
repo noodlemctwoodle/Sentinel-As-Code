@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-03
+    Version:      0.3.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -27,7 +27,7 @@
 function Test-iSOCDeploymentPrerequisite {
     <#
     .SYNOPSIS
-        Check the PowerShell version and modules each step needs.
+        Check the PowerShell version, modules and commands each step needs.
 
     .DESCRIPTION
         Only what a run uses has to be installed:
@@ -35,6 +35,7 @@ function Test-iSOCDeploymentPrerequisite {
           Connect  Az.Accounts, signed in with Connect-AzAccount
           Read     powershell-yaml 0.4.12 or later, to read YAML content
           Deploy   Az.Resources, to deploy playbooks as ARM templates
+          Import   git 2.x, to clone a community rule source
 
         Nothing is installed or changed; each command checks its own step
         before it starts and names what is missing.
@@ -64,8 +65,8 @@ function Test-iSOCDeploymentPrerequisite {
     [CmdletBinding()]
     [OutputType([pscustomobject], [bool])]
     param(
-        [ValidateSet('Connect', 'Read', 'Deploy')]
-        [string[]] $Step = @('Connect', 'Read', 'Deploy'),
+        [ValidateSet('Connect', 'Read', 'Deploy', 'Import')]
+        [string[]] $Step = @('Connect', 'Read', 'Deploy', 'Import'),
 
         [switch] $Quiet
     )

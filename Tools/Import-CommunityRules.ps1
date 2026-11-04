@@ -85,8 +85,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-28
-    Version:        1.2.0
-    Last Updated:   2026-11-03
+    Version:        1.2.1
+    Last Updated:   2026-11-04
     Requires:       PowerShell 7.2+, powershell-yaml (auto-installed if missing); git 2.x or later in PATH
 #>
 
@@ -247,10 +247,12 @@ function Build-RuleYaml {
 
     # Validate required fields. The rule may be a hashtable or an ordered
     # dictionary; a [hashtable] parameter would convert an ordered rule and
-    # lose its key order.
-    $missing = @('id', 'name', 'kind', 'severity', 'query') | Where-Object {
+    # lose its key order. The result is wrapped in @() because under
+    # Set-StrictMode -Version Latest .Count throws on $null and on a single
+    # string, which made every rule with none or one field missing fail.
+    $missing = @(@('id', 'name', 'kind', 'severity', 'query') | Where-Object {
         -not $Rule.Contains($_) -or [string]::IsNullOrWhiteSpace($Rule[$_])
-    }
+    })
     if ($missing.Count -gt 0) {
         throw "Rule in '$SourceFile' is missing required fields: $($missing -join ', ')"
     }
@@ -312,39 +314,46 @@ function ConvertFrom-ArmAlertRule {
         [Parameter(Mandatory)] [string]$SourceFile
     )
 
-    $p = $Resource.properties
+    # Under Set-StrictMode -Version Latest reading a property the resource
+    # does not have throws, so every optional property is read through $get.
+    $get = {
+        param($Object, [string]$Name)
+        if ($null -eq $Object) { return $null }
+        $prop = $Object.PSObject.Properties[$Name]
+        if ($prop) { , $prop.Value } else { $null }
+    }
+    $p = & $get $Resource 'properties'
 
     # Build hashtable from ARM properties
     $rule = [ordered]@{}
 
     # id - use the rule name property or generate from displayName
-    $displayName = $p.displayName ?? $p.alertRuleTemplateName ?? 'UnknownRule'
-    $ruleId      = $p.alertRuleTemplateName ?? [guid]::NewGuid().ToString()
+    $displayName = (& $get $p 'displayName') ?? (& $get $p 'alertRuleTemplateName') ?? 'UnknownRule'
+    $ruleId      = (& $get $p 'alertRuleTemplateName') ?? [guid]::NewGuid().ToString()
 
     $rule['id']          = $ruleId
     $rule['name']        = $displayName
-    $rule['kind']        = $Resource.kind ?? 'Scheduled'
-    $rule['description'] = $p.description ?? ''
-    $rule['severity']    = $p.severity ?? 'Medium'
-    $rule['query']       = $p.query ?? ''
+    $rule['kind']        = (& $get $Resource 'kind') ?? 'Scheduled'
+    $rule['description'] = (& $get $p 'description') ?? ''
+    $rule['severity']    = (& $get $p 'severity') ?? 'Medium'
+    $rule['query']       = (& $get $p 'query') ?? ''
 
-    if ($p.queryFrequency)   { $rule['queryFrequency']   = ConvertTo-Iso8601Duration $p.queryFrequency }
-    if ($p.queryPeriod)      { $rule['queryPeriod']      = ConvertTo-Iso8601Duration $p.queryPeriod }
-    if ($p.triggerOperator)  { $rule['triggerOperator']  = $p.triggerOperator }
-    if ($null -ne $p.triggerThreshold) { $rule['triggerThreshold'] = $p.triggerThreshold }
+    if (& $get $p 'queryFrequency')  { $rule['queryFrequency']   = ConvertTo-Iso8601Duration (& $get $p 'queryFrequency') }
+    if (& $get $p 'queryPeriod')     { $rule['queryPeriod']      = ConvertTo-Iso8601Duration (& $get $p 'queryPeriod') }
+    if (& $get $p 'triggerOperator') { $rule['triggerOperator']  = & $get $p 'triggerOperator' }
+    if ($null -ne (& $get $p 'triggerThreshold')) { $rule['triggerThreshold'] = & $get $p 'triggerThreshold' }
 
-    if ($p.tactics -and @($p.tactics).Count -gt 0) {
-        $rule['tactics'] = @($p.tactics)
+    $tactics = & $get $p 'tactics'
+    if ($tactics -and @($tactics).Count -gt 0) {
+        $rule['tactics'] = @($tactics)
     }
-    if ($p.techniques -and @($p.techniques).Count -gt 0) {
-        $rule['techniques'] = @($p.techniques)
+    $techniques = & $get $p 'techniques'
+    if ($techniques -and @($techniques).Count -gt 0) {
+        $rule['techniques'] = @($techniques)
     }
-    if ($p.entityMappings)       { $rule['entityMappings']       = $p.entityMappings }
-    if ($p.customDetails)        { $rule['customDetails']        = $p.customDetails }
-    if ($p.alertDetailsOverride) { $rule['alertDetailsOverride'] = $p.alertDetailsOverride }
-
-    if ($p.incidentConfiguration) {
-        $rule['incidentConfiguration'] = $p.incidentConfiguration
+    foreach ($name in 'entityMappings', 'customDetails', 'alertDetailsOverride', 'incidentConfiguration') {
+        $value = & $get $p $name
+        if ($value) { $rule[$name] = $value }
     }
 
     return Build-RuleYaml -Rule $rule -SourceFile $SourceFile
@@ -374,8 +383,9 @@ function Get-ArmRulesFromFolder {
         try {
             $template = Get-Content -Path $armFile.FullName -Raw -Encoding utf8 | ConvertFrom-Json -ErrorAction Stop
 
-            $alertRules = @($template.resources | Where-Object {
-                $_.type -in @(
+            $resources = if ($template.PSObject.Properties['resources']) { $template.resources } else { @() }
+            $alertRules = @($resources | Where-Object {
+                $_.PSObject.Properties['type'] -and $_.type -in @(
                     'Microsoft.SecurityInsights/alertRules',
                     'Microsoft.OperationalInsights/workspaces/providers/alertRules'
                 )
@@ -392,7 +402,7 @@ function Get-ArmRulesFromFolder {
                     if ($null -eq $yamlContent) { continue }
 
                     # Derive a safe file name from the displayName
-                    $displayName = $resource.properties.displayName ?? 'UnknownRule'
+                    $displayName = if ($resource.properties.PSObject.Properties['displayName']) { $resource.properties.displayName } else { 'UnknownRule' }
                     $safeName    = ($displayName -replace '[^\w\-]', '-') -replace '-{2,}', '-'
                     $safeName    = $safeName.Trim('-')
 

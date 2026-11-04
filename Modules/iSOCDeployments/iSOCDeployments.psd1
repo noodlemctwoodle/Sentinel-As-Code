@@ -20,6 +20,7 @@
         'Get-iSOCContentHubSolution'
         'Get-iSOCContentType'
         'Get-iSOCContext'
+        'Import-iSOCCommunityRule'
         'Install-iSOCContentHubSolution'
         'Sync-iSOCContent'
         'Test-iSOCDependencyManifest'

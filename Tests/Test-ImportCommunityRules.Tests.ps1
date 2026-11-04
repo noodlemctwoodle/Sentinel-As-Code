@@ -43,8 +43,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.2.0
-    Last Updated: 2026-11-03
+    Version:      0.3.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 #>
 
@@ -346,6 +346,32 @@ kind: Scheduled
         $list = Join-Path $TestDrive 'list.yaml'
         Set-Content -LiteralPath $list -Value "- a`n- b"
         Import-YamlFile -Path $list | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Under Set-StrictMode -Version Latest, as the script runs' {
+    # The script sets strict mode; these tests import its functions without
+    # it, which hid a .Count on $null (no field missing) and on one string
+    # (one field missing), and reads of ARM properties a resource lacks.
+    It 'normalises a rule with every required field' {
+        $yaml = & {
+            Set-StrictMode -Version Latest
+            Build-RuleYaml -Rule ([ordered]@{ id = 'x'; name = 'Sample'; kind = 'Scheduled'; severity = 'Medium'; query = 'T' }) -SourceFile 'fake.yaml'
+        }
+        (ConvertFrom-Yaml $yaml).enabled | Should -BeFalse
+    }
+
+    It 'names the one field a rule is missing' {
+        { & { Set-StrictMode -Version Latest; Build-RuleYaml -Rule ([ordered]@{ id = 'x'; name = 'Sample'; kind = 'Scheduled'; query = 'T' }) -SourceFile 'fake.yaml' } } |
+            Should -Throw -ExpectedMessage '*missing required fields: severity'
+    }
+
+    It 'converts an ARM rule without the optional properties' {
+        $resource = [pscustomobject]@{ kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'Bare'; alertRuleTemplateName = 't-1'; severity = 'Low'; query = 'T' } }
+        $yaml = & { Set-StrictMode -Version Latest; ConvertFrom-ArmAlertRule -Resource $resource -SourceFile 'fake-arm.json' }
+        $parsed = ConvertFrom-Yaml $yaml
+        $parsed.id | Should -Be 't-1'
+        $parsed.Contains('customDetails') | Should -BeFalse
     }
 }
 

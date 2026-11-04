@@ -16,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     Needs git 2.x on PATH when smart deployment is asked for.
@@ -59,24 +59,26 @@ function Get-iSOCChangedFile {
         [string] $RepoPath
     )
 
+    $git = { param([string[]] $Arguments) Invoke-iSOCGit -ArgumentList (@('-C', $RepoPath) + $Arguments) -AllowFailure -NoStandardError }
     $changedFiles = $null
     try {
         if ($env:BUILD_SOURCEBRANCH -and $env:SYSTEM_PULLREQUEST_TARGETBRANCH) {
             $targetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH -replace '^refs/heads/', ''
-            & git -C $RepoPath fetch --depth=1 origin $targetBranch 2>$null | Out-Null
-            $changedFiles = & git -C $RepoPath diff --name-only "origin/$targetBranch...HEAD" 2>$null
+            & $git 'fetch', '--depth=1', 'origin', $targetBranch | Out-Null
+            $changedFiles = (& $git 'diff', '--name-only', "origin/$targetBranch...HEAD").Output
         }
         elseif ($env:BUILD_SOURCEVERSION) {
-            & git -C $RepoPath fetch --deepen=1 2>$null | Out-Null
-            $changedFiles = & git -C $RepoPath diff --name-only HEAD~1 HEAD 2>$null
-            if ($LASTEXITCODE -ne 0 -or -not $changedFiles) {
+            & $git 'fetch', '--deepen=1' | Out-Null
+            $diff = & $git 'diff', '--name-only', 'HEAD~1', 'HEAD'
+            $changedFiles = $diff.Output
+            if ($diff.ExitCode -ne 0 -or -not $changedFiles) {
                 $branch = $env:BUILD_SOURCEBRANCH -replace '^refs/heads/', ''
-                & git -C $RepoPath fetch --depth=2 origin $branch 2>$null | Out-Null
-                $changedFiles = & git -C $RepoPath diff --name-only HEAD~1 HEAD 2>$null
+                & $git 'fetch', '--depth=2', 'origin', $branch | Out-Null
+                $changedFiles = (& $git 'diff', '--name-only', 'HEAD~1', 'HEAD').Output
             }
         }
         else {
-            $changedFiles = & git -C $RepoPath diff --name-only HEAD~1 HEAD 2>$null
+            $changedFiles = (& $git 'diff', '--name-only', 'HEAD~1', 'HEAD').Output
         }
     }
     catch {
