@@ -1340,6 +1340,11 @@ previews every move without touching the tree.
 
 ## Invoke-ClassicTableMigration.ps1
 
+The iSOCDeployments module has `Invoke-iSOCClassicTableMigration`, which
+replaces this script at the 26.11.0 cut-over; see
+[Classic table migration](../Modules/iSOCDeployments/Table-Migration.md#the-migration).
+Until then use the script described here.
+
 Discovers classic custom log tables, migrates them to DCR-based tables,
 and exports a Data Collection Rule for each.
 

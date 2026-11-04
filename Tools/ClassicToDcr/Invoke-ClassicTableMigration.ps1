@@ -197,8 +197,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-07-20
-    Version:      2.0.1
-    Last Updated: 2026-09-01
+    Version:      2.0.2
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 
     Runs standalone. Nothing from this repository needs to be alongside it.
@@ -667,7 +667,7 @@ function Build-DcrArmTemplate {
         Builds the ARM template object for a Data Collection Rule.
     #>
     [CmdletBinding()]
-    [OutputType([hashtable])]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param (
         [Parameter(Mandatory)] [string]   $Name
       , [Parameter(Mandatory)] [string]   $Region
@@ -718,7 +718,9 @@ function Build-DcrArmTemplate {
         }
     )
 
-    return @{
+    # Ordered, so the same table always writes the same file: a plain
+    # hashtable's key order changes from one PowerShell process to the next.
+    return [ordered] @{
         '$schema'      = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
         contentVersion = '1.0.0.0'
         metadata       = [ordered] @{

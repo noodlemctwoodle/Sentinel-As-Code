@@ -25,7 +25,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -51,7 +51,7 @@ function Get-iSOCRequirement {
     [OutputType([pscustomobject])]
     param()
 
-    $all = 'Connect', 'Read', 'Deploy', 'Import', 'Setup'
+    $all = 'Connect', 'Read', 'Deploy', 'Import', 'Setup', 'Migrate'
     $new = {
         param($Name, $Kind, $Step, $MinimumVersion, $Hint)
         [pscustomobject]@{
@@ -69,5 +69,6 @@ function Get-iSOCRequirement {
     & $new 'powershell-yaml' 'Module' 'Read' '0.4.12' 'Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser'
     & $new 'Az.Resources' 'Module' 'Deploy' '6.0.0' 'Install-Module Az.Resources -Scope CurrentUser; playbooks deploy as ARM templates through it.'
     & $new 'git' 'Command' 'Import' '2.0.0' 'Install git 2.x and put it on the PATH: https://git-scm.com/downloads'
+    & $new 'Az.OperationalInsights' 'Module' 'Migrate' '3.0.0' 'Install-Module Az.OperationalInsights -Scope CurrentUser; the classic table migration counts each table''s rows and volume through it.'
     & $new 'Microsoft.Graph.Authentication' 'Module' 'Setup' '2.0.0' 'Install-Module Microsoft.Graph.Authentication -Scope CurrentUser; the setup signs in to Microsoft Graph for the directory role and the Graph permission.'
 }

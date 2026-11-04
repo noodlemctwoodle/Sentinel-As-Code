@@ -46,7 +46,8 @@ function Get-iSOCApiVersion {
           ResourceGroups           Microsoft.Resources resource groups
           LogicApps                Microsoft.Logic workflows (playbooks), for
                                    reading them; they deploy as ARM templates
-          DataCollectionRules      Microsoft.Insights data collection rules
+          DataCollectionRules      Microsoft.Insights data collection rules;
+                                   2023-03-11 is the first with endpoints
           GraphSecurity            Microsoft Graph security (Defender XDR
                                    custom detections), a Graph version segment
                                    rather than an api-version
@@ -80,7 +81,7 @@ function Get-iSOCApiVersion {
         LogicApps               = '2019-05-01'
         Authorization           = '2022-04-01'
         Automation              = '2023-11-01'
-        DataCollectionRules     = '2022-06-01'
+        DataCollectionRules     = '2023-03-11'
         GraphSecurity           = 'beta'
     }
 

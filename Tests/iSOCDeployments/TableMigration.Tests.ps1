@@ -376,7 +376,7 @@ Describe 'Parity with Invoke-TableMigrationReview.ps1' {
 
     It 'reads with GET only, at the module''s api-versions' {
         $script:module.Requests | Should -Contain "/subscriptions/$($script:sub)/resourceGroups/rg-sentinel/providers/Microsoft.OperationalInsights/workspaces/law-sentinel/tables 2022-10-01"
-        $script:module.Requests | Should -Contain "/subscriptions/$($script:sub)/providers/Microsoft.Insights/dataCollectionRules 2022-06-01"
+        $script:module.Requests | Should -Contain "/subscriptions/$($script:sub)/providers/Microsoft.Insights/dataCollectionRules 2023-03-11"
         $script:module.Requests | Should -Contain "/subscriptions/$($script:sub)/providers/Microsoft.Insights/workbooks?category=sentinel&canFetchContent=true 2022-04-01"
     }
 }

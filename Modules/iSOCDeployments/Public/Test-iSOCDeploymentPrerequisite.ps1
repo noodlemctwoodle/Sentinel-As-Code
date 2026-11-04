@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
+    Version:      0.4.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -38,6 +38,8 @@ function Test-iSOCDeploymentPrerequisite {
           Import   git 2.x, to clone a community rule source
           Setup    Microsoft.Graph.Authentication, for the service
                    principal's directory role and Graph permission
+          Migrate  Az.OperationalInsights, for the row counts and volume
+                   the classic table migration reads
 
         Nothing is installed or changed; each command checks its own step
         before it starts and names what is missing.
@@ -67,8 +69,8 @@ function Test-iSOCDeploymentPrerequisite {
     [CmdletBinding()]
     [OutputType([pscustomobject], [bool])]
     param(
-        [ValidateSet('Connect', 'Read', 'Deploy', 'Import', 'Setup')]
-        [string[]] $Step = @('Connect', 'Read', 'Deploy', 'Import', 'Setup'),
+        [ValidateSet('Connect', 'Read', 'Deploy', 'Import', 'Setup', 'Migrate')]
+        [string[]] $Step = @('Connect', 'Read', 'Deploy', 'Import', 'Setup', 'Migrate'),
 
         [switch] $Quiet
     )

@@ -1,17 +1,18 @@
-# Classic table migration: the review
+# Classic table migration
 
-Two commands assess the classic (CLv1) custom log tables in a workspace
-before any is migrated to a DCR-based table: what each table is, what
-depends on it, and which Content Hub solution covers it.
+Three commands take a classic (CLv1, MMA or Data Collector API) custom log
+table to a DCR-based one. The review finds what each table is, what
+depends on it and which Content Hub solution covers it; the migration
+converts the table and writes, and can deploy, its data collection rule.
 
 | Command | Replaces |
 | --- | --- |
 | `Get-iSOCTableMigrationImpact` | The assessment in `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` |
 | `Export-iSOCTableMigrationReport` | Its CSV, JSON and HTML reports |
+| `Invoke-iSOCClassicTableMigration` | `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` |
 
-They replace the script at the 26.11.0 cut-over. `Invoke-iSOCClassicTableMigration`,
-which replaces `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1`, is
-the next port; until then the migration is the script's.
+They replace the scripts at the 26.11.0 cut-over. The rehearsal aids
+under `Tools/ClassicToDcr/Rehearsal/` are ported next.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -26,8 +27,9 @@ $review = Get-iSOCTableMigrationImpact
 $review.Impacts | Where-Object TotalAffected -gt 0 | Select-Object TableName, TotalImpacted, TotalIndirect
 ```
 
-Both are read-only against Azure, so safe to run against production; the
-export writes only local files. They need Az.Accounts and a sign-in that
+The review is read-only against Azure, so safe to run against production;
+the export writes only local files. The migration is not: see
+[The migration](#the-migration). They need Az.Accounts and a sign-in that
 can read the workspace and, across the subscription, workbooks, data
 collection rules and Logic Apps.
 
@@ -102,7 +104,62 @@ alias named by a large share of the workspace is reported as suspect.
 
 A review with no classic tables writes nothing; `-WhatIf` writes nothing.
 
-## From the script
+## The migration
+
+```powershell
+# Start here: every classic table, its columns, rows and volume. Changes nothing.
+Invoke-iSOCClassicTableMigration -AllClassicTables -ListOnly
+
+# The rule template for one table, leaving the table alone.
+Invoke-iSOCClassicTableMigration -TableName MyApp_CL -SkipTableMigration -Path ./Infra/dcr
+
+# Migrate it (asking first), deploy its rule, and let the sender post to it.
+Invoke-iSOCClassicTableMigration -TableName MyApp_CL -Deploy -GrantIngestionRoleTo $senderAppId
+```
+
+A classic table cannot be the destination of a data collection rule
+(InvalidOutputTable); the supported fix is the Tables API's migrate
+operation, which **cannot be undone**: the Log Analytics agent can no
+longer write to the table, and Custom Fields defined against it stop
+receiving data. Migrate the agents first. For each table:
+
+1. **Discover**: its sub type, columns, rows over 90 days and billable
+   volume. Emptiness is judged by rows, which are counted directly; Usage
+   lags by hours. A table whose rows cannot be counted is not called empty.
+2. **Migrate** a Classic table, behind ShouldProcess and a confirmation
+   that `-Force` (or `-Confirm:$false`) skips, then read it again.
+   `-SkipTableMigration` leaves the tables alone.
+3. **Export** a rule template to `-Path/<rule>.json`: the columns a stream
+   can declare (reserved, hidden and underscore-led columns are left out
+   and warned of, since they stop receiving data; guid is declared string),
+   and a transform that casts each column back to the table's type. The
+   same table always writes the same file.
+4. **Deploy**, with `-Deploy`: refused while the table is still Classic;
+   then the rule's immutable id and logs ingestion endpoint are read, and
+   `-GrantIngestionRoleTo` gives each identity (an application id or any
+   principal's object id) Monitoring Metrics Publisher on the rule. A grant
+   that cannot be made is a warning with the command to run.
+
+`-AllClassicTables` takes only `_CL` tables (a platform table reports
+Classic once Custom Fields are made against it) and skips those with no
+rows unless `-IncludeEmptyTables`. `-DcrKind TextLog` (with `-Platform`,
+`-FilePattern`, `-LogFormat`) makes an Azure Monitor Agent file collection
+rule, whose transform is a placeholder to edit before machines are
+associated.
+
+It needs Az.Accounts, Az.OperationalInsights for the row counts and volume
+(`Test-iSOCDeploymentPrerequisite -Step Migrate`), Az.Resources with
+`-Deploy`, Log Analytics Contributor on the workspace, Contributor on the
+rule's resource group, and, to grant, Owner or User Access Administrator
+on the rule.
+
+It returns an `iSOCDeployments.TableMigrationRun`: `Tables` (the
+inventory), `Results` (per table: `TableName`, `SubTypeAfter`, `Migrated`,
+`RowCount`, `GB90d`, `DcrName`, `TemplatePath`, `Deployed`, `ImmutableId`,
+`Endpoint`, `Granted`, `Error`), `Migrated`, `Deployed`, `Failed` and
+`ExitCode` (1 when any table failed).
+
+## From the scripts
 
 | `Invoke-TableMigrationReview.ps1` | The module |
 | --- | --- |
@@ -111,6 +168,13 @@ A review with no classic tables writes nothing; `-WhatIf` writes nothing.
 | `-OutputPath` | `Export-iSOCTableMigrationReport -Path` |
 | `-NonInteractive` | Not needed: nothing prompts |
 | The review it returned, with `OutputPath` | The review from `Get-iSOCTableMigrationImpact`; the files from the export |
+
+| `Invoke-ClassicTableMigration.ps1` | `Invoke-iSOCClassicTableMigration` |
+| --- | --- |
+| `-SubscriptionId`, `-ResourceGroupName`, `-WorkspaceName` | `Connect-iSOCWorkspace -SubscriptionId -ResourceGroup -WorkspaceName` first (or `-Context`) |
+| `-OutputDirectory` | `-Path` |
+| Every other parameter | The same |
+| The result list, the listing under `-ListOnly`, or nothing | The run |
 
 The solution mapping and the report template ship in the module, under
 `Resources/ClassicToDcr/`. The mapping is the script's file, which the
@@ -125,9 +189,19 @@ the script's own over the same inputs, the analysis beside the script's
 over a stand-in workspace at three chain depths, and the script itself
 unchanged in a child pwsh, its Az commands and `Invoke-RestMethod` stood in
 for, beside the commands over the same workspace: the five files must hold
-the same data. `MIGRATION.md` edits E35 and E36 list how the commands
-differ from the script.
+the same data. `Tests/iSOCDeployments/ClassicTableMigration.Tests.ps1` runs
+`Invoke-ClassicTableMigration.ps1` unchanged the same way, its Az cmdlets
+stood in for over a workspace whose tables turn DCR-based as they are
+migrated, beside the command, across listing, every classic table with
+deployment and grants, named tables, templates only, text log rules, a
+transform, `-WhatIf` and an unreadable Usage table: the same migrations,
+deployments and grants in order, the same template files and the same
+result per table. `MIGRATION.md` edits E35 to E37 list how the commands
+differ from the scripts.
 
-Release 26.11.0 also fixes the script (0.2.2): it listed workbooks without
-`canFetchContent`, so it never found a workbook that depended on a classic
-table.
+Release 26.11.0 also fixes both scripts. The review (0.2.2) listed
+workbooks without `canFetchContent`, so it never found a workbook that
+depended on a classic table. The migration (2.0.2) built each template's
+top level as a hashtable, whose key order changes from one PowerShell
+process to the next, so a template written again differed from the one
+committed.

@@ -109,7 +109,7 @@ docs live in `Docs/Modules/iSOCDeployments/`.
 | [Content Hub solutions](Modules/iSOCDeployments/Content-Hub.md) | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` and how they map to `Deploy/content/Deploy-SentinelContentHub.ps1` |
 | [Export](Modules/iSOCDeployments/Export.md) | `Export-iSOCContent` and how it maps to `Tools/Export-SentinelWorkbooks.ps1` and the unmerged playbook exporter |
 | [Drift](Modules/iSOCDeployments/Drift.md) | `Compare-iSOCContent`, `Sync-iSOCContent`, `Export-iSOCDriftReport` and how they map to `Tools/Test-SentinelRuleDrift.ps1` |
-| [Classic table migration](Modules/iSOCDeployments/Table-Migration.md) | The classic table migration review and its reports, and how they map to `Tools/ClassicToDcr/` |
+| [Classic table migration](Modules/iSOCDeployments/Table-Migration.md) | The classic table migration, its review and reports, and how they map to `Tools/ClassicToDcr/` |
 | [Permissions](Modules/iSOCDeployments/Permissions.md) | The service principal setup and the playbook and runbook permission commands, and how they map to `Deploy/setup/` and `Deploy/permissions/` |
 | [Community rule import](Modules/iSOCDeployments/Community-Import.md) | `Import-iSOCCommunityRule` and how it maps to `Tools/Import-CommunityRules.ps1` |
 | [Dependency manifest](Modules/iSOCDeployments/Dependency-Manifest.md) | The module's manifest commands and how they map to `Tools/Build-DependencyManifest.ps1` |

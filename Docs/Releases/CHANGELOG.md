@@ -36,6 +36,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   which replace `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` (the
   same dependents, chains and reports; the review is returned as an
   object, and the report's copyable commands are the module's),
+  `Invoke-iSOCClassicTableMigration`, which replaces
+  `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` (the same
+  migrations, rule templates, deployments and grants, through the REST
+  client, with a run result and exit code),
   `Initialize-iSOCServicePrincipal`, which replaces
   `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
   sign-in with every scope it needs, which the script's second Graph step
@@ -62,6 +66,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **Classic table migration templates are the same file each time** -
+  `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` built each data
+  collection rule template's top level as a hashtable, whose key order
+  changes from one PowerShell process to the next, so a template written
+  again for the same table differed from the one committed. 2.0.2 writes
+  the keys in a fixed order.
 - **The table migration review finds workbooks again** -
   `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` listed the
   workspace's Sentinel workbooks without `canFetchContent`, and without it

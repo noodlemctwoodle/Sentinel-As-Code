@@ -23,7 +23,7 @@ type. The rules here are enforced by the suites under
 | --- | --- |
 | `Public/` | One exported command per file. The manifest's `FunctionsToExport` is the list of these files (`Module.Tests.ps1`). |
 | `Private/Core/` | Logging, the API table, the context, repository paths, property access and the requirement table |
-| `Private/Az/` | The only files that call Az cmdlets, as thin wrappers the rest of the module mocks: the Az context, and the resource group deployments playbooks need |
+| `Private/Az/` | The only files that call Az cmdlets, as thin wrappers the rest of the module mocks: the Az context, the resource group deployments playbooks and data collection rules need, and Log Analytics queries |
 | `Private/Rest/` | The only files that call REST: `Invoke-iSOCRestRequest` and its helpers |
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common`, and the code-only reading the parser chains use: comments and strings out, quoted names made bare, names that cannot be a local function removed |
@@ -38,7 +38,7 @@ type. The rules here are enforced by the suites under
 | `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
 | `Private/State/` | `deployment-state.json`: reading, recording and saving |
 | `Private/ContentHub/` | Content Hub: the onboarding wait, the catalogue and solution status, solution deployment, the rule and workbook steps and the run summary ([Content Hub solutions](Content-Hub.md)) |
-| `Private/MigrationKits/ClassicToDcr/` | The classic table migration review: the table inventory, the content read, the parser alias index and chains, the impact per table, the Content Hub mapping and the report writers ([Classic table migration](Table-Migration.md)) |
+| `Private/MigrationKits/ClassicToDcr/` | The classic table migration and its review: the table inventory and row counts, the migrate operation, the stream, transform and rule template, the rule deployment and ingestion role, the content read, the parser alias index and chains, the impact per table, the Content Hub mapping and the report writers ([Classic table migration](Table-Migration.md)) |
 | `Resources/ClassicToDcr/` | The solution mapping and the HTML report template the review ships with (not code, so outside the one-function-per-file rule) |
 
 Every `.ps1` file defines exactly one function named after the file and
@@ -116,7 +116,7 @@ request (`Rest.Tests.ps1`):
 | `LogicApps` | 2019-05-01 | Logic App workflows: where playbooks live, for compare, export and permissions (they deploy as templates) |
 | `Authorization` | 2022-04-01 | Role assignments |
 | `Automation` | 2023-11-01 | Automation Accounts, for the runbook's identity |
-| `DataCollectionRules` | 2022-06-01 | Data collection rules, read by the table migration review for their transforms |
+| `DataCollectionRules` | 2023-03-11 | Data collection rules: read by the table migration review for their transforms, and authored by the classic table migration; 2023-03-11 is the first version with `endpoints`, so a Direct rule gets its own logs ingestion endpoint |
 | `GraphSecurity` | beta | Defender XDR custom detections (a Graph version segment) |
 
 ## Content types

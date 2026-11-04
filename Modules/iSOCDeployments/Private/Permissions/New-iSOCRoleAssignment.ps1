@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -49,6 +49,11 @@ function New-iSOCRoleAssignment {
     .PARAMETER PrincipalId
         The managed identity's principal (object) id.
 
+    .PARAMETER PrincipalType
+        The principal's type: ServicePrincipal (default, which a managed
+        identity is), User or Group. Empty leaves it out, and Azure looks
+        the principal up.
+
     .PARAMETER Condition
         An ABAC condition the assignment is limited by (version 2.0).
 
@@ -76,7 +81,11 @@ function New-iSOCRoleAssignment {
 
         [AllowNull()]
         [AllowEmptyString()]
-        [string] $Condition
+        [string] $Condition,
+
+        [AllowEmptyString()]
+        [ValidateSet('ServicePrincipal', 'User', 'Group', '')]
+        [string] $PrincipalType = 'ServicePrincipal'
     )
 
     $target = $Scope.TrimEnd('/')
@@ -85,9 +94,9 @@ function New-iSOCRoleAssignment {
         properties = @{
             roleDefinitionId = "/subscriptions/$($Context.SubscriptionId)/providers/Microsoft.Authorization/roleDefinitions/$RoleDefinitionId"
             principalId      = $PrincipalId
-            principalType    = 'ServicePrincipal'
         }
     }
+    if ($PrincipalType) { $body.properties.principalType = $PrincipalType }
     if ($Condition) {
         $body.properties.condition = $Condition
         $body.properties.conditionVersion = '2.0'

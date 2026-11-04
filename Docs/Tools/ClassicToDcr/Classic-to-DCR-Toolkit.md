@@ -6,6 +6,12 @@ this" to "it is migrated, a Data Collection Rule is deployed, and the new sender
 toolkit assesses, migrates and rehearses; it does not repoint your sending application for you,
 and it is honest about the fact that migration is one-way.
 
+The iSOCDeployments module has `Get-iSOCTableMigrationImpact`,
+`Export-iSOCTableMigrationReport` and `Invoke-iSOCClassicTableMigration`,
+which replace the assess and migrate scripts at the 26.11.0 cut-over; see
+[Classic table migration](../../Modules/iSOCDeployments/Table-Migration.md).
+Until then use the scripts described here.
+
 | What | Where |
 | --- | --- |
 | Assess (read-only) | [`Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1`](../../../Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1) |

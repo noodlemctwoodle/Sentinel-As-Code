@@ -19,7 +19,7 @@ Sentinel workspaces; the public commands avoid the product name.
 > commands, compare, sync and the drift report for analytics rules,
 > export for workbooks and playbooks, community rule import, playbook and
 > runbook permissions, the service principal setup, the classic table
-> migration review, and the dependency manifest commands. Export, compare and sync for the other types arrive as each
+> migration and its review, and the dependency manifest commands. Export, compare and sync for the other types arrive as each
 > area is ported; [MIGRATION.md](MIGRATION.md) tracks which.
 
 ```powershell
@@ -49,6 +49,7 @@ Deploy-iSOCContent -WhatIf
 | `Export-iSOCDriftReport` | Writes a compare's result as the JSON and Markdown drift report, when anything drifted | Nothing |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCTableMigrationImpact` | The classic custom log tables and what depends on each, directly or through parser functions, with their Content Hub solutions; read-only | Az.Accounts, a connected workspace |
+| `Invoke-iSOCClassicTableMigration` | Migrates classic custom log tables to DCR-based ones and writes, and with `-Deploy` deploys, a data collection rule for each, asking before each migration | Az.Accounts, Az.OperationalInsights, Az.Resources with `-Deploy`, a connected workspace |
 | `Export-iSOCTableMigrationReport` | Writes a table migration review as CSV, JSON and a self-contained HTML report | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
 | `Get-iSOCContentDependency` | The tables, watchlists, functions and external data a content file's KQL reads | powershell-yaml |
@@ -59,8 +60,7 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCWorkspace`, `Invoke-iSOCClassicTableMigration` and the
-migration rehearsal aids.
+`Deploy-iSOCWorkspace`, the migration rehearsal aids and `New-iSOCDcrFromSchema`.
 
 ## What it needs
 
@@ -74,6 +74,7 @@ nothing:
 | Deploy | Az.Resources 6.0.0 or later, only when there are playbooks to deploy: they deploy as ARM templates through it |
 | Import | git 2.0 or later on the PATH, to clone a community rule source |
 | Setup | Microsoft.Graph.Authentication 2.0.0 or later, for the service principal's directory role and Graph permission |
+| Migrate | Az.OperationalInsights 3.0.0 or later, for the row counts and volume the classic table migration reads |
 
 The cloud is the sign-in's: the ARM and Graph hosts come from its
 environment, so US Government needs no switch. Nothing the module logs
@@ -101,7 +102,7 @@ Private/
   Deploy/        the deploy engine
   State/         deployment-state.json
   ContentHub/    Content Hub solutions
-  MigrationKits/ the classic table migration review
+  MigrationKits/ the classic table migration and its review
   ContentTypes/  the registry, and one folder per content type with its
                  definition and handlers
 ```

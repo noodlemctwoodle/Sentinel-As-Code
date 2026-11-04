@@ -27,6 +27,7 @@
         'Import-iSOCCommunityRule'
         'Initialize-iSOCServicePrincipal'
         'Install-iSOCContentHubSolution'
+        'Invoke-iSOCClassicTableMigration'
         'Revoke-iSOCRunbookPermission'
         'Sync-iSOCContent'
         'Test-iSOCDependencyManifest'

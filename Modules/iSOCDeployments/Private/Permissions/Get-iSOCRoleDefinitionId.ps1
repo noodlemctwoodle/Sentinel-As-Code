@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -55,6 +55,7 @@ function Get-iSOCRoleDefinitionId {
         'Key Vault Secrets User'         = '4633458b-17de-408a-b874-0445c86b69e6'
         'Logic App Contributor'          = '87a39d53-fc1b-424a-814c-f7e04687dc9e'
         'Monitoring Reader'              = '43d0d8ad-25c7-4714-9337-8ba259a9fe05'
+        'Monitoring Metrics Publisher'   = '3913510d-42f4-4e42-8a64-420c390055eb'
     }
     if (-not $Name) { return $table }
     foreach ($key in $table.Keys) { if ($key -ieq $Name) { return $table[$key] } }
