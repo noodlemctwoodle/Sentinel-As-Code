@@ -24,6 +24,7 @@ with any Sentinel workspace.
 | [Permissions](Permissions.md) | `Initialize-iSOCServicePrincipal`, `Grant-iSOCPlaybookPermission`, `Grant-iSOCRunbookPermission` and `Revoke-iSOCRunbookPermission`: the grants, the result, and how they map to the setup and permission scripts |
 | [Community rule import](Community-Import.md) | `Import-iSOCCommunityRule`: sources, what an import writes, the result, and how it maps to `Tools/Import-CommunityRules.ps1` |
 | [Classic table migration](Table-Migration.md) | `Get-iSOCTableMigrationImpact`, `Export-iSOCTableMigrationReport`, `Invoke-iSOCClassicTableMigration` and the rehearsal aids: what the review finds and where its parser chains stop, what a migration does, how to rehearse it, the results, and how they map to the scripts under `Tools/ClassicToDcr/` |
+| [Custom tables from a schema](Dcr-From-Schema.md) | `New-iSOCDcrFromSchema`: the schema file, what is checked and repaired, the templates, deploying, the result, and how it maps to `Tools/DcrFromSchema/New-DcrFromSchema.ps1` |
 | [Dependency manifest](Dependency-Manifest.md) | `Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest` and `Get-iSOCContentDependency`, and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../../../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
 

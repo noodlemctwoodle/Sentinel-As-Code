@@ -38,6 +38,9 @@ function Get-iSOCApiVersion {
           SecurityInsightsPreview  Microsoft.SecurityInsights alert rules; the
                                    preview keeps subTechniques, which GA drops
           OperationalInsights      Log Analytics workspaces and tables
+          TablePlans               Log Analytics tables New-iSOCDcrFromSchema
+                                   writes and reads; 2025-07-01 is the first
+                                   with the Auxiliary plan
           SavedSearches            Log Analytics saved searches (parsers and
                                    hunting queries)
           SummaryRules             Log Analytics summary rules
@@ -75,6 +78,7 @@ function Get-iSOCApiVersion {
         SecurityInsights        = '2025-09-01'
         SecurityInsightsPreview = '2025-07-01-preview'
         OperationalInsights     = '2022-10-01'
+        TablePlans              = '2025-07-01'
         SavedSearches           = '2025-07-01'
         SummaryRules            = '2025-07-01'
         Workbooks               = '2022-04-01'

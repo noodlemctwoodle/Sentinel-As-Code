@@ -13,6 +13,10 @@ workspace, plan, retention, DCR name, transform) the wizard asks for, offering
 a sensible default at each step.
 
 > **Fuller reference:** [`Docs/Tools/DcrFromSchema/`](../../Docs/Tools/DcrFromSchema/Dcr-From-Schema.md)
+>
+> **Replaced at 26.11.0** by `New-iSOCDcrFromSchema` in the iSOCDeployments
+> module, which takes the workspace from `Connect-iSOCWorkspace` and never
+> prompts; see [`Docs/Modules/iSOCDeployments/Dcr-From-Schema.md`](../../Docs/Modules/iSOCDeployments/Dcr-From-Schema.md).
 > is the authoritative documentation for this tool: every documented limit and the
 > Microsoft page it came from, design rationale, each guard and why it exists,
 > failure modes and troubleshooting. This README stays because the script is designed

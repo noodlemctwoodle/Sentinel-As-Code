@@ -110,6 +110,7 @@ request (`Rest.Tests.ps1`):
 | `SecurityInsights` | 2025-09-01 | Watchlists, automation rules, metadata, Content Hub |
 | `SecurityInsightsPreview` | 2025-07-01-preview | Alert rules; the preview keeps `subTechniques`, which GA drops |
 | `OperationalInsights` | 2022-10-01 | Workspaces and tables |
+| `TablePlans` | 2025-07-01 | Log Analytics tables `New-iSOCDcrFromSchema` writes and reads; earlier versions know no Auxiliary plan |
 | `SavedSearches` | 2025-07-01 | Parsers and hunting queries |
 | `SummaryRules` | 2025-07-01 | Summary rules |
 | `Workbooks` | 2022-04-01 | Workbooks |
@@ -118,7 +119,7 @@ request (`Rest.Tests.ps1`):
 | `LogicApps` | 2019-05-01 | Logic App workflows: where playbooks live, for compare, export and permissions (they deploy as templates) |
 | `Authorization` | 2022-04-01 | Role assignments |
 | `Automation` | 2023-11-01 | Automation Accounts, for the runbook's identity |
-| `DataCollectionRules` | 2023-03-11 | Data collection rules: read by the table migration review for their transforms, and authored by the classic table migration; 2023-03-11 is the first version with `endpoints`, so a Direct rule gets its own logs ingestion endpoint |
+| `DataCollectionRules` | 2023-03-11 | Data collection rules: read by the table migration review for their transforms, and authored by the classic table migration and `New-iSOCDcrFromSchema`; 2023-03-11 is the first version with `endpoints`, so a Direct rule gets its own logs ingestion endpoint |
 | `SharedKeys` | 2020-08-01 | A workspace's `sharedKeys` action, for signing the classic table fixture's Data Collector posts |
 | `GraphSecurity` | beta | Defender XDR custom detections (a Graph version segment) |
 

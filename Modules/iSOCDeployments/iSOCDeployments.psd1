@@ -29,6 +29,7 @@
         'Install-iSOCContentHubSolution'
         'Invoke-iSOCClassicTableMigration'
         'New-iSOCClassicTableFixture'
+        'New-iSOCDcrFromSchema'
         'New-iSOCDependencyFixture'
         'Remove-iSOCClassicTableFixture'
         'Remove-iSOCDependencyFixture'

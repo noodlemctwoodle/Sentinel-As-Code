@@ -250,8 +250,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-07-30
-    Version:      0.1.0
-    Last Updated: 2026-09-01
+    Version:      0.1.1
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, Az.Resources
 
     API versions:
@@ -2154,7 +2154,7 @@ function Build-TableArmTemplate {
         exists so the behaviour can be retested without editing the script.
     #>
     [CmdletBinding()]
-    [OutputType([hashtable])]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param (
         [Parameter(Mandatory)] [string]   $WorkspaceName
       , [Parameter(Mandatory)] [string]   $Table
@@ -2202,7 +2202,9 @@ function Build-TableArmTemplate {
 
     if ($TotalRetention -ne 0) { $properties['totalRetentionInDays'] = $TotalRetention }
 
-    return @{
+    # Ordered, so the same schema writes the same file. A plain hashtable's
+    # key order changes from one PowerShell process to the next.
+    return [ordered] @{
         '$schema'      = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
         contentVersion = '1.0.0.0'
         metadata       = [ordered] @{
@@ -2225,7 +2227,7 @@ function Build-DcrArmTemplate {
         Builds the ARM template object for a Direct Data Collection Rule.
     #>
     [CmdletBinding()]
-    [OutputType([hashtable])]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param (
         [Parameter(Mandatory)] [string]   $Name
       , [Parameter(Mandatory)] [string]   $Region
@@ -2281,7 +2283,7 @@ function Build-DcrArmTemplate {
         }
     )
 
-    return @{
+    return [ordered] @{
         '$schema'      = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
         contentVersion = '1.0.0.0'
         metadata       = [ordered] @{

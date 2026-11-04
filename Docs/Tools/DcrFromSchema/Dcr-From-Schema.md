@@ -12,6 +12,12 @@ the ARM templates behind so the result is reviewable and committable.
 | On-the-box quick reference | [`Tools/DcrFromSchema/README.md`](../../../Tools/DcrFromSchema/README.md) |
 | Tests | [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../../Tests/Test-NewDcrFromSchema.Tests.ps1) |
 
+The iSOCDeployments module has `New-iSOCDcrFromSchema`, which replaces
+this script at the 26.11.0 cut-over; see
+[Custom tables from a schema](../../Modules/iSOCDeployments/Dcr-From-Schema.md).
+It takes the workspace from `Connect-iSOCWorkspace` and never prompts.
+Until then use the script described here.
+
 ## Where the documentation lives
 
 This page is the authoritative reference. The kit also carries its own

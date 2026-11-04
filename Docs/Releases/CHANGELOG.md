@@ -48,6 +48,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   and `Remove-iSOCDependencyFixture`, which replace
   `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` (the same
   objects, markers and guards, so either removes the other's fixture),
+  `New-iSOCDcrFromSchema`, which replaces
+  `Tools/DcrFromSchema/New-DcrFromSchema.ps1` (the same checks, repairs,
+  templates, deployments and grants, without the prompts: the workspace
+  comes from `Connect-iSOCWorkspace` and every other value from a
+  parameter, the schema file or the default),
   `Initialize-iSOCServicePrincipal`, which replaces
   `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
   sign-in with every scope it needs, which the script's second Graph step
@@ -88,7 +93,9 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   collection rule template's top level as a hashtable, whose key order
   changes from one PowerShell process to the next, so a template written
   again for the same table differed from the one committed. 2.0.2 writes
-  the keys in a fixed order.
+  the keys in a fixed order, and so does
+  `Tools/DcrFromSchema/New-DcrFromSchema.ps1` 0.1.1, whose table and rule
+  templates had the same fault.
 - **The table migration review finds workbooks again** -
   `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` listed the
   workspace's Sentinel workbooks without `canFetchContent`, and without it
