@@ -7,9 +7,9 @@ detects what it claims to, before touching anything you care about.
 Migration is one-way. That is the whole reason these exist.
 
 The iSOCDeployments module has `New-iSOCClassicTableFixture`,
-`Remove-iSOCClassicTableFixture` and `Test-iSOCDcrIngestion`, which replace
-`New-ClassicTableFixture.ps1` and `Test-DcrIngestion.ps1` at the 26.11.0
-cut-over; see
+`Remove-iSOCClassicTableFixture`, `Test-iSOCDcrIngestion`,
+`New-iSOCDependencyFixture` and `Remove-iSOCDependencyFixture`, which
+replace the three scripts at the 26.11.0 cut-over; see
 [Classic table migration](../../Modules/iSOCDeployments/Table-Migration.md#rehearsing-a-migration).
 Until then use the scripts described here.
 

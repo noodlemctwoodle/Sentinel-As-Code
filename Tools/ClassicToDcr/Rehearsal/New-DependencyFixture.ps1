@@ -185,8 +185,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-07-28
-    Version:      1.0.1
-    Last Updated: 2026-09-01
+    Version:      1.0.2
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights
 
     API versions:
@@ -194,7 +194,7 @@
       - Saved searches       : 2020-08-01 (the parser functions the indirect
                                dependency chains are built from)
       - Sentinel alert rules : 2024-03-01
-      - Data Collector API   : 2016-04-01 (retires 2026-09-14)
+      - Data Collector API   : 2016-04-01 (support ended 2026-09-14)
 
     Runs standalone. Nothing from this repository needs to be alongside it. The
     bundled data/solution-mapping.json is used for the alias guard when it is
@@ -226,8 +226,10 @@
         '[SacFixture:...]' sentinel in each rule description makes anything
         absorbed easy to find.
 
-      - The HTTP Data Collector API retires on 2026-09-14. After that date this
-        script cannot create classic tables, because nothing can.
+      - Microsoft ended support for the HTTP Data Collector API on
+        2026-09-14. It still accepts data from clients using TLS 1.2 or
+        later, so this script still creates classic tables, but with no SLA,
+        so do not rely on it lasting.
 
 
 .LINK
@@ -1996,7 +1998,7 @@ if ($Remove) {
 #region -- Create: tables ------------------------------------------------------
 
 Write-PipelineMessage 'Seeding classic tables' -Level Section
-Write-PipelineMessage 'The HTTP Data Collector API retires on 2026-09-14. After that date classic tables cannot be created at all.' -Level Warning
+Write-PipelineMessage 'Microsoft ended support for the HTTP Data Collector API on 2026-09-14. It still accepts data from TLS 1.2 clients, with no SLA.' -Level Warning
 
 $created = [System.Collections.Generic.List[string]]::new()
 $skipped = [System.Collections.Generic.List[string]]::new()

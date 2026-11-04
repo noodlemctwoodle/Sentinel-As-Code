@@ -4,7 +4,7 @@ Three commands take a classic (CLv1, MMA or Data Collector API) custom log
 table to a DCR-based one. The review finds what each table is, what
 depends on it and which Content Hub solution covers it; the migration
 converts the table and writes, and can deploy, its data collection rule.
-Three more rehearse it on throwaway tables first.
+Five more rehearse it on throwaway content first.
 
 | Command | Replaces |
 | --- | --- |
@@ -13,9 +13,9 @@ Three more rehearse it on throwaway tables first.
 | `Invoke-iSOCClassicTableMigration` | `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` |
 | `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` | `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1` |
 | `Test-iSOCDcrIngestion` | `Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1` |
+| `New-iSOCDependencyFixture`, `Remove-iSOCDependencyFixture` | `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` |
 
 They replace the scripts at the 26.11.0 cut-over.
-`Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` is ported next.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -208,6 +208,43 @@ the rows that arrived.
 
 All three need a test workspace: they write real, billable data.
 
+### Proving the review finds every dependency
+
+**`New-iSOCDependencyFixture`** makes known chains on classic tables so the
+review can be checked against live ARM responses: a rule naming a table
+(Direct), a rule reaching its table through one parser (OneHop) or two
+(TwoHop), two parsers naming each other (Cycle, which proves the resolver
+ends), a table with nothing on it (Orphan), and a hunting query through the
+OneHop parser (Hunt). It is built to be safe on a live security workspace:
+
+```powershell
+New-iSOCDependencyFixture -WhatIf             # read the workspace, print the plan, make nothing
+New-iSOCDependencyFixture -Confirm:$false     # make it: ten to twenty minutes cold
+Get-iSOCTableMigrationImpact | Export-iSOCTableMigrationReport
+Remove-iSOCDependencyFixture -MigrateBeforeRemove -Confirm:$false
+```
+
+- Every object carries the prefix (`-NamePrefix`, default SacDep) and an
+  ownership marker: a tag on saved searches, a column on tables, a derived
+  id and a description sentinel on rules. Removal deletes only what carries
+  it.
+- Rules are made disabled, Informational, with incidents off and their
+  query clamped by `| where 1 == 0`. `-EnableRules` enables them;
+  `-EnableRulesWithLiveQuery` as well removes the clamp.
+- An alias that would shadow a workspace table, a known table or someone
+  else's parser stops the run before anything is written, as does any
+  target name that exists without the marker.
+- Every write asks confirmation; `-WhatIf` writes nothing.
+
+Tables go first (through the Data Collector API) and are waited on until
+they answer a query, then the parsers and hunting query, then the rules,
+which Sentinel validates on write (a rule refused because a name does not
+resolve yet is retried). **`Remove-iSOCDependencyFixture`** goes in reverse:
+rules, saved searches, then tables, migrating a table still classic only
+with `-MigrateBeforeRemove`, and deleting a fixture-named table without the
+marker only with `-RemoveUnmarkedTable`. Rule ids, tags and markers are the
+script's, so either tool removes the other's fixture.
+
 ## From the scripts
 
 | `Invoke-TableMigrationReview.ps1` | The module |
@@ -236,6 +273,12 @@ All three need a test workspace: they write real, billable data.
 | `-SubscriptionId` | `Connect-iSOCWorkspace -SubscriptionId` first (or `-Context`) |
 | Every other parameter | The same |
 
+| `New-DependencyFixture.ps1` | The module |
+| --- | --- |
+| `-SubscriptionId`, `-ResourceGroupName`, `-WorkspaceName` | `Connect-iSOCWorkspace` first (or `-Context`) |
+| `-Remove`, `-MigrateBeforeRemove`, `-RemoveUnmarkedTable` | `Remove-iSOCDependencyFixture`, `-MigrateBeforeRemove`, `-RemoveUnmarkedTable` |
+| Every other parameter | The same, on `New-iSOCDependencyFixture` (`-NamePrefix` and `-Scenario` on both) |
+
 The solution mapping and the report template ship in the module, under
 `Resources/ClassicToDcr/`. The mapping is the script's file, which the
 weekly refresh writes; a test holds the two identical until the refresh
@@ -261,8 +304,13 @@ rehearsal scripts unchanged the same way, over a stand-in that checks each
 Data Collector signature against the workspace key, issues and checks
 tokens, and checks every ingested record against the stream: the same
 posts, migrations, deletions, token requests, ingestion posts and grants,
-and the same result. `MIGRATION.md` edits E35 to E39 list how the commands
-differ from the scripts.
+and the same result. `Tests/iSOCDeployments/DependencyFixture.Tests.ps1`
+does the same for `New-DependencyFixture.ps1`, over a workspace that
+validates rule queries, refuses to delete classic tables and changes as it
+is written: full runs, scenario subsets, enabled and unclamped rules, a
+fixture already there, a rule that resolves only on a second try, five
+refusals and six removals. `MIGRATION.md` edits E35 to E40 list how the
+commands differ from the scripts.
 
 Release 26.11.0 also fixes both scripts. The review (0.2.2) listed
 workbooks without `canFetchContent`, so it never found a workbook that

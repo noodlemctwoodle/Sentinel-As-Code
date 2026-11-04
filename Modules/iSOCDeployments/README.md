@@ -52,6 +52,7 @@ Deploy-iSOCContent -WhatIf
 | `Get-iSOCTableMigrationImpact` | The classic custom log tables and what depends on each, directly or through parser functions, with their Content Hub solutions; read-only | Az.Accounts, a connected workspace |
 | `Invoke-iSOCClassicTableMigration` | Migrates classic custom log tables to DCR-based ones and writes, and with `-Deploy` deploys, a data collection rule for each, asking before each migration | Az.Accounts, Az.OperationalInsights, Az.Resources with `-Deploy`, a connected workspace |
 | `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` | Make a throwaway classic table with synthetic data through the Data Collector API (or stream into one), and delete it again, to rehearse a migration on | Az.Accounts, a connected test workspace |
+| `New-iSOCDependencyFixture`, `Remove-iSOCDependencyFixture` | Make known direct and parser-chained dependencies on classic tables, safely on a live workspace, to prove the migration review finds them, and remove them again | Az.Accounts, Az.OperationalInsights, a connected workspace |
 | `Test-iSOCDcrIngestion` | Streams synthetic records into a data collection rule as a service principal and counts their arrival | Az.Accounts, Az.OperationalInsights with `-Follow`, a service principal with Monitoring Metrics Publisher |
 | `Export-iSOCTableMigrationReport` | Writes a table migration review as CSV, JSON and a self-contained HTML report | Nothing |
 | `Get-iSOCContentType` | The content types, in deploy order, with their folder, endpoint, capabilities and compared fields | Nothing |
@@ -63,7 +64,7 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCWorkspace`, `New-iSOCDependencyFixture` and `New-iSOCDcrFromSchema`.
+`Deploy-iSOCWorkspace` and `New-iSOCDcrFromSchema`.
 
 ## What it needs
 
