@@ -8,8 +8,9 @@
 .DESCRIPTION
     Replaces Deploy/content/Deploy-CustomContent.ps1 (parsers, watchlists,
     analytics rules, hunting queries, playbooks, workbooks, automation
-    rules and summary rules) and Deploy/content/Deploy-DefenderDetections.ps1
-    (Defender XDR custom detections). The script's -Skip<Type> switches
+    rules and summary rules), Deploy/content/Deploy-DefenderDetections.ps1
+    (Defender XDR custom detections) and the deploy pipelines' Configure
+    Sentinel Settings step (workspace settings). The script's -Skip<Type> switches
     become -ExcludeContentType, -SkipCommunityDetections becomes
     -Exclude 'Content/AnalyticalRules/Community/*', and -ResourceGroup,
     -Workspace, -Region and -IsGov come from Connect-iSOCWorkspace
@@ -21,8 +22,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.0
-    Last Updated: 2026-11-03
+    Version:      0.3.1
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -38,7 +39,8 @@ function Deploy-iSOCContent {
         type in dependency order.
 
     .DESCRIPTION
-        Content types deploy in their deploy order: parsers, watchlists,
+        Content types deploy in their deploy order: workspace settings
+        (UEBA, Entity Analytics, anomalies, EyesOn), parsers, watchlists,
         analytics rules, hunting queries, playbooks, workbooks, automation
         rules, summary rules, then Defender XDR custom detections. For each
         item:

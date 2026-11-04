@@ -26,8 +26,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.6.0
-    Last Updated: 2026-11-03
+    Version:      0.6.1
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -73,7 +73,7 @@ Describe 'Registry' {
 
     It 'refuses to build when a definition is wrong' {
         Mock -ModuleName iSOCDeployments Test-iSOCContentTypeDefinition { 'missing Fields' }
-        { InModuleScope iSOCDeployments { Get-iSOCContentTypeRegistry } } | Should -Throw -ExpectedMessage "*'Parser' is defined wrongly: missing Fields*"
+        { InModuleScope iSOCDeployments { Get-iSOCContentTypeRegistry } } | Should -Throw -ExpectedMessage "*'WorkspaceSetting' is defined wrongly: missing Fields*"
     }
 }
 
@@ -145,7 +145,7 @@ Describe 'Lookups' {
     }
 
     It 'names the types that exist when a name matches none' {
-        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: Parser, Watchlist, AnalyticsRule, HuntingQuery, Playbook, Workbook, AutomationRule, SummaryRule, DefenderDetection.*"
+        { InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticRules } } | Should -Throw -ExpectedMessage "*No content type matches 'AnalyticRules'. Content types: WorkspaceSetting, Parser, Watchlist, AnalyticsRule, HuntingQuery, Playbook, Workbook, AutomationRule, SummaryRule, DefenderDetection.*"
     }
 
     It 'is what Get-iSOCContentType returns' {

@@ -22,6 +22,7 @@
         'Get-iSOCContentType'
         'Get-iSOCContext'
         'Get-iSOCTableMigrationImpact'
+        'Get-iSOCWorkspaceOnboarding'
         'Grant-iSOCPlaybookPermission'
         'Grant-iSOCRunbookPermission'
         'Import-iSOCCommunityRule'

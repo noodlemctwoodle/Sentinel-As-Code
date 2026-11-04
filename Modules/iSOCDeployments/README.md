@@ -37,7 +37,8 @@ Deploy-iSOCContent -WhatIf
 | Command | What it does | Needs |
 | --- | --- | --- |
 | `Connect-iSOCWorkspace` | Points the module at one workspace through the current Az sign-in; the result is the context every other command uses | Az.Accounts, `Connect-AzAccount` |
-| `Deploy-iSOCContent` | Deploys parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, then Defender XDR custom detections through Microsoft Graph, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks; the `CustomDetection.ReadWrite.All` Graph permission when there are Defender detections |
+| `Deploy-iSOCContent` | Deploys workspace settings (UEBA, Entity Analytics, anomalies, EyesOn), parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, then Defender XDR custom detections through Microsoft Graph, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks; the `CustomDetection.ReadWrite.All` Graph permission when there are Defender detections |
+| `Get-iSOCWorkspaceOnboarding` | Whether the resource group, the workspace, its two Sentinel onboarding resources and the playbook resource group exist, and what the Bicep template must deploy; read-only | Az.Accounts, `Connect-AzAccount` |
 | `Get-iSOCContentHubSolution` | Where Content Hub solutions stand: installed and available versions, and what installing them would do | Az.Accounts, a connected workspace |
 | `Grant-iSOCPlaybookPermission` | Assigns each Sentinel-As-Code playbook's managed identity the RBAC roles its workflow needs, leaving those it has, with `-WhatIf` | Az.Accounts, a connected workspace, Owner or User Access Administrator on the scopes |
 | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Assign or remove the DCR watchlist sync runbook's two roles, asking first | Az.Accounts, a connected workspace, Owner or User Access Administrator on the subscription |
@@ -109,6 +110,7 @@ Private/
   Deploy/        the deploy engine
   State/         deployment-state.json
   ContentHub/    Content Hub solutions
+  Onboarding/    whether a workspace's Sentinel onboarding is whole
   MigrationKits/ the classic table migration, its review and rehearsal aids
   ContentTypes/  the registry, and one folder per content type with its
                  definition and handlers

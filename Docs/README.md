@@ -110,6 +110,7 @@ docs live in `Docs/Modules/iSOCDeployments/`.
 | [Export](Modules/iSOCDeployments/Export.md) | `Export-iSOCContent` and how it maps to `Tools/Export-SentinelWorkbooks.ps1` and the unmerged playbook exporter |
 | [Drift](Modules/iSOCDeployments/Drift.md) | `Compare-iSOCContent`, `Sync-iSOCContent`, `Export-iSOCDriftReport` and how they map to `Tools/Test-SentinelRuleDrift.ps1` |
 | [Classic table migration](Modules/iSOCDeployments/Table-Migration.md) | The classic table migration, its review, reports and rehearsal aids, and how they map to `Tools/ClassicToDcr/` |
+| [Workspace settings and onboarding](Modules/iSOCDeployments/Workspace-Settings.md) | `Get-iSOCWorkspaceOnboarding`, the workspace setting type, and how they map to the inline steps of `Pipelines/Sentinel-Deploy.yml` and `.github/workflows/sentinel-deploy.yml` |
 | [Custom tables from a schema](Modules/iSOCDeployments/Dcr-From-Schema.md) | `New-iSOCDcrFromSchema` and how it maps to `Tools/DcrFromSchema/New-DcrFromSchema.ps1` |
 | [Permissions](Modules/iSOCDeployments/Permissions.md) | The service principal setup and the playbook and runbook permission commands, and how they map to `Deploy/setup/` and `Deploy/permissions/` |
 | [Community rule import](Modules/iSOCDeployments/Community-Import.md) | `Import-iSOCCommunityRule` and how it maps to `Tools/Import-CommunityRules.ps1` |

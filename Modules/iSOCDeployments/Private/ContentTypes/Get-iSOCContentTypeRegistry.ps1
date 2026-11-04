@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
-    Last Updated: 2026-11-03
+    Version:      0.4.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -45,7 +45,7 @@ function Get-iSOCContentTypeRegistry {
     [OutputType([pscustomobject])]
     param()
 
-    $names = @('Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule', 'DefenderDetection')
+    $names = @('WorkspaceSetting', 'Parser', 'Watchlist', 'AnalyticsRule', 'HuntingQuery', 'Playbook', 'Workbook', 'AutomationRule', 'SummaryRule', 'DefenderDetection')
 
     $types = foreach ($name in $names) {
         $definition = & "Get-iSOC${name}Definition"

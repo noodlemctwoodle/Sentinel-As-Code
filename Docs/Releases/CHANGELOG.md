@@ -53,6 +53,12 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   templates, deployments and grants, without the prompts: the workspace
   comes from `Connect-iSOCWorkspace` and every other value from a
   parameter, the schema file or the default),
+  `Get-iSOCWorkspaceOnboarding` and the workspace setting type, which
+  replace the inline PowerShell of the deploy pipelines' first stages (the
+  GitHub workflow's onboarding check, which Azure DevOps lacked, for both;
+  the UEBA, Entity Analytics, anomalies and EyesOn settings as files under
+  `Content/WorkspaceSettings/`, deployed first by `Deploy-iSOCContent`, and
+  skipped with a warning when the deployment may not change them),
   `Initialize-iSOCServicePrincipal`, which replaces
   `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
   sign-in with every scope it needs, which the script's second Graph step

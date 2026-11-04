@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.4.0
+    Version:      0.5.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -34,9 +34,16 @@ function Get-iSOCApiVersion {
         Names and what they cover:
 
           SecurityInsights         Microsoft.SecurityInsights GA: watchlists,
-                                   automation rules, metadata, Content Hub
+                                   automation rules, metadata, Content Hub,
+                                   the onboarding state
           SecurityInsightsPreview  Microsoft.SecurityInsights alert rules; the
-                                   preview keeps subTechniques, which GA drops
+                                   preview keeps subTechniques, which GA drops;
+                                   and workspace settings (UEBA, Entity
+                                   Analytics, anomalies, EyesOn), which only
+                                   preview versions have
+          OperationsManagement     The SecurityInsights solution
+                                   (Microsoft.OperationsManagement/solutions)
+                                   that onboards Sentinel the older way
           OperationalInsights      Log Analytics workspaces and tables
           TablePlans               Log Analytics tables New-iSOCDcrFromSchema
                                    writes and reads; 2025-07-01 is the first
@@ -77,6 +84,7 @@ function Get-iSOCApiVersion {
     $table = [ordered]@{
         SecurityInsights        = '2025-09-01'
         SecurityInsightsPreview = '2025-07-01-preview'
+        OperationsManagement    = '2015-11-01-preview'
         OperationalInsights     = '2022-10-01'
         TablePlans              = '2025-07-01'
         SavedSearches           = '2025-07-01'

@@ -1,0 +1,9 @@
+{
+  "name": "EntityAnalytics",
+  "kind": "EntityAnalytics",
+  "properties": {
+    "entityProviders": [
+      "AzureActiveDirectory"
+    ]
+  }
+}

@@ -38,6 +38,7 @@ type. The rules here are enforced by the suites under
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
 | `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
 | `Private/State/` | `deployment-state.json`: reading, recording and saving |
+| `Private/Onboarding/` | The onboarding decision `Get-iSOCWorkspaceOnboarding` makes from what a workspace has ([Workspace settings and onboarding](Workspace-Settings.md)) |
 | `Private/ContentHub/` | Content Hub: the onboarding wait, the catalogue and solution status, solution deployment, the rule and workbook steps and the run summary ([Content Hub solutions](Content-Hub.md)) |
 | `Private/MigrationKits/ClassicToDcr/` | The classic table migration and its review: the table inventory and row counts, the migrate operation, the stream, transform and rule template, the rule deployment and ingestion role, the content read, the parser alias index and chains, the impact per table, the Content Hub mapping and the report writers ([Classic table migration](Table-Migration.md)) |
 | `Private/MigrationKits/Rehearsal/` | The rehearsal aids: the Data Collector signature, fixture records and posts, the workspace key, the stream and its records, the token request, the settings and `.env` reader, the ingestion role check, the ingestion stream and the arrival check |
@@ -107,8 +108,9 @@ request (`Rest.Tests.ps1`):
 
 | Name | Version | Used for |
 | --- | --- | --- |
-| `SecurityInsights` | 2025-09-01 | Watchlists, automation rules, metadata, Content Hub |
-| `SecurityInsightsPreview` | 2025-07-01-preview | Alert rules; the preview keeps `subTechniques`, which GA drops |
+| `SecurityInsights` | 2025-09-01 | Watchlists, automation rules, metadata, Content Hub, the onboarding state |
+| `SecurityInsightsPreview` | 2025-07-01-preview | Alert rules, where the preview keeps `subTechniques`, which GA drops; and workspace settings (UEBA, Entity Analytics, anomalies, EyesOn), which only preview versions have |
+| `OperationsManagement` | 2015-11-01-preview | The SecurityInsights solution, the older of the two resources that onboard Sentinel, for `Get-iSOCWorkspaceOnboarding` |
 | `OperationalInsights` | 2022-10-01 | Workspaces and tables |
 | `TablePlans` | 2025-07-01 | Log Analytics tables `New-iSOCDcrFromSchema` writes and reads; earlier versions know no Auxiliary plan |
 | `SavedSearches` | 2025-07-01 | Parsers and hunting queries |

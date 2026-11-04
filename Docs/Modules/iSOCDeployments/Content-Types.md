@@ -2,7 +2,8 @@
 
 Every content type the module knows, or will, and what it can do with
 each so far. `Get-iSOCContentType` returns the registered ones with the
-same details. Types deploy in the order shown: the order
+same details. Types deploy in the order shown: the workspace settings the
+pipelines configure after the infrastructure stage, the order
 `Deploy/content/Deploy-CustomContent.ps1` uses today, then the Defender
 detections the pipelines deploy in a later stage.
 
@@ -10,6 +11,7 @@ detections the pipelines deploy in a later stage.
 
 | Type | Repository folder | Endpoint | Identity | Deploy order | Missing dependency | Capabilities |
 | --- | --- | --- | --- | --- | --- | --- |
+| `WorkspaceSetting` | `Content/WorkspaceSettings` (JSON, any depth) | ARM, workspace, `settings` (2025-07-01-preview) | `name` (the setting's kind) | 5 | Deploy (not checked) | Deploy |
 | `Parser` | `Content/Parsers` (YAML, any depth) | ARM, workspace, `savedSearches` (2025-07-01) | `id` | 10 | Deploy (not checked) | Deploy |
 | `Watchlist` | `Content/Watchlists` (one folder each: `watchlist.json`, `data.csv`) | ARM, workspace, `watchlists` (2025-09-01) | `watchlistAlias` | 20 | Skip | Deploy |
 | `AnalyticsRule` | `Content/AnalyticalRules` (YAML, any depth) | ARM, workspace, `alertRules` (2025-07-01-preview) | `id` | 30 | Deploy disabled | Deploy, Compare, Sync, Dependencies |
@@ -32,6 +34,26 @@ read them. Every type deploys in repository order, the items
 `sentinel-deployment.config` prioritises first and Community items last,
 except playbooks, which have an order of their own (MIGRATION.md edit
 E15).
+
+### WorkspaceSetting
+
+- **Read**: every `*.json` file under `Content/WorkspaceSettings/`, one
+  Microsoft Sentinel setting each: anomalies, EyesOn, Entity Analytics or
+  UEBA.
+- **Validate**: a kind Sentinel has and a name the same as it; properties,
+  when present, an object; Entity Analytics with a list of
+  `entityProviders` and UEBA with a list of `dataSources`.
+- **Request**: the kind and the file's properties, as the Configure
+  Sentinel Settings step of the deploy pipelines sends them.
+- **Deploy**: the setting is read for its etag first, and a refusal for
+  want of permission (UEBA and Entity Analytics need the Security
+  Administrator directory role) skips it with a warning rather than failing
+  the run (MIGRATION.md edit E43). Settings are never deleted.
+  `Tests/iSOCDeployments/WorkspaceSetting.Tests.ps1` holds every file to
+  the settings both pipelines send ([Workspace settings and
+  onboarding](Workspace-Settings.md)).
+- **Compared fields**: the kind, and the entity providers or data sources
+  as sets, for when compare comes to the type.
 
 ### Parser
 
@@ -212,16 +234,15 @@ E15).
   Government clouds. `Tests/iSOCDeployments/DefenderDetection.Tests.ps1`
   holds every detection to the request the script sends.
 
-## Planned
-
-| Type | Repository folder | Replaces |
-| --- | --- | --- |
-| `WorkspaceSetting` | (pipeline parameters) | The UEBA, Entity Analytics and onboarding steps in the deploy pipelines |
+## Not content types
 
 Export comes to the other registered types as each is ported. Content Hub
 solutions are installed by their own
 commands rather than as a content type, since an item there is a package,
-not a file ([Content Hub solutions](Content-Hub.md)).
+not a file ([Content Hub solutions](Content-Hub.md)). Whether a workspace
+and its Sentinel onboarding exist is read by `Get-iSOCWorkspaceOnboarding`,
+which the infrastructure stage runs before Bicep
+([Workspace settings and onboarding](Workspace-Settings.md)).
 
 ## Not representable
 

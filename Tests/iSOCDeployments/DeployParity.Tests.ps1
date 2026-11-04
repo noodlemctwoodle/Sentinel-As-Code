@@ -36,8 +36,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.0
-    Last Updated: 2026-11-03
+    Version:      0.3.1
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 
     The suite goes when Deploy-CustomContent.ps1 and
@@ -191,7 +191,9 @@ BeforeAll {
         }
         $script:modulePuts.Add([pscustomobject]@{ Uri = "$($script:apiHost)$Path`?api-version=$ApiVersion"; Body = $Body })
     }
-    $script:run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy
+    # The scripts deploy no workspace settings: the pipelines did, in a step
+    # of their own (WorkspaceSetting.Tests.ps1 holds the module to it).
+    $script:run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ExcludeContentType WorkspaceSetting
 
     $script:legacyByUri = @{}
     foreach ($put in $script:legacyPuts) { $script:legacyByUri[$put.Uri] = @($script:legacyByUri[$put.Uri] | Where-Object { $_ }) + $put }

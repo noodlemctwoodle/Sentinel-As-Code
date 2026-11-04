@@ -7,7 +7,9 @@
 until then the pipelines run the scripts. It deploys everything they do:
 parsers, watchlists, analytics rules, hunting queries, playbooks,
 workbooks, automation rules and summary rules to the workspace, and
-Defender XDR custom detections to the tenant through Microsoft Graph.
+Defender XDR custom detections to the tenant through Microsoft Graph. It
+also deploys the workspace settings the pipelines configure in a step of
+their own ([Workspace settings and onboarding](Workspace-Settings.md)).
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -79,8 +81,8 @@ workspace too, as every run does, and the service principal needs the
    tables, watchlists and functions. When the state records more than ten
    rules deployed but the workspace has none, the workspace was rebuilt and
    the state is reset.
-6. Deploys each content type in order (parsers, watchlists, analytics
-   rules, hunting queries, playbooks, workbooks, automation rules, summary
+6. Deploys each content type in order (workspace settings, parsers,
+   watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules, summary
    rules, Defender XDR custom detections), custom items before Community
    ones, and playbook modules before
    the playbooks that call them. For each item: excluded or unchanged

@@ -16,7 +16,7 @@ with any Sentinel workspace.
 | --- | --- |
 | [Module README](../../../Modules/iSOCDeployments/README.md) | Quick start, the commands so far, what each step needs, the layout |
 | [Architecture](Architecture.md) | The context, the REST client, the content type definition and its handlers, the comparers, the API versions, and how to add a content type |
-| [Content types](Content-Types.md) | Each content type and what the module can do with it so far: all eight that `Deploy-CustomContent.ps1` deploys, and the Defender XDR custom detections `Deploy-DefenderDetections.ps1` does |
+| [Content types](Content-Types.md) | Each content type and what the module can do with it so far: all eight that `Deploy-CustomContent.ps1` deploys, the Defender XDR custom detections `Deploy-DefenderDetections.ps1` does, and the workspace settings the pipelines configure |
 | [Deploying content](Deploy.md) | `Deploy-iSOCContent`: what a run does, the result, and how it maps to `Deploy/content/Deploy-CustomContent.ps1` and `Deploy/content/Deploy-DefenderDetections.ps1` |
 | [Content Hub solutions](Content-Hub.md) | `Get-iSOCContentHubSolution` and `Install-iSOCContentHubSolution`: what a run does, the result, and how they map to `Deploy/content/Deploy-SentinelContentHub.ps1` |
 | [Export](Export.md) | `Export-iSOCContent`: what an export writes and leaves, the result, and how it maps to `Tools/Export-SentinelWorkbooks.ps1` and the unmerged playbook exporter |
@@ -24,6 +24,7 @@ with any Sentinel workspace.
 | [Permissions](Permissions.md) | `Initialize-iSOCServicePrincipal`, `Grant-iSOCPlaybookPermission`, `Grant-iSOCRunbookPermission` and `Revoke-iSOCRunbookPermission`: the grants, the result, and how they map to the setup and permission scripts |
 | [Community rule import](Community-Import.md) | `Import-iSOCCommunityRule`: sources, what an import writes, the result, and how it maps to `Tools/Import-CommunityRules.ps1` |
 | [Classic table migration](Table-Migration.md) | `Get-iSOCTableMigrationImpact`, `Export-iSOCTableMigrationReport`, `Invoke-iSOCClassicTableMigration` and the rehearsal aids: what the review finds and where its parser chains stop, what a migration does, how to rehearse it, the results, and how they map to the scripts under `Tools/ClassicToDcr/` |
+| [Workspace settings and onboarding](Workspace-Settings.md) | `Get-iSOCWorkspaceOnboarding` and the workspace setting type: what the onboarding check reads and decides, the setting files, and how they map to the inline steps of the deploy pipelines |
 | [Custom tables from a schema](Dcr-From-Schema.md) | `New-iSOCDcrFromSchema`: the schema file, what is checked and repaired, the templates, deploying, the result, and how it maps to `Tools/DcrFromSchema/New-DcrFromSchema.ps1` |
 | [Dependency manifest](Dependency-Manifest.md) | `Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest` and `Get-iSOCContentDependency`, and how they map to `Tools/Build-DependencyManifest.ps1` |
 | [Migration map](../../../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
