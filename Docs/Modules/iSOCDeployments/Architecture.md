@@ -29,6 +29,7 @@ type. The rules here are enforced by the suites under
 | `Private/Kql/` | Dependency discovery in KQL, copied from `Sentinel.Common` |
 | `Private/Community/` | Community rule import: the sources, the checkout, reading and normalising rules, settling ids, the manifest hash and the README ([Community rule import](Community-Import.md)) |
 | `Private/Permissions/` | Role assignments over REST (reading, finding one that applies at a scope or above, creating under a stable name, deleting), the playbook role analysis and the runbook's roles ([Permissions](Permissions.md)) |
+| `Private/Graph/` | The only files that run Microsoft Graph SDK commands: a sign-in with the delegated scopes the service principal setup needs, and requests through it (`Module.Tests.ps1`) |
 | `Private/Git/` | The only file that runs git: `Invoke-iSOCGit` (`Module.Tests.ps1`) |
 | `Private/Export/` | Reading, comparing and saving an item's files, the export result and summary, and making exported content portable: ARM expressions for a workspace's own values, and the plain-text secret scan ([Export](Export.md)) |
 | `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |

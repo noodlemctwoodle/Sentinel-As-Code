@@ -32,6 +32,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   the portal is absorbed with its line breaks rather than collapsed onto
   one line, a source left out is skipped rather than exported again as
   orphans, and the report no longer carries the subscription id),
+  `Initialize-iSOCServicePrincipal`, which replaces
+  `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
+  sign-in with every scope it needs, which the script's second Graph step
+  could lack, and no Graph modules installed),
   `Grant-iSOCPlaybookPermission`, `Grant-iSOCRunbookPermission` and
   `Revoke-iSOCRunbookPermission`, which replace the scripts under
   `Deploy/permissions/` (the same role assignments, through the REST

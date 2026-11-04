@@ -18,7 +18,8 @@ Sentinel workspaces; the public commands avoid the product name.
 > custom detections `Deploy-DefenderDetections.ps1` does, the Content Hub
 > commands, compare, sync and the drift report for analytics rules,
 > export for workbooks and playbooks, community rule import, playbook and
-> runbook permissions, and the dependency manifest commands. Export, compare and sync for the other types arrive as each
+> runbook permissions, the service principal setup, and the dependency
+> manifest commands. Export, compare and sync for the other types arrive as each
 > area is ported; [MIGRATION.md](MIGRATION.md) tracks which.
 
 ```powershell
@@ -39,6 +40,7 @@ Deploy-iSOCContent -WhatIf
 | `Get-iSOCContentHubSolution` | Where Content Hub solutions stand: installed and available versions, and what installing them would do | Az.Accounts, a connected workspace |
 | `Grant-iSOCPlaybookPermission` | Assigns each Sentinel-As-Code playbook's managed identity the RBAC roles its workflow needs, leaving those it has, with `-WhatIf` | Az.Accounts, a connected workspace, Owner or User Access Administrator on the scopes |
 | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Assign or remove the DCR watchlist sync runbook's two roles, asking first | Az.Accounts, a connected workspace, Owner or User Access Administrator on the subscription |
+| `Initialize-iSOCServicePrincipal` | Gives the deployment service principal Contributor, a conditioned User Access Administrator, Security Administrator and CustomDetection.ReadWrite.All, once, asking first | Az.Accounts; Microsoft.Graph.Authentication for the last two; Owner and Privileged Role Administrator |
 | `Import-iSOCCommunityRule` | Imports a community repository's analytics rules (David Alonso's, so far) under `Content/AnalyticalRules/Community/`, normalised, disabled and with ids no other rule uses, with its manifest and README, with `-WhatIf` | powershell-yaml; git to clone |
 | `Install-iSOCContentHubSolution` | Installs or updates Content Hub solutions, then deploys the analytics rules and workbooks they ship, protecting rules changed in the workspace, with `-WhatIf` | Az.Accounts, a connected workspace |
 | `Compare-iSOCContent` | What was changed in the workspace and not in the repository: each analytics rule classed by its source of truth and compared with it field by field | Az.Accounts, powershell-yaml, a connected workspace |
@@ -55,8 +57,7 @@ Deploy-iSOCContent -WhatIf
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come, each replacing the scripts named in [MIGRATION.md](MIGRATION.md):
-`Deploy-iSOCWorkspace`, `Initialize-iSOCServicePrincipal` and the table
-migration commands.
+`Deploy-iSOCWorkspace` and the table migration commands.
 
 ## What it needs
 
@@ -69,6 +70,7 @@ nothing:
 | Read | powershell-yaml 0.4.12 or later, to read YAML content |
 | Deploy | Az.Resources 6.0.0 or later, only when there are playbooks to deploy: they deploy as ARM templates through it |
 | Import | git 2.0 or later on the PATH, to clone a community rule source |
+| Setup | Microsoft.Graph.Authentication 2.0.0 or later, for the service principal's directory role and Graph permission |
 
 The cloud is the sign-in's: the ARM and Graph hosts come from its
 environment, so US Government needs no switch. Nothing the module logs
@@ -89,7 +91,8 @@ Private/
   Export/        an item's files, export results, portable values, the secret scan
   Community/     community rule import
   Git/           the only file that runs git
-  Permissions/   role assignments, playbook and runbook roles
+  Permissions/   role assignments, playbook and runbook roles, service principal setup
+  Graph/         the only files that run Graph SDK commands
   Manifest/      the dependency manifest
   Deploy/        the deploy engine
   State/         deployment-state.json

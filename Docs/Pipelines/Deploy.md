@@ -139,7 +139,9 @@ splat onto the script call.
 Run `Deploy/setup/Setup-ServicePrincipal.ps1` once to grant these; after
 that the pipeline is autonomous. See
 [Scripts.md](../Deploy/Scripts.md#setup-serviceprincipalps1) for the exact
-parameters and grant semantics.
+parameters and grant semantics. The iSOCDeployments module's
+`Initialize-iSOCServicePrincipal` replaces the script at the 26.11.0
+cut-over ([Permissions](../Modules/iSOCDeployments/Permissions.md#the-deployment-service-principal)).
 
 ## Inputs / parameters
 

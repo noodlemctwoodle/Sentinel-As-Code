@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
@@ -49,6 +49,9 @@ function New-iSOCRoleAssignment {
     .PARAMETER PrincipalId
         The managed identity's principal (object) id.
 
+    .PARAMETER Condition
+        An ABAC condition the assignment is limited by (version 2.0).
+
     .OUTPUTS
         [string] Created or Exists.
 
@@ -69,7 +72,11 @@ function New-iSOCRoleAssignment {
         [string] $RoleDefinitionId,
 
         [Parameter(Mandatory)]
-        [string] $PrincipalId
+        [string] $PrincipalId,
+
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string] $Condition
     )
 
     $target = $Scope.TrimEnd('/')
@@ -80,6 +87,10 @@ function New-iSOCRoleAssignment {
             principalId      = $PrincipalId
             principalType    = 'ServicePrincipal'
         }
+    }
+    if ($Condition) {
+        $body.properties.condition = $Condition
+        $body.properties.conditionVersion = '2.0'
     }
     try {
         Invoke-iSOCRestRequest -Method PUT -Path "$target/providers/Microsoft.Authorization/roleAssignments/$name" -ApiVersion (Get-iSOCApiVersion Authorization) -Body $body -Context $Context | Out-Null

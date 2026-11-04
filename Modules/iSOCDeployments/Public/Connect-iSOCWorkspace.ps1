@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-04
     Requires:     PowerShell 7.2+
 
     Needs Az.Accounts when it runs. The module checks for it at that point
@@ -103,29 +103,8 @@ function Connect-iSOCWorkspace {
 
     Assert-iSOCPrerequisite -Step Connect
 
-    $az = Get-iSOCAzContext
-    if (-not $az -or -not (Get-iSOCPropertyValue -InputObject $az -Path 'Subscription.Id')) {
-        throw 'No Azure sign-in found. Run Connect-AzAccount (with -Environment AzureUSGovernment for US Government) and try again.'
-    }
-    if ($SubscriptionId -and $az.Subscription.Id -ne $SubscriptionId) {
-        $az = Set-iSOCAzContext -SubscriptionId $SubscriptionId
-    }
-
-    $subscription = [string]$az.Subscription.Id
-    $environment = $az.Environment
-    $environmentName = [string](Get-iSOCPropertyValue -InputObject $environment -Path 'Name')
-    $armUrl = ([string](Get-iSOCPropertyValue -InputObject $environment -Path 'ResourceManagerUrl')).TrimEnd('/')
-    $extended = Get-iSOCPropertyValue -InputObject $environment -Path 'ExtendedProperties'
-    $graphUrl = if ($extended -and $extended.ContainsKey('MicrosoftGraphUrl')) { [string]$extended['MicrosoftGraphUrl'] } else { $null }
-    if (-not $graphUrl) {
-        $graphUrl = switch ($environmentName) {
-            'AzureUSGovernment' { 'https://graph.microsoft.us' }
-            'AzureChinaCloud' { 'https://microsoftgraph.chinacloudapi.cn' }
-            default { 'https://graph.microsoft.com' }
-        }
-    }
-    $tenant = Get-iSOCPropertyValue -InputObject $az -Path 'Tenant.Id'
-    if (-not $tenant) { $tenant = Get-iSOCPropertyValue -InputObject $az -Path 'Subscription.TenantId' }
+    $session = Get-iSOCAzSession -SubscriptionId $SubscriptionId
+    $subscription = $session.SubscriptionId
 
     $workspacePath = "/subscriptions/$subscription/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
     $workspace = Invoke-iSOCRestRequest -Method GET -Path $workspacePath -ApiVersion (Get-iSOCApiVersion OperationalInsights) -AllowNotFound
@@ -142,7 +121,7 @@ function Connect-iSOCWorkspace {
     }
 
     $context = New-iSOCContext -Value @{
-        TenantId              = [string]$tenant
+        TenantId              = $session.TenantId
         SubscriptionId        = $subscription
         ResourceGroup         = $ResourceGroup
         WorkspaceName         = $WorkspaceName
@@ -150,15 +129,15 @@ function Connect-iSOCWorkspace {
         WorkspaceId           = [string](Get-iSOCPropertyValue -InputObject $workspace -Path 'properties.customerId')
         Region                = [string](Get-iSOCPropertyValue -InputObject $workspace -Path 'location')
         PlaybookResourceGroup = $playbookGroup
-        Environment           = $environmentName
-        IsGov                 = ($environmentName -eq 'AzureUSGovernment')
-        ArmUrl                = $armUrl
-        GraphUrl              = $graphUrl.TrimEnd('/')
-        Account               = [string](Get-iSOCPropertyValue -InputObject $az -Path 'Account.Id')
+        Environment           = $session.Environment
+        IsGov                 = $session.IsGov
+        ArmUrl                = $session.ArmUrl
+        GraphUrl              = $session.GraphUrl
+        Account               = $session.Account
     }
     $script:iSOCContext = $context
 
     $where = if ($playbookGroup -ne $ResourceGroup) { "; playbooks deploy to resource group $playbookGroup" } else { '' }
-    Write-iSOCLog "Connected to workspace $WorkspaceName in resource group $ResourceGroup ($environmentName)$where." -Level Success
+    Write-iSOCLog "Connected to workspace $WorkspaceName in resource group $ResourceGroup ($($session.Environment))$where." -Level Success
     $context
 }

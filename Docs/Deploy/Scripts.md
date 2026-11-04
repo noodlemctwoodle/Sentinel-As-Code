@@ -111,6 +111,11 @@ Pester suites, are in
 
 ## Setup-ServicePrincipal.ps1
 
+The iSOCDeployments module has `Initialize-iSOCServicePrincipal`, which
+replaces this script at the 26.11.0 cut-over and makes the same grants; see
+[Permissions](../Modules/iSOCDeployments/Permissions.md#the-deployment-service-principal).
+Until then use the script described here.
+
 One-time bootstrap script that grants the service principal all required Azure, Entra ID, and Microsoft Graph permissions needed for the pipeline to operate autonomously.
 
 ### Key Features

@@ -1,20 +1,25 @@
-# Permissions: playbooks and the DCR runbook
+# Permissions: the service principal, playbooks and the DCR runbook
 
-Three commands assign the Azure RBAC roles the repository's managed
-identities need. None of them runs in a pipeline: the deployment service
-principal's User Access Administrator is conditioned and cannot assign the
-Sentinel roles, so they are run by an identity with Owner or User Access
-Administrator on the scopes concerned.
+Four commands give identities the permissions the repository needs. None
+of them runs in a pipeline. `Initialize-iSOCServicePrincipal` sets up the
+deployment service principal the pipelines run as, once. The other three
+assign the roles the playbooks' and the DCR runbook's managed identities
+need: the deployment service principal's User Access Administrator is
+conditioned and cannot assign the Sentinel roles, so they are run by an
+identity with Owner or User Access Administrator on the scopes concerned.
 
 | Command | Replaces |
 | --- | --- |
+| `Initialize-iSOCServicePrincipal` | `Deploy/setup/Setup-ServicePrincipal.ps1` |
 | `Grant-iSOCPlaybookPermission` | `Deploy/permissions/Set-PlaybookPermissions.ps1` |
 | `Grant-iSOCRunbookPermission` | `Deploy/permissions/Set-RunbookPermissions.ps1` |
 | `Revoke-iSOCRunbookPermission` | `Deploy/permissions/Set-RunbookPermissions.ps1 -Remove` |
 
-They replace the scripts at the 26.11.0 cut-over. All three go through the
+They replace the scripts at the 26.11.0 cut-over. They go through the
 module's REST client, so they need Az.Accounts and a sign-in, and neither
-Az.Resources nor the az CLI.
+Az.Resources nor the az CLI; the service principal's directory role and
+Graph permission also need Microsoft.Graph.Authentication
+(`Test-iSOCDeploymentPrerequisite -Step Setup`).
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments
@@ -40,7 +45,48 @@ resource group or from the subscription, one refused, and one that wins a
 race (a conflict). The suite requires the same role assignments
 attempted, created and removed, and the same counts.
 
+## The deployment service principal
+
+```powershell
+Connect-AzAccount
+Initialize-iSOCServicePrincipal -ServicePrincipalAppId $appId -WhatIf
+Initialize-iSOCServicePrincipal -ServicePrincipalAppId $appId
+```
+
+Run it once, as someone with Owner on the subscription and at least
+Privileged Role Administrator in Entra ID; no workspace is needed, as it
+runs before the pipelines create one. It gives the service principal:
+
+| Grant | Scope | For |
+| --- | --- | --- |
+| Contributor | Subscription | Resource groups, the workspace, Bicep and content |
+| User Access Administrator, conditioned (ABAC) to assign and remove only Microsoft Sentinel Responder, Microsoft Sentinel Reader, Log Analytics Reader, Logic App Contributor and Managed Identity Operator | Subscription | The playbook identities' role assignments during ARM deployment |
+| Security Administrator (`-SkipEntraRole` leaves it out) | Directory | UEBA and Entity Analytics settings |
+| CustomDetection.ReadWrite.All, with admin consent (`-SkipGraphPermission` leaves it out) | Microsoft Graph | Defender XDR custom detections |
+
+A grant the service principal already has is left alone. The Azure roles
+go through the Az sign-in. The directory role and the Graph permission
+need a Microsoft Graph SDK sign-in with RoleManagement.ReadWrite.Directory,
+AppRoleAssignment.ReadWrite.All and Application.Read.All, to the Az
+sign-in's tenant: the Az sign-in's own Graph token does not carry those
+scopes. One sign-in is opened, with every scope the chosen steps need,
+unless the current one already has them. Each grant asks for confirmation
+unless `-Confirm:$false` is given; a failed grant is reported and the run
+goes on, with `ExitCode` 1.
+
+`Tests/iSOCDeployments/Setup.Tests.ps1` runs
+`Deploy/setup/Setup-ServicePrincipal.ps1` unchanged in a child pwsh, its
+Az, Graph SDK and `Read-Host` commands stood in for, beside the command
+against the same stand-in tenant, and requires the same role assignments,
+directory role assignment and app role assignment.
+
 ## From the scripts
+
+| `Setup-ServicePrincipal.ps1` | `Initialize-iSOCServicePrincipal` |
+| --- | --- |
+| `-SubscriptionId` | The same; it defaults to the Az sign-in's |
+| `-ServicePrincipalAppId`, `-SkipEntraRole`, `-SkipGraphPermission` | The same |
+| The `Y/N` consent prompt | The confirmation prompt; `-Confirm:$false` to skip it, `-WhatIf` to preview |
 
 | `Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` |
 | --- | --- |
@@ -114,7 +160,7 @@ by a GUID made from the scope, principal and role, so creating one twice
 changes nothing; one that already exists under another name is reported
 Unchanged.
 
-`MIGRATION.md` edits E32 and E33 list how the commands differ from the
+`MIGRATION.md` edits E32 to E34 list how the commands differ from the
 scripts. The role analysis and the already-assigned check are as
 `Set-PlaybookPermissions.ps1` 1.0.2 has them: that release stopped a PUT
 pattern giving Microsoft Sentinel Contributor to 44 of this repository's 90

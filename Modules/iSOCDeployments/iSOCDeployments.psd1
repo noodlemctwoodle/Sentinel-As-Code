@@ -23,6 +23,7 @@
         'Grant-iSOCPlaybookPermission'
         'Grant-iSOCRunbookPermission'
         'Import-iSOCCommunityRule'
+        'Initialize-iSOCServicePrincipal'
         'Install-iSOCContentHubSolution'
         'Revoke-iSOCRunbookPermission'
         'Sync-iSOCContent'

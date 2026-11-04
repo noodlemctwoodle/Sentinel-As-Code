@@ -36,6 +36,8 @@ function Test-iSOCDeploymentPrerequisite {
           Read     powershell-yaml 0.4.12 or later, to read YAML content
           Deploy   Az.Resources, to deploy playbooks as ARM templates
           Import   git 2.x, to clone a community rule source
+          Setup    Microsoft.Graph.Authentication, for the service
+                   principal's directory role and Graph permission
 
         Nothing is installed or changed; each command checks its own step
         before it starts and names what is missing.
@@ -65,8 +67,8 @@ function Test-iSOCDeploymentPrerequisite {
     [CmdletBinding()]
     [OutputType([pscustomobject], [bool])]
     param(
-        [ValidateSet('Connect', 'Read', 'Deploy', 'Import')]
-        [string[]] $Step = @('Connect', 'Read', 'Deploy', 'Import'),
+        [ValidateSet('Connect', 'Read', 'Deploy', 'Import', 'Setup')]
+        [string[]] $Step = @('Connect', 'Read', 'Deploy', 'Import', 'Setup'),
 
         [switch] $Quiet
     )

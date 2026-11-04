@@ -206,6 +206,12 @@ Describe 'Code rules' {
         }
     }
 
+    It 'runs Microsoft Graph SDK commands only from Private/Graph/' {
+        $mgCalls = @(Get-CommandCall -Pattern '^[A-Za-z]+-Mg[A-Z]')
+        $mgCalls.Count | Should -BeGreaterThan 0
+        foreach ($call in $mgCalls) { $call.Path | Should -BeLike 'Modules/iSOCDeployments/Private/Graph/*' -Because "$($call.Command) at $($call.Path):$($call.Line)" }
+    }
+
     It 'runs git only from Private/Git/' {
         $gitCalls = @(Get-CommandCall -Pattern '^git(\.exe)?$')
         $gitCalls.Count | Should -BeGreaterThan 0
