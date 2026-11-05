@@ -93,7 +93,10 @@ does nothing in a pipeline run, and the test fails until the pipelines'
 values change with it.
 
 `Deploy-iSOCContent` deploys the settings before every other content type,
-so UEBA is on before the rules that read its tables:
+so UEBA is on before the rules that read its tables, and
+`Deploy-iSOCWorkspace` deploys them as its first stage, before the Content
+Hub solutions, as the pipelines did ([Deploying a
+workspace](Deploy-Workspace.md)):
 
 ```powershell
 Connect-iSOCWorkspace -ResourceGroup rg-sentinel -WorkspaceName law-sentinel

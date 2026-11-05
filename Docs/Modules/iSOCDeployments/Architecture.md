@@ -38,6 +38,7 @@ type. The rules here are enforced by the suites under
 | `Private/Manifest/` | The dependency manifest: inventory, discovery, comparison and serialisation ([Dependency manifest](Dependency-Manifest.md)) |
 | `Private/Deploy/` | The deploy engine: the run, configuration, smart deployment, order, the dependency graph and pre-flight reads, the per-item steps and the summary ([Deploying content](Deploy.md)) |
 | `Private/State/` | `deployment-state.json`: reading, recording and saving |
+| `Private/Orchestration/` | The stages `Deploy-iSOCWorkspace` runs, what gates each, and running one through its command ([Deploying a workspace](Deploy-Workspace.md)) |
 | `Private/Onboarding/` | The onboarding decision `Get-iSOCWorkspaceOnboarding` makes from what a workspace has ([Workspace settings and onboarding](Workspace-Settings.md)) |
 | `Private/ContentHub/` | Content Hub: the onboarding wait, the catalogue and solution status, solution deployment, the rule and workbook steps and the run summary ([Content Hub solutions](Content-Hub.md)) |
 | `Private/MigrationKits/ClassicToDcr/` | The classic table migration and its review: the table inventory and row counts, the migrate operation, the stream, transform and rule template, the rule deployment and ingestion role, the content read, the parser alias index and chains, the impact per table, the Content Hub mapping and the report writers ([Classic table migration](Table-Migration.md)) |

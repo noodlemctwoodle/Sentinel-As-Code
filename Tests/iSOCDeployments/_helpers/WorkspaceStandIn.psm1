@@ -19,8 +19,9 @@
     mocked REST client both call it, so both read and change one
     subscription.
 
-    Get-PipelineInlineScript returns the inline script of one step of a
-    pipeline file, with its pipeline variables put in.
+    Read-PipelineYaml parses a pipeline file, and Get-PipelineInlineScript
+    returns the inline script of one of its steps, with its pipeline
+    variables put in. Deploy-iSOCWorkspace's suite uses both.
 
 .NOTES
     File:         Tests/iSOCDeployments/_helpers/WorkspaceStandIn.psm1
@@ -28,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, powershell-yaml
 #>
 
@@ -135,20 +136,29 @@ function Invoke-WorkspaceStandInArm {
     throw "The stand-in has no answer for $Method $p"
 }
 
+function Read-PipelineYaml {
+    <# The parsed pipeline file. #>
+    param([string] $Path)
+    Import-Module powershell-yaml -ErrorAction Stop
+    Get-Content -LiteralPath $Path -Raw | ConvertFrom-Yaml
+}
+
 function Get-PipelineInlineScript {
     <#
     Return the inline PowerShell of the step named $Step (an ADO step's
     displayName, a GitHub step's name) in a pipeline file, with each of its
-    pipeline variables replaced by the value $Variables gives it by name
-    (ADO $(name), GitHub ${{ env.NAME }}, ${{ vars.NAME }} or
-    ${{ secrets.NAME }}). A variable it uses that $Variables does not name
-    is an error, so a step that gains one fails the test rather than
-    running with the macro in its text.
+    pipeline variables replaced by the value $Variables gives it by name:
+    ADO macros $(name) for the deployment variables, $(Build.SourcesDirectory)
+    and the flag variables; GitHub and ADO template expressions
+    ${{ env|vars|secrets|inputs|parameters|github.NAME }}, with a
+    || 'literal' default taken when the value is empty or false. A variable
+    it uses that $Variables does not name, or any other template
+    expression, is an error, so a step that gains one fails the test rather
+    than running with the macro in its text.
     #>
     param([string] $Path, [string] $Step, [hashtable] $Variables)
 
-    Import-Module powershell-yaml -ErrorAction Stop
-    $yaml = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Yaml
+    $yaml = Read-PipelineYaml -Path $Path
     $steps = if ($yaml.Contains('stages')) {
         foreach ($stage in $yaml.stages) { foreach ($job in @($stage.jobs)) { @($job.steps) } }
     }
@@ -157,17 +167,21 @@ function Get-PipelineInlineScript {
     }
     $found = @($steps | Where-Object { $_ -is [System.Collections.IDictionary] -and ($_['displayName'] -eq $Step -or $_['name'] -eq $Step) })
     if ($found.Count -ne 1) { throw "Found $($found.Count) steps named '$Step' in $Path." }
-    $inputs = if ($found[0].Contains('inputs')) { $found[0].inputs } else { $found[0].with }
-    $script = if ($inputs.Contains('Inline')) { $inputs.Inline } else { $inputs.inlineScript }
+    $inputs = if ($found[0].Contains('inputs')) { $found[0].inputs } elseif ($found[0].Contains('with')) { $found[0].with } else { @{} }
+    $script = if ($inputs.Contains('Inline')) { $inputs.Inline } elseif ($inputs.Contains('inlineScript')) { $inputs.inlineScript } elseif ($inputs.Contains('script')) { $inputs.script } else { $found[0].run }
 
     $values = $Variables
-    $macro = '\$\{\{\s*(?:env|vars|secrets)\.(?<name>\w+)\s*\}\}|\$\((?<name>azureSubscriptionId|sentinelResourceGroup|sentinelWorkspaceName|playbookResourceGroup|sentinelRegion)\)'
-    [regex]::Replace($script, $macro, {
+    $macro = '\$\{\{\s*(?:env|vars|secrets|inputs|parameters|github)\.(?<name>\w+)\s*(?:\|\|\s*''(?<default>[^'']*)''\s*)?\}\}|\$\((?<name>azureSubscriptionId|sentinelResourceGroup|sentinelWorkspaceName|playbookResourceGroup|sentinelRegion|Build\.SourcesDirectory|flag\w+)\)'
+    $text = [regex]::Replace($script, $macro, {
             param($m)
             $name = $m.Groups['name'].Value
             if (-not $values.ContainsKey($name)) { throw "The step '$Step' uses the pipeline variable '$name', which the test does not give." }
-            [string]$values[$name]
+            $value = [string]$values[$name]
+            if ($m.Groups['default'].Success -and ($value -eq '' -or $value -eq 'false')) { $value = $m.Groups['default'].Value }
+            $value
         })
+    if ($text.Contains('${{')) { throw "The step '$Step' has a template expression the test cannot fill in: $(([regex]::Match($text, '\$\{\{[^}]*\}\}')).Value)" }
+    $text
 }
 
-Export-ModuleMember -Function Get-WorkspaceStandIn, Export-WorkspaceStandIn, Import-WorkspaceStandIn, Invoke-WorkspaceStandInArm, Get-PipelineInlineScript
+Export-ModuleMember -Function Get-WorkspaceStandIn, Export-WorkspaceStandIn, Import-WorkspaceStandIn, Invoke-WorkspaceStandInArm, Read-PipelineYaml, Get-PipelineInlineScript

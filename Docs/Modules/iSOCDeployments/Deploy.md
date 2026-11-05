@@ -10,6 +10,9 @@ workbooks, automation rules and summary rules to the workspace, and
 Defender XDR custom detections to the tenant through Microsoft Graph. It
 also deploys the workspace settings the pipelines configure in a step of
 their own ([Workspace settings and onboarding](Workspace-Settings.md)).
+[Deploying a workspace](Deploy-Workspace.md) covers `Deploy-iSOCWorkspace`,
+which runs it with the Content Hub and Defender stages, as the pipelines
+do.
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments

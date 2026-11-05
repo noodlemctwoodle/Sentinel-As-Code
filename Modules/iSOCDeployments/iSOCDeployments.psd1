@@ -14,6 +14,7 @@
         'Compare-iSOCContent'
         'Connect-iSOCWorkspace'
         'Deploy-iSOCContent'
+        'Deploy-iSOCWorkspace'
         'Export-iSOCContent'
         'Export-iSOCDriftReport'
         'Export-iSOCTableMigrationReport'

@@ -37,6 +37,7 @@ Deploy-iSOCContent -WhatIf
 | Command | What it does | Needs |
 | --- | --- | --- |
 | `Connect-iSOCWorkspace` | Points the module at one workspace through the current Az sign-in; the result is the context every other command uses | Az.Accounts, `Connect-AzAccount` |
+| `Deploy-iSOCWorkspace` | Runs the deploy pipelines' stages after the infrastructure, in order: workspace settings, Content Hub solutions, custom content (after checking the dependency manifest) and Defender XDR custom detections, each held back when the stage before it failed, as the pipelines' stage conditions do | What each stage's command needs, a connected workspace |
 | `Deploy-iSOCContent` | Deploys workspace settings (UEBA, Entity Analytics, anomalies, EyesOn), parsers, watchlists, analytics rules, hunting queries, playbooks, workbooks, automation rules and summary rules in dependency order, then Defender XDR custom detections through Microsoft Graph, with smart deployment and `-WhatIf` | Az.Accounts, powershell-yaml, a connected workspace; Az.Resources when there are playbooks; the `CustomDetection.ReadWrite.All` Graph permission when there are Defender detections |
 | `Get-iSOCWorkspaceOnboarding` | Whether the resource group, the workspace, its two Sentinel onboarding resources and the playbook resource group exist, and what the Bicep template must deploy; read-only | Az.Accounts, `Connect-AzAccount` |
 | `Get-iSOCContentHubSolution` | Where Content Hub solutions stand: installed and available versions, and what installing them would do | Az.Accounts, a connected workspace |
@@ -65,9 +66,11 @@ Deploy-iSOCContent -WhatIf
 
 Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
-Still to come, replacing the pipeline stage sequence
-([MIGRATION.md](MIGRATION.md) lists every script and its status):
-`Deploy-iSOCWorkspace`.
+Still to come ([MIGRATION.md](MIGRATION.md) lists every script and its
+status): `Get-iSOCRepoContent` and `Get-iSOCWorkspaceContent`, the readers
+every type already has, as commands; and the pipeline switch, which
+replaces the pipelines' steps with these commands. `Sentinel.Common` is
+ported in full and retires at the cut-over.
 
 ## What it needs
 
@@ -110,6 +113,7 @@ Private/
   Deploy/        the deploy engine
   State/         deployment-state.json
   ContentHub/    Content Hub solutions
+  Orchestration/ the stages Deploy-iSOCWorkspace runs and what gates each
   Onboarding/    whether a workspace's Sentinel onboarding is whole
   MigrationKits/ the classic table migration, its review and rehearsal aids
   ContentTypes/  the registry, and one folder per content type with its
