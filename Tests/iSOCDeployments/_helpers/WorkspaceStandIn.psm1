@@ -19,9 +19,12 @@
     mocked REST client both call it, so both read and change one
     subscription.
 
-    Read-PipelineYaml parses a pipeline file, and Get-PipelineInlineScript
-    returns the inline script of one of its steps, with its pipeline
-    variables put in. Deploy-iSOCWorkspace's suite uses both.
+    Read-PipelineYaml parses a pipeline file, Get-PipelineStep returns the
+    steps it runs with given parameters (the ${{ if }}, ${{ elseif }} and
+    ${{ else }} insertions on eq and ne of a parameter evaluated), and
+    Get-PipelineInlineScript returns the inline script of one of those
+    steps, with its pipeline variables put in. Deploy-iSOCWorkspace's
+    suite and Pipelines.Tests.ps1 use them.
 
 .NOTES
     File:         Tests/iSOCDeployments/_helpers/WorkspaceStandIn.psm1
@@ -29,7 +32,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, powershell-yaml
 #>
@@ -143,6 +146,126 @@ function Read-PipelineYaml {
     Get-Content -LiteralPath $Path -Raw | ConvertFrom-Yaml
 }
 
+function Resolve-PipelineParameter {
+    <#
+    The value of every parameter a pipeline declares: its default, or the
+    value $Parameters gives it. A name the pipeline does not declare, or a
+    value outside the parameter's values list, is an error, as Azure DevOps
+    makes it when the run is queued.
+    #>
+    param([System.Collections.IDictionary] $Yaml, [hashtable] $Parameters = @{})
+
+    $values = @{}
+    $declared = @{}
+    if ($Yaml.Contains('parameters')) {
+        foreach ($parameter in @($Yaml.parameters)) {
+            $declared[$parameter.name] = $parameter
+            $values[$parameter.name] = $parameter['default']
+        }
+    }
+    foreach ($name in $Parameters.Keys) {
+        if (-not $declared.ContainsKey($name)) { throw "The pipeline declares no parameter '$name'." }
+        $allowed = $declared[$name]['values']
+        if ($allowed -and @($allowed) -notcontains $Parameters[$name]) { throw "'$($Parameters[$name])' is not one of the values of the parameter '$name': $(@($allowed) -join ', ')." }
+        $values[$name] = $Parameters[$name]
+    }
+    $values
+}
+
+function Test-PipelineCondition {
+    <#
+    Evaluate a template condition of the form eq(parameters.name, 'value')
+    or ne(...), with a quoted string or true/false. Strings compare without
+    case, as Azure DevOps compares them. Any other condition is an error,
+    so a pipeline that gains one fails the test rather than being read
+    wrongly.
+    #>
+    param([string] $Condition, [hashtable] $Values)
+
+    $m = [regex]::Match($Condition.Trim(), '^(?<op>eq|ne)\(\s*parameters\.(?<name>\w+)\s*,\s*(?:''(?<text>[^'']*)''|(?<bool>true|false))\s*\)$')
+    if (-not $m.Success) { throw "The test cannot evaluate the template condition '$Condition'." }
+    $name = $m.Groups['name'].Value
+    if (-not $Values.ContainsKey($name)) { throw "The condition '$Condition' names the parameter '$name', which the pipeline does not declare." }
+    $actual = $Values[$name]
+    $equal = if ($m.Groups['bool'].Success) { [bool]$actual -eq [bool]::Parse($m.Groups['bool'].Value) } else { [string]$actual -eq $m.Groups['text'].Value }
+    if ($m.Groups['op'].Value -eq 'eq') { $equal } else { -not $equal }
+}
+
+function Expand-PipelineSequence {
+    <#
+    The items of a stages, jobs or steps list after template insertion:
+    an item that is only ${{ if c }}, ${{ elseif c }} or ${{ else }} is
+    replaced by its own items when its branch is taken, and dropped when it
+    is not.
+    #>
+    param([object[]] $Items, [hashtable] $Values)
+
+    $chain = $null
+    foreach ($item in $Items) {
+        if ($item -is [System.Collections.IDictionary] -and $item.Count -eq 1) {
+            $key = [string]@($item.Keys)[0]
+            $m = [regex]::Match($key, '^\$\{\{\s*(?<kind>if|elseif|else)\b(?<condition>.*?)\s*\}\}$')
+            if ($m.Success) {
+                $take = $false
+                switch ($m.Groups['kind'].Value) {
+                    'if' {
+                        $take = Test-PipelineCondition -Condition $m.Groups['condition'].Value -Values $Values
+                        $chain = $take
+                    }
+                    'elseif' {
+                        if ($null -eq $chain) { throw "An `${{ elseif }} follows no `${{ if }}: $key" }
+                        if (-not $chain) {
+                            $take = Test-PipelineCondition -Condition $m.Groups['condition'].Value -Values $Values
+                            $chain = $take
+                        }
+                    }
+                    'else' {
+                        if ($null -eq $chain) { throw "An `${{ else }} follows no `${{ if }}: $key" }
+                        $take = -not $chain
+                        $chain = $null
+                    }
+                }
+                if ($take) { Expand-PipelineSequence -Items @($item[$key]) -Values $Values }
+                continue
+            }
+            if ($key.StartsWith('${{')) { throw "The test cannot expand the template expression '$key'." }
+        }
+        $chain = $null
+        $item
+    }
+}
+
+function Get-PipelineStep {
+    <#
+    Every step of a pipeline file, in order, after template insertion with
+    the pipeline's parameter defaults and the values $Parameters gives.
+    Each step carries the stage and job it is in, as PipelineStage and
+    PipelineJob keys (null in a GitHub workflow's stage).
+    #>
+    param([string] $Path, [hashtable] $Parameters = @{})
+
+    $yaml = Read-PipelineYaml -Path $Path
+    $values = Resolve-PipelineParameter -Yaml $yaml -Parameters $Parameters
+    if ($yaml.Contains('stages')) {
+        foreach ($stage in (Expand-PipelineSequence -Items @($yaml.stages) -Values $values)) {
+            foreach ($job in (Expand-PipelineSequence -Items @($stage.jobs) -Values $values)) {
+                foreach ($step in (Expand-PipelineSequence -Items @($job.steps) -Values $values)) {
+                    if ($step -is [System.Collections.IDictionary]) { $step['PipelineStage'] = $stage.stage; $step['PipelineJob'] = $job.job }
+                    $step
+                }
+            }
+        }
+    }
+    else {
+        foreach ($jobName in $yaml.jobs.Keys) {
+            foreach ($step in (Expand-PipelineSequence -Items @($yaml.jobs[$jobName].steps) -Values $values)) {
+                if ($step -is [System.Collections.IDictionary]) { $step['PipelineStage'] = $null; $step['PipelineJob'] = $jobName }
+                $step
+            }
+        }
+    }
+}
+
 function Get-PipelineInlineScript {
     <#
     Return the inline PowerShell of the step named $Step (an ADO step's
@@ -154,17 +277,12 @@ function Get-PipelineInlineScript {
     || 'literal' default taken when the value is empty or false. A variable
     it uses that $Variables does not name, or any other template
     expression, is an error, so a step that gains one fails the test rather
-    than running with the macro in its text.
+    than running with the macro in its text. The steps are the ones the
+    pipeline runs with $Parameters (Get-PipelineStep).
     #>
-    param([string] $Path, [string] $Step, [hashtable] $Variables)
+    param([string] $Path, [string] $Step, [hashtable] $Variables, [hashtable] $Parameters = @{})
 
-    $yaml = Read-PipelineYaml -Path $Path
-    $steps = if ($yaml.Contains('stages')) {
-        foreach ($stage in $yaml.stages) { foreach ($job in @($stage.jobs)) { @($job.steps) } }
-    }
-    else {
-        foreach ($job in $yaml.jobs.Values) { @($job.steps) }
-    }
+    $steps = Get-PipelineStep -Path $Path -Parameters $Parameters
     $found = @($steps | Where-Object { $_ -is [System.Collections.IDictionary] -and ($_['displayName'] -eq $Step -or $_['name'] -eq $Step) })
     if ($found.Count -ne 1) { throw "Found $($found.Count) steps named '$Step' in $Path." }
     $inputs = if ($found[0].Contains('inputs')) { $found[0].inputs } elseif ($found[0].Contains('with')) { $found[0].with } else { @{} }
@@ -184,4 +302,4 @@ function Get-PipelineInlineScript {
     $text
 }
 
-Export-ModuleMember -Function Get-WorkspaceStandIn, Export-WorkspaceStandIn, Import-WorkspaceStandIn, Invoke-WorkspaceStandInArm, Read-PipelineYaml, Get-PipelineInlineScript
+Export-ModuleMember -Function Get-WorkspaceStandIn, Export-WorkspaceStandIn, Import-WorkspaceStandIn, Invoke-WorkspaceStandInArm, Read-PipelineYaml, Resolve-PipelineParameter, Test-PipelineCondition, Get-PipelineStep, Get-PipelineInlineScript

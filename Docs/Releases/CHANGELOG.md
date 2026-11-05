@@ -88,8 +88,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   byte as `Tools/Build-DependencyManifest.ps1` does. Its logger breaks up
   any text that Azure DevOps or GitHub Actions would read as a pipeline
   command, so a rule or workbook name set in the portal cannot set
-  pipeline variables. Nothing uses it yet:
-  every pipeline still runs the scripts. See
+  pipeline variables. The Azure DevOps dependency manifest pipelines (the
+  daily update and the PR gate) can run it: queued with `engine` `module`
+  they use the module, and with `compare` they run both and fail when the
+  two disagree; every other pipeline, and every scheduled or PR run, still
+  runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
 - **A classic table fixture stream ends when its posts fail** -

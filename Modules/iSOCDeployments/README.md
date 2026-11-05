@@ -68,9 +68,11 @@ Every command has full help: `Get-Help Connect-iSOCWorkspace -Full`.
 
 Still to come ([MIGRATION.md](MIGRATION.md) lists every script and its
 status): `Get-iSOCRepoContent` and `Get-iSOCWorkspaceContent`, the readers
-every type already has, as commands; and the pipeline switch, which
-replaces the pipelines' steps with these commands. `Sentinel.Common` is
-ported in full and retires at the cut-over.
+every type already has, as commands; and the rest of the pipeline switch,
+which replaces the pipelines' steps with these commands. The Azure DevOps
+dependency manifest pipelines already take an `engine` parameter
+([The pipeline switch](../../Docs/Modules/iSOCDeployments/Pipeline-Switch.md)).
+`Sentinel.Common` is ported in full and retires at the cut-over.
 
 ## What it needs
 

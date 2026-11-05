@@ -66,11 +66,14 @@ scheduled run.
 
 ## Parameters and inputs
 
-Both systems expose a single input:
+Both systems expose `reportOnly`; Azure DevOps also takes `engine`, part of
+the [pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md) to the
+iSOCDeployments module:
 
 | Name | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `reportOnly` | boolean | `false` | Regenerate the manifest and show the drift in the run log, but do not commit, push, or open a PR. |
+| `engine` (Azure DevOps) | `scripts`, `module` or `compare` | `scripts` | Which engine writes the manifest: `Tools/Build-DependencyManifest.ps1`, `Update-iSOCDependencyManifest`, or the script plus a step that has both write a fresh manifest and fails when the bytes differ. |
 
 - **GitHub** declares it as a `workflow_dispatch` input and gates the
   commit step directly with
@@ -78,8 +81,10 @@ Both systems expose a single input:
 - **ADO** declares it as a pipeline `parameter` and, because a template
   parameter cannot be read inside a runtime bash step directly, resolves it
   at compile time into a `flagReportOnly` variable
-  (`"true"` / `"false"`) that the bash step then checks
-  (`if [ "$(flagReportOnly)" = "true" ]`).
+  (`"true"` / `"false"`) that the bash step reads through its `env:` as
+  `REPORT_ONLY` (`if [ "$REPORT_ONLY" = "true" ]`). The step takes
+  `syncBranch`, `targetBranch` and `manifestCommand` the same way, so no
+  runtime variable is pasted into the script's text.
 
 ## Variables and configuration
 
@@ -92,6 +97,7 @@ variable group, no library, no secrets beyond the built-in token):
 | Target branch | `TARGET_BRANCH: main` | `targetBranch: main` |
 | `powershell-yaml` pin | `YAML_VERSION: 0.4.12` | Pinned inline in the install step (`0.4.12`) |
 | Report-only flag | `inputs.reportOnly` (read directly) | `flagReportOnly` (compile-time from `parameters.reportOnly`) |
+| Command named in the commit | `Tools/Build-DependencyManifest.ps1 -Mode Generate` | `manifestCommand` (compile-time from `parameters.engine`) |
 
 ## Jobs and steps
 
@@ -105,6 +111,8 @@ The steps run in this order:
 1. Checkout main (full history)
 2. Install PowerShell modules (powershell-yaml only)
 3. Run Build-DependencyManifest.ps1 -Mode Update
+   (ADO engine module: Update-iSOCDependencyManifest instead;
+    ADO engine compare: then a step comparing the two engines)
 4. Commit, push, and open / refresh PR  (skipped on reportOnly, off main, or clean tree)
 ```
 

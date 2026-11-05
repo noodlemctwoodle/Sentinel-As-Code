@@ -9,8 +9,10 @@ explains the manifest itself and the gate that keeps it current.
 
 iSOCDeployments has the commands that will replace
 `Tools/Build-DependencyManifest.ps1` at the 26.11.0 cut-over. Until then the
-pipelines still run the script; the module writes the same file byte for
-byte, so either can be used.
+pipelines run the script by default; the module writes the same file byte for
+byte, so either can be used, and the Azure DevOps daily update and PR gate
+run the module with `engine` `module`, or both with `compare`
+([The pipeline switch](Pipeline-Switch.md)).
 
 | Script | Command | What changes |
 | --- | --- | --- |
