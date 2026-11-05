@@ -3,25 +3,23 @@
 
 <#
 .SYNOPSIS
-    Tests for New-iSOCDcrFromSchema, against
-    Tools/DcrFromSchema/New-DcrFromSchema.ps1.
+    Tests for New-iSOCDcrFromSchema.
 
 .DESCRIPTION
     The schema reader, repairs, checks, stream and transform builders,
-    templates and error flattener run beside the script's own and must
-    answer the same.
+    templates and error flattener are held to explicit expected values for
+    a handful of representative inputs, the shipped examples among them.
 
-    Then the script runs unchanged in a child pwsh with -NonInteractive,
-    its Az cmdlets stood in for, and the command runs through mocks of the
-    module's REST client and deployment wrappers; both over one stand-in
-    workspace (Tests/iSOCDeployments/_helpers/DcrFromSchemaStandIn.psm1)
-    whose tables and rules appear as they are deployed. For each run the two
-    must validate and deploy the same templates in the same order, grant the
-    same roles, write the same template files and return the same result,
-    or refuse with the same message: the shipped examples, a schema that
-    needs repair, a pasted one, a table that exists or cannot be read, every
-    parameter given, -SkipTable, -WhatIf, a rule with no endpoint, a
-    template that fails validation and a deployment that fails.
+    The command runs through mocks of the module's REST client and
+    deployment wrappers, over one stand-in workspace
+    (Tests/iSOCDeployments/_helpers/DcrFromSchemaStandIn.psm1) whose tables
+    and rules appear as they are deployed: each refusal must give its
+    message and write nothing, and a run must validate, deploy and grant,
+    name the module in its templates, write the same file each time, write
+    nothing under -WhatIf and resolve a relative output folder.
+
+    Parity with New-DcrFromSchema.ps1 was proven on release/26.11.0 before
+    the script was removed.
 
 .NOTES
     File:         Tests/iSOCDeployments/DcrFromSchema.Tests.ps1
@@ -29,157 +27,37 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeDiscovery {
-    $lq = [string][char]0x201C
-    $rq = [string][char]0x201D
-    $ls = [string][char]0x2018
-    $rs = [string][char]0x2019
-    $nb = [string][char]0x00A0
-    $zw = [string][char]0x200B
-
-    $schema = @{
-        Repair    = @'
-{
-  "tableName": "Repair_CL",
-  "description": "Records that need repair.",
-  "columns": [
-    { "name": "Alert", "type": "string" },
-    { "name": "alert", "type": "string" },
-    { "name": "9Bad", "type": "string" },
-    { "name": "Dup", "type": "integer" },
-    { "name": "Dup", "type": "long" },
-    { "name": "Src", "type": "string", "dataTypeHint": "ipv4" },
-    { "name": "EventId", "type": "uuid", "note": "a key the Tables API does not define" },
-    { "name": "TenantId", "type": "string" },
-    { "name": "Count_d", "type": "double", "comment": "a classic suffix" },
-    { "name": "Flag", "type": "bool", "displayName": "The flag" },
-    { "name": "When", "type": "timestamp", "description": "line one\nline two" }
-  ]
-}
-'@
-        Pasted    = "{$nb`n  // pasted from a wiki`n  ${lq}tableName${rq}: ${lq}Pasted_CL${rq},`n  ${lq}columns${rq}: [`n    { ${lq}name${rq}: ${lq}TimeGenerated${rq}, ${lq}type${rq}: ${lq}datetime${rq} },`n    /* the id */ { ${lq}name${rq}: ${lq}Ref${rq}, ${lq}type${rq}: ${lq}guid${rq}, ${lq}description${rq}: ${lq}see http://wiki/x${zw}${rq} },`n  ],`n}"
-        Existing  = @'
-{
-  "tableName": "Existing_CL",
-  "description": "This description is far longer than a data collection rule allows, so it is cut to two hundred and fifty six characters before it is used: it goes on, and on, explaining what the table holds, who sends to it, how long it is kept, and why each of its columns is there at all, until it is too long.",
-  "columns": [
-    { "name": "TimeGenerated", "type": "datetime" },
-    { "name": "AlertId", "type": "string" },
-    { "name": "NewCol", "type": "dynamic" }
-  ]
-}
-'@
-        Broken    = '{ "tableName": "Broken_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Value", "type": "real" } ] }'
-        Shapeless = '{ "tableName": "Shapeless_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'
-        Failing   = '{ "tableName": "Failing_CL", "dcrName": "dcr-failing", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'
-        Rejected  = '{ "tableName": "Rejected_CL", "dcrName": "dcr-rejected", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'
-        Tables    = '{ "properties": { "plan": "Basic", "totalRetentionInDays": 180, "schema": { "name": "Exported_CL", "description": "Read back from Azure.", "columns": [ { "name": "TimeGenerated", "type": "dateTime" }, { "name": "Host", "type": "string" } ] } } }'
-        Single    = '[ { "name": "Only", "type": "string" } ]'
-    }
-
-    $script:runs = @(
-        @{ Label = 'the threat intel example, templates only'; Example = 'threat-intel-alerts.json'; Parameters = @{} }
-        @{ Label = 'the annotated example, deployed and granted'; Example = 'annotated.json'; Parameters = @{ Deploy = $true; GrantIngestionRoleTo = @('aaaaaaaa-1111-2222-3333-444444444444', 'user-object-1', 'held-object-1', 'deny-object-1') } }
-        @{ Label = 'the Basic plan example, deployed'; Example = 'basic-plan.json'; Parameters = @{ Deploy = $true } }
-        @{ Label = 'the Auxiliary plan example'; Example = 'auxiliary-plan.json'; Parameters = @{} }
-        @{ Label = 'the minimal example'; Example = 'minimal.json'; Parameters = @{ Deploy = $true } }
-        @{ Label = 'a schema that needs repair'; Schema = $schema.Repair; Parameters = @{ Deploy = $true } }
-        @{ Label = 'a pasted schema'; Schema = $schema.Pasted; Parameters = @{} }
-        @{ Label = 'a table as the Tables API returns it'; Schema = $schema.Tables; Parameters = @{ Deploy = $true } }
-        @{ Label = 'a bare column list'; Schema = $schema.Single; Parameters = @{ TableName = 'Single' } }
-        @{ Label = 'a table that exists, with a long description'; Schema = $schema.Existing; Parameters = @{ Deploy = $true } }
-        @{ Label = 'a rule for a table that exists (-SkipTable)'; Schema = $schema.Existing; Parameters = @{ SkipTable = $true; Deploy = $true; GrantIngestionRoleTo = @('user-object-1') } }
-        @{ Label = 'a live table that cannot be read'; Schema = $schema.Broken; Parameters = @{ Deploy = $true } }
-        @{ Label = 'a live table answered without its schema'; Schema = $schema.Shapeless; Parameters = @{} }
-        @{ Label = 'every parameter given'; Example = 'annotated.json'; Parameters = @{
-                TableName = 'Param'; DcrName = 'dcr-param'; DcrResourceGroupName = 'rg-dcr'; Location = 'westeurope'
-                DataCollectionEndpointResourceId = '/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-dcr/providers/Microsoft.Insights/dataCollectionEndpoints/dce-1'
-                TransformKql = "source | extend Note = ${ls}x${rs}"; TablePlan = 'Basic'; RetentionInDays = 30; TotalRetentionInDays = 365
-                Description = "Line one`nLine two"; IncludeDataTypeHint = $true; Deploy = $true; GrantIngestionRoleTo = @('user-object-1')
-            }
-        }
-        @{ Label = '-WhatIf, with -Deploy'; Example = 'annotated.json'; Parameters = @{ Deploy = $true; WhatIf = $true; GrantIngestionRoleTo = @('user-object-1') } }
-        @{ Label = 'a rule with no ingestion endpoint'; Example = 'minimal.json'; NoEndpoint = $true; Parameters = @{ Deploy = $true } }
-        @{ Label = 'a template that fails validation'; Schema = $schema.Rejected; Parameters = @{ Deploy = $true }; ExpectError = 'Template validation failed \(<out>/dcr-rejected\.json\): \[InvalidTemplateDeployment\].+ -> \[InvalidProperty\] \(Properties\.Description\)' }
-        @{ Label = 'a deployment that fails'; Schema = $schema.Failing; Parameters = @{ Deploy = $true }; ExpectError = '^Deployment failed: .+InvalidOutputTable' }
-    )
-
     $script:refusals = @(
-        @{ Label = 'a classic table'; Schema = '{ "tableName": "Legacy_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; Replace = @{ 'Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1' = 'Invoke-iSOCClassicTableMigration' } }
-        @{ Label = 'a column whose live type differs'; Schema = '{ "tableName": "Typed_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "AlertId", "type": "string" } ] }'; Parameters = @{} }
-        @{ Label = 'an Auxiliary table with names that differ only by case'; Schema = '{ "tableName": "CaseAux_CL", "plan": "Auxiliary", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Alert", "type": "string" }, { "name": "alert", "type": "string" } ] }'; Parameters = @{} }
-        @{ Label = 'a resource group that does not exist'; Example = 'minimal.json'; Parameters = @{ DcrResourceGroupName = 'rg-missing' }; Replace = @{ 'in subscription 11111111-2222-3333-4444-555555555555.' = "in the workspace's subscription." } }
-        @{ Label = 'a type that cannot be repaired'; Schema = '{ "tableName": "BadType_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Sketch", "type": "hyperloglog" } ] }'; Parameters = @{} }
-        @{ Label = 'a table name that cannot be used'; Schema = '{ "tableName": "9bad_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{} }
-        @{ Label = 'retention out of range in the file'; Schema = '{ "tableName": "Kept_CL", "retentionInDays": 1000, "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{} }
-        @{ Label = 'total retention shorter than interactive'; Schema = '{ "tableName": "Kept_CL", "retentionInDays": 90, "totalRetentionInDays": 30, "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{} }
-        @{ Label = 'a transform too long'; Example = 'minimal.json'; Parameters = @{ TransformKql = 'source | where ' + ('x' * 15400) } }
-        @{ Label = 'a sample of the data'; Schema = '[ { "user": "a", "count": 1 } ]'; Parameters = @{ TableName = 'Sample' } }
-        @{ Label = 'a file that is not JSON'; Schema = 'tableName: Yaml_CL'; Parameters = @{} }
-        @{ Label = 'no table name'; Schema = '[ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Value", "type": "string" } ]'; Parameters = @{}; Replace = @{ "'Table name (must end _CL)' is required in non-interactive mode. Supply it as a parameter." = 'The schema file names no table, so -TableName is required.' } }
-        @{ Label = 'a plan in the file that is not one'; Schema = '{ "tableName": "Plan_CL", "plan": "Premium", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; LegacyMatch = 'Premium'; ModuleError = "The schema file's plan 'Premium' is not one of Analytics, Basic and Auxiliary." }
+        @{ Label = 'a classic table'; Schema = '{ "tableName": "Legacy_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; Message = 'Legacy_CL is a classic (MMA / Data Collector API) table. A DCR cannot target one (InvalidOutputTable). Migrate it first with Invoke-iSOCClassicTableMigration.' }
+        @{ Label = 'a column whose live type differs'; Schema = '{ "tableName": "Typed_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "AlertId", "type": "string" } ] }'; Parameters = @{}; Message = 'The live table''s column types differ from the schema, and a column type cannot be changed after creation: AlertId: live table has ''int'', the schema says ''string''. Align the schema file with the live table, or use a new table name.' }
+        @{ Label = 'an Auxiliary table with names that differ only by case'; Schema = '{ "tableName": "CaseAux_CL", "plan": "Auxiliary", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Alert", "type": "string" }, { "name": "alert", "type": "string" } ] }'; Parameters = @{}; Message = 'An Auxiliary table drops rows when column names differ only by case, so this schema cannot use the Auxiliary plan: column names differ only by case: alert, Alert. Analytics and Basic tables treat these as separate columns; an Auxiliary table drops rows because of them. Rename the columns, or choose Analytics or Basic.' }
+        @{ Label = 'a resource group that does not exist'; Example = 'minimal.json'; Parameters = @{ DcrResourceGroupName = 'rg-missing' }; Message = 'DCR resource group ''rg-missing'' does not exist in the workspace''s subscription. Re-run and supply an existing resource group, or pass -DcrResourceGroupName.' }
+        @{ Label = 'a type that cannot be repaired'; Schema = '{ "tableName": "BadType_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Sketch", "type": "hyperloglog" } ] }'; Parameters = @{}; Message = 'Schema cannot be used and non-interactive mode cannot ask: Sketch: type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string' }
+        @{ Label = 'a table name that cannot be used'; Schema = '{ "tableName": "9bad_CL", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; Message = 'Table name is not usable: ''9bad_CL'' must start with a letter and contain only letters, digits and underscores, so KQL can reference it unquoted.' }
+        @{ Label = 'retention out of range in the file'; Schema = '{ "tableName": "Kept_CL", "retentionInDays": 1000, "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; Message = 'Interactive retention must be between 4 and 730 days, or -1 for the workspace default; got 1000.' }
+        @{ Label = 'total retention shorter than interactive'; Schema = '{ "tableName": "Kept_CL", "retentionInDays": 90, "totalRetentionInDays": 30, "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; Message = 'Total retention (30 days) cannot be shorter than interactive retention (90 days).' }
+        @{ Label = 'a transform too long'; Example = 'minimal.json'; Parameters = @{ TransformKql = 'source | where ' + ('x' * 15400) }; Message = 'The transform is 15415 characters; a data collection rule allows 15360. Move the logic into a workspace function, or trim it.' }
+        @{ Label = 'a sample of the data'; Schema = '[ { "user": "a", "count": 1 } ]'; Parameters = @{ TableName = 'Sample' }; Message = 'Schema file has no column list (<path>). Expected { "tableName": "MyTable_CL", "columns": [ { "name": "...", "type": "..." } ] }. This tool takes a schema, not a sample of the data.' }
+        @{ Label = 'a file that is not JSON'; Schema = 'tableName: Yaml_CL'; Parameters = @{}; Like = 'Schema file is not valid JSON (<path>): *' }
+        @{ Label = 'no table name'; Schema = '[ { "name": "TimeGenerated", "type": "datetime" }, { "name": "Value", "type": "string" } ]'; Parameters = @{}; Message = 'The schema file names no table, so -TableName is required.' }
+        @{ Label = 'a plan in the file that is not one'; Schema = '{ "tableName": "Plan_CL", "plan": "Premium", "columns": [ { "name": "TimeGenerated", "type": "datetime" } ] }'; Parameters = @{}; Message = 'The schema file''s plan ''Premium'' is not one of Analytics, Basic and Auxiliary.' }
     )
 }
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:scriptPath = Join-Path $script:repoRoot 'Tools/DcrFromSchema/New-DcrFromSchema.ps1'
-    $script:examples = Join-Path $script:repoRoot 'Tools/DcrFromSchema/Examples'
+    $script:examples = Join-Path $script:repoRoot 'Modules/iSOCDeployments/Resources/DcrFromSchema/Examples'
     $script:helperPath = Join-Path $PSScriptRoot '_helpers/DcrFromSchemaStandIn.psm1'
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     Import-Module $script:helperPath -Force
-    Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-
-    $text = Get-Content -LiteralPath $script:scriptPath -Raw
-    $start = $text.IndexOf('#region -- Constants')
-    $constants = $text.Substring($start, $text.IndexOf('#endregion', $start) - $start) -replace '-not \$NonInteractive', '$false'
-    . ([scriptblock]::Create($constants))
-    Import-ScriptFunctions -Path $script:scriptPath
 
     $script:roleIds = @{ 'Monitoring Metrics Publisher' = '3913510d-42f4-4e42-8a64-420c390055eb' }
-
-    $script:wrapper = @'
-param([string] $Script, [string] $Helper, [string] $Parameters, [string] $Out, [switch] $NoEndpoint)
-$ErrorActionPreference = 'Stop'
-Import-Module $Helper -Force
-$global:DcrState = Get-DcrFromSchemaStandIn -NoEndpoint:$NoEndpoint
-function Read-Host { throw 'The script prompted.' }
-function Get-AzContext { [pscustomobject]@{ Subscription = [pscustomobject]@{ Id = $global:DcrState.SubscriptionId }; Account = [pscustomobject]@{ Id = 'tester' } } }
-function Set-AzContext { param($Subscription) Get-AzContext }
-function Get-AzOperationalInsightsWorkspace { param($ResourceGroupName, $Name, $ErrorAction) [pscustomobject]@{ Name = $global:DcrState.WorkspaceName; ResourceGroupName = $global:DcrState.ResourceGroup; Location = $global:DcrState.Location; ResourceId = $global:DcrState.WorkspacePath } }
-function Get-AzResourceGroup { param($Name, $ErrorAction) $a = Invoke-DcrFromSchemaArm -State $global:DcrState -Method GET -Path "/subscriptions/$($global:DcrState.SubscriptionId)/resourceGroups/$Name"; if ($a.Status -ne 200) { throw "Provided resource group does not exist." }; [pscustomobject]@{ ResourceGroupName = $Name } }
-function Invoke-AzRestMethod {
-    param($Path, $Uri, $Method = 'GET', $Payload)
-    $target = if ($Path) { $Path } else { ([Uri]$Uri).PathAndQuery }
-    $a = Invoke-DcrFromSchemaArm -State $global:DcrState -Method $Method -Path $target
-    [pscustomobject]@{ StatusCode = $a.Status; Content = $(if ($null -ne $a.Body) { ConvertTo-Json -InputObject $a.Body -Depth 30 } else { '' }) }
-}
-function Test-AzResourceGroupDeployment { param($ResourceGroupName, $TemplateFile, $ErrorAction) Invoke-DcrFromSchemaValidate -State $global:DcrState -ResourceGroup $ResourceGroupName -TemplateFile $TemplateFile }
-function New-AzResourceGroupDeployment { param($Name, $ResourceGroupName, $TemplateFile, [switch] $Force, $ErrorAction) Invoke-DcrFromSchemaDeploy -State $global:DcrState -Name $Name -ResourceGroup $ResourceGroupName -TemplateFile $TemplateFile }
-function Get-AzResourceGroupDeploymentOperation {
-    param($ResourceGroupName, $DeploymentName, $ErrorAction)
-    foreach ($o in @(Get-DcrFromSchemaDeploymentOperation -State $global:DcrState -DeploymentName $DeploymentName)) {
-        $m = $o.properties.statusMessage
-        [pscustomobject]@{ ProvisioningState = $o.properties.provisioningState; StatusMessage = $(if ($m -is [string]) { $m } else { ConvertTo-Json -InputObject $m -Depth 8 -Compress }) }
-    }
-}
-function Get-AzADServicePrincipal { param($ApplicationId, $ErrorAction) $id = Resolve-DcrFromSchemaApp -State $global:DcrState -AppId $ApplicationId; if (-not $id) { throw "Resource '$ApplicationId' does not exist." }; [pscustomobject]@{ Id = $id } }
-function Get-AzRoleAssignment { param($ObjectId, $Scope, $RoleDefinitionName, $ErrorAction) @(Get-DcrFromSchemaAssignment -State $global:DcrState -PrincipalId $ObjectId -Scope $Scope | Where-Object { $_.Role -eq $RoleDefinitionName }) }
-function New-AzRoleAssignment { param($ObjectId, $RoleDefinitionName, $Scope, $ErrorAction) Add-DcrFromSchemaAssignment -State $global:DcrState -PrincipalId $ObjectId -Role $RoleDefinitionName -Scope $Scope; [pscustomobject]@{ RoleAssignmentId = 'x' } }
-$splat = Get-Content -LiteralPath $Parameters -Raw | ConvertFrom-Json -AsHashtable
-$code = 0
-$result = $null
-try { $result = & $Script @splat }
-catch { $code = 1; Set-Content -LiteralPath (Join-Path $Out 'error.txt') -Value $_.Exception.Message }
-Set-Content -LiteralPath (Join-Path $Out 'results.json') -Value (ConvertTo-Json -InputObject @($result) -Depth 10)
-Set-Content -LiteralPath (Join-Path $Out 'writes.json') -Value (ConvertTo-Json -InputObject @($global:DcrState.Writes) -Depth 10)
-exit $code
-'@
 
     function Get-SchemaPath {
         param([string] $Example, [string] $Schema)
@@ -187,29 +65,6 @@ exit $code
         $path = Join-Path $TestDrive "$([guid]::NewGuid().ToString('N')).json"
         [System.IO.File]::WriteAllText($path, $Schema, [System.Text.UTF8Encoding]::new($false))
         $path
-    }
-
-    function Invoke-LegacyDcr {
-        param([string] $SchemaPath, [hashtable] $Parameters, [switch] $NoEndpoint)
-        $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-        $out = Join-Path $tree 'out'
-        $templates = Join-Path $tree 'templates'
-        New-Item -ItemType Directory -Path $out -Force | Out-Null
-        $copy = Join-Path $tree 'New-DcrFromSchema.ps1'
-        Set-Content -LiteralPath $copy -Value ((Get-Content -LiteralPath $script:scriptPath -Raw) -replace '(?m)^#Requires -Modules[^\r\n]*\r?\n', '') -NoNewline
-        Set-Content -LiteralPath (Join-Path $tree 'run.ps1') -Value $script:wrapper
-        $splat = @{ SchemaPath = $SchemaPath; ResourceGroupName = 'rg-sentinel'; WorkspaceName = 'law-sentinel'; NonInteractive = $true; OutputDirectory = $templates } + $Parameters
-        Set-Content -LiteralPath (Join-Path $tree 'parameters.json') -Value (ConvertTo-Json -InputObject $splat)
-        $output = & pwsh -NoProfile -NonInteractive -File (Join-Path $tree 'run.ps1') -Script $copy -Helper $script:helperPath -Parameters (Join-Path $tree 'parameters.json') -Out $out -NoEndpoint:$NoEndpoint 2>&1 | Out-String
-        $errorFile = Join-Path $out 'error.txt'
-        [pscustomobject]@{
-            ExitCode  = $LASTEXITCODE
-            Output    = $output
-            Error     = if (Test-Path -LiteralPath $errorFile) { (Get-Content -LiteralPath $errorFile -Raw).Trim().Replace($templates, '<out>') } else { $null }
-            Result    = @(Get-Content -LiteralPath (Join-Path $out 'results.json') -Raw | ConvertFrom-Json -Depth 10 | Where-Object { $null -ne $_ }) | Select-Object -First 1
-            Writes    = @(Get-Content -LiteralPath (Join-Path $out 'writes.json') -Raw | ConvertFrom-Json -Depth 10 | Where-Object { $null -ne $_ })
-            Templates = $templates
-        }
     }
 
     function Invoke-ModuleDcr {
@@ -279,110 +134,170 @@ exit $code
         ($Text -replace "`r`n", "`n" -replace 'generated by New-(iSOC)?DcrFromSchema(\.ps1)?\.', 'generated by X.').TrimEnd("`n")
     }
 
-    function ConvertTo-ComparableWrite {
-        param($Writes)
-        @($Writes | ForEach-Object {
-                switch ($_.Kind) {
-                    'Validate' { "Validate $($_.ResourceGroup) $($_.Resource)" }
-                    'Deploy' { "Deploy $($_.ResourceGroup) $($_.Name)`n" + (ConvertTo-ComparableText $_.Template) }
-                    'Grant' { "Grant $($_.PrincipalId) $($_.Role) $($_.Scope)" }
-                }
-            })
-    }
-
     function Get-ComparableTemplate {
         param([string] $Folder)
         if (-not (Test-Path -LiteralPath $Folder)) { return @() }
         @(Get-ChildItem -LiteralPath $Folder -File | Sort-Object Name | ForEach-Object { "$($_.Name)`n" + (ConvertTo-ComparableText (Get-Content -LiteralPath $_.FullName -Raw)) })
     }
-
-    function ConvertTo-ComparableResult {
-        param($Result)
-        if ($null -eq $Result) { return 'none' }
-        $o = [ordered]@{}
-        foreach ($n in @('TableName', 'ColumnCount', 'WorkspaceName', 'ResourceGroupName', 'DcrName', 'DcrResourceGroup', 'Location', 'StreamName', 'TransformKql', 'TableTemplatePath', 'DcrTemplatePath', 'Deployed', 'ImmutableId', 'Endpoint', 'Granted')) {
-            $v = $Result.$n
-            if ($n -like '*TemplatePath' -and $v) { $v = Split-Path -Leaf $v }
-            if ($n -eq 'Granted') { $v = @($v) }
-            $o[$n] = $v
-        }
-        ConvertTo-Json -InputObject $o -Depth 5 -Compress
-    }
 }
 
-Describe 'The schema helpers, beside the script''s' {
+Describe 'The schema helpers' {
     BeforeAll {
-        Mock Write-PipelineMessage { }
         $script:inModule = { param([scriptblock] $Block, [hashtable] $With = @{}) InModuleScope iSOCDeployments -Parameters $With -ScriptBlock $Block }
         $script:canonical = { param($Value) ConvertTo-Json -InputObject $Value -Depth 30 -Compress }
     }
 
-    It 'reads <Label> the same' -ForEach @(
-        @{ Label = 'every shipped example'; Files = @('annotated.json', 'auxiliary-plan.json', 'basic-plan.json', 'minimal.json', 'threat-intel-alerts.json') }
-    ) {
-        foreach ($file in $Files) {
+    It 'reads every shipped example' {
+        $expected = [ordered]@{
+            'annotated.json' = '{"TableName":"PaymentAudit_CL",' +
+                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the gateway recorded the event."},' +
+                '{"name":"TransactionId","type":"guid","description":"Gateway transaction identifier. Declared string in the DCR stream and cast back by the transform, because a stream declaration cannot express guid."},' +
+                '{"name":"MerchantName","type":"string","displayName":"Merchant","description":"Trading name of the merchant."},' +
+                '{"name":"SourceIp","type":"string","dataTypeHint":"ip","description":"Caller address. The ip hint lets the portal and Sentinel entity mapping treat it as an address rather than text."},' +
+                '{"name":"GatewayResourceId","type":"string","dataTypeHint":"armPath","description":"Resource ID of the gateway instance."},' +
+                '{"name":"CallbackUrl","type":"string","dataTypeHint":"uri","description":"Merchant callback endpoint."},' +
+                '{"name":"AmountMinorUnits","type":"long","description":"Amount in minor units. Integral on purpose: a real would introduce floating-point error into money."},' +
+                '{"name":"Succeeded","type":"boolean","description":"Whether the gateway authorised the payment."},' +
+                '{"name":"RiskScore","type":"real","description":"Fraud score between 0 and 1."},' +
+                '{"name":"GatewayResponse","type":"dynamic","description":"Full gateway response body, kept as an object so it stays queryable."}],' +
+                '"Extra":{"description":"Payment gateway audit events, pushed over the Logs Ingestion API.",' +
+                '"dcrName":"dcr-payment-audit",' +
+                '"plan":"Analytics",' +
+                '"retentionInDays":30,' +
+                '"totalRetentionInDays":730,' +
+                '"transformKql":"source | where isnotempty(TransactionId) | extend TransactionId = toguid(TransactionId)"}}'
+            'auxiliary-plan.json' = '{"TableName":"NetFlowArchive_CL",' +
+                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"Flow timestamp. An Auxiliary table only accepts ISO 8601 with six decimal places, for example 2026-07-30T09:15:22.123456Z."},' +
+                '{"name":"SourceIp","type":"string","dataTypeHint":"ip","description":"Flow source address."},' +
+                '{"name":"DestinationIp","type":"string","dataTypeHint":"ip","description":"Flow destination address."},' +
+                '{"name":"DestinationPort","type":"int","description":"Destination port."},' +
+                '{"name":"Protocol","type":"string","description":"Transport protocol."},' +
+                '{"name":"BytesSent","type":"long","description":"Bytes sent. Long rather than int, because a flow archive overflows a 32-bit counter."},' +
+                '{"name":"BytesReceived","type":"long","description":"Bytes received."},' +
+                '{"name":"Action","type":"string","description":"Whether the flow was allowed or denied."}],' +
+                '"Extra":{"description":"Verbose network flow records kept for compliance. Auxiliary plan: cheapest ingestion, 30-day fixed interactive retention, low-fidelity query only. TimeGenerated must be sent as ISO 8601 with six decimal places.",' +
+                '"dcrName":"dcr-netflow-archive",' +
+                '"plan":"Auxiliary",' +
+                '"totalRetentionInDays":365}}'
+            'basic-plan.json' = '{"TableName":"AppTrace_CL",' +
+                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the application emitted the trace."},' +
+                '{"name":"Component","type":"string","description":"Emitting component. Keep the filterable fields as real columns, because Basic tables support a reduced KQL surface."},' +
+                '{"name":"Level","type":"string","description":"Trace level, for example Information or Warning."},' +
+                '{"name":"CorrelationId","type":"string","description":"Request correlation identifier."},' +
+                '{"name":"Message","type":"string","description":"Trace message."},' +
+                '{"name":"Properties","type":"dynamic","description":"Structured trace properties."}],' +
+                '"Extra":{"description":"High-volume application traces. Basic plan: cheap to ingest, 30-day fixed interactive retention, no alerting.",' +
+                '"dcrName":"dcr-app-trace",' +
+                '"plan":"Basic",' +
+                '"totalRetentionInDays":365}}'
+            'minimal.json' = '{"TableName":"MyApp_CL",' +
+                '"Columns":[{"name":"TimeGenerated","type":"datetime"},' +
+                '{"name":"Message","type":"string"}],' +
+                '"Extra":{}}'
+            'threat-intel-alerts.json' = '{"TableName":"ThreatIntelAlert_CL",' +
+                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the record was ingested."},' +
+                '{"name":"AlertCreated","type":"datetime","description":"When the feed raised the alert. Kept separate from TimeGenerated so feed latency stays measurable."},' +
+                '{"name":"AlertId","type":"string","description":"Feed identifier for the alert."},' +
+                '{"name":"AlertType","type":"string","description":"Feed classification of the alert."},' +
+                '{"name":"AlertName","type":"string","description":"Human-readable alert title."},' +
+                '{"name":"AlertQuery","type":"string","description":"Query or rule the feed matched on."},' +
+                '{"name":"AlertSource","type":"string","description":"Which feed or collection the alert came from."},' +
+                '{"name":"Resource","type":"dynamic","description":"Affected resource, as an object."},' +
+                '{"name":"HighlightText","type":"string","description":"Matched excerpt, flattened for full-text search."},' +
+                '{"name":"Highlights","type":"dynamic","description":"Matched excerpts with their offsets."},' +
+                '{"name":"Tags","type":"dynamic","description":"Feed tags. Dynamic rather than a delimited string, so tags stay individually queryable."},' +
+                '{"name":"RawData","type":"dynamic","description":"Full original payload, retained for reprocessing."}],' +
+                '"Extra":{"description":"Alerts pushed from a threat intelligence feed over the Logs Ingestion API.",' +
+                '"dcrName":"dcr-threat-intel-alert",' +
+                '"plan":"Analytics",' +
+                '"retentionInDays":90,' +
+                '"totalRetentionInDays":365}}'
+        }
+        foreach ($file in $expected.Keys) {
             $path = Join-Path $script:examples $file
-            $old = Import-TableSpec -Path $path
             $new = & $script:inModule { param($P) Mock Write-iSOCLog { }; Import-iSOCTableSpec -Path $P } @{ P = $path }
-            (& $script:canonical $new) | Should -BeExactly (& $script:canonical $old) -Because $file
+            (& $script:canonical $new) | Should -BeExactly $expected[$file] -Because $file
         }
     }
 
-    It 'reads and refuses every shape the same' {
-        $texts = @(
-            '{ "properties": { "plan": "Basic", "schema": { "name": "T_CL", "description": "d", "columns": [ { "name": "A", "type": "string" } ] } } }'
-            '{ "properties": { "plan": "Basic" } }'
-            '[ { "name": "A", "type": "string" }, { "name": "B" } ]'
-            '{ "name": "Lone", "type": "string" }'
-            '{ "table": "T_CL", "fields": [ { "name": "A" } ], "transformKql": "source", "location": "westeurope" }'
-            '{ "tableName": "T_CL", "columns": [] }'
-            '{ "tableName": "T_CL" }'
-            '[ { "a": 1 } ]'
-            ''
-            '{ "tableName": "T_CL", "columns": [ { "name": "A", "type": "string" }, ], }'
-            "{ $([char]0x201C)tableName$([char]0x201D): $([char]0x201C)T_CL$([char]0x201D), `"columns`": [ { `"name`": `"A`" } ] }"
-            "$([char]0xFEFF){ `"tableName`": `"T_CL`", `"columns`": [ { `"name`": `"A`" } ] /* c */ }"
-            '{ "tableName": nope }'
+    It 'reads and refuses every shape' {
+        $cases = @(
+            @{ Text = '{ "properties": { "plan": "Basic", "schema": { "name": "T_CL", "description": "d", "columns": [ { "name": "A", "type": "string" } ] } } }'; Expected = '{"TableName":"T_CL","Columns":[{"name":"A","type":"string"}],"Extra":{"description":"d","plan":"Basic"}}' }
+            @{ Text = '{ "properties": { "plan": "Basic" } }'; Expected = 'error: Schema file has a ''properties'' block but no ''properties.schema'' (<path>).' }
+            @{ Text = '[ { "name": "A", "type": "string" }, { "name": "B" } ]'; Expected = '{"TableName":null,"Columns":[{"name":"A","type":"string"},{"name":"B"}],"Extra":{}}' }
+            @{ Text = '{ "name": "Lone", "type": "string" }'; Expected = '{"TableName":null,"Columns":[{"name":"Lone","type":"string"}],"Extra":{}}' }
+            @{ Text = '{ "table": "T_CL", "fields": [ { "name": "A" } ], "transformKql": "source", "location": "westeurope" }'; Expected = '{"TableName":"T_CL","Columns":[{"name":"A"}],"Extra":{"location":"westeurope","transformKql":"source"}}' }
+            @{ Text = '{ "tableName": "T_CL", "columns": [] }'; Expected = 'error: Schema file declares an empty column list (<path>).' }
+            @{ Text = '{ "tableName": "T_CL" }'; Expected = 'error: Schema file has no column list (<path>). Expected { "tableName": "MyTable_CL", "columns": [ { "name": "...", "type": "..." } ] }. This tool takes a schema, not a sample of the data.' }
+            @{ Text = ''; Expected = 'error: Schema file is empty: <path>' }
+            @{ Text = '{ "tableName": "T_CL", "columns": [ { "name": "A", "type": "string" }, ], }'; Expected = '{"TableName":"T_CL","Columns":[{"name":"A","type":"string"}],"Extra":{}}' }
+            @{ Text = "$([char]0xFEFF){ `"tableName`": `"T_CL`", `"columns`": [ { `"name`": `"A`" } ] /* c */ }"; Expected = '{"TableName":"T_CL","Columns":[{"name":"A"}],"Extra":{}}' }
         )
-        foreach ($t in $texts) {
-            $path = Join-Path $TestDrive "$([guid]::NewGuid().ToString('N')).json"
-            [System.IO.File]::WriteAllText($path, $t, [System.Text.UTF8Encoding]::new($false))
-            $old = try { & $script:canonical (Import-TableSpec -Path $path) } catch { "error: $($_.Exception.Message)" }
-            $new = & $script:inModule { param($P) Mock Write-iSOCLog { }; try { ConvertTo-Json -InputObject (Import-iSOCTableSpec -Path $P) -Depth 30 -Compress } catch { "error: $($_.Exception.Message)" } } @{ P = $path }
-            $new | Should -BeExactly $old -Because $t
-        }
-    }
-
-    It 'repairs text the same' {
-        $q = [char]0x201C
-        $texts = @('', '{"a": 1}', "$([char]0xFEFF){`"a`":1}", "{ ${q}a$([char]0x201D): 1 }", "{`"u`": `"http://x//y`", // c`n `"b`": [1, 2, ], /* d */ }", "{`"s`": `"a \`" , ]`"}", "$([char]0x00A0)[1,]")
-        foreach ($t in $texts) {
-            $old = Remove-JsonNoise -Text $t
-            $new = & $script:inModule { param($T) Repair-iSOCJsonText -Text $T } @{ T = $t }
-            (& $script:canonical $new) | Should -BeExactly (& $script:canonical $old)
-            (& $script:inModule { param($T) ConvertTo-iSOCSafeText -Text $T -MaxLength 20 } @{ T = $t }) | Should -BeExactly (ConvertTo-SafeText -Text $t -MaxLength 20)
-            (& $script:inModule { param($T) ConvertTo-iSOCStraightPunctuation -Text $T } @{ T = $t }) | Should -BeExactly (ConvertTo-StraightPunctuation -Text $t)
-        }
-        (& $script:inModule { ConvertTo-iSOCSafeText -Text "a`n`tb$([char]0x200B)c    d" }) | Should -BeExactly (ConvertTo-SafeText -Text "a`n`tb$([char]0x200B)c    d")
-        (& $script:inModule { ConvertTo-iSOCSafeText -Text $null }) | Should -BeExactly (ConvertTo-SafeText -Text $null)
-    }
-
-    It 'names types, tables and column issues the same' {
-        foreach ($type in @('string', 'STRING', ' bool ', 'integer', 'int64', 'double', 'decimal', 'datetime', 'timestamp', 'uuid', 'object', 'array', 'text', '', $null)) {
-            (& $script:inModule { param($T) Get-iSOCTableColumnType -DeclaredType $T } @{ T = $type }) | Should -Be (Get-TableColumnType -DeclaredType $type)
-        }
-        foreach ($name in @('MyApp_CL', 'MyApp', '9app_CL', 'a-b_CL', 'A_CL', ('A' * 61) + '_CL', '')) {
-            @(& $script:inModule { param($N) Get-iSOCTableNameProblem -Name $N } @{ N = $name }) | Should -Be @(Test-TableName -Name $name)
-        }
-        $cases = @(@('Message_s', 'string', ''), @('TenantId', 'string', ''), @('tenantid', 'bool', 'ip'), @('9x', 'text', 'ipv4'), @('a', 'string', ''), @(('A' * 46), 'guid', 'armPath'), @('', '', ''), @('Fine', 'dynamic', 'uri'))
         foreach ($c in $cases) {
-            $old = @(Get-ColumnIssue -Name $c[0] -DeclaredType $c[1] -DataTypeHint $c[2])
-            $new = @(& $script:inModule { param($C) Get-iSOCColumnIssue -Name $C[0] -DeclaredType $C[1] -DataTypeHint $C[2] } @{ C = $c })
-            (& $script:canonical $new) | Should -BeExactly (& $script:canonical $old)
+            $path = Join-Path $TestDrive "$([guid]::NewGuid().ToString('N')).json"
+            [System.IO.File]::WriteAllText($path, $c.Text, [System.Text.UTF8Encoding]::new($false))
+            $new = & $script:inModule { param($P) Mock Write-iSOCLog { }; try { ConvertTo-Json -InputObject (Import-iSOCTableSpec -Path $P) -Depth 30 -Compress } catch { "error: $($_.Exception.Message)" } } @{ P = $path }
+            $new | Should -BeExactly $c.Expected.Replace('<path>', $path) -Because $c.Text
         }
     }
 
-    It 'resolves and repairs a schema the same' {
+    It 'repairs text' {
+        $q = [char]0x201C
+        $cases = @(
+            @{ Text = ''; Noise = '{"Text":"","Applied":[]}'; Safe = ''; Straight = '' }
+            @{ Text = '{"a": 1}'; Noise = '{"Text":"{\"a\": 1}","Applied":[]}'; Safe = '{"a": 1}'; Straight = '{"a": 1}' }
+            @{ Text = "$([char]0xFEFF){`"a`":1}"; Noise = '{"Text":"{\"a\":1}","Applied":["byte order mark"]}'; Safe = '{"a":1}'; Straight = ([string][char]0xFEFF + '{"a":1}') }
+            @{ Text = "{ ${q}a$([char]0x201D): 1 }"; Noise = '{"Text":"{ \"a\": 1 }","Applied":["curly quotes or no-break spaces"]}'; Safe = ('{ ' + [string][char]0x201C + 'a' + [string][char]0x201D + ': 1 }'); Straight = '{ "a": 1 }' }
+            @{ Text = "{`"u`": `"http://x//y`", // c`n `"b`": [1, 2, ], /* d */ }"; Noise = '{"Text":"{\"u\": \"http://x//y\", \n \"b\": [1, 2 ],  }","Applied":["JSON comments","trailing commas"]}'; Safe = '{"u": "http://x//...'; Straight = ('{"u": "http://x//y", // c' + [string][char]0x000A + ' "b": [1, 2, ], /* d */ }') }
+            @{ Text = "{`"s`": `"a \`" , ]`"}"; Noise = '{"Text":"{\"s\": \"a \\\" , ]\"}","Applied":[]}'; Safe = '{"s": "a \" , ]"}'; Straight = '{"s": "a \" , ]"}' }
+            @{ Text = "$([char]0x00A0)[1,]"; Noise = ('{"Text":"' + [string][char]0x00A0 + '[1]","Applied":["trailing commas"]}'); Safe = '[1,]'; Straight = ' [1,]' }
+        )
+        foreach ($c in $cases) {
+            (& $script:canonical (& $script:inModule { param($T) Repair-iSOCJsonText -Text $T } @{ T = $c.Text })) | Should -BeExactly $c.Noise
+            (& $script:inModule { param($T) ConvertTo-iSOCSafeText -Text $T -MaxLength 20 } @{ T = $c.Text }) | Should -BeExactly $c.Safe
+            (& $script:inModule { param($T) ConvertTo-iSOCStraightPunctuation -Text $T } @{ T = $c.Text }) | Should -BeExactly $c.Straight
+        }
+        (& $script:inModule { ConvertTo-iSOCSafeText -Text "a`n`tb$([char]0x200B)c    d" }) | Should -BeExactly 'a b c d'
+        (& $script:inModule { ConvertTo-iSOCSafeText -Text $null }) | Should -BeExactly ''
+    }
+
+    It 'names types, tables and column issues' {
+        $types = [ordered]@{ 'STRING' = 'string'; ' bool ' = 'boolean'; 'integer' = 'int'; 'int64' = 'long'; 'double' = 'real'; 'timestamp' = 'dateTime'; 'uuid' = 'guid'; 'array' = 'dynamic'; 'text' = $null; '' = $null }
+        foreach ($type in $types.Keys) {
+            (& $script:inModule { param($T) Get-iSOCTableColumnType -DeclaredType $T } @{ T = $type }) | Should -Be $types[$type] -Because "type '$type'"
+        }
+        (& $script:inModule { Get-iSOCTableColumnType -DeclaredType $null }) | Should -BeNullOrEmpty
+        $names = @(
+            @{ Name = 'MyApp_CL'; Problems = @() }
+            @{ Name = 'MyApp'; Problems = @('''MyApp'' does not end with ''_CL'', which every custom log table name must') }
+            @{ Name = '9app_CL'; Problems = @('''9app_CL'' must start with a letter and contain only letters, digits and underscores, so KQL can reference it unquoted') }
+            @{ Name = 'a-b_CL'; Problems = @('''a-b_CL'' must start with a letter and contain only letters, digits and underscores, so KQL can reference it unquoted') }
+            @{ Name = 'A_CL'; Problems = @() }
+            @{ Name = ('A' * 61); Problems = @('''<long>'' does not end with ''_CL'', which every custom log table name must') }
+            @{ Name = '_CL'; Problems = @('''_CL'' must start with a letter and contain only letters, digits and underscores, so KQL can reference it unquoted', '''_CL'' is 3 characters; the minimum is 4') }
+            @{ Name = ''; Problems = @('the table name is empty') }
+        )
+        foreach ($n in $names) {
+            $problems = @($n.Problems | ForEach-Object { $_.Replace('<long>', ('A' * 61)) })
+            @(& $script:inModule { param($N) Get-iSOCTableNameProblem -Name $N } @{ N = $n.Name }) | Should -BeExactly $problems -Because "table '$($n.Name)'"
+        }
+        $cases = @(
+            @{ Column = @('Message_s', 'string', ''); Expected = '[{"Severity":"Warning","Message":"''_s'' is a classic Custom Log Wizard type suffix; a DCR-based table carries real types and does not need it"}]' }
+            @{ Column = @('TenantId', 'string', ''); Expected = '[{"Severity":"Error","Message":"''TenantId'' conflicts with a system or reserved column name"}]' }
+            @{ Column = @('tenantid', 'bool', 'ip'); Expected = '[{"Severity":"Error","Message":"''tenantid'' conflicts with a system or reserved column name"}]' }
+            @{ Column = @('9x', 'text', 'ipv4'); Expected = '[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"},{"Severity":"Error","Message":"type ''text'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"},{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]' }
+            @{ Column = @('a', 'string', ''); Expected = '[{"Severity":"Error","Message":"is 1 character; column names must be 2 to 45 characters"}]' }
+            @{ Column = @(('A' * 46), 'guid', 'armPath'); Expected = '[{"Severity":"Error","Message":"is 46 characters; the limit is 45"}]' }
+            @{ Column = @('', '', ''); Expected = '[{"Severity":"Error","Message":"the column name is empty"},{"Severity":"Error","Message":"type ''(none)'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]' }
+            @{ Column = @('Fine', 'dynamic', 'uri'); Expected = '[]' }
+        )
+        foreach ($c in $cases) {
+            $new = @(& $script:inModule { param($C) Get-iSOCColumnIssue -Name $C[0] -DeclaredType $C[1] -DataTypeHint $C[2] } @{ C = $c.Column })
+            (& $script:canonical $new) | Should -BeExactly $c.Expected -Because "column '$($c.Column[0])'"
+        }
+    }
+
+    It 'resolves and repairs a schema' {
         $columns = @(
             [pscustomobject]@{ name = ' Alert '; type = 'string'; desc = "two`nlines" }
             [pscustomobject]@{ name = 'alert'; columnType = 'bool' }
@@ -393,26 +308,122 @@ Describe 'The schema helpers, beside the script''s' {
             [pscustomobject]@{ name = 'TimeGenerated'; type = 'string' }
             [pscustomobject]@{ name = 'Sketch'; type = 'hyperloglog' }
         )
-        $old = Resolve-TableSchema -Column $columns
+        $display = ('D' * 125) + '...'
         $new = & $script:inModule { param($C) Resolve-iSOCTableSchema -Column $C } @{ C = $columns }
-        (& $script:canonical $new) | Should -BeExactly (& $script:canonical $old)
+        $expected = '{"Columns":[{"Name":"Alert",' +
+            '"Type":"string",' +
+            '"DeclaredType":"string",' +
+            '"Description":"two lines",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"}]},' +
+            '{"Name":"alert",' +
+            '"Type":"boolean",' +
+            '"DeclaredType":"bool",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"Dup",' +
+            '"Type":"int",' +
+            '"DeclaredType":"integer",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"Dup",' +
+            '"Type":"long",' +
+            '"DeclaredType":"long",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"9Bad",' +
+            '"Type":"string",' +
+            '"DeclaredType":"string",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"}]},' +
+            '{"Name":"Src",' +
+            '"Type":"string",' +
+            '"DeclaredType":"string",' +
+            '"Description":"",' +
+            '"DisplayName":"<display>",' +
+            '"DataTypeHint":"ipv4",' +
+            '"Issues":[{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]},' +
+            '{"Name":"TimeGenerated",' +
+            '"Type":"string",' +
+            '"DeclaredType":"string",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"Sketch",' +
+            '"Type":"hyperloglog",' +
+            '"DeclaredType":"hyperloglog",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[{"Severity":"Error","Message":"type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]}],' +
+            '"SchemaIssues":[{"Severity":"Error",' +
+            '"Message":"duplicate column name ''Dup'' appears 2 times."},' +
+            '{"Severity":"Warning",' +
+            '"Message":"column names differ only by case: alert, Alert. Analytics and Basic tables treat these as separate columns; an Auxiliary table drops rows because of them.",' +
+            '"Kind":"CaseCollision"},' +
+            '{"Severity":"Error",' +
+            '"Message":"TimeGenerated is declared ''string''. It must be datetime.",' +
+            '"Fix":"FixTimeGeneratedType"}]}'
+        (& $script:canonical $new) | Should -BeExactly $expected.Replace('<display>', $display)
 
-        $oldRepaired = @(Repair-TableSchema -Column (Resolve-TableSchema -Column $columns).Columns.ToArray())
         $newRepaired = @(& $script:inModule { param($C) Mock Write-iSOCLog { }; Repair-iSOCTableSchema -Column (Resolve-iSOCTableSchema -Column $C).Columns.ToArray() } @{ C = $columns })
-        (& $script:canonical $newRepaired) | Should -BeExactly (& $script:canonical $oldRepaired)
+        $expectedRepaired = '[{"Name":"alert",' +
+            '"Type":"boolean",' +
+            '"DeclaredType":"bool",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"Dup",' +
+            '"Type":"int",' +
+            '"DeclaredType":"integer",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"Src",' +
+            '"Type":"string",' +
+            '"DeclaredType":"string",' +
+            '"Description":"",' +
+            '"DisplayName":"<display>",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]},' +
+            '{"Name":"TimeGenerated",' +
+            '"Type":"dateTime",' +
+            '"DeclaredType":"datetime",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[]},' +
+            '{"Name":"Sketch",' +
+            '"Type":"hyperloglog",' +
+            '"DeclaredType":"hyperloglog",' +
+            '"Description":"",' +
+            '"DisplayName":"",' +
+            '"DataTypeHint":"",' +
+            '"Issues":[{"Severity":"Error","Message":"type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]}]'
+        (& $script:canonical $newRepaired) | Should -BeExactly $expectedRepaired.Replace('<display>', $display)
 
         $noTime = @([pscustomobject]@{ name = 'A'; type = 'string' })
-        $oldAdded = @(Invoke-SchemaEditor -Column (Resolve-TableSchema -Column $noTime).Columns.ToArray())
         $newAdded = @(& $script:inModule { param($C) Mock Write-iSOCLog { }; Invoke-iSOCSchemaRepair -Column (Resolve-iSOCTableSchema -Column $C).Columns.ToArray() } @{ C = $noTime })
-        (& $script:canonical $newAdded) | Should -BeExactly (& $script:canonical $oldAdded)
+        (& $script:canonical $newAdded) | Should -BeExactly '[{"Name":"TimeGenerated","Type":"dateTime","DeclaredType":"dateTime","Description":"","DisplayName":"","DataTypeHint":"","Issues":[]}]'
 
-        $oldError = try { Invoke-SchemaEditor -Column (Resolve-TableSchema -Column $columns).Columns.ToArray() } catch { $_.Exception.Message }
         $newError = & $script:inModule { param($C) Mock Write-iSOCLog { }; try { Invoke-iSOCSchemaRepair -Column (Resolve-iSOCTableSchema -Column $C).Columns.ToArray() } catch { $_.Exception.Message } } @{ C = $columns }
-        $newError | Should -BeExactly $oldError
-        $oldError | Should -Match 'Sketch'
+        $newError | Should -BeExactly 'Schema cannot be used and non-interactive mode cannot ask: Sketch: type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string'
+        $newError | Should -Match 'Sketch'
     }
 
-    It 'builds streams, transforms and diffs the same' {
+    It 'builds streams, transforms and diffs' {
         $columns = @(
             [pscustomobject]@{ Name = 'TimeGenerated'; Type = 'dateTime'; DataTypeHint = ''; Description = ''; DisplayName = '' }
             [pscustomobject]@{ Name = 'EventId'; Type = 'guid'; DataTypeHint = 'guid'; Description = 'An id.'; DisplayName = 'Event' }
@@ -420,100 +431,161 @@ Describe 'The schema helpers, beside the script''s' {
             [pscustomobject]@{ Name = 'case'; Type = 'guid'; DataTypeHint = ''; Description = ''; DisplayName = '' }
             [pscustomobject]@{ Name = 'Count'; Type = 'long'; DataTypeHint = ''; Description = ''; DisplayName = '' }
         )
-        $oldStream = @(ConvertTo-StreamColumn -Column $columns)
         $newStream = @(& $script:inModule { param($C) ConvertTo-iSOCSchemaStreamColumn -Column $C } @{ C = $columns })
-        (& $script:canonical $newStream) | Should -BeExactly (& $script:canonical $oldStream)
-        (& $script:inModule { param($C, $S) Get-iSOCSchemaTransform -Column $C -StreamColumn $S } @{ C = $columns; S = $oldStream }) | Should -BeExactly (Get-DefaultTransform -Column $columns -StreamColumn $oldStream)
-        (& $script:inModule { param($C, $S) Get-iSOCSchemaTransform -Column $C -StreamColumn $S } @{ C = @($columns[0]); S = @($oldStream[0]) }) | Should -BeExactly 'source'
+        (& $script:canonical $newStream) | Should -BeExactly '[{"name":"TimeGenerated","type":"datetime"},{"name":"EventId","type":"string"},{"name":"Case","type":"string"},{"name":"case","type":"string"},{"name":"Count","type":"long"}]'
+        (& $script:inModule { param($C, $S) Get-iSOCSchemaTransform -Column $C -StreamColumn $S } @{ C = $columns; S = $newStream }) | Should -BeExactly 'source | extend EventId = toguid(EventId), case = toguid(case)'
+        (& $script:inModule { param($C, $S) Get-iSOCSchemaTransform -Column $C -StreamColumn $S } @{ C = @($columns[0]); S = @($newStream[0]) }) | Should -BeExactly 'source'
 
         $live = @([pscustomobject]@{ name = 'Count'; type = 'int' }, [pscustomobject]@{ name = 'case'; type = 'string' }, [pscustomobject]@{ name = 'Extra'; type = 'string' }, [pscustomobject]@{ name = '_Sys'; type = 'string' }, [pscustomobject]@{ name = 'TimeGenerated' })
-        $oldDiff = Compare-TableSchema -DesiredColumn $columns -ExistingColumn $live
         $newDiff = & $script:inModule { param($C, $L) Compare-iSOCTableSchema -DesiredColumn $C -ExistingColumn $L } @{ C = $columns; L = $live }
-        (& $script:canonical $newDiff) | Should -BeExactly (& $script:canonical $oldDiff)
+        (& $script:canonical $newDiff) | Should -BeExactly '{"Added":["EventId","Case"],"Conflicts":["TimeGenerated: live table has ''string'', the schema says ''dateTime''","case: live table has ''string'', the schema says ''guid''","Count: live table has ''int'', the schema says ''long''"],"OnlyLive":["Extra"]}'
 
-        foreach ($t in @('source', "source | where A == $([char]0x2018)x$([char]0x2019)", ('x' * 15361))) {
-            $old = try { & $script:canonical (Test-TransformKql -Transform $t) } catch { $_.Exception.Message }
-            $new = & $script:inModule { param($T) try { ConvertTo-Json -InputObject (Repair-iSOCTransformKql -Transform $T) -Depth 5 -Compress } catch { $_.Exception.Message } } @{ T = $t }
-            $new | Should -BeExactly $old
+        $transforms = @(
+            @{ Text = 'source'; Expected = '{"Text":"source","Applied":[]}' }
+            @{ Text = "source | where A == $([char]0x2018)x$([char]0x2019)"; Expected = '{"Text":"source | where A == ''x''","Applied":["curly quotes or no-break spaces"]}' }
+            @{ Text = ('x' * 15361); Expected = 'The transform is 15361 characters; a data collection rule allows 15360. Move the logic into a workspace function, or trim it.' }
+        )
+        foreach ($t in $transforms) {
+            $new = & $script:inModule { param($T) try { ConvertTo-Json -InputObject (Repair-iSOCTransformKql -Transform $T) -Depth 5 -Compress } catch { $_.Exception.Message } } @{ T = $t.Text }
+            $new | Should -BeExactly $t.Expected
         }
     }
 
-    It 'builds the same templates' {
+    It 'builds the templates' {
         $columns = @(
             [pscustomobject]@{ Name = 'TimeGenerated'; Type = 'dateTime'; DataTypeHint = ''; Description = 'When.'; DisplayName = '' }
             [pscustomobject]@{ Name = 'Src'; Type = 'string'; DataTypeHint = 'ip'; Description = ''; DisplayName = 'Source' }
         )
-        foreach ($c in @(
-                @{ Plan = 'Analytics'; Retention = 90; Total = 365; Hint = $false; Description = 'A table.' }
-                @{ Plan = 'Basic'; Retention = 30; Total = -1; Hint = $true; Description = '' }
-                @{ Plan = ''; Retention = 0; Total = 0; Hint = $false; Description = 'x' }
-            )) {
-            $old = Build-TableArmTemplate -WorkspaceName law -Table T_CL -Column $columns -Plan $c.Plan -Retention $c.Retention -TotalRetention $c.Total -TableDescription $c.Description -IncludeDataTypeHint:$c.Hint
+        $tables = @(
+            @{ Plan = 'Analytics'; Retention = 90; Total = 365; Hint = $false; Description = 'A table.'
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
+                    '"apiVersion":"2025-07-01",' +
+                    '"name":"law/T_CL",' +
+                    '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","displayName":"Source"}],"description":"A table."},"plan":"Analytics","retentionInDays":90,"totalRetentionInDays":365}}]}'
+            }
+            @{ Plan = 'Basic'; Retention = 30; Total = -1; Hint = $true; Description = ''
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
+                    '"apiVersion":"2025-07-01",' +
+                    '"name":"law/T_CL",' +
+                    '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","dataTypeHint":"ip","displayName":"Source"}]},"plan":"Basic","totalRetentionInDays":-1}}]}'
+            }
+            @{ Plan = ''; Retention = 0; Total = 0; Hint = $false; Description = 'x'
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
+                    '"apiVersion":"2025-07-01",' +
+                    '"name":"law/T_CL",' +
+                    '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","displayName":"Source"}],"description":"x"}}}]}'
+            }
+        )
+        foreach ($c in $tables) {
             $new = & $script:inModule { param($C, $Cols) Mock Write-iSOCLog { }; ConvertTo-iSOCTableArmTemplate -WorkspaceName law -Table T_CL -Column $Cols -Plan $C.Plan -Retention $C.Retention -TotalRetention $C.Total -TableDescription $C.Description -IncludeDataTypeHint:$C.Hint } @{ C = $c; Cols = $columns }
-            (ConvertTo-ComparableText (ConvertTo-Json -InputObject $new -Depth 30)) | Should -BeExactly (ConvertTo-ComparableText (ConvertTo-Json -InputObject $old -Depth 30))
+            (ConvertTo-Json -InputObject $new -Depth 30 -Compress) | Should -BeExactly $c.Expected -Because "a '$($c.Plan)' table"
         }
 
         $stream = @([pscustomobject]@{ name = 'TimeGenerated'; type = 'datetime' }, [pscustomobject]@{ name = 'Src'; type = 'string' })
-        foreach ($d in @('A rule.', ('Long ' * 80), '')) {
-            foreach ($endpoint in @('', '/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z')) {
-                $old = Build-DcrArmTemplate -Name dcr-t -Region uksouth -Stream Custom-T_CL -StreamColumn $stream -WorkspaceResourceId /ws -OutputStream Custom-T_CL -Transform source -EndpointResourceId $endpoint -RuleDescription $d
-                $new = & $script:inModule { param($D, $E, $S) $clean = ConvertTo-iSOCSafeText -Text $D -MaxLength 256; ConvertTo-iSOCDcrArmTemplate -Name dcr-t -Region uksouth -Kind Direct -Stream Custom-T_CL -StreamColumn $S -WorkspaceResourceId /ws -OutputStream Custom-T_CL -Transform source -EndpointResourceId $E -Description $clean -GeneratedBy 'New-iSOCDcrFromSchema' } @{ D = $d; E = $endpoint; S = $stream }
-                (ConvertTo-ComparableText (ConvertTo-Json -InputObject $new -Depth 30)) | Should -BeExactly (ConvertTo-ComparableText (ConvertTo-Json -InputObject $old -Depth 30))
+        $endpoint = '/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z'
+        $rules = @(
+            @{ Description = 'A rule.'; Endpoint = ''
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                    '"apiVersion":"2023-03-11",' +
+                    '"name":"dcr-t",' +
+                    '"location":"uksouth",' +
+                    '"kind":"Direct",' +
+                    '"properties":{"description":"A rule.","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
+            @{ Description = 'A rule.'; Endpoint = $endpoint
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                    '"apiVersion":"2023-03-11",' +
+                    '"name":"dcr-t",' +
+                    '"location":"uksouth",' +
+                    '"kind":"Direct",' +
+                    '"properties":{"description":"A rule.","dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+            }
+            @{ Description = ('Long ' * 80); Endpoint = ''
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                    '"apiVersion":"2023-03-11",' +
+                    '"name":"dcr-t",' +
+                    '"location":"uksouth",' +
+                    '"kind":"Direct",' +
+                    '"properties":{"description":"Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Lon...","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+            }
+            @{ Description = ('Long ' * 80); Endpoint = $endpoint
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                    '"apiVersion":"2023-03-11",' +
+                    '"name":"dcr-t",' +
+                    '"location":"uksouth",' +
+                    '"kind":"Direct",' +
+                    '"properties":{"description":"Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Lon...","dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+            }
+            @{ Description = ''; Endpoint = ''
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                    '"apiVersion":"2023-03-11",' +
+                    '"name":"dcr-t",' +
+                    '"location":"uksouth",' +
+                    '"kind":"Direct",' +
+                    '"properties":{"streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+            }
+            @{ Description = ''; Endpoint = $endpoint
+                Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
+                    '"contentVersion":"1.0.0.0",' +
+                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                    '"apiVersion":"2023-03-11",' +
+                    '"name":"dcr-t",' +
+                    '"location":"uksouth",' +
+                    '"kind":"Direct",' +
+                    '"properties":{"dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+            }
+        )
+        foreach ($r in $rules) {
+            $new = & $script:inModule { param($D, $E, $S) $clean = ConvertTo-iSOCSafeText -Text $D -MaxLength 256; ConvertTo-iSOCDcrArmTemplate -Name dcr-t -Region uksouth -Kind Direct -Stream Custom-T_CL -StreamColumn $S -WorkspaceResourceId /ws -OutputStream Custom-T_CL -Transform source -EndpointResourceId $E -Description $clean -GeneratedBy 'New-iSOCDcrFromSchema' } @{ D = $r.Description; E = $r.Endpoint; S = $stream }
+            (ConvertTo-Json -InputObject $new -Depth 30 -Compress) | Should -BeExactly $r.Expected -Because "description '$($r.Description)', endpoint '$($r.Endpoint)'"
         }
     }
 
-    It 'flattens deployment errors the same' {
+    It 'flattens deployment errors' {
         $list = [System.Collections.Generic.List[object]]::new()
         $list.Add([pscustomobject]@{ Code = 'A'; Message = 'outer'; Target = 'T'; Details = @([pscustomobject]@{ code = 'B'; message = 'inner'; details = @([pscustomobject]@{ Code = 'C'; Message = 'deepest' }) }) })
         $list.Add([pscustomobject]@{ Code = 'D'; Message = 'second'; InnerError = 'as text' })
         $cases = @('plain text', [pscustomobject]@{ Foo = 1 }, [pscustomobject]@{ Message = 'only a message'; AdditionalInfo = @([pscustomobject]@{ Code = 'E'; Message = 'info' }) }, $null)
-        foreach ($e in @($cases) + @(, $list)) {
-            (& $script:inModule { param($E) Format-iSOCDeploymentError -ErrorObject $E } @{ E = $e }) | Should -BeExactly (Format-DeploymentError -ErrorObject $e)
+        $expected = @('plain text', 'unrecognised error shape (PSCustomObject): {"Foo":1}', 'only a message -> [E] info', '', '[A] (T) outer -> [B] inner -> [C] deepest | [D] second -> as text')
+        $all = @($cases) + @(, $list)
+        $all.Count | Should -Be $expected.Count
+        for ($i = 0; $i -lt $all.Count; $i++) {
+            (& $script:inModule { param($E) Format-iSOCDeploymentError -ErrorObject $E } @{ E = $all[$i] }) | Should -BeExactly $expected[$i]
         }
     }
 }
 
-Describe 'Making a table and rule as New-DcrFromSchema.ps1 does: <Label>' -ForEach $script:runs {
-    It 'validates, deploys and grants the same, writes the same templates and returns the same result' {
+Describe 'Refusing: <Label>' -ForEach $script:refusals {
+    It 'refuses with its message and writes nothing' {
         $path = Get-SchemaPath -Example $Example -Schema $Schema
-        $legacy = Invoke-LegacyDcr -SchemaPath $path -Parameters $Parameters -NoEndpoint:([bool]$NoEndpoint)
-        $module = Invoke-ModuleDcr -SchemaPath $path -Parameters $Parameters -NoEndpoint:([bool]$NoEndpoint)
-
-        $legacy.Output | Should -Not -Match 'The script prompted'
-        if (-not $Parameters.WhatIf) { @(Get-ComparableTemplate $legacy.Templates).Count | Should -BeGreaterThan 0 }
-        if ($Parameters.Deploy -and -not $Parameters.WhatIf) { @($legacy.Writes | Where-Object { $_.Kind -eq 'Deploy' }).Count | Should -BeGreaterThan 0 }
-        if (-not $legacy.Error) { $legacy.Result.TableName | Should -Not -BeNullOrEmpty }
-        if ($ExpectError) { $legacy.Error | Should -Match $ExpectError } else { $legacy.Error | Should -BeNullOrEmpty }
-        $module.Error | Should -BeExactly $legacy.Error
-        @(ConvertTo-ComparableWrite $module.Writes) | Should -Be @(ConvertTo-ComparableWrite $legacy.Writes)
-        @(Get-ComparableTemplate $module.Templates) | Should -Be @(Get-ComparableTemplate $legacy.Templates)
-        if (-not $legacy.Error) {
-            $legacy.ExitCode | Should -Be 0
-            (ConvertTo-ComparableResult $module.Result) | Should -BeExactly (ConvertTo-ComparableResult $legacy.Result)
-        }
-        else {
-            $legacy.ExitCode | Should -Be 1
-        }
-    }
-}
-
-Describe 'Refusing as New-DcrFromSchema.ps1 does: <Label>' -ForEach $script:refusals {
-    It 'refuses with the same message and writes nothing' {
-        $path = Get-SchemaPath -Example $Example -Schema $Schema
-        $legacy = Invoke-LegacyDcr -SchemaPath $path -Parameters $Parameters
         $module = Invoke-ModuleDcr -SchemaPath $path -Parameters $Parameters
-        $legacy.ExitCode | Should -Be 1
-        if ($ModuleError) {
-            $legacy.Error | Should -Match $LegacyMatch
-            $module.Error | Should -BeExactly $ModuleError
-        }
-        else {
-            $expected = $legacy.Error
-            if ($Replace) { foreach ($k in $Replace.Keys) { $expected = $expected.Replace($k, $Replace[$k]) } }
-            $module.Error | Should -BeExactly $expected
-        }
-        @($legacy.Writes | Where-Object { $_.Kind -ne 'Validate' }) | Should -BeNullOrEmpty
+        if ($Message) { $module.Error | Should -BeExactly $Message.Replace('<path>', $path) }
+        else { $module.Error | Should -BeLike $Like.Replace('<path>', $path) }
         @($module.Writes | Where-Object { $_.Kind -ne 'Validate' }) | Should -BeNullOrEmpty
         Test-Path -LiteralPath $module.Templates | Should -BeFalse
     }

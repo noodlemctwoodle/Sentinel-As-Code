@@ -7,11 +7,10 @@ and to deploy a rule disabled, or skip a hunting query, when something it
 needs is missing. [Dependency Manifest](../../Tools/Dependency-Manifest.md)
 explains the manifest itself and the gate that keeps it current.
 
-iSOCDeployments has the commands that will replace
-`Tools/Build-DependencyManifest.ps1` at the 26.11.0 cut-over. Until then the
-pipelines run the script by default; the module writes the same file byte for
-byte, so either can be used, and the Azure DevOps daily update and PR gate
-run the module with `engine` `module`, or both with `compare`
+iSOCDeployments has the commands that replaced
+`Tools/Build-DependencyManifest.ps1`, which was removed at the 26.11.0
+cut-over; the module writes the same file the script wrote, and the Azure
+DevOps daily update and PR gate run it
 ([The pipeline switch](Pipeline-Switch.md)).
 
 | Script | Command | What changes |

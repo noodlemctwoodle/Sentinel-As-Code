@@ -4,7 +4,7 @@
 <#
 .SYNOPSIS
     Pester tests for the Defender XDR custom detection content type's
-    handlers, and for parity with the deployer they were taken from.
+    handlers.
 
 .DESCRIPTION
     - The Graph contract helpers, ported from
@@ -19,14 +19,14 @@
       updated by name, a new one created with its id, a new one without an
       id failed, -WhatIf reading the tenant's rules (MIGRATION.md edit
       E18), and a list that cannot be read.
-    - Parity: Deploy-DefenderDetections is lifted out of
-      Deploy/content/Deploy-DefenderDetections.ps1 by AST and run with its
-      Graph call captured, over the fixture repository with the files it
-      fails added, and over this repository; Deploy-iSOCContent runs over
-      the same files with the module's REST client mocked. Both see the
-      same tenant (some rules already there, one under a name in another
-      case) and must send the same requests (method, URL and body) and
-      count the same outcomes.
+    - Every detection under Content/DefenderCustomDetections/ in this
+      repository: read through the ReadRepo handler, passing
+      Test-iSOCDefenderDetection with no issues, and built into a Graph
+      request through the ToRequest handler, for an update and for a
+      create.
+
+    Parity with Deploy-DefenderDetections.ps1 was proven on
+    release/26.11.0 before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/DefenderDetection.Tests.ps1
@@ -39,12 +39,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
-
-    The parity block goes when Deploy-DefenderDetections.ps1 is removed at
-    cut-over.
 #>
 
 BeforeDiscovery {
@@ -57,10 +54,8 @@ BeforeDiscovery {
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     Import-Module powershell-yaml -ErrorAction Stop
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
-    $script:graphRoot = 'https://graph.microsoft.com/beta/security/rules/detectionRules'
 
     $script:context = InModuleScope iSOCDeployments {
         New-iSOCContext -Value @{
@@ -616,123 +611,30 @@ Describe 'Defender detection deploy' {
     }
 }
 
-Describe 'Parity with Deploy-DefenderDetections.ps1' {
+Describe 'Content/DefenderCustomDetections in this repository' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-DefenderDetections.ps1')
-        function Write-PipelineMessage { param($Message, $Level) }
-        function Invoke-GraphApi {
-            param($Uri, $Method, $Headers, $Body)
-            if ($Method -eq 'Get') { return [pscustomobject]@{ value = @($script:parityTenant) } }
-            $script:legacyCalls.Add([pscustomobject]@{ Method = ([string]$Method).ToUpperInvariant(); Uri = $Uri; Body = $Body })
-            if ($Method -eq 'Post') { return ($Body | ConvertFrom-Json) }
-        }
-        $script:DetectionRulesEndpoint = $script:graphRoot
-        $script:GraphAuthHeader = @{}
-        $script:WhatIf = $false
-
-        # Both engines over one copy of the given content, in a tenant that
-        # has every other rule already (one under its name in upper case),
-        # apart from those named in -NotInTenant.
-        function Invoke-BothEngines {
-            param([string] $Source, [hashtable] $Extra = @{}, [string[]] $NotInTenant = @())
-            $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString())
-            New-Item -ItemType Directory -Path (Join-Path $copy 'Content') -Force | Out-Null
-            Copy-Item -LiteralPath (Join-Path $Source 'Content/DefenderCustomDetections') -Destination (Join-Path $copy 'Content') -Recurse
-            foreach ($leaf in $Extra.Keys) { Set-Content -LiteralPath (Join-Path $copy "Content/DefenderCustomDetections/$leaf") -Value $Extra[$leaf] }
-
-            $names = @(Get-DetectionItem -Repo $copy | Where-Object { $_.Rule -and $_.Rule['displayName'] } | ForEach-Object { [string]$_.Rule['displayName'] } | Where-Object { $_ -notin $NotInTenant })
-            $script:parityTenant = @(for ($i = 0; $i -lt $names.Count; $i += 2) {
-                    $name = if ($i -eq 0) { $names[$i].ToUpperInvariant() } else { $names[$i] }
-                    [pscustomobject]@{ id = "tenant-$i"; displayName = $name }
-                })
-
-            $script:legacyCalls = [System.Collections.Generic.List[object]]::new()
-            $script:BasePath = $copy
-            $legacyCounters = Deploy-DefenderDetections
-
-            $script:moduleCalls = [System.Collections.Generic.List[object]]::new()
-            Mock -ModuleName iSOCDeployments Write-iSOCLog { }
-            Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
-            Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest {
-                if ($Method -eq 'GET') { return $script:parityTenant }
-                $script:moduleCalls.Add([pscustomobject]@{ Method = $Method; Uri = "https://graph.microsoft.com/$ApiVersion$Path"; Body = $Body })
-                if ($Method -eq 'POST') { return [pscustomobject]@{ id = $Body.id } }
-            }
-            $run = Deploy-iSOCContent -Context $script:context -RepoPath $copy -ContentType DefenderDetection
-
-            [pscustomobject]@{
-                Legacy        = $legacyCounters
-                Run           = $run
-                LegacyCalls   = @($script:legacyCalls)
-                ModuleCalls   = @($script:moduleCalls)
-                TenantCount   = $script:parityTenant.Count
+        Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+        $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name DefenderDetection }
+        function Invoke-RepoHandler {
+            param([string] $Handler, [hashtable] $Parameters)
+            InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
+                param($T, $H, $P)
+                Invoke-iSOCContentTypeHandler -ContentType $T -Handler $H -Parameters $P
             }
         }
-        function Get-CallKey {
-            param($Call)
-            "$($Call.Method) $($Call.Uri) $(ConvertTo-ParityJson $Call.Body)"
+        $script:repoItems = @{}
+        foreach ($item in Invoke-RepoHandler -Handler ReadRepo -Parameters @{ RepoPath = $script:repoRoot; ContentType = $script:repoType }) {
+            $script:repoItems[$item.RelativePath] = $item
         }
     }
 
-    Context 'over the fixture repository, with the files the deployer fails' {
-        BeforeAll {
-            $script:fixtureResult = Invoke-BothEngines -Source $script:fixtureRepo -NotInTenant 'Fixture: new without an id' -Extra @{
-                'Broken.yaml'         = 'displayName: [unclosed'
-                'List.yaml'           = "- one`n- two"
-                'Untranslatable.yaml' = "displayName: Untranslatable`ndetectionAction:`n  alertTemplate:`n    impactedAssets:`n      - '@odata.type': '#microsoft.graph.security.impactedUserAsset'`n        identifier: servicePrincipalId"
-                'NewNoId.yaml'        = "displayName: 'Fixture: new without an id'`nqueryCondition:`n  queryText: EmailEvents | project Timestamp, ReportId`nschedule:`n  frequency: PT1H`ndetectionAction:`n  alertTemplate:`n    title: X`n    severity: low`n    tactics:`n      - tactic: Impact"
-            }
-        }
-
-        It 'counts the same outcomes' {
-            $r = $script:fixtureResult
-            $results = @($r.Run.Results)
-            @($results | Where-Object Outcome -eq 'Deployed').Count | Should -Be ($r.Legacy.Created + $r.Legacy.Updated)
-            @($results | Where-Object Outcome -eq 'Skipped').Count | Should -Be $r.Legacy.Skipped
-            @($results | Where-Object Outcome -eq 'Failed').Count | Should -Be $r.Legacy.Failed
-            $r.Legacy.Failed | Should -Be 4
-            $r.Legacy.Skipped | Should -Be 1
-            $r.Legacy.Updated | Should -BeGreaterThan 0
-            $r.Legacy.Created | Should -BeGreaterThan 0
-        }
-
-        It 'sends the same requests' {
-            $r = $script:fixtureResult
-            $module = @($r.ModuleCalls | ForEach-Object { Get-CallKey $_ } | Sort-Object -CaseSensitive) -join "`n"
-            $legacy = @($r.LegacyCalls | ForEach-Object { Get-CallKey $_ } | Sort-Object -CaseSensitive) -join "`n"
-            $module | Should -BeExactly $legacy
-        }
-    }
-
-    Context 'over this repository' {
-        BeforeAll {
-            $script:repoResult = Invoke-BothEngines -Source $script:repoRoot
-            $script:legacyByName = @{}
-            foreach ($call in $script:repoResult.LegacyCalls) { $script:legacyByName[($call.Body | ConvertFrom-Json).displayName] = $call }
-            $script:moduleByName = @{}
-            foreach ($call in $script:repoResult.ModuleCalls) { $script:moduleByName[$call.Body.displayName] = $call }
-            $script:repoItems = @{}
-            foreach ($item in Get-DetectionItem -Repo $script:repoRoot) { $script:repoItems[$item.RelativePath] = $item }
-        }
-
-        It 'deploys every detection, updating those the tenant has and creating the rest' {
-            $r = $script:repoResult
-            $r.Legacy.Failed | Should -Be 0
-            $r.Legacy.Skipped | Should -Be 0
-            $r.Legacy.Updated | Should -Be $r.TenantCount
-            @($r.Run.Results | Where-Object Outcome -eq 'Deployed').Count | Should -Be ($r.Legacy.Created + $r.Legacy.Updated)
-            $r.ModuleCalls.Count | Should -Be $r.LegacyCalls.Count
-        }
-
-        It 'sends <Path> as Deploy-DefenderDetections.ps1 does' -ForEach $detectionFiles {
-            $name = [string]$script:repoItems[$Path].Rule['displayName']
-            $legacy = $script:legacyByName[$name]
-            $module = $script:moduleByName[$name]
-            $legacy | Should -Not -BeNullOrEmpty
-            $module.Method | Should -BeExactly $legacy.Method
-            $module.Uri | Should -BeExactly $legacy.Uri
-            ConvertTo-ParityJson $module.Body | Should -BeExactly (ConvertTo-ParityJson $legacy.Body)
-        }
+    It 'reads, validates and builds <Path>' -ForEach $detectionFiles {
+        $item = $script:repoItems[$Path]
+        $item | Should -Not -BeNullOrEmpty -Because 'the ReadRepo handler reads everything under Content/DefenderCustomDetections'
+        Test-Item $item | Should -BeNullOrEmpty
+        { $script:repoRequest = Invoke-RepoHandler -Handler ToRequest -Parameters @{ Item = $item } } | Should -Not -Throw
+        $script:repoRequest.Body | Should -Not -BeNullOrEmpty
+        { $script:repoCreate = Invoke-RepoHandler -Handler ToRequest -Parameters @{ Item = $item; ForCreate = $true } } | Should -Not -Throw
+        $script:repoCreate.Body | Should -Not -BeNullOrEmpty
     }
 }

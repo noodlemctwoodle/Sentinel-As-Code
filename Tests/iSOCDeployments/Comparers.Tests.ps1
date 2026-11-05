@@ -10,8 +10,10 @@
     Compare-iSOCFieldValue decides drift for every field of every content
     type, so each comparer is held to what it promises: what counts as
     equal, what does not, and that an unset value on both sides is equal.
-    ConvertTo-iSOCCanonicalDuration is run beside the
-    ConvertTo-NormalisedDuration it was copied from.
+    ConvertTo-iSOCCanonicalDuration is held to explicit spellings; it was
+    copied from ConvertTo-NormalisedDuration in
+    Tools/Test-SentinelRuleDrift.ps1, and parity with that script was
+    proven on release/26.11.0 before it was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Comparers.Tests.ps1
@@ -24,16 +26,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-    Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Tools/Test-SentinelRuleDrift.ps1')
 
     function Test-Field {
         param([string] $Comparer, $Expected, $Actual)
@@ -114,7 +114,7 @@ Describe 'ConvertTo-iSOCCanonicalJson' {
 }
 
 Describe 'ConvertTo-iSOCCanonicalDuration' {
-    It 'writes <Value> as <Expected>, as ConvertTo-NormalisedDuration does' -ForEach @(
+    It 'writes <Value> as <Expected>' -ForEach @(
         @{ Value = 'PT24H'; Expected = 'P1D' }
         @{ Value = 'P1D'; Expected = 'P1D' }
         @{ Value = 'PT5M'; Expected = 'PT5M' }
@@ -125,7 +125,6 @@ Describe 'ConvertTo-iSOCCanonicalDuration' {
     ) {
         $new = InModuleScope iSOCDeployments -Parameters @{ V = $Value } { param($V) ConvertTo-iSOCCanonicalDuration $V }
         $new | Should -BeExactly $Expected
-        $new | Should -BeExactly (ConvertTo-NormalisedDuration $Value)
     }
 
     It 'returns nothing for an empty value' {

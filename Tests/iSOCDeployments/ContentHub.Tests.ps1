@@ -3,8 +3,7 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the Content Hub commands, and for parity with
-    Deploy/content/Deploy-SentinelContentHub.ps1.
+    Pester tests for the Content Hub commands.
 
 .DESCRIPTION
     - The helpers carried over from Tests/Test-DeploySentinelContentHub.Tests.ps1:
@@ -17,12 +16,13 @@
       _helpers/ContentHubStandIn.psm1): an outcome for every solution and
       template, the alert rules api-version, -WhatIf writing nothing, the
       wait only after an install, exclusions and the comma-separated name.
-    - Parity: the script's functions are lifted out by AST and run against
-      their own copy of the same stand-in, in six scenarios (the defaults;
-      every switch; -DisableRules alone; kinds left out; -WhatIf; and a
-      clean run through the script's own Invoke-Main), and must send the same writes (method, path,
-      api-version and body) and count the same outcomes. Where the module
-      differs on purpose (MIGRATION.md edits E19 and E20) the tests say so.
+    - Whole runs against the same stand-in: every switch; -DisableRules
+      alone; -WhatIf, which reports what a run would do and writes nothing
+      (MIGRATION.md edit E19); and a clean run of one current solution.
+
+    Parity with Deploy/content/Deploy-SentinelContentHub.ps1, in six
+    scenarios sending the same writes and counting the same outcomes, was
+    proven on release/26.11.0 before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/ContentHub.Tests.ps1
@@ -35,18 +35,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
-
-    The parity block goes when Deploy-SentinelContentHub.ps1 is removed at
-    cut-over.
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '_helpers/ContentHubStandIn.psm1') -Force
     $script:fixture = Join-Path $PSScriptRoot 'Fixtures/contenthub/standin.json'
     $script:workspacePath = (Get-Content -LiteralPath $script:fixture -Raw | ConvertFrom-Json).workspace
@@ -92,10 +88,6 @@ BeforeAll {
     function Get-Result {
         param($Run, [string] $Name)
         @($Run.Results | Where-Object { $_.Name -eq $Name })
-    }
-    function Get-WriteKey {
-        param($Write)
-        "$($Write.Method) $($Write.Path) $($Write.ApiVersion) $(ConvertTo-ParityJson $Write.Body)"
     }
 }
 
@@ -538,241 +530,65 @@ Describe 'Install-iSOCContentHubSolution' {
     }
 }
 
-Describe 'Parity with Deploy-SentinelContentHub.ps1' {
+Describe 'Whole runs of Install-iSOCContentHubSolution' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-SentinelContentHub.ps1')
-        function Write-PipelineMessage { param($Message, $Level) }
-        Mock Start-Sleep { }
-        function New-Guid { $script:guidCounter++; [pscustomobject]@{ Guid = ('{0:D8}-0400-4000-8000-000000000000' -f $script:guidCounter) } }
-        function Invoke-SentinelApi {
-            param($Uri, $Method, $Headers, $Body, $MaxRetries)
-            $answer = Invoke-ContentHubStandIn -StandIn $script:legacyHub -Method $Method -Path ($Uri -replace '^https://management\.azure\.com', '') -Body $Body
-            switch ($answer.Kind) {
-                'Error' { throw "API call failed: HTTP $($answer.Status) - {`"error`":{`"code`":`"$($answer.Code)`",`"message`":`"$($answer.Message)`"}}" }
-                'Collection' {
-                    if ($answer.ContainsKey('FirstPage')) { return [pscustomobject]@{ value = @($answer.FirstPage); nextLink = 'https://management.azure.com/next-page' } }
-                    return [pscustomobject]@{ value = @($answer.Value) }
-                }
-                default { return $answer.Value }
-            }
-        }
-        function Invoke-AzRestMethod {
-            param($Path, $Method, $Payload)
-            $answer = Invoke-ContentHubStandIn -StandIn $script:legacyHub -Method $Method -Path $Path -Body $Payload
-            if ($answer.Kind -eq 'Error') { return [pscustomobject]@{ StatusCode = $answer.Status; Content = $answer.Message } }
-            [pscustomobject]@{ StatusCode = 200; Content = '{}' }
-        }
-        function Connect-AzureEnvironment {
-            param($ResourceGroup, $Workspace, $Region, $SubscriptionId, [switch] $IsGov)
-            @{
-                SubscriptionId = '00000000-0000-0000-0000-000000000000'; ServerUrl = 'https://management.azure.com'
-                BaseUri = "https://management.azure.com$($script:workspacePath)"; WorkspaceResourceId = $script:workspacePath; WorkspaceId = 'c'; AuthHeader = @{}
-            }
-        }
-
-        $script:SentinelApiVersion = '2025-09-01'
-        $script:AlertRuleApiVersion = '2025-07-01-preview'
-        $script:DeploymentApiVersion = '2024-11-01'
-        $script:MetadataApiVersion = '2025-09-01'
-        $script:MaxDeploymentRequestBytes = 4MB
-        $script:ResourceGroup = 'rg'
-        $script:Workspace = 'ws'
-        $script:Region = 'uksouth'
-
-        # The script's settings, as its parameters would set them.
-        function Set-LegacySetting {
-            param([hashtable] $Setting = @{})
-            $script:SeveritiesToInclude = if ($Setting.ContainsKey('Severity')) { $Setting.Severity } else { @('High', 'Medium', 'Low', 'Informational') }
-            foreach ($name in 'DisableRules', 'ForceSolutionUpdate', 'ForceContentDeployment', 'WhatIf', 'SkipSolutionDeployment', 'SkipAnalyticsRules', 'SkipWorkbooks', 'SkipAutomationRules', 'SkipHuntingQueries') {
-                Set-Variable -Scope Script -Name $name -Value ([bool]$Setting[$name])
-            }
-            $script:ProtectCustomisedRules = if ($Setting.ContainsKey('ProtectCustomisedRules')) { $Setting.ProtectCustomisedRules } else { $true }
-            $script:BaseUri = "https://management.azure.com$($script:workspacePath)"
-            $script:ServerUrl = 'https://management.azure.com'
-            $script:SubscriptionId = '00000000-0000-0000-0000-000000000000'
-            $script:AuthHeader = @{}
-            $script:MetadataLinked = 0
-            $script:MetadataFailed = 0
-            $script:legacyHub = New-ContentHubStandIn -Path $script:fixture
-            $script:guidCounter = 0
-        }
-
-        # Invoke-Main's phases (Deploy-SentinelContentHub.ps1, from "Discover
-        # solutions" to the summary) without its exit, so a run that fails
-        # can be compared.
-        function Invoke-LegacyRun {
-            param([string[]] $Solutions, [hashtable] $Setting = @{})
-            Set-LegacySetting $Setting
-            $hubData = Get-ContentHubSolutions
-            $solutionStatuses = @(foreach ($solName in $Solutions) { Get-SolutionStatus -SolutionName $solName -AvailableSolutions $hubData.Available -InstalledLookup $hubData.InstalledLookup })
-            $overall = @{
-                Solutions       = @{ Deployed = 0; Updated = 0; Skipped = 0; Failed = 0 }
-                AnalyticsRules  = @{ Deployed = 0; Updated = 0; Skipped = 0; CustomisedSkipped = 0; Deprecated = 0; Failed = 0 }
-                Workbooks       = @{ Deployed = 0; Updated = 0; Skipped = 0; Failed = 0 }
-                AutomationRules = @{ Deployed = 0 }
-                HuntingQueries  = @{ Deployed = 0 }
-            }
-            if (-not $script:SkipSolutionDeployment) {
-                foreach ($status in $solutionStatuses) {
-                    if ($status.Status -eq 'NotFound') { $overall.Solutions.Failed++; continue }
-                    $success = Deploy-Solution -SolutionStatus $status
-                    switch ($status.Action) {
-                        'Install' { if ($success) { $overall.Solutions.Deployed++ } else { $overall.Solutions.Failed++ } }
-                        'Update' { if ($success) { $overall.Solutions.Updated++ } else { $overall.Solutions.Failed++ } }
-                        'ForceUpdate' { if ($success) { $overall.Solutions.Updated++ } else { $overall.Solutions.Failed++ } }
-                        'None' { $overall.Solutions.Skipped++ }
-                    }
-                }
-            }
-            $script:NewlyDeployedSolutions = @($solutionStatuses | Where-Object { $_.Action -in @('Install', 'Update', 'ForceUpdate') } | ForEach-Object { $_.Name })
-            $contentSolutionNames = @($solutionStatuses | Where-Object { $_.Status -ne 'NotFound' } | ForEach-Object { $_.Name })
-            if ($contentSolutionNames.Count -gt 0) {
-                if (-not $script:SkipAnalyticsRules) { $overall.AnalyticsRules = Deploy-AnalyticsRules -SolutionNames $contentSolutionNames -AvailableSolutions $hubData.Available }
-                if (-not $script:SkipWorkbooks) { $overall.Workbooks = Deploy-Workbooks -SolutionNames $contentSolutionNames -AvailableSolutions $hubData.Available }
-                if (-not $script:SkipAutomationRules) { $overall.AutomationRules = Get-AutomationRuleStatus -SolutionNames $contentSolutionNames -AvailableSolutions $hubData.Available }
-                if (-not $script:SkipHuntingQueries) { $overall.HuntingQueries = Get-HuntingQueryStatus -SolutionNames $contentSolutionNames -AvailableSolutions $hubData.Available }
-            }
-            [pscustomobject]@{ Overall = $overall; Writes = @($script:legacyHub.Writes); MetadataLinked = $script:MetadataLinked; MetadataFailed = $script:MetadataFailed }
-        }
-
         function Get-ModuleCount {
             param($Run, [string] $Type, [string[]] $Outcome)
             @($Run.Results | Where-Object { $_.ContentType -eq $Type -and $_.Outcome -in $Outcome }).Count
-        }
-        function Assert-SameOutcome {
-            param($Legacy, $Module)
-            $old = $Legacy.Overall
-            $run = $Module.Run
-            Get-ModuleCount $run Solution Deployed | Should -Be $old.Solutions.Deployed -Because 'solutions installed'
-            Get-ModuleCount $run Solution Updated | Should -Be $old.Solutions.Updated -Because 'solutions updated'
-            Get-ModuleCount $run Solution Unchanged | Should -Be $old.Solutions.Skipped -Because 'solutions left alone'
-            Get-ModuleCount $run Solution Failed | Should -Be $old.Solutions.Failed -Because 'solutions failed'
-            Get-ModuleCount $run AnalyticsRule Deployed | Should -Be $old.AnalyticsRules.Deployed -Because 'rules created'
-            Get-ModuleCount $run AnalyticsRule Updated | Should -Be $old.AnalyticsRules.Updated -Because 'rules updated'
-            Get-ModuleCount $run AnalyticsRule Unchanged, Skipped | Should -Be $old.AnalyticsRules.Skipped -Because 'rules skipped'
-            Get-ModuleCount $run AnalyticsRule Protected | Should -Be $old.AnalyticsRules.CustomisedSkipped -Because 'rules protected'
-            Get-ModuleCount $run AnalyticsRule Deprecated | Should -Be $old.AnalyticsRules.Deprecated -Because 'rules deprecated'
-            Get-ModuleCount $run AnalyticsRule Failed | Should -Be $old.AnalyticsRules.Failed -Because 'rules failed'
-            Get-ModuleCount $run Workbook Deployed | Should -Be $old.Workbooks.Deployed -Because 'workbooks saved'
-            Get-ModuleCount $run Workbook Updated | Should -Be $old.Workbooks.Updated -Because 'workbooks updated'
-            Get-ModuleCount $run Workbook Unchanged, Skipped, Deprecated | Should -Be $old.Workbooks.Skipped -Because 'workbooks skipped'
-            Get-ModuleCount $run Workbook Failed | Should -Be $old.Workbooks.Failed -Because 'workbooks failed'
-            $run.AutomationRuleTemplates | Should -Be $old.AutomationRules.Deployed -Because 'automation rule templates (one page)'
-            $run.MetadataLinked | Should -Be $Legacy.MetadataLinked
-            $run.MetadataFailed | Should -Be $Legacy.MetadataFailed
-            $totalFailed = $old.Solutions.Failed + $old.AnalyticsRules.Failed + $old.Workbooks.Failed
-            $run.ExitCode | Should -Be ([int]($totalFailed -gt 0))
-        }
-        function Assert-SameWrite {
-            param($Legacy, $Module)
-            $old = @($Legacy.Writes | ForEach-Object { Get-WriteKey $_ } | Sort-Object -CaseSensitive)
-            $new = @($Module.Writes | ForEach-Object { Get-WriteKey $_ } | Sort-Object -CaseSensitive)
-            $new.Count | Should -Be $old.Count
-            ($new -join "`n") | Should -BeExactly ($old -join "`n")
-        }
-    }
-
-    Context 'the defaults, every kind of solution and template' {
-        BeforeAll {
-            $script:legacyA = Invoke-LegacyRun -Solutions $script:allSolutions
-            $script:moduleA = Invoke-ModuleRun -Parameters @{ Name = $script:allSolutions }
-        }
-
-        It 'sends the same writes' { Assert-SameWrite $script:legacyA $script:moduleA }
-        It 'counts the same outcomes' { Assert-SameOutcome $script:legacyA $script:moduleA }
-        It 'exercises every path: failures, protection, skips and recreation' {
-            $old = $script:legacyA.Overall.AnalyticsRules
-            foreach ($counter in 'Deployed', 'Updated', 'Skipped', 'CustomisedSkipped', 'Deprecated', 'Failed') { $old[$counter] | Should -BeGreaterThan 0 -Because $counter }
-            @($script:legacyA.Writes | Where-Object Method -eq 'DELETE').Count | Should -Be 1
-        }
-        It 'counts the hunting query templates on every page, where the script read the first (MIGRATION.md edit E20)' {
-            $script:legacyA.Overall.HuntingQueries.Deployed | Should -Be 1
-            $script:moduleA.Run.HuntingQueryTemplates | Should -Be 3
         }
     }
 
     Context 'every switch: disabled rules, forced updates, no protection, two severities' {
         BeforeAll {
-            $setting = @{ DisableRules = $true; ForceSolutionUpdate = $true; ForceContentDeployment = $true; ProtectCustomisedRules = $false; Severity = @('High', 'Medium') }
-            $script:legacyB = Invoke-LegacyRun -Solutions $script:allSolutions -Setting $setting
             $script:moduleB = Invoke-ModuleRun -Parameters @{ Name = $script:allSolutions; DisableRules = $true; ForceSolutionUpdate = $true; ForceContentDeployment = $true; OverwriteCustomisedRules = $true; Severity = 'High', 'Medium' }
         }
 
-        It 'sends the same writes' { Assert-SameWrite $script:legacyB $script:moduleB }
-        It 'counts the same outcomes' { Assert-SameOutcome $script:legacyB $script:moduleB }
         It 'sends every rule disabled and overwrites the changed ones' {
             @($script:moduleB.Writes | Where-Object { $_.Path -like '*/alertRules/*' -and $_.Method -eq 'PUT' } | ForEach-Object { $_.Body.properties.enabled } | Select-Object -Unique) | Should -Be @($false)
-            $script:legacyB.Overall.AnalyticsRules.CustomisedSkipped | Should -Be 0
+            Get-ModuleCount $script:moduleB.Run AnalyticsRule Protected | Should -Be 0
         }
     }
 
     Context '-DisableRules on its own, which updates enabled rules that are current' {
         BeforeAll {
-            $script:legacyE = Invoke-LegacyRun -Solutions $script:allSolutions -Setting @{ DisableRules = $true }
             $script:moduleE = Invoke-ModuleRun -Parameters @{ Name = $script:allSolutions; DisableRules = $true }
         }
 
-        It 'sends the same writes' { Assert-SameWrite $script:legacyE $script:moduleE }
-        It 'counts the same outcomes' { Assert-SameOutcome $script:legacyE $script:moduleE }
         It 'updates the enabled rule of a current solution and leaves the disabled one' {
             (Get-Result $script:moduleE.Run 'Bravo enabled rule').Outcome | Should -Be 'Updated'
             (Get-Result $script:moduleE.Run 'Bravo disabled rule').Outcome | Should -Be 'Unchanged'
         }
     }
 
-    Context 'the kinds left out' {
-        BeforeAll {
-            $script:legacyC = Invoke-LegacyRun -Solutions $script:allSolutions -Setting @{ SkipSolutionDeployment = $true; SkipWorkbooks = $true; SkipHuntingQueries = $true }
-            $script:moduleC = Invoke-ModuleRun -Parameters @{ Name = $script:allSolutions; ExcludeContentType = 'Solution', 'Workbook', 'HuntingQuery' }
-        }
-
-        It 'sends the same writes' { Assert-SameWrite $script:legacyC $script:moduleC }
-        It 'counts the same outcomes' { Assert-SameOutcome $script:legacyC $script:moduleC }
-    }
-
     Context '-WhatIf' {
         BeforeAll {
-            $script:legacyD = Invoke-LegacyRun -Solutions $script:allSolutions -Setting @{ WhatIf = $true }
             $script:moduleD = Invoke-ModuleRun -Parameters @{ Name = $script:allSolutions } -WhatIf
         }
 
-        It 'reports as would-do what the script counted as done' {
-            $old = $script:legacyD.Overall
+        It 'reports as would-do what a run would do' {
             $run = $script:moduleD.Run
-            @($run.Solutions | Where-Object { $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'install' }).Count | Should -Be $old.Solutions.Deployed
-            @($run.Solutions | Where-Object { $_.Outcome -eq 'WhatIf' -and $_.Reason -in 'update', 'forceupdate' }).Count | Should -Be $old.Solutions.Updated
-            @($run.Results | Where-Object { $_.ContentType -eq 'AnalyticsRule' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'deploy' }).Count | Should -Be $old.AnalyticsRules.Deployed
-            @($run.Results | Where-Object { $_.ContentType -eq 'AnalyticsRule' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'update' }).Count | Should -Be $old.AnalyticsRules.Updated
-            Get-ModuleCount $run AnalyticsRule Protected | Should -Be $old.AnalyticsRules.CustomisedSkipped
-            @($run.Results | Where-Object { $_.ContentType -eq 'Workbook' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'deploy' }).Count | Should -Be $old.Workbooks.Deployed
-            @($run.Results | Where-Object { $_.ContentType -eq 'Workbook' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'update' }).Count | Should -Be $old.Workbooks.Updated
+            @($run.Solutions | Where-Object { $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'install' }).Count | Should -Be 1
+            @($run.Solutions | Where-Object { $_.Outcome -eq 'WhatIf' -and $_.Reason -in 'update', 'forceupdate' }).Count | Should -Be 2
+            @($run.Results | Where-Object { $_.ContentType -eq 'AnalyticsRule' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'deploy' }).Count | Should -Be 6
+            @($run.Results | Where-Object { $_.ContentType -eq 'AnalyticsRule' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'update' }).Count | Should -Be 4
+            Get-ModuleCount $run AnalyticsRule Protected | Should -Be 2
+            @($run.Results | Where-Object { $_.ContentType -eq 'Workbook' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'deploy' }).Count | Should -Be 8
+            @($run.Results | Where-Object { $_.ContentType -eq 'Workbook' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'update' }).Count | Should -Be 3
         }
 
-        It 'writes nothing, where the script wrote the metadata of unchanged rules (MIGRATION.md edit E19)' {
+        It 'writes nothing, not even the metadata of unchanged rules (MIGRATION.md edit E19)' {
             $script:moduleD.Writes.Count | Should -Be 0
-            $script:legacyD.Writes.Count | Should -BeGreaterThan 0
-            @($script:legacyD.Writes | Where-Object { $_.Path -notlike '*/metadata/analyticsrule-*' }).Count | Should -Be 0
         }
     }
 
-    Context 'a clean run through the script''s own Invoke-Main' {
+    Context 'a clean run of one current solution' {
         BeforeAll {
-            Set-LegacySetting
-            $script:Solutions = @('fixture bravo')
-            $script:IsGov = $false
-            $savedBuild = $env:BUILD_BUILDID
-            $env:BUILD_BUILDID = $null
-            try { Invoke-Main } finally { $env:BUILD_BUILDID = $savedBuild }
-            $script:legacyMain = [pscustomobject]@{ Writes = @($script:legacyHub.Writes); MetadataLinked = $script:MetadataLinked }
             $script:moduleMain = Invoke-ModuleRun -Parameters @{ Name = 'fixture bravo' }
         }
 
-        It 'sends the same writes' { Assert-SameWrite $script:legacyMain $script:moduleMain }
-        It 'succeeds, and links the same rules' {
+        It 'succeeds, and links its rules' {
             $script:moduleMain.Run.ExitCode | Should -Be 0
-            $script:moduleMain.Run.MetadataLinked | Should -Be $script:legacyMain.MetadataLinked
-            $script:legacyMain.Writes.Count | Should -BeGreaterThan 0
+            $script:moduleMain.Run.MetadataLinked | Should -Be 2
         }
     }
 }

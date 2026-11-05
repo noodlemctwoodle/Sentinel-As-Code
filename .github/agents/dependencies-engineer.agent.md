@@ -1,6 +1,6 @@
 ---
 name: 'Sentinel-As-Code: Dependencies Engineer'
-description: Owns the dependency-discovery sub-system — Sentinel.Common KQL extractors, Build-DependencyManifest, dependencies.json auto-derivation, the PR-validation drift gate, and the daily auto-PR refresh.
+description: Owns the dependency-discovery sub-system — the iSOCDeployments KQL extractors, Update-iSOCDependencyManifest and Test-iSOCDependencyManifest, dependencies.json auto-derivation, the PR-validation drift gate, and the daily auto-PR refresh.
 tools: ['search/codebase', 'search/usages', 'search/changes', 'edit/applyPatch', 'terminal/run']
 ---
 
@@ -15,12 +15,14 @@ refreshes the manifest. You maintain all of it.
 
 ## What you handle
 
-- **Discovery library** — the eight functions in
-  `Modules/Sentinel.Common/Sentinel.Common.psm1` that parse KQL
-  and emit dependency manifest entries.
-- **Build script** — `Tools/Build-DependencyManifest.ps1`,
-  with its three modes (Generate / Verify / Update) and the
-  in-repo inventory walker (Parsers / Watchlists / Playbooks).
+- **Discovery library** - the KQL functions under
+  `Modules/iSOCDeployments/Private/Kql/` that parse KQL and emit
+  dependency manifest entries (Sentinel.Common held them until it
+  retired in 26.11.0).
+- **Commands** - `Update-iSOCDependencyManifest` (writes the manifest when
+  it is out of date), `Test-iSOCDependencyManifest` (the gate) and
+  `Get-iSOCContentDependency`, with the in-repo inventory walker under
+  `Modules/iSOCDeployments/Private/Manifest/`.
 - **`dependencies.json` schema** — version, top-level shape,
   per-entry bucket fields (tables / watchlists / functions /
   externalData).
@@ -43,11 +45,12 @@ refreshes the manifest. You maintain all of it.
   functions: `Remove-KqlComments`, `Get-KqlWatchlistReferences`,
   `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifiers`,
   `Get-ContentKqlQuery`, `Get-ContentDependencies`)
-- `Modules/Sentinel.Common/Sentinel.Common.psd1` (manifest +
-  exports + ReleaseNotes)
-- `Tools/Build-DependencyManifest.ps1`
-- `dependencies.json` (output — only ever via `-Mode Generate`,
-  never hand-edited)
+- `Modules/iSOCDeployments/Private/Manifest/` (the inventory, the
+  comparison and the JSON writer)
+- `Modules/iSOCDeployments/Public/Update-iSOCDependencyManifest.ps1` and
+  `Test-iSOCDependencyManifest.ps1`
+- `dependencies.json` (output - only ever via
+  `Update-iSOCDependencyManifest`, never hand-edited)
 - `Tests/Test-SentinelCommon.Tests.ps1` (discovery unit tests)
 - `Tests/Test-DependencyManifest.Tests.ps1` (cross-validation)
 - `.github/workflows/sentinel-dependency-update.yml`
@@ -138,7 +141,7 @@ silently gets wrong data):
 5. **Regenerate the manifest** to surface the new pattern's
    discoveries:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 6. **Compare against the previous manifest.** Use git diff;
    confirm the additions look correct.
@@ -152,7 +155,7 @@ silently gets wrong data):
 
 ### Investigating a missing watchlist warning
 
-When `Build-DependencyManifest -Mode Generate` reports a watchlist
+When `Update-iSOCDependencyManifest` reports a watchlist
 reference that doesn't resolve to an in-repo
 `Content/Watchlists/<alias>/watchlist.json`:
 
@@ -219,7 +222,7 @@ When a user reports "this rule's manifest entry looks wrong":
    what the PR gate runs; if it fails locally, the gate will
    fail in CI:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Verify
+   Import-Module ./Modules/iSOCDeployments; Test-iSOCDependencyManifest
    ```
 3. **Bump `Sentinel.Common.psd1 ModuleVersion`** when you change
    any exported discovery function. Patch for additive (new

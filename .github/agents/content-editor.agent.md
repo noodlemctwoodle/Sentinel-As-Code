@@ -49,7 +49,7 @@ patches.
    a query body (or adding a watchlist reference, externaldata URL,
    or new table reference) means:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
    Stage `dependencies.json` with your edit.
 

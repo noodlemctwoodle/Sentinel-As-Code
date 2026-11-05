@@ -28,15 +28,8 @@
 #
 # Runs daily at 06:00 UTC (independent from Sentinel-Deploy.yml's weekly cron).
 #
-# Engine (the iSOCDeployments pipeline switch):
-#   - scripts  -> Tools/Test-SentinelRuleDrift.ps1 (default)
-#   - module   -> Compare-iSOCContent, Sync-iSOCContent and
-#                 Export-iSOCDriftReport from Modules/iSOCDeployments
-#   - compare  -> the module compares first and writes its report to the
-#                 agent's temporary folder, the script runs as usual, and a
-#                 last step fails the run when the two reports count drift
-#                 differently
-#   The commit, push and PR step is the same for every engine.
+# The drift step runs Compare-iSOCContent, Sync-iSOCContent and
+# Export-iSOCDriftReport from Modules/iSOCDeployments.
 #
 # Prerequisites:
 #   - Variable group 'sentinel-deployment' (shared with Sentinel-Deploy.yml).
@@ -75,12 +68,12 @@ parameters:
   # ADO parameter 'values:' lists are evaluated at compile time, so we cannot
   # dynamically populate a dropdown from the live workspace catalogue — and
   # hardcoding solution names couples this pipeline to one specific workspace.
-  # The drift script always scans every Content Hub rule it finds; the report
-  # under reports/sentinel-drift-latest.md groups results per-solution so you
-  # can see which ones drifted without filtering on input.
+  # The drift step always scans every Content Hub rule it finds; the report
+  # under reports/ groups results per-solution so you can see which ones
+  # drifted without filtering on input.
   #
-  # For ad-hoc per-solution runs, invoke the script directly:
-  #   ./Tools/Test-SentinelRuleDrift.ps1 -Solutions "Microsoft Defender XDR" ...
+  # For ad-hoc per-solution runs, call the module directly:
+  #   Compare-iSOCContent -Solution 'Microsoft Defender XDR' ...
 
   - name: skipContentHub
     displayName: "  Drift › Skip Content Hub Bucket"
@@ -96,15 +89,6 @@ parameters:
     displayName: "  Drift › Skip Orphan (Ungoverned) Bucket"
     type: boolean
     default: false
-
-  - name: engine
-    displayName: "Engine: scripts, module (iSOCDeployments) or compare (both, failing on a difference)"
-    type: string
-    default: scripts
-    values:
-      - scripts
-      - module
-      - compare
 
 variables:
   - group: sentinel-deployment      # Variable group containing:
@@ -135,33 +119,10 @@ variables:
 
   # Map boolean parameters to switch flag strings at compile time.
   # Mirrors the flag convention in Sentinel-Deploy.yml.
-  - name: flagFailOnDrift
-    ${{ if eq(parameters.failOnDrift, true) }}:
-      value: "-FailOnDrift"
-    ${{ else }}:
-      value: ""
 
   - name: flagReportOnly
     ${{ if eq(parameters.reportOnly, true) }}:
       value: "-ReportOnly"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipContentHub
-    ${{ if eq(parameters.skipContentHub, true) }}:
-      value: "-SkipContentHub"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustom
-    ${{ if eq(parameters.skipCustom, true) }}:
-      value: "-SkipCustom"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipOrphans
-    ${{ if eq(parameters.skipOrphans, true) }}:
-      value: "-SkipOrphans"
     ${{ else }}:
       value: ""
 
@@ -199,160 +160,45 @@ stages:
                     Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
                     Format-Table Name, Version
 
-          # The steps that read the workspace log rule names set in the
-          # portal, so none of them may set a variable or change PATH.
-          - ${{ if eq(parameters.engine, 'compare') }}:
-            - task: AzurePowerShell@5
-              displayName: "Compare drift with iSOCDeployments (before the script)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: LatestVersion
-                pwsh: true
-                Inline: |
-                  # The module reads the workspace before the script changes
-                  # anything, and writes its report to the agent's temporary
-                  # folder; the repository is left alone.
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  $temp = Join-Path $env:AGENT_TEMPDIRECTORY 'isoc-drift'
-                  New-Item -ItemType Directory -Path $temp -Force | Out-Null
-                  @(Get-ChildItem -LiteralPath (Join-Path $repo 'reports') -Filter 'sentinel-drift-*.json' -File -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) |
-                      Set-Content -LiteralPath (Join-Path $temp 'reports-before.txt')
+          # The drift step logs rule names set in the portal, so it may not
+          # set a variable or change PATH.
+          - task: AzurePowerShell@5
+            displayName: "Detect Sentinel Rule Drift"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: LatestVersion
+              pwsh: true
+              Inline: |
+                # Compare, absorb what drifted (unless report only), write
+                # the report the commit step stages, and fail when asked to.
+                $ErrorActionPreference = 'Stop'
+                $repo = $env:BUILD_SOURCESDIRECTORY
+                Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                $null = Connect-iSOCWorkspace -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME
 
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $null = Connect-iSOCWorkspace -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME
+                $compare = @{ RepoPath = $repo }
+                $excluded = @()
+                if ('${{ parameters.skipContentHub }}' -eq 'True') { $excluded += 'ContentHub' }
+                if ('${{ parameters.skipCustom }}' -eq 'True') { $excluded += 'Custom' }
+                if ('${{ parameters.skipOrphans }}' -eq 'True') { $excluded += 'Orphan' }
+                if ($excluded) { $compare['ExcludeSource'] = $excluded }
 
-                  $compare = @{ RepoPath = $repo }
-                  $excluded = @()
-                  if ('${{ parameters.skipContentHub }}' -eq 'True') { $excluded += 'ContentHub' }
-                  if ('${{ parameters.skipCustom }}' -eq 'True') { $excluded += 'Custom' }
-                  if ('${{ parameters.skipOrphans }}' -eq 'True') { $excluded += 'Orphan' }
-                  if ($excluded) { $compare['ExcludeSource'] = $excluded }
+                $drift = Compare-iSOCContent @compare
+                if ('${{ parameters.reportOnly }}' -ne 'True') { $drift = $drift | Sync-iSOCContent }
+                $null = $drift | Export-iSOCDriftReport
 
-                  $drift = Compare-iSOCContent @compare
-                  $null = $drift | Export-iSOCDriftReport -Path $temp
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Detect Sentinel Rule Drift"
-              target:
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: LatestVersion
-                pwsh: true
-                errorActionPreference: "Continue"
-                Inline: |
-                  $scriptParams = @{
-                      SubscriptionId = "$(azureSubscriptionId)"
-                      ResourceGroup  = "$(sentinelResourceGroup)"
-                      Workspace      = "$(sentinelWorkspaceName)"
-                      Region         = "$(sentinelRegion)"
-                      RepoPath       = "$(Build.SourcesDirectory)"
-                  }
-
-                  if ("$(flagFailOnDrift)")    { $scriptParams['FailOnDrift']    = $true }
-                  if ("$(flagReportOnly)")     { $scriptParams['ReportOnly']     = $true }
-                  if ("$(flagSkipContentHub)") { $scriptParams['SkipContentHub'] = $true }
-                  if ("$(flagSkipCustom)")     { $scriptParams['SkipCustom']     = $true }
-                  if ("$(flagSkipOrphans)")    { $scriptParams['SkipOrphans']    = $true }
-
-                  Write-Host "##[section]Launching Sentinel Rule Drift Detection"
-                  Write-Host "Workspace: $(sentinelWorkspaceName) (RG: $(sentinelResourceGroup))"
-                  Write-Host "Switches:  $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
-
-                  & "$(Build.SourcesDirectory)/Tools/Test-SentinelRuleDrift.ps1" @scriptParams
-
-          - ${{ if eq(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Detect Sentinel Rule Drift (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: LatestVersion
-                pwsh: true
-                Inline: |
-                  # Compare, absorb what drifted (unless report only), write
-                  # the report the commit step stages, and fail when asked to.
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $null = Connect-iSOCWorkspace -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME
-
-                  $compare = @{ RepoPath = $repo }
-                  $excluded = @()
-                  if ('${{ parameters.skipContentHub }}' -eq 'True') { $excluded += 'ContentHub' }
-                  if ('${{ parameters.skipCustom }}' -eq 'True') { $excluded += 'Custom' }
-                  if ('${{ parameters.skipOrphans }}' -eq 'True') { $excluded += 'Orphan' }
-                  if ($excluded) { $compare['ExcludeSource'] = $excluded }
-
-                  $drift = Compare-iSOCContent @compare
-                  if ('${{ parameters.reportOnly }}' -ne 'True') { $drift = $drift | Sync-iSOCContent }
-                  $null = $drift | Export-iSOCDriftReport
-
-                  if ('${{ parameters.failOnDrift }}' -eq 'True' -and $drift.HasDrift) {
-                      Write-Host '##vso[task.logissue type=error]Drift detected, and failOnDrift is set.'
-                      exit 1
-                  }
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-
-          - ${{ if eq(parameters.engine, 'compare') }}:
-            - task: PowerShell@2
-              displayName: "Compare drift: the scripts and iSOCDeployments"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  # The script's new report against the module's: both find
-                  # no drift, or both count it the same.
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  $temp = Join-Path $env:AGENT_TEMPDIRECTORY 'isoc-drift'
-                  $before = @(Get-Content -LiteralPath (Join-Path $temp 'reports-before.txt') -ErrorAction SilentlyContinue)
-                  $scriptsReport = Get-ChildItem -LiteralPath (Join-Path $repo 'reports') -Filter 'sentinel-drift-*.json' -File -ErrorAction SilentlyContinue |
-                      Where-Object { $before -notcontains $_.Name } | Sort-Object Name | Select-Object -Last 1
-                  $moduleReport = Get-ChildItem -LiteralPath $temp -Filter 'sentinel-drift-*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
-                  $explain = 'Modules/iSOCDeployments/MIGRATION.md edits E22 to E24 list the differences the module makes on purpose.'
-
-                  if (-not $scriptsReport -and -not $moduleReport) {
-                      Write-Host 'Neither the scripts nor the module found drift.'
-                      exit 0
-                  }
-                  if (-not $scriptsReport -or -not $moduleReport) {
-                      $found = if ($scriptsReport) { 'Tools/Test-SentinelRuleDrift.ps1' } else { 'the module' }
-                      Write-Host "##vso[task.logissue type=error]Only $found found drift. $explain"
-                      exit 1
-                  }
-
-                  $scripts = (Get-Content -LiteralPath $scriptsReport.FullName -Raw | ConvertFrom-Json).summary
-                  $module = (Get-Content -LiteralPath $moduleReport.FullName -Raw | ConvertFrom-Json).summary
-                  $names = @(@($scripts.PSObject.Properties.Name) + @($module.PSObject.Properties.Name) | Sort-Object -Unique)
-                  $different = @(foreach ($name in $names) {
-                      if ("$($scripts.$name)" -ne "$($module.$name)") { "${name}: scripts $($scripts.$name), module $($module.$name)" }
-                  })
-                  if ($different) {
-                      Write-Host "##vso[task.logissue type=error]The scripts and the module count drift differently: $($different -join '; '). $explain"
-                      exit 1
-                  }
-                  Write-Host "The scripts and the module found the same drift: $(@(foreach ($name in $names) { "$name $($module.$name)" }) -join ', ')."
+                if ('${{ parameters.failOnDrift }}' -eq 'True' -and $drift.HasDrift) {
+                    Write-Host '##vso[task.logissue type=error]Drift detected, and failOnDrift is set.'
+                    exit 1
+                }
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
 
           # Commit + push + PR. Bash so 'az' and 'git' behave predictably.
           # Skipped entirely when -ReportOnly was passed: nothing on disk to commit.
@@ -388,15 +234,10 @@ stages:
               git stash pop --quiet || true
 
               # Absorbed rules change the dependency graph. Regenerate the manifest
-              # so the deploy and PR-validation drift gates stay green, with the
-              # engine the run uses.
-              if [ "$ENGINE" = "module" ]; then
-                  pwsh -NoProfile -Command 'Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1; $null = Update-iSOCDependencyManifest -RepoPath $PWD.Path'
-              else
-                  pwsh -NoProfile -File ./Tools/Build-DependencyManifest.ps1 -Mode Generate -RepoPath "$PWD"
-              fi
+              # so the deploy and PR-validation drift gates stay green.
+              pwsh -NoProfile -Command 'Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1; $null = Update-iSOCDependencyManifest -RepoPath $PWD.Path'
 
-              # Stage only paths the script may legitimately have touched.
+              # Stage only paths the drift step may legitimately have touched.
               git add Content/AnalyticalRules reports dependencies.json
 
               # Commit message includes the timestamp; the report filename is
@@ -519,4 +360,3 @@ stages:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
               SYNC_BRANCH: $(syncBranch)
               TARGET_BRANCH: $(targetBranch)
-              ENGINE: ${{ parameters.engine }}

@@ -49,9 +49,9 @@ the prompt bootstraps one file; you reason about the suite.
 | **Schema validation (`-ForEach`)** | `Test-AnalyticalRuleYaml`, `Test-WatchlistJson`, `Test-DependencyManifest`, etc. | One `It` block per content file, generated at discovery time. Right when you want per-file pass/fail in the PR check UI. |
 | **AST extraction → dot-source** | `Test-DeployCustomContent`, `Test-DeployDefenderDetections`, etc. | Function-level unit tests against logic embedded in a `.ps1` script. The AST helper extracts function definitions without running the script's `Main` block. |
 
-For a `.psm1` module (like `Sentinel.Common`), use direct
-`Import-Module`, not the AST extractor. See
-[`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1).
+For a module (like `iSOCDeployments`), use `Import-Module` and
+`InModuleScope`, not the AST extractor. See
+[`Tests/iSOCDeployments/Core.Tests.ps1`](../../Tests/iSOCDeployments/Core.Tests.ps1).
 
 ## Workflow patterns
 

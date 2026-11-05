@@ -3,28 +3,28 @@
 
 <#
 .SYNOPSIS
-    Pester tests for Deploy-iSOCWorkspace, against the stage sequence of
-    the deploy pipelines.
+    Pester tests for Deploy-iSOCWorkspace and the stage gating of the
+    deploy pipelines.
 
 .DESCRIPTION
-    Two kinds of parity, then the command on its own.
+    What each stage is given: for three sets of the command's parameters
+    (the pipelines' defaults, everything switched, some content left out),
+    Deploy-iSOCWorkspace must give the Content Hub, custom content and
+    Defender commands the explicit values listed with each case. Parity of
+    what each stage is given with the deleted deploy scripts and the old
+    pipeline steps was proven on release/26.11.0 before they were removed;
+    the expected values are the ones those steps gave the scripts there,
+    through the map MIGRATION.md's Parameters table lists.
 
-    What each stage is given: the Content Hub, custom content and Defender
-    steps of Pipelines/Sentinel-Deploy.yml and
-    .github/workflows/sentinel-deploy.yml are lifted out of the YAML
-    unchanged, filled in from the pipelines' own parameter and input
-    defaults (or a case's), and run in a child pwsh against stand-in
-    scripts that have the real scripts' parameters and record what they
-    were given. Deploy-iSOCWorkspace, called as the pipeline would call it
-    for the same case, must give the module's commands the same, through
-    the map MIGRATION.md's Parameters table lists.
-
-    Which stages run: the pipelines' stage conditions are read from the
-    YAML, held to the one shape the suite understands, and evaluated for
-    every mix of failed and left-out stages. The command must run the same
-    stages as the GitHub workflow, and as Azure DevOps when its
-    infrastructure stage is on; with it off, Azure DevOps differs only
+    Which stages run: the stage conditions of Pipelines/Sentinel-Deploy.yml
+    and the job conditions of .github/workflows/sentinel-deploy.yml are
+    read from the YAML, held to the one shape the suite understands, and
+    evaluated for every mix of failed and left-out stages. The command must
+    run the same stages as the GitHub workflow, and as Azure DevOps when
+    its infrastructure stage is on; with it off, Azure DevOps differs only
     after a failed Content Hub stage (MIGRATION.md edit E44).
+
+    Then the command on its own.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/DeployWorkspace.Tests.ps1
@@ -37,7 +37,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-05
-    Version:      0.1.0
+    Version:      0.2.0
     Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
@@ -46,17 +46,9 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $PSScriptRoot '_helpers/WorkspaceStandIn.psm1') -Force
     $ado = Read-PipelineYaml -Path (Join-Path $repoRoot 'Pipelines/Sentinel-Deploy.yml')
-    $gitHub = Read-PipelineYaml -Path (Join-Path $repoRoot '.github/workflows/sentinel-deploy.yml')
 
     $adoDefaults = @{}
     foreach ($p in $ado.parameters) { $adoDefaults[$p.name] = $p.default }
-    $gitHubDefaults = @{}
-    foreach ($name in $gitHub.on.workflow_dispatch.inputs.Keys) {
-        $default = $gitHub.on.workflow_dispatch.inputs[$name].default
-        $gitHubDefaults[$name] = if ($default -is [bool]) { $default.ToString().ToLower() } else { [string]$default }
-    }
-    $gitHubBlank = @{}
-    foreach ($name in $gitHubDefaults.Keys) { $gitHubBlank[$name] = '' }
     $defaultSolutions = @($adoDefaults.solutions -split ',' | ForEach-Object { $_.Trim() })
     $community = 'Content/AnalyticalRules/Community/*'
     $everyCustomType = @('Parser', 'AnalyticsRule', 'Watchlist', 'Playbook', 'Workbook', 'HuntingQuery', 'AutomationRule', 'SummaryRule')
@@ -69,30 +61,35 @@ BeforeDiscovery {
     }
     $someModule = @{ Solution = $defaultSolutions; Severity = @('High', 'Medium', 'Low', 'Informational'); ExcludeContentType = @('Playbook'); Exclude = @($community); SmartDeployment = $true }
 
-    $adoSwitched = $adoDefaults.Clone()
-    foreach ($k in @($adoSwitched.Keys)) { if ($k -like 'skip*') { $adoSwitched[$k] = $true } }
-    $adoSwitched.skipCommunityDetections = $false
-    $adoSwitched.disableRules = $false; $adoSwitched.protectCustomisedRules = $false; $adoSwitched.forceSolutionUpdate = $true; $adoSwitched.forceContentDeployment = $true
-    $adoSwitched.smartDeployment = $false; $adoSwitched.whatIf = $true; $adoSwitched.solutions = 'Azure Activity, Syslog'; $adoSwitched.severitiesToInclude = 'High,Medium'
-    $adoSome = $adoDefaults.Clone()
-    $adoSome.skipCustomPlaybooks = $true; $adoSome.disableRules = $false
-
-    $gitHubSwitched = $gitHubDefaults.Clone()
-    foreach ($k in 'skip_analytics_rules', 'skip_workbooks', 'skip_automation_rules', 'skip_hunting_queries', 'force_solution_update', 'force_content_deployment', 'what_if') { $gitHubSwitched[$k] = 'true' }
-    foreach ($k in 'disable_rules', 'protect_customised_rules', 'smart_deployment') { $gitHubSwitched[$k] = 'false' }
-    $gitHubSwitched.skip_custom_content_types = 'parsers,detections,watchlists,playbooks,workbooks,hunting-queries,automation-rules,summary-rules'
-    $gitHubSwitched.solutions = 'Azure Activity, Syslog'; $gitHubSwitched.severities_to_include = 'High,Medium'
-    $gitHubSome = $gitHubDefaults.Clone()
-    $gitHubSome.skip_custom_content_types = ' Playbooks , community-detections '; $gitHubSome.disable_rules = 'false'
-
+    # What the Content Hub, custom content and Defender steps gave the deploy
+    # scripts for these cases on release/26.11.0, through MIGRATION.md's
+    # Parameters table. Lists are sorted and joined with ', '.
     $script:cases = @(
-        @{ Case = 'the parameter defaults'; Pipeline = 'Azure DevOps'; Inputs = $adoDefaults; Module = $defaultsModule }
-        @{ Case = 'everything switched'; Pipeline = 'Azure DevOps'; Inputs = $adoSwitched; Module = $switchedModule }
-        @{ Case = 'some content left out'; Pipeline = 'Azure DevOps'; Inputs = $adoSome; Module = $someModule }
-        @{ Case = 'the input defaults'; Pipeline = 'GitHub Actions'; Inputs = $gitHubDefaults; Module = $defaultsModule }
-        @{ Case = 'a scheduled run, with no inputs'; Pipeline = 'GitHub Actions'; Inputs = $gitHubBlank; Module = $defaultsModule }
-        @{ Case = 'everything switched'; Pipeline = 'GitHub Actions'; Inputs = $gitHubSwitched; Module = $switchedModule }
-        @{ Case = 'some content left out'; Pipeline = 'GitHub Actions'; Inputs = $gitHubSome; Module = $someModule }
+        @{
+            Case = 'the pipeline defaults'; Module = $defaultsModule
+            Expected = @{
+                HubName = $defaultSolutions; HubSeverity = 'High, Informational, Low, Medium'; HubDisableRules = $true; HubOverwriteCustomisedRules = $false
+                HubForceSolutionUpdate = $false; HubForceContentDeployment = $false; HubExcludeContentType = ''
+                CustomExcludeContentType = 'DefenderDetection, WorkspaceSetting'; CustomExclude = $community; CustomSmartDeployment = $true; WhatIf = $false
+            }
+        }
+        @{
+            Case = 'everything switched'; Module = $switchedModule
+            Expected = @{
+                HubName = @('Azure Activity', 'Syslog'); HubSeverity = 'High, Medium'; HubDisableRules = $false; HubOverwriteCustomisedRules = $true
+                HubForceSolutionUpdate = $true; HubForceContentDeployment = $true; HubExcludeContentType = 'AnalyticsRule, AutomationRule, HuntingQuery, Workbook'
+                CustomExcludeContentType = 'AnalyticsRule, AutomationRule, DefenderDetection, HuntingQuery, Parser, Playbook, SummaryRule, Watchlist, Workbook, WorkspaceSetting'
+                CustomExclude = ''; CustomSmartDeployment = $false; WhatIf = $true
+            }
+        }
+        @{
+            Case = 'some content left out'; Module = $someModule
+            Expected = @{
+                HubName = $defaultSolutions; HubSeverity = 'High, Informational, Low, Medium'; HubDisableRules = $false; HubOverwriteCustomisedRules = $false
+                HubForceSolutionUpdate = $false; HubForceContentDeployment = $false; HubExcludeContentType = ''
+                CustomExcludeContentType = 'DefenderDetection, Playbook, WorkspaceSetting'; CustomExclude = $community; CustomSmartDeployment = $true; WhatIf = $false
+            }
+        }
     )
 
     $gated = @('ContentHub', 'CustomContent', 'DefenderDetections')
@@ -111,9 +108,8 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     Import-Module (Join-Path $PSScriptRoot '_helpers/WorkspaceStandIn.psm1') -Force
-    $script:files = @{ 'Azure DevOps' = Join-Path $script:repoRoot 'Pipelines/Sentinel-Deploy.yml'; 'GitHub Actions' = Join-Path $script:repoRoot '.github/workflows/sentinel-deploy.yml' }
-    $script:ado = Read-PipelineYaml -Path $script:files['Azure DevOps']
-    $script:gitHub = Read-PipelineYaml -Path $script:files['GitHub Actions']
+    $script:ado = Read-PipelineYaml -Path (Join-Path $script:repoRoot 'Pipelines/Sentinel-Deploy.yml')
+    $script:gitHub = Read-PipelineYaml -Path (Join-Path $script:repoRoot '.github/workflows/sentinel-deploy.yml')
     $script:subscription = '11111111-2222-3333-4444-555555555555'
     $script:context = InModuleScope iSOCDeployments -Parameters @{ S = $script:subscription } {
         param($S)
@@ -126,77 +122,6 @@ BeforeAll {
     }
     $script:repo = Join-Path $TestDrive 'repo'
     New-Item -ItemType Directory -Path (Join-Path $script:repo 'Content') -Force | Out-Null
-
-    # The script parameters the pipelines pass, as the module's commands take them.
-    $script:hubSkips = [ordered]@{ SkipSolutionDeployment = 'Solution'; SkipAnalyticsRules = 'AnalyticsRule'; SkipWorkbooks = 'Workbook'; SkipAutomationRules = 'AutomationRule'; SkipHuntingQueries = 'HuntingQuery' }
-    $script:customSkips = [ordered]@{
-        SkipParsers = 'Parser'; SkipDetections = 'AnalyticsRule'; SkipWatchlists = 'Watchlist'; SkipPlaybooks = 'Playbook'; SkipWorkbooks = 'Workbook'
-        SkipHuntingQueries = 'HuntingQuery'; SkipAutomationRules = 'AutomationRule'; SkipSummaryRules = 'SummaryRule'
-    }
-
-    function Get-StubScript {
-        <# A stand-in for one deploy script: the real script's parameters, recording what it was given beside itself. #>
-        param([string] $Name)
-        $real = Join-Path $script:repoRoot "Deploy/content/$Name.ps1"
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($real, [ref]$null, [ref]$null)
-        $attributes = @($ast.ParamBlock.Attributes | ForEach-Object { $_.Extent.Text }) -join "`n"
-        @"
-$attributes
-$($ast.ParamBlock.Extent.Text)
-`$record = [ordered]@{}
-foreach (`$key in `$PSBoundParameters.Keys) {
-    `$value = `$PSBoundParameters[`$key]
-    `$record[`$key] = if (`$value -is [System.Management.Automation.SwitchParameter]) { `$value.IsPresent } else { `$value }
-}
-`$record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path `$PSScriptRoot '$Name.call.json')
-"@
-    }
-    $script:stubs = @{}
-    foreach ($name in 'Deploy-SentinelContentHub', 'Deploy-CustomContent', 'Deploy-DefenderDetections') { $script:stubs[$name] = Get-StubScript -Name $name }
-
-    function Get-PipelineVariable {
-        <# Every pipeline variable the stage steps read, for one case's parameters (Azure DevOps) or inputs (GitHub). #>
-        param([string] $Pipeline, [hashtable] $Inputs, [string] $Root)
-        $values = @{
-            azureSubscriptionId = $script:subscription; sentinelResourceGroup = 'rg-sentinel'; sentinelWorkspaceName = 'law-sentinel'
-            sentinelRegion = 'uksouth'; playbookResourceGroup = 'rg-playbooks'; 'Build.SourcesDirectory' = $Root
-            AZURE_SUBSCRIPTION_ID = $script:subscription; RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; REGION = 'uksouth'
-            PLAYBOOK_RESOURCE_GROUP = 'rg-playbooks'; workspace = $Root
-        }
-        if ($Pipeline -eq 'GitHub Actions') {
-            foreach ($name in $Inputs.Keys) { $values[$name] = $Inputs[$name] }
-            return $values
-        }
-        $values.solutions = [string]$Inputs.solutions
-        $values.severitiesToInclude = [string]$Inputs.severitiesToInclude
-        # The flag variables, as the variables section's template expressions set them.
-        foreach ($variable in @($script:ado.variables | Where-Object { $_ -is [System.Collections.IDictionary] -and [string]$_['name'] -like 'flag*' })) {
-            $ifKey = @($variable.Keys | Where-Object { $_ -like '${{ if *' })
-            if ($ifKey.Count -ne 1 -or $ifKey[0] -notmatch '^\$\{\{ if eq\(parameters\.(\w+), true\) \}\}$' -or -not $variable.Contains('${{ else }}')) {
-                throw "The variable $($variable.name) is not a parameter flag the suite understands."
-            }
-            $values[$variable.name] = if ($Inputs[$Matches[1]] -eq $true) { $variable[$ifKey[0]].value } else { $variable['${{ else }}'].value }
-        }
-        $values
-    }
-
-    function Invoke-PipelineStage {
-        <# Run one stage step unchanged in a child pwsh against the stand-in scripts; return what each script was given. #>
-        param([string] $Pipeline, [string] $Step, [hashtable] $Inputs)
-        $root = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
-        New-Item -ItemType Directory -Path (Join-Path $root 'Deploy/content') -Force | Out-Null
-        foreach ($name in $script:stubs.Keys) { Set-Content -LiteralPath (Join-Path $root "Deploy/content/$name.ps1") -Value $script:stubs[$name] }
-        $inline = Get-PipelineInlineScript -Path $script:files[$Pipeline] -Step $Step -Variables (Get-PipelineVariable -Pipeline $Pipeline -Inputs $Inputs -Root $root)
-        $runPath = Join-Path $root 'run.ps1'
-        Set-Content -LiteralPath $runPath -Value "`$ErrorActionPreference = 'Stop'`n$inline" -Encoding utf8NoBOM
-        $lines = @(& pwsh -NoProfile -NonInteractive -File $runPath 2>&1 | ForEach-Object { "$_" })
-        if ($LASTEXITCODE -ne 0) { throw "The $Step step failed: $($lines -join ' | ')" }
-        $calls = @{}
-        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root 'Deploy/content') -Filter '*.call.json') {
-            $calls[$file.Name -replace '\.call\.json$', ''] = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json -AsHashtable
-        }
-        [pscustomobject]@{ Calls = $calls; Root = $root }
-    }
 
     function Invoke-ModuleWorkspace {
         <# Run Deploy-iSOCWorkspace with every stage command stood in for; return what each was given. Stages named in $Fail fail. #>
@@ -287,52 +212,38 @@ AfterAll {
     Remove-Module WorkspaceStandIn -ErrorAction SilentlyContinue
 }
 
-Describe 'Deploy-iSOCWorkspace beside the <Pipeline> stage steps: <Case>' -ForEach $script:cases {
+Describe 'Deploy-iSOCWorkspace gives each stage command its share of the run: <Case>' -ForEach $script:cases {
     BeforeAll {
-        $script:hub = (Invoke-PipelineStage -Pipeline $Pipeline -Step 'Deploy Content Hub Solutions' -Inputs $Inputs).Calls['Deploy-SentinelContentHub']
-        $script:customRun = Invoke-PipelineStage -Pipeline $Pipeline -Step 'Deploy Custom Content' -Inputs $Inputs
-        $script:custom = $script:customRun.Calls['Deploy-CustomContent']
-        $script:defender = (Invoke-PipelineStage -Pipeline $Pipeline -Step 'Deploy Defender Custom Detections' -Inputs $Inputs).Calls['Deploy-DefenderDetections']
         $script:module = Invoke-ModuleWorkspace -Parameters $Module
     }
 
-    It 'runs each pipeline step to its script' {
-        $script:hub | Should -Not -BeNullOrEmpty
-        $script:custom | Should -Not -BeNullOrEmpty
-        $script:defender | Should -Not -BeNullOrEmpty
-    }
-
-    It 'gives the Content Hub stage what the step gives Deploy-SentinelContentHub.ps1' {
+    It 'gives the Content Hub stage the solutions, severities and switches' {
         $given = Get-Given $script:module 'ContentHub'
         $given | Should -Not -BeNullOrEmpty
-        @($given.Name) | Should -Be @($script:hub.Solutions)
-        Get-Sorted $given.Severity | Should -Be (Get-Sorted $script:hub.SeveritiesToInclude)
-        [bool]$given.DisableRules | Should -Be ([bool]$script:hub.DisableRules)
-        $protect = if ($script:hub.Contains('ProtectCustomisedRules')) { [bool]$script:hub.ProtectCustomisedRules } else { $true }
-        [bool]$given.OverwriteCustomisedRules | Should -Be (-not $protect)
-        [bool]$given.ForceSolutionUpdate | Should -Be ([bool]$script:hub.ForceSolutionUpdate)
-        [bool]$given.ForceContentDeployment | Should -Be ([bool]$script:hub.ForceContentDeployment)
-        $skips = @($script:hubSkips.Keys | Where-Object { $script:hub[$_] -eq $true } | ForEach-Object { $script:hubSkips[$_] })
-        Get-Sorted $given.ExcludeContentType | Should -Be (Get-Sorted $skips)
-        [bool]$given.WhatIf | Should -Be ([bool]$script:hub.WhatIf)
+        @($given.Name) | Should -Be @($Expected.HubName)
+        Get-Sorted $given.Severity | Should -Be $Expected.HubSeverity
+        [bool]$given.DisableRules | Should -Be $Expected.HubDisableRules
+        [bool]$given.OverwriteCustomisedRules | Should -Be $Expected.HubOverwriteCustomisedRules
+        [bool]$given.ForceSolutionUpdate | Should -Be $Expected.HubForceSolutionUpdate
+        [bool]$given.ForceContentDeployment | Should -Be $Expected.HubForceContentDeployment
+        Get-Sorted $given.ExcludeContentType | Should -Be $Expected.HubExcludeContentType
+        [bool]$given.WhatIf | Should -Be $Expected.WhatIf
     }
 
-    It 'gives the custom content stage what the step gives Deploy-CustomContent.ps1' {
+    It 'gives the custom content stage the content types and paths it leaves out' {
         $given = Get-Given $script:module 'CustomContent'
         $given | Should -Not -BeNullOrEmpty
-        $skips = @($script:customSkips.Keys | Where-Object { $script:custom[$_] -eq $true } | ForEach-Object { $script:customSkips[$_] })
-        Get-Sorted $given.ExcludeContentType | Should -Be (Get-Sorted ($skips + 'WorkspaceSetting', 'DefenderDetection'))
-        $exclude = if ($script:custom.SkipCommunityDetections -eq $true) { @('Content/AnalyticalRules/Community/*') } else { @() }
-        Get-Sorted $given.Exclude | Should -Be (Get-Sorted $exclude)
-        [bool]$given.SmartDeployment | Should -Be ([bool]$script:custom.SmartDeployment)
-        [bool]$given.WhatIf | Should -Be ([bool]$script:custom.WhatIf)
+        Get-Sorted $given.ExcludeContentType | Should -Be $Expected.CustomExcludeContentType
+        Get-Sorted $given.Exclude | Should -Be $Expected.CustomExclude
+        [bool]$given.SmartDeployment | Should -Be $Expected.CustomSmartDeployment
+        [bool]$given.WhatIf | Should -Be $Expected.WhatIf
     }
 
-    It 'gives the Defender stage the step''s -WhatIf, and the run''s smart deployment and exclusions' {
+    It 'gives the Defender stage the run''s -WhatIf, smart deployment and exclusions' {
         $given = Get-Given $script:module 'DefenderDetections'
         $given | Should -Not -BeNullOrEmpty
         @($given.ContentType) | Should -Be @('DefenderDetection')
-        [bool]$given.WhatIf | Should -Be ([bool]$script:defender.WhatIf)
+        [bool]$given.WhatIf | Should -Be $Expected.WhatIf
         [bool]$given.SmartDeployment | Should -Be ([bool]$Module.SmartDeployment)
         Get-Sorted $given.Exclude | Should -Be (Get-Sorted $Module.Exclude)
     }
@@ -341,18 +252,6 @@ Describe 'Deploy-iSOCWorkspace beside the <Pipeline> stage steps: <Case>' -ForEa
         $script:module.Calls[0].Stage | Should -Be 'WorkspaceSettings'
         [bool]$script:module.Calls[0].Given.SmartDeployment | Should -Be ([bool]$Module.SmartDeployment)
         [bool]$script:module.Calls[0].Given.WhatIf | Should -Be ([bool]$Module.WhatIf)
-    }
-
-    It 'connects to what the steps name' {
-        foreach ($call in $script:hub, $script:custom) {
-            $call.ResourceGroup | Should -Be $script:context.ResourceGroup
-            $call.Workspace | Should -Be $script:context.WorkspaceName
-            $call.SubscriptionId | Should -Be $script:context.SubscriptionId
-            $call.Region | Should -Be $script:context.Region
-        }
-        $script:custom.PlaybookResourceGroup | Should -Be $script:context.PlaybookResourceGroup
-        $script:custom.BasePath | Should -Be $script:customRun.Root
-        $script:defender.BasePath | Should -Not -BeNullOrEmpty
     }
 }
 

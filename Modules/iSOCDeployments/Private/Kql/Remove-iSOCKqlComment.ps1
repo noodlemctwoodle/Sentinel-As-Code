@@ -7,8 +7,10 @@
 .DESCRIPTION
     Copied from Remove-KqlComments in Modules/Sentinel.Common/Sentinel.Common.psm1
     (1.1.1) with the helper names changed and the logic unchanged.
-    Tests/iSOCDeployments/Kql.Tests.ps1 holds the two to the same answer
-    for every file under Content/.
+    Its answer for every file under Content/ was held to the original's on
+    release/26.11.0, until Sentinel.Common was removed;
+    Tests/iSOCDeployments/Kql.Tests.ps1 now holds it to the answers the
+    original gave.
 
 .NOTES
     File:         Modules/iSOCDeployments/Private/Kql/Remove-iSOCKqlComment.ps1
@@ -16,8 +18,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.1.1
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail

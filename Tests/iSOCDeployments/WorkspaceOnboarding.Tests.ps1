@@ -7,16 +7,16 @@
     PowerShell of the deploy pipelines' first stage.
 
 .DESCRIPTION
-    The decision table on its own, then parity: the Check for Existing
-    Resources step of .github/workflows/sentinel-deploy.yml and the Check for
-    Existing Log Analytics Workspace step of Pipelines/Sentinel-Deploy.yml
-    are lifted out of the YAML unchanged and run in a child pwsh, with
-    stand-in Az cmdlets, beside the command, over one stand-in subscription
+    The decision table on its own, then parity with GitHub: the Check for
+    Existing Resources step of .github/workflows/sentinel-deploy.yml is
+    lifted out of the YAML unchanged and run in a child pwsh, with stand-in
+    Az cmdlets, beside the command, over one stand-in subscription
     (_helpers/WorkspaceStandIn.psm1). For each state of the workspace the
     command must read what the GitHub step reads and decide as it decides,
-    or report the same unrecoverable state; the Azure DevOps step, which
-    does not look at the onboarding resources or trim the playbook group,
-    agrees wherever MIGRATION.md edit E42 does not say otherwise.
+    or report the same unrecoverable state. Parity with the old Check for
+    Existing Log Analytics Workspace step of Pipelines/Sentinel-Deploy.yml
+    (MIGRATION.md edit E42) was proven on release/26.11.0 before that step
+    was replaced by the command.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/WorkspaceOnboarding.Tests.ps1
@@ -29,24 +29,24 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
 BeforeDiscovery {
     $script:cases = @(
-        @{ Case = 'a fully onboarded workspace'; State = @{}; Playbook = ''; Status = 'Onboarded'; Infra = $false; Sentinel = $false; Ado = 'true' }
-        @{ Case = 'no resource group'; State = @{ ResourceGroups = @('rg-playbooks'); Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NoResourceGroup'; Infra = $true; Sentinel = $true; Ado = 'false' }
-        @{ Case = 'no workspace'; State = @{ Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NoWorkspace'; Infra = $true; Sentinel = $true; Ado = 'false' }
-        @{ Case = 'a workspace without Sentinel'; State = @{ Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NotOnboarded'; Infra = $true; Sentinel = $true; Ado = 'true' }
-        @{ Case = 'the onboarding state missing'; State = @{ Onboarded = @() }; Playbook = ''; Status = 'StateMissing'; Infra = $true; Sentinel = $true; Ado = 'true' }
-        @{ Case = 'the solution missing'; State = @{ Solutions = @() }; Playbook = ''; Status = 'SolutionMissing'; Infra = $false; Sentinel = $false; Ado = 'true' }
-        @{ Case = 'a playbook group that exists'; State = @{}; Playbook = 'rg-playbooks'; Status = 'Onboarded'; Infra = $false; Sentinel = $false; Ado = 'true' }
-        @{ Case = 'a playbook group that is missing'; State = @{ ResourceGroups = @('rg-sentinel') }; Playbook = 'rg-playbooks'; Status = 'Onboarded'; Infra = $true; Sentinel = $false; Ado = 'false' }
-        @{ Case = 'the Sentinel group named as the playbook group'; State = @{}; Playbook = 'rg-sentinel'; Status = 'Onboarded'; Infra = $false; Sentinel = $false; Ado = 'true' }
-        @{ Case = 'a playbook group with spaces round it'; State = @{}; Playbook = '  rg-playbooks  '; Status = 'Onboarded'; Infra = $false; Sentinel = $false; Ado = 'false' }
-        @{ Case = 'nothing at all and a playbook group'; State = @{ ResourceGroups = @(); Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = 'rg-playbooks'; Status = 'NoResourceGroup'; Infra = $true; Sentinel = $true; Ado = 'false' }
+        @{ Case = 'a fully onboarded workspace'; State = @{}; Playbook = ''; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
+        @{ Case = 'no resource group'; State = @{ ResourceGroups = @('rg-playbooks'); Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NoResourceGroup'; Infra = $true; Sentinel = $true }
+        @{ Case = 'no workspace'; State = @{ Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NoWorkspace'; Infra = $true; Sentinel = $true }
+        @{ Case = 'a workspace without Sentinel'; State = @{ Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NotOnboarded'; Infra = $true; Sentinel = $true }
+        @{ Case = 'the onboarding state missing'; State = @{ Onboarded = @() }; Playbook = ''; Status = 'StateMissing'; Infra = $true; Sentinel = $true }
+        @{ Case = 'the solution missing'; State = @{ Solutions = @() }; Playbook = ''; Status = 'SolutionMissing'; Infra = $false; Sentinel = $false }
+        @{ Case = 'a playbook group that exists'; State = @{}; Playbook = 'rg-playbooks'; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
+        @{ Case = 'a playbook group that is missing'; State = @{ ResourceGroups = @('rg-sentinel') }; Playbook = 'rg-playbooks'; Status = 'Onboarded'; Infra = $true; Sentinel = $false }
+        @{ Case = 'the Sentinel group named as the playbook group'; State = @{}; Playbook = 'rg-sentinel'; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
+        @{ Case = 'a playbook group with spaces round it'; State = @{}; Playbook = '  rg-playbooks  '; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
+        @{ Case = 'nothing at all and a playbook group'; State = @{ ResourceGroups = @(); Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = 'rg-playbooks'; Status = 'NoResourceGroup'; Infra = $true; Sentinel = $true }
     )
 }
 
@@ -56,7 +56,6 @@ BeforeAll {
     $script:standInModule = Join-Path $PSScriptRoot '_helpers/WorkspaceStandIn.psm1'
     Import-Module $script:standInModule -Force
     $script:gitHubFile = Join-Path $script:repoRoot '.github/workflows/sentinel-deploy.yml'
-    $script:adoFile = Join-Path $script:repoRoot 'Pipelines/Sentinel-Deploy.yml'
     $script:subscription = (Get-WorkspaceStandIn).SubscriptionId
 
     function Get-CaseState {
@@ -73,10 +72,7 @@ BeforeAll {
         $statePath = Join-Path $dir 'state.json'
         $outputPath = Join-Path $dir 'github-output.txt'
         Export-WorkspaceStandIn -State $State -Path $statePath
-        $variables = @{
-            RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; PLAYBOOK_RESOURCE_GROUP = $Playbook; AZURE_SUBSCRIPTION_ID = $State.SubscriptionId
-            sentinelResourceGroup = 'rg-sentinel'; sentinelWorkspaceName = 'law-sentinel'; playbookResourceGroup = $Playbook; azureSubscriptionId = $State.SubscriptionId
-        }
+        $variables = @{ RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; PLAYBOOK_RESOURCE_GROUP = $Playbook; AZURE_SUBSCRIPTION_ID = $State.SubscriptionId }
         $inline = Get-PipelineInlineScript -Path $File -Step $Step -Variables $variables
         $wrapper = @'
 $ErrorActionPreference = 'Stop'
@@ -119,7 +115,6 @@ finally {
         if (Test-Path -LiteralPath $outputPath) {
             foreach ($line in Get-Content -LiteralPath $outputPath) { if ($line -match '^(\w+)=(.*)$') { $outputs[$Matches[1]] = $Matches[2] } }
         }
-        foreach ($line in $lines) { if ($line -match '##vso\[task\.setvariable variable=(\w+);isOutput=true\](.*)$') { $outputs[$Matches[1]] = $Matches[2].Trim() } }
         [pscustomobject]@{
             Outputs  = $outputs
             Errors   = @($lines | Where-Object { $_ -like '::error::*' } | ForEach-Object { $_.Substring(9) })
@@ -189,10 +184,9 @@ Describe 'Get-iSOCOnboardingDecision' {
     }
 }
 
-Describe 'Get-iSOCWorkspaceOnboarding beside the pipelines: <Case>' -ForEach $script:cases {
+Describe 'Get-iSOCWorkspaceOnboarding beside the GitHub step: <Case>' -ForEach $script:cases {
     BeforeAll {
         $script:gitHub = Invoke-PipelineStep -File $script:gitHubFile -Step 'Check for Existing Resources' -State (Get-CaseState $State) -Playbook $Playbook
-        $script:ado = Invoke-PipelineStep -File $script:adoFile -Step 'Check for Existing Log Analytics Workspace' -State (Get-CaseState $State) -Playbook $Playbook
         $script:module = Invoke-ModuleOnboarding -State (Get-CaseState $State) -Playbook $Playbook
     }
 
@@ -229,13 +223,6 @@ Describe 'Get-iSOCWorkspaceOnboarding beside the pipelines: <Case>' -ForEach $sc
         $expected = @($script:gitHub.Errors | ForEach-Object { $_.Replace('re-run this workflow', 're-run the deployment') })
         if ($Status -eq 'SolutionMissing') { $expected.Count | Should -BeGreaterThan 0 }
         ($moduleErrors -join "`n") | Should -BeExactly ($expected -join "`n")
-    }
-
-    It 'leaves the Azure DevOps step to say RESOURCES_EXIST <Ado>, as edit E42 records' {
-        $script:ado.ExitCode | Should -Be 0
-        $script:ado.Outputs['RESOURCES_EXIST'] | Should -Be $Ado
-        $agrees = $Status -notin 'NotOnboarded', 'StateMissing', 'SolutionMissing' -and $Playbook -eq $Playbook.Trim()
-        if ($agrees) { $script:ado.Outputs['RESOURCES_EXIST'] | Should -Be (-not $script:module.Result.InfrastructureNeeded).ToString().ToLower() }
     }
 
     It 'logs nothing that names the subscription' {

@@ -91,7 +91,7 @@ them when you've confirmed locally so reviewers know what was run.
 
 - [ ] **Pester suite** passes locally (`./Tools/Invoke-PRValidation.ps1 -RepoPath .`)
 - [ ] **Bicep build** passes locally if Bicep changed (`az bicep build --file Infra/sentinel/main.bicep --stdout > /dev/null`)
-- [ ] **`dependencies.json` regenerated** if KQL content changed (`./Tools/Build-DependencyManifest.ps1 -Mode Generate`)
+- [ ] **`dependencies.json` regenerated** if KQL content changed (`Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest`)
 - [ ] **Cross-platform parity** maintained if pipelines/workflows changed (ADO + GitHub both updated)
 - [ ] **Path-scoped instructions** still match the touched content type's schema
 - [ ] **No secrets** in committed files (env vars, hardcoded tokens, connection strings)

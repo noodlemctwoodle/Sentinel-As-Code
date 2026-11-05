@@ -4,22 +4,23 @@
 <#
 .SYNOPSIS
     Tests for New-iSOCClassicTableFixture, Remove-iSOCClassicTableFixture and
-    Test-iSOCDcrIngestion, against the scripts under Tools/ClassicToDcr/Rehearsal/.
+    Test-iSOCDcrIngestion.
 
 .DESCRIPTION
     The pure helpers (the Data Collector signature, the fixture and stream
-    records, the token request, the dotenv reader, the DCR readers) run
-    beside the scripts' own and must answer the same.
+    records, the token request, the dotenv reader, the DCR readers) are held
+    to explicit expected values for a handful of representative inputs.
 
-    Then each script runs unchanged in a child pwsh, its Az cmdlets,
-    Invoke-RestMethod, Invoke-WebRequest and Start-Sleep stood in for, and
-    each command runs through mocks of the module's REST client, HTTP
-    client and log query, over one stand-in
+    Each command runs through mocks of the module's REST client, HTTP client
+    and log query, over one stand-in
     (Tests/iSOCDeployments/_helpers/RehearsalStandIn.psm1) that checks every
     Data Collector signature against the workspace key, issues and checks
-    tokens, and checks every ingested record against the stream. Both must
-    make the same posts, migrations, deletions, token requests, ingestion
-    posts and grants, in order, and return the same result.
+    tokens, and checks every ingested record against the stream: the posts,
+    tokens, ingestion and grants a run makes, the refusals, the environment
+    it leaves, and what a removal and a stream return.
+
+    Parity with New-ClassicTableFixture.ps1 and Test-DcrIngestion.ps1 was
+    proven on release/26.11.0 before the scripts were removed.
 
 .NOTES
     File:         Tests/iSOCDeployments/Rehearsal.Tests.ps1
@@ -27,39 +28,13 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
-BeforeDiscovery {
-    $script:fixtureRuns = @(
-        @{ Label = 'a fixture seeded once'; Parameters = @{ TableName = 'SacMigrationTest'; RecordCount = 7 } }
-        @{ Label = 'a fixture named with _CL'; Parameters = @{ TableName = 'Sac_CL'; RecordCount = 1 } }
-        @{ Label = 'a fixture streamed in batches'; Parameters = @{ TableName = 'Stream1'; Stream = $true; RecordCount = 2; BatchCount = 3; IntervalSeconds = 1 } }
-        @{ Label = 'a fixture under -WhatIf'; Parameters = @{ TableName = 'SacMigrationTest'; WhatIf = $true } }
-        @{ Label = 'a stream whose every post fails'; FailCollector = $true; Parameters = @{ TableName = 'Stream3'; Stream = $true; RecordCount = 2; BatchCount = 3; IntervalSeconds = 1 } }
-        @{ Label = 'a classic table left'; Remove = $true; Parameters = @{ TableName = 'Old_CL'; Confirm = $false } }
-        @{ Label = 'a classic table migrated, then deleted'; Remove = $true; Parameters = @{ TableName = 'Old'; MigrateBeforeRemove = $true; Confirm = $false } }
-        @{ Label = 'a DCR-based table deleted'; Remove = $true; Parameters = @{ TableName = 'Done_CL'; Confirm = $false } }
-        @{ Label = 'a table already gone'; Remove = $true; Parameters = @{ TableName = 'Gone_CL'; Confirm = $false } }
-        @{ Label = 'a removal under -WhatIf'; Remove = $true; Parameters = @{ TableName = 'Old_CL'; MigrateBeforeRemove = $true; WhatIf = $true } }
-    )
-    $script:ingestionRuns = @(
-        @{ Label = 'three batches, granted and followed'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 3; BatchSize = 4; Follow = $true; GrantIngestionRole = $true } }
-        @{ Label = 'a principal that already holds the role'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'bbbbbbbb-1111-2222-3333-444444444444'; ClientSecret = 'secret-b'; BatchCount = 2; BatchSize = 1; GrantIngestionRole = $true } }
-        @{ Label = 'a principal without the role, not granted'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 1; BatchSize = 2 } }
-        @{ Label = 'a batch the service refuses'; FailBatch = '2'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 3; BatchSize = 2; Follow = $true; ArrivalTimeoutSeconds = 20 } }
-        @{ Label = 'a stream chosen from two'; Parameters = @{ DcrName = 'dcr-two'; StreamName = 'Custom-Two_CL'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 1; BatchSize = 3 } }
-        @{ Label = 'the settings from .env'; EnvFile = $true; Parameters = @{ DcrName = 'dcr-myapp'; BatchCount = 1; BatchSize = 1 } }
-        @{ Label = '-WhatIf'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 2; WhatIf = $true; GrantIngestionRole = $true } }
-    )
-}
-
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:fixtureScript = Join-Path $script:repoRoot 'Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1'
-    $script:ingestScript = Join-Path $script:repoRoot 'Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1'
     $script:helperPath = Join-Path $PSScriptRoot '_helpers/RehearsalStandIn.psm1'
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     Import-Module $script:helperPath -Force
@@ -68,74 +43,6 @@ BeforeAll {
     $script:settingNames = 'DCR_INGEST_TENANT_ID', 'AZURE_TENANT_ID', 'DCR_INGEST_CLIENT_ID', 'AZURE_CLIENT_ID', 'DCR_INGEST_CLIENT_SECRET', 'AZURE_CLIENT_SECRET'
     $script:savedSettings = @{}
     foreach ($n in $script:settingNames) { $script:savedSettings[$n] = [System.Environment]::GetEnvironmentVariable($n); [System.Environment]::SetEnvironmentVariable($n, $null) }
-
-    $script:wrapper = @'
-param([string] $Script, [string] $Helper, [string] $Parameters, [string] $Out, [string] $FailBatch = '', [switch] $FailCollector)
-$ErrorActionPreference = 'Stop'
-Import-Module $Helper -Force
-$global:RehState = Get-RehearsalStandIn -FailBatch @($FailBatch -split ',' | Where-Object { $_ } | ForEach-Object { [int]$_ }) -FailCollector:$FailCollector
-function Get-AzContext { [pscustomobject]@{ Subscription = [pscustomobject]@{ Id = $global:RehState.SubscriptionId }; Account = [pscustomobject]@{ Id = 'tester' } } }
-function Set-AzContext { param($Subscription) Get-AzContext }
-function Get-AzOperationalInsightsWorkspace { param($ResourceGroupName, $Name) [pscustomobject]@{ CustomerId = [guid]$global:RehState.WorkspaceId; ResourceId = $global:RehState.WorkspacePath; Location = 'uksouth' } }
-function Get-AzOperationalInsightsWorkspaceSharedKey { param($ResourceGroupName, $Name) [pscustomobject]@{ PrimarySharedKey = $global:RehState.SharedKey; SecondarySharedKey = 'second' } }
-function Invoke-AzRestMethod {
-    param($Path, $Uri, $Method = 'GET', $Payload)
-    $t = if ($Path) { $Path } else { ([Uri]$Uri).PathAndQuery }
-    $a = Invoke-RehearsalArm -State $global:RehState -Method $Method -Path $t
-    [pscustomobject]@{ StatusCode = $a.Status; Content = $(if ($null -ne $a.Body) { ConvertTo-Json -InputObject $a.Body -Depth 30 } else { '' }) }
-}
-function Invoke-AzOperationalInsightsMigrateTable { param($ResourceGroupName, $WorkspaceName, $TableName, $Confirm) $null = Invoke-RehearsalArm -State $global:RehState -Method POST -Path "$($global:RehState.WorkspacePath)/tables/$TableName/migrate" }
-function Invoke-RestMethod {
-    param($Uri, $Method, $ContentType, $Headers, $Body)
-    if ($Uri -like '*ods.opinsights*') {
-        $s = Invoke-RehearsalCollector -State $global:RehState -Uri $Uri -Headers $Headers -Body $Body
-        if ($s -ne 200) { throw "Response status code does not indicate success: $s." }
-        return
-    }
-    $t = Invoke-RehearsalToken -State $global:RehState -Uri $Uri -Form $Body
-    if ($t.Status -ne 200) { throw "Response status code does not indicate success: $($t.Status) (Unauthorized)." }
-    [pscustomobject]$t.Body
-}
-function Invoke-WebRequest {
-    param($Uri, $Method, $Headers, $ContentType, $Body, [switch] $SkipHttpErrorCheck)
-    $r = Invoke-RehearsalIngest -State $global:RehState -Uri $Uri -Headers $Headers -Body $Body
-    [pscustomobject]@{ StatusCode = $r.Status; Content = $r.Content }
-}
-function Get-AzADServicePrincipal { param($ApplicationId, $ErrorAction) if ($global:RehState.Apps.Contains($ApplicationId)) { [pscustomobject]@{ Id = $global:RehState.Apps[$ApplicationId] } } }
-function Get-AzRoleAssignment { param($ObjectId, $Scope, $RoleDefinitionName, $ErrorAction) @(Get-RehearsalAssignment -State $global:RehState -PrincipalId $ObjectId -Scope $Scope | Where-Object { $_.Role -eq $RoleDefinitionName }) }
-function New-AzRoleAssignment { param($ObjectId, $RoleDefinitionName, $Scope) Add-RehearsalAssignment -State $global:RehState -PrincipalId $ObjectId -Role $RoleDefinitionName -Scope $Scope; [pscustomobject]@{ RoleAssignmentId = 'x' } }
-function Invoke-AzOperationalInsightsQuery { param($WorkspaceId, $Query, $ErrorAction) Invoke-RehearsalQuery -State $global:RehState -Query $Query }
-function Start-Sleep { param($Seconds) }
-$splat = Get-Content -LiteralPath $Parameters -Raw | ConvertFrom-Json -AsHashtable
-if ($splat.Contains('ClientSecret')) { $splat.ClientSecret = ConvertTo-SecureString $splat.ClientSecret -AsPlainText -Force }
-$code = 0
-$result = $null
-try { $result = & $Script @splat }
-catch { $code = 1; Set-Content -LiteralPath (Join-Path $Out 'error.txt') -Value $_.Exception.Message }
-Set-Content -LiteralPath (Join-Path $Out 'results.json') -Value (ConvertTo-Json -InputObject @($result) -Depth 10)
-Set-Content -LiteralPath (Join-Path $Out 'writes.json') -Value (ConvertTo-Json -InputObject @($global:RehState.Writes) -Depth 10)
-exit $code
-'@
-
-    function Invoke-LegacyRehearsal {
-        param([string] $Script, [hashtable] $Parameters, [string] $FailBatch = '', [switch] $FailCollector)
-        $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-        $out = Join-Path $tree 'out'
-        New-Item -ItemType Directory -Path $out -Force | Out-Null
-        $copy = Join-Path $tree (Split-Path -Leaf $Script)
-        Set-Content -LiteralPath $copy -Value ((Get-Content -LiteralPath $Script -Raw) -replace '(?m)^#Requires -Modules[^\r\n]*\r?\n', '') -NoNewline
-        Set-Content -LiteralPath (Join-Path $tree 'run.ps1') -Value $script:wrapper
-        Set-Content -LiteralPath (Join-Path $tree 'parameters.json') -Value (ConvertTo-Json -InputObject $Parameters)
-        $output = & pwsh -NoProfile -NonInteractive -File (Join-Path $tree 'run.ps1') -Script $copy -Helper $script:helperPath -Parameters (Join-Path $tree 'parameters.json') -Out $out -FailBatch $FailBatch -FailCollector:$FailCollector 2>&1 | Out-String
-        $errorFile = Join-Path $out 'error.txt'
-        [pscustomobject]@{
-            ExitCode = $LASTEXITCODE
-            Output   = $output
-            Error    = if (Test-Path -LiteralPath $errorFile) { (Get-Content -LiteralPath $errorFile -Raw).Trim() } else { $null }
-            Results  = @(Get-Content -LiteralPath (Join-Path $out 'results.json') -Raw | ConvertFrom-Json -Depth 10 | Where-Object { $null -ne $_ })
-            Writes   = @(Get-Content -LiteralPath (Join-Path $out 'writes.json') -Raw | ConvertFrom-Json -Depth 10 | Where-Object { $null -ne $_ })
-        }
-    }
 
     function Invoke-ModuleRehearsal {
         param([string] $Command, [hashtable] $Parameters, [string] $FailBatch = '', [switch] $FailCollector)
@@ -196,11 +103,6 @@ exit $code
         [pscustomobject]@{ Result = $result; Error = $failure; Writes = @($script:rehState.Writes) }
     }
 
-    function ConvertTo-ComparableWrite {
-        param($Writes)
-        @($Writes | ForEach-Object { ConvertTo-RehearsalCanonical $_ })
-    }
-
     function Use-RehearsalFolder {
         param([switch] $EnvFile)
         $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
@@ -222,118 +124,68 @@ AfterAll {
     foreach ($n in $script:settingNames) { [System.Environment]::SetEnvironmentVariable($n, $script:savedSettings[$n]) }
 }
 
-Describe 'The rehearsal helpers, beside the scripts''' {
+Describe 'The rehearsal helpers' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path $script:fixtureScript
-        Import-ScriptFunctions -Path $script:ingestScript
         $script:dcr = (Get-RehearsalStandIn).Dcrs['dcr-myapp'] | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
     }
 
-    It 'signs a Data Collector request the same' {
+    It 'signs a Data Collector request' {
         $key = [Convert]::ToBase64String([byte[]](1..64))
+        $expected = @{ 0 = 'SharedKey w:ZqpO8uO8Bv8ECop6LH2TtIeXC6tko6BfnzrU9PDO0x8='; 17 = 'SharedKey w:gND5swjDHrbvWi45mH9IqInLNv/BN37x90JnPLRJemQ='; 4096 = 'SharedKey w:QHyIbtbdovyOcIHGjsFq1CMdGiYEUmCIpyXiaqHMjCQ=' }
         foreach ($len in 0, 17, 4096) {
-            $old = New-DataCollectorSignature -WorkspaceId 'w' -SharedKey $key -ContentLength $len -Rfc1123Date 'Wed, 04 Nov 2026 10:00:00 GMT'
             $new = InModuleScope iSOCDeployments -Parameters @{ Key = $key; Len = $len } { param($Key, $Len) New-iSOCDataCollectorSignature -WorkspaceId 'w' -SharedKey $Key -ContentLength $Len -Rfc1123Date 'Wed, 04 Nov 2026 10:00:00 GMT' }
-            $new | Should -BeExactly $old
+            $new | Should -BeExactly $expected[$len] -Because "a body of $len bytes"
         }
     }
 
-    It 'makes the same fixture records' {
+    It 'makes the fixture records' {
         $at = [datetime]::new(2026, 11, 4, 10, 0, 0, [System.DateTimeKind]::Utc)
-        $old = New-FixtureRecord -Count 9 -ReferenceTime $at -SeedGuid '0a1b2c3d-0000-0000-0000-000000000001'
         $new = InModuleScope iSOCDeployments -Parameters @{ At = $at } { param($At) New-iSOCFixtureRecord -Count 9 -ReferenceTime $At -SeedGuid '0a1b2c3d-0000-0000-0000-000000000001' }
-        (ConvertTo-RehearsalCanonical @($new)) | Should -BeExactly (ConvertTo-RehearsalCanonical @($old))
+        $expected = '[{"DurationMs":1.5,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 0 for classic-table migration testing.","Severity":"Information","SourceHost":"web-01","SourceIp":"10.0.0.0","Success":false,"Timestamp":"2026-11-04T10:00:00.0000000Z"},' +
+            '{"DurationMs":15.2,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 1 for classic-table migration testing.","Severity":"Warning","SourceHost":"web-02","SourceIp":"10.0.1.7","Success":true,"Timestamp":"2026-11-04T09:59:59.0000000Z"},' +
+            '{"DurationMs":28.9,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 2 for classic-table migration testing.","Severity":"Error","SourceHost":"db-01","SourceIp":"10.0.2.14","Success":true,"Timestamp":"2026-11-04T09:59:58.0000000Z"},' +
+            '{"DurationMs":42.6,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 3 for classic-table migration testing.","Severity":"Information","SourceHost":"app-01","SourceIp":"10.0.3.21","Success":true,"Timestamp":"2026-11-04T09:59:57.0000000Z"},' +
+            '{"DurationMs":56.3,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 4 for classic-table migration testing.","Severity":"Warning","SourceHost":"web-01","SourceIp":"10.0.4.28","Success":true,"Timestamp":"2026-11-04T09:59:56.0000000Z"},' +
+            '{"DurationMs":70.0,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 5 for classic-table migration testing.","Severity":"Error","SourceHost":"web-02","SourceIp":"10.0.5.35","Success":false,"Timestamp":"2026-11-04T09:59:55.0000000Z"},' +
+            '{"DurationMs":83.7,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 6 for classic-table migration testing.","Severity":"Information","SourceHost":"db-01","SourceIp":"10.0.6.42","Success":true,"Timestamp":"2026-11-04T09:59:54.0000000Z"},' +
+            '{"DurationMs":97.4,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 7 for classic-table migration testing.","Severity":"Warning","SourceHost":"app-01","SourceIp":"10.0.7.49","Success":true,"Timestamp":"2026-11-04T09:59:53.0000000Z"},' +
+            '{"DurationMs":111.1,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 8 for classic-table migration testing.","Severity":"Error","SourceHost":"web-01","SourceIp":"10.0.8.56","Success":true,"Timestamp":"2026-11-04T09:59:52.0000000Z"}]'
+        (ConvertTo-RehearsalCanonical @($new)) | Should -BeExactly $expected
     }
 
-    It 'makes the same stream records' {
+    It 'makes the stream records' {
         $at = [datetime]::new(2026, 11, 4, 10, 0, 0, [System.DateTimeKind]::Utc)
         $columns = @($script:dcr.properties.streamDeclarations.'Custom-MyApp_CL'.columns) + @([pscustomobject]@{ name = 'Other'; type = 'guid' })
-        $old = foreach ($i in 0..4) { New-StreamRecord -StreamColumn $columns -Index $i -RunId 'abcdef123456' -ReferenceTime $at }
+        (ConvertTo-Json -InputObject $columns -Compress) | Should -BeExactly '[{"name":"TimeGenerated","type":"datetime"},{"name":"Message_s","type":"string"},{"name":"Count_d","type":"real"},{"name":"Flag_b","type":"boolean"},{"name":"Level_i","type":"int"},{"name":"Big_l","type":"long"},{"name":"Props_d","type":"dynamic"},{"name":"Other","type":"guid"}]'
         $new = InModuleScope iSOCDeployments -Parameters @{ At = $at; Columns = $columns } { param($At, $Columns) foreach ($i in 0..4) { New-iSOCStreamRecord -StreamColumn $Columns -Index $i -RunId 'abcdef123456' -ReferenceTime $At } }
-        (ConvertTo-RehearsalCanonical @($new)) | Should -BeExactly (ConvertTo-RehearsalCanonical @($old))
+        $expected = '[{"Big_l":0,"Count_d":0.5,"Flag_b":true,"Level_i":0,"Message_s":"dcr-test abcdef123456 #0","Other":"dcr-test abcdef123456 #0","Props_d":{"index":0,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+            '{"Big_l":1,"Count_d":2.0,"Flag_b":false,"Level_i":1,"Message_s":"dcr-test abcdef123456 #1","Other":"dcr-test abcdef123456 #1","Props_d":{"index":1,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+            '{"Big_l":2,"Count_d":3.5,"Flag_b":true,"Level_i":2,"Message_s":"dcr-test abcdef123456 #2","Other":"dcr-test abcdef123456 #2","Props_d":{"index":2,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+            '{"Big_l":3,"Count_d":5.0,"Flag_b":false,"Level_i":3,"Message_s":"dcr-test abcdef123456 #3","Other":"dcr-test abcdef123456 #3","Props_d":{"index":3,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+            '{"Big_l":4,"Count_d":6.5,"Flag_b":true,"Level_i":4,"Message_s":"dcr-test abcdef123456 #4","Other":"dcr-test abcdef123456 #4","Props_d":{"index":4,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"}]'
+        (ConvertTo-RehearsalCanonical @($new)) | Should -BeExactly $expected
     }
 
-    It 'builds the same token request' {
-        $old = New-TokenRequest -AuthorityHost 'https://login.microsoftonline.com/' -TenantId 't' -ClientId 'c' -Audience 'https://monitor.azure.com/' -ClientSecretPlain 's'
+    It 'builds the token request' {
         $new = InModuleScope iSOCDeployments { New-iSOCTokenRequest -AuthorityHost 'https://login.microsoftonline.com/' -TenantId 't' -ClientId 'c' -Audience 'https://monitor.azure.com/' -ClientSecretPlain 's' }
-        (ConvertTo-RehearsalCanonical $new) | Should -BeExactly (ConvertTo-RehearsalCanonical $old)
+        (ConvertTo-RehearsalCanonical $new) | Should -BeExactly '{"Body":{"client_id":"c","client_secret":"s","grant_type":"client_credentials","scope":"https://monitor.azure.com/.default"},"Uri":"https://login.microsoftonline.com/t/oauth2/v2.0/token"}'
     }
 
-    It 'reads a dotenv file the same' {
+    It 'reads a dotenv file' {
         $file = Join-Path $TestDrive 'sample.env'
         Set-Content -LiteralPath $file -Value @('# c', '', 'A=1', 'export B = "two words" ', "C='3'", 'D=', 'bad line', '9X=no', 'E="unclosed')
-        (ConvertTo-RehearsalCanonical (InModuleScope iSOCDeployments -Parameters @{ F = $file } { param($F) Import-iSOCDotEnv -Path $F })) | Should -BeExactly (ConvertTo-RehearsalCanonical (Import-DotEnv -Path $file))
+        (ConvertTo-RehearsalCanonical (InModuleScope iSOCDeployments -Parameters @{ F = $file } { param($F) Import-iSOCDotEnv -Path $F })) | Should -BeExactly '{"A":"1","B":"two words","C":"3","D":"","E":"\"unclosed"}'
         (InModuleScope iSOCDeployments { Import-iSOCDotEnv -Path '/no/such/file' }).Count | Should -Be 0
     }
 
-    It 'reads a rule''s target, stream, columns and destination the same' {
+    It 'reads a rule''s target, stream, columns and destination' {
         $two = (Get-RehearsalStandIn).Dcrs['dcr-two'] | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
-        $old = [ordered]@{ Target = Get-DcrIngestionTarget -Dcr $script:dcr; Stream = Get-DcrStreamName -Dcr $script:dcr; Columns = @(Get-DcrStreamColumn -Dcr $script:dcr -Stream 'Custom-MyApp_CL'); Destination = Get-DestinationTableName -Dcr $two -Stream 'Custom-Two_CL' }
         $new = InModuleScope iSOCDeployments -Parameters @{ Dcr = $script:dcr; Two = $two } { param($Dcr, $Two) [ordered]@{ Target = Get-iSOCDcrIngestionTarget -Dcr $Dcr; Stream = Get-iSOCDcrStreamName -Dcr $Dcr; Columns = @(Get-iSOCDcrStreamColumn -Dcr $Dcr -Stream 'Custom-MyApp_CL'); Destination = Get-iSOCDcrDestinationTable -Dcr $Two -Stream 'Custom-Two_CL' } }
-        (ConvertTo-RehearsalCanonical $new) | Should -BeExactly (ConvertTo-RehearsalCanonical $old)
-    }
-}
-
-Describe 'Parity with New-ClassicTableFixture.ps1: <Label>' -ForEach $script:fixtureRuns {
-    BeforeAll {
-        $base = @{ ResourceGroupName = 'rg-scratch'; WorkspaceName = 'law-scratch' }
-        $legacyParameters = $base + $Parameters
-        if ($Remove) { $legacyParameters.Remove = $true }
-        $script:legacy = Invoke-LegacyRehearsal -Script $script:fixtureScript -Parameters $legacyParameters -FailCollector:([bool]$FailCollector)
-        $command = if ($Remove) { 'Remove-iSOCClassicTableFixture' } else { 'New-iSOCClassicTableFixture' }
-        $script:module = Invoke-ModuleRehearsal -Command $command -Parameters $Parameters -FailCollector:([bool]$FailCollector)
-    }
-
-    It 'runs the script and the command to the end' {
-        $script:legacy.ExitCode | Should -Be 0 -Because $script:legacy.Output
-        $script:module.Error | Should -BeNullOrEmpty
-    }
-
-    It 'makes the same posts, migrations and deletions, in order' {
-        (ConvertTo-ComparableWrite $script:module.Writes) | Should -Be (ConvertTo-ComparableWrite $script:legacy.Writes)
-    }
-
-    It 'returns the same fixture' {
-        if ($Remove -or $Parameters.ContainsKey('Stream') -or $Parameters.ContainsKey('WhatIf')) {
-            $script:legacy.Results | Should -BeNullOrEmpty
-            return
-        }
-        (ConvertTo-RehearsalCanonical $script:module.Result) | Should -BeExactly (ConvertTo-RehearsalCanonical ($script:legacy.Results | Select-Object -First 1))
-    }
-}
-
-Describe 'Parity with Test-DcrIngestion.ps1: <Label>' -ForEach $script:ingestionRuns {
-    BeforeAll {
-        $folder = Use-RehearsalFolder -EnvFile:([bool]$EnvFile)
-        $p = @{ DcrResourceGroupName = 'rg-scratch' } + $Parameters
-        if (-not $EnvFile) { $p.TenantId = $script:tenant }
-        Push-Location -LiteralPath $folder
-        try {
-            $script:legacy = Invoke-LegacyRehearsal -Script $script:ingestScript -Parameters $p -FailBatch ([string]$FailBatch)
-            $script:module = Invoke-ModuleRehearsal -Command 'Test-iSOCDcrIngestion' -Parameters $p -FailBatch ([string]$FailBatch)
-        }
-        finally { Pop-Location }
-    }
-
-    It 'runs the script and the command to the end' {
-        $script:legacy.ExitCode | Should -Be 0 -Because $script:legacy.Output
-        $script:module.Error | Should -BeNullOrEmpty
-    }
-
-    It 'makes the same token requests, ingestion posts and grants, in order' {
-        (ConvertTo-ComparableWrite $script:module.Writes) | Should -Be (ConvertTo-ComparableWrite $script:legacy.Writes)
-    }
-
-    It 'returns the same result' {
-        if ($Parameters.ContainsKey('WhatIf')) {
-            $script:legacy.Results | Should -BeNullOrEmpty
-            $script:module.Result | Should -BeNullOrEmpty
-            return
-        }
-        $strip = { param($r) $o = [ordered]@{}; foreach ($n in $r.PSObject.Properties.Name) { if ($n -ne 'RunId') { $o[$n] = $r.$n } }; ConvertTo-RehearsalCanonical $o }
-        (& $strip $script:module.Result) | Should -BeExactly (& $strip ($script:legacy.Results | Select-Object -First 1))
-        $script:module.Result.RunId | Should -Match '^[0-9a-f]{12}$'
+        $expected = '{"Columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Message_s","type":"string"},{"name":"Count_d","type":"real"},{"name":"Flag_b","type":"boolean"},{"name":"Level_i","type":"int"},{"name":"Big_l","type":"long"},{"name":"Props_d","type":"dynamic"}],' +
+            '"Destination":"Two_CL",' +
+            '"Stream":"Custom-MyApp_CL",' +
+            '"Target":{"Endpoint":"https://dcr-myapp-x1y2.uksouth-1.ingest.monitor.azure.com","ImmutableId":"dcr-dcrmyapp000000000000000000000000"}}'
+        (ConvertTo-RehearsalCanonical $new) | Should -BeExactly $expected
     }
 }
 
@@ -347,26 +199,22 @@ Describe 'The rehearsal commands' {
         $fixture.Result.SubType | Should -Be 'Classic'
     }
 
-    It 'refuses as the script does: <Label>' -ForEach @(
+    It 'refuses: <Label>' -ForEach @(
         @{ Label = 'a wrong secret'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'wrong'; BatchCount = 1 }; Like = 'Token request failed:*Check the tenant, client ID and secret.' }
-        @{ Label = 'a rule with no endpoint'; Parameters = @{ DcrName = 'dcr-bare'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 1 }; Same = $true }
-        @{ Label = 'two streams and no choice'; Parameters = @{ DcrName = 'dcr-two'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 1 }; Same = $true }
-        @{ Label = 'an unknown client'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'cccccccc-1111-2222-3333-444444444444'; ClientSecret = 'x'; BatchCount = 1 }; Same = $true }
-        @{ Label = 'no tenant'; NoTenant = $true; Parameters = @{ DcrName = 'dcr-myapp'; BatchCount = 1 }; Same = $true }
+        @{ Label = 'a rule with no endpoint'; Parameters = @{ DcrName = 'dcr-bare'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 1 }; Message = 'This DCR has no logsIngestion endpoint. Endpoints exist only on DCRs created with kind Direct on api-version 2023-03-11 or later, and cannot be added afterwards. Recreate the DCR, or use a Data Collection Endpoint.' }
+        @{ Label = 'two streams and no choice'; Parameters = @{ DcrName = 'dcr-two'; ClientId = 'aaaaaaaa-1111-2222-3333-444444444444'; ClientSecret = 'secret-a'; BatchCount = 1 }; Message = 'This DCR declares 2 streams (Custom-One_CL, Custom-Two_CL). Pass -StreamName to choose one.' }
+        @{ Label = 'an unknown client'; Parameters = @{ DcrName = 'dcr-myapp'; ClientId = 'cccccccc-1111-2222-3333-444444444444'; ClientSecret = 'x'; BatchCount = 1 }; Message = 'No service principal found for client ID cccccccc-1111-2222-3333-444444444444 in this tenant.' }
+        @{ Label = 'no tenant'; NoTenant = $true; Parameters = @{ DcrName = 'dcr-myapp'; BatchCount = 1 }; Message = 'No tenant ID. Pass -TenantId, or set DCR_INGEST_TENANT_ID / AZURE_TENANT_ID (e.g. in .env).' }
     ) {
         $folder = Use-RehearsalFolder
         $p = @{ DcrResourceGroupName = 'rg-scratch' } + $Parameters
         if (-not $NoTenant) { $p.TenantId = $script:tenant }
         Push-Location -LiteralPath $folder
-        try {
-            $legacy = Invoke-LegacyRehearsal -Script $script:ingestScript -Parameters $p
-            $module = Invoke-ModuleRehearsal -Command 'Test-iSOCDcrIngestion' -Parameters $p
-        }
+        try { $module = Invoke-ModuleRehearsal -Command 'Test-iSOCDcrIngestion' -Parameters $p }
         finally { Pop-Location }
-        $legacy.ExitCode | Should -Be 1
         $module.Error | Should -Not -BeNullOrEmpty
-        if ($Same) { $module.Error | Should -BeExactly $legacy.Error }
-        else { $legacy.Error | Should -BeLike $Like; $module.Error | Should -BeLike $Like }
+        if ($Message) { $module.Error | Should -BeExactly $Message }
+        else { $module.Error | Should -BeLike $Like }
         @($module.Writes | Where-Object Kind -eq 'Ingest') | Should -BeNullOrEmpty
     }
 

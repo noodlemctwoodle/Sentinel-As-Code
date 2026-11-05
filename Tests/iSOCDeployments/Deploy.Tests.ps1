@@ -15,8 +15,8 @@
     -WhatIf, type and path selection, the Az.Resources check made only when
     there are playbooks, smart deployment, missing dependencies, an
     analytics rule retried disabled after a KQL error, and configuration
-    exclusions. DeployParity.Tests.ps1 holds the engine to
-    Deploy-CustomContent.ps1 over this repository.
+    exclusions. Parity with Deploy-CustomContent.ps1 over this repository
+    was proven on release/26.11.0 before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Deploy.Tests.ps1
@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.0
-    Last Updated: 2026-11-03
+    Version:      0.3.1
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 

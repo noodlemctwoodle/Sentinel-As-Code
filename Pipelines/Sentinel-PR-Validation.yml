@@ -26,13 +26,6 @@
 # No Azure auth needed - validation is fully offline (YAML parse + schema
 # checks + AST-based PowerShell function tests with mocks). The pool is
 # ubuntu-latest for parity with the GitHub workflow.
-#
-# Engine for the dependency manifest check (the iSOCDeployments pipeline
-# switch). A PR build always takes the default; queue the pipeline by hand
-# to choose another.
-#   - scripts  -> Tools/Build-DependencyManifest.ps1 -Mode Verify (default)
-#   - module   -> Test-iSOCDependencyManifest from Modules/iSOCDeployments
-#   - compare  -> both, failing when they disagree, then the gate as usual
 # ---------------------------------------------------------------------------
 
 # 'pr' triggers run when a PR is opened/updated. Build-validation policy
@@ -74,16 +67,6 @@ trigger:
       - dependencies.json
       - Pipelines
       - .github/workflows
-
-parameters:
-  - name: engine
-    displayName: "Dependency manifest engine: scripts, module (iSOCDeployments) or compare (both, failing when they disagree)"
-    type: string
-    default: scripts
-    values:
-      - scripts
-      - module
-      - compare
 
 variables:
   # Pinned module versions. Keep in step with PESTER_VERSION and
@@ -152,71 +135,26 @@ stages:
           # as the GH Actions dependency-manifest job — fails the PR if the
           # on-disk dependencies.json doesn't match what discovery produces
           # from the current content. Author fix: run
-          # `./Tools/Build-DependencyManifest.ps1 -Mode Generate` locally
+          # Update-iSOCDependencyManifest (Modules/iSOCDeployments) locally
           # and commit the result, or wait for the daily auto-PR workflow
-          # to open one.
-          - ${{ if eq(parameters.engine, 'scripts') }}:
-            - task: PowerShell@2
-              displayName: "Verify dependency manifest"
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  & "$(Build.SourcesDirectory)/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
-                  if ($LASTEXITCODE -ne 0) {
-                      Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync with content."
-                      Write-Host "##vso[task.logissue type=error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result."
-                      exit 1
-                  }
-
-          # The module steps may not set variables or change PATH: they log
-          # text read from the PR's content files.
-          - ${{ if eq(parameters.engine, 'module') }}:
-            - task: PowerShell@2
-              displayName: "Verify dependency manifest (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $result = Test-iSOCDependencyManifest -RepoPath $env:BUILD_SOURCESDIRECTORY
-                  if (-not $result.Exists -or $result.HasDrift) {
-                      Write-Host '##vso[task.logissue type=error]dependencies.json is out of sync with content.'
-                      Write-Host '##vso[task.logissue type=error]Fix: run Update-iSOCDependencyManifest locally and commit the result.'
-                      exit 1
-                  }
-
-          - ${{ if eq(parameters.engine, 'compare') }}:
-            - task: PowerShell@2
-              displayName: "Verify dependency manifest (compare the scripts and iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  & (Join-Path $repo 'Tools/Build-DependencyManifest.ps1') -Mode Verify -RepoPath $repo
-                  $scriptsCurrent = $LASTEXITCODE -eq 0
-
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $result = Test-iSOCDependencyManifest -RepoPath $repo
-                  $moduleCurrent = $result.Exists -and -not $result.HasDrift
-
-                  if ($scriptsCurrent -ne $moduleCurrent) {
-                      Write-Host "##vso[task.logissue type=error]The engines disagree: Tools/Build-DependencyManifest.ps1 says the manifest is $(if ($scriptsCurrent) { 'current' } else { 'out of date' }), Test-iSOCDependencyManifest says $(if ($moduleCurrent) { 'current' } else { 'out of date' }). Modules/iSOCDeployments/MIGRATION.md lists the differences the module makes on purpose (E8: it reads .yml content files as well as .yaml)."
-                      exit 1
-                  }
-                  if (-not $moduleCurrent) {
-                      Write-Host '##vso[task.logissue type=error]dependencies.json is out of sync with content.'
-                      Write-Host '##vso[task.logissue type=error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
-                      exit 1
-                  }
-                  Write-Host 'The scripts and the module agree that dependencies.json is current.'
+          # to open one. The step may not set variables or change PATH: it
+          # logs text read from the PR's content files.
+          - task: PowerShell@2
+            displayName: "Verify dependency manifest"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                $result = Test-iSOCDependencyManifest -RepoPath $env:BUILD_SOURCESDIRECTORY
+                if (-not $result.Exists -or $result.HasDrift) {
+                    Write-Host '##vso[task.logissue type=error]dependencies.json is out of sync with content.'
+                    Write-Host '##vso[task.logissue type=error]Fix: run Update-iSOCDependencyManifest locally and commit the result.'
+                    exit 1
+                }
 
           - task: PublishTestResults@2
             displayName: "Publish Pester results"

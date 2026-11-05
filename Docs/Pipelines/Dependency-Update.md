@@ -66,14 +66,14 @@ scheduled run.
 
 ## Parameters and inputs
 
-Both systems expose `reportOnly`; Azure DevOps also takes `engine`, part of
-the [pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md) to the
-iSOCDeployments module:
+Both systems expose a single input. On Azure DevOps the update itself is
+`Update-iSOCDependencyManifest` from the iSOCDeployments module (see
+[the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md)); the
+GitHub workflow still runs the script until it moves to the module too:
 
 | Name | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `reportOnly` | boolean | `false` | Regenerate the manifest and show the drift in the run log, but do not commit, push, or open a PR. |
-| `engine` (Azure DevOps) | `scripts`, `module` or `compare` | `scripts` | Which engine writes the manifest: `Tools/Build-DependencyManifest.ps1`, `Update-iSOCDependencyManifest`, or the script plus a step that has both write a fresh manifest and fails when the bytes differ. |
 
 - **GitHub** declares it as a `workflow_dispatch` input and gates the
   commit step directly with
@@ -97,7 +97,7 @@ variable group, no library, no secrets beyond the built-in token):
 | Target branch | `TARGET_BRANCH: main` | `targetBranch: main` |
 | `powershell-yaml` pin | `YAML_VERSION: 0.4.12` | Pinned inline in the install step (`0.4.12`) |
 | Report-only flag | `inputs.reportOnly` (read directly) | `flagReportOnly` (compile-time from `parameters.reportOnly`) |
-| Command named in the commit | `Tools/Build-DependencyManifest.ps1 -Mode Generate` | `manifestCommand` (compile-time from `parameters.engine`) |
+| Command named in the commit | `Tools/Build-DependencyManifest.ps1 -Mode Generate` | `Update-iSOCDependencyManifest (Modules/iSOCDeployments)` |
 
 ## Jobs and steps
 
@@ -110,9 +110,8 @@ The steps run in this order:
 ```
 1. Checkout main (full history)
 2. Install PowerShell modules (powershell-yaml only)
-3. Run Build-DependencyManifest.ps1 -Mode Update
-   (ADO engine module: Update-iSOCDependencyManifest instead;
-    ADO engine compare: then a step comparing the two engines)
+3. Update the manifest (ADO: Update-iSOCDependencyManifest;
+   GitHub, until it switches: Build-DependencyManifest.ps1 -Mode Update)
 4. Commit, push, and open / refresh PR  (skipped on reportOnly, off main, or clean tree)
 ```
 

@@ -17,10 +17,12 @@ to the command's.
   ported), `Ported` (every function has a row; the script is still in the
   repository until cut-over), `Removed` (cut-over has deleted it) or
   `Unmerged` (the code lives on a branch, not on `main`). An unmerged
-  source is named by its commit; once it is ported, a byte-for-byte copy
-  under `Tests/iSOCDeployments/Fixtures/legacy/` stands in for it, so the
-  parity tests and this map can read it where the commit is not
-  fetched.
+  source is named by its commit; while it was ported and not yet removed,
+  a byte-for-byte copy under `Tests/iSOCDeployments/Fixtures/legacy/`
+  stood in for it, so the parity tests and this map could read it where
+  the commit is not fetched. Every row marked `Removed` was deleted at the
+  cut-over; `release/26.11.0` keeps the scripts, their suites and the
+  parity tests that held the module to them.
 - A pipeline file's row covers the PowerShell written inline in its
   steps, `(script)` in the Functions table, and its stage conditions. The
   file itself stays: the pipeline switch replaces those steps with the
@@ -42,24 +44,24 @@ to the command's.
 
 | Source | Replaced by | Status |
 | --- | --- | --- |
-| `Modules/Sentinel.Common` | the private core: logging, the REST client, `Connect-iSOCWorkspace` and the KQL helpers | Ported |
-| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-iSOCContent` | Ported |
-| `Deploy/content/Deploy-DefenderDetections.ps1` | `Deploy-iSOCContent -ContentType DefenderDetection` | Ported |
-| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` | Ported |
-| `Tools/Test-SentinelRuleDrift.ps1` | `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent` | Ported |
-| `Tools/Export-SentinelWorkbooks.ps1` | `Export-iSOCContent -ContentType Workbook` | Ported |
-| `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Ported |
-| `Tools/Build-DependencyManifest.ps1` | `Update-iSOCDependencyManifest`, `Test-iSOCDependencyManifest`, `Get-iSOCContentDependency` | Ported |
-| `Tools/Import-CommunityRules.ps1` | `Import-iSOCCommunityRule` | Ported |
-| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` | Ported |
-| `Deploy/permissions/Set-RunbookPermissions.ps1` | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Ported |
-| `Deploy/setup/Setup-ServicePrincipal.ps1` | `Initialize-iSOCServicePrincipal` | Ported |
-| `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` | `Get-iSOCTableMigrationImpact`, `Export-iSOCTableMigrationReport` | Ported |
-| `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` | `Invoke-iSOCClassicTableMigration` | Ported |
-| `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1` | `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` | Ported |
-| `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` | `New-iSOCDependencyFixture`, `Remove-iSOCDependencyFixture` | Ported |
-| `Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1` | `Test-iSOCDcrIngestion` | Ported |
-| `Tools/DcrFromSchema/New-DcrFromSchema.ps1` | `New-iSOCDcrFromSchema` | Ported |
+| `Modules/Sentinel.Common` | the private core: logging, the REST client, `Connect-iSOCWorkspace` and the KQL helpers | Removed |
+| `Deploy/content/Deploy-CustomContent.ps1` | `Deploy-iSOCContent` | Removed |
+| `Deploy/content/Deploy-DefenderDetections.ps1` | `Deploy-iSOCContent -ContentType DefenderDetection` | Removed |
+| `Deploy/content/Deploy-SentinelContentHub.ps1` | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` | Removed |
+| `Tools/Test-SentinelRuleDrift.ps1` | `Compare-iSOCContent`, `Export-iSOCDriftReport`, `Sync-iSOCContent` | Removed |
+| `Tools/Export-SentinelWorkbooks.ps1` | `Export-iSOCContent -ContentType Workbook` | Removed |
+| `847ef86:Tools/Export-Playbooks.ps1` | `Export-iSOCContent -ContentType Playbook` | Removed |
+| `Tools/Build-DependencyManifest.ps1` | `Update-iSOCDependencyManifest`, `Test-iSOCDependencyManifest`, `Get-iSOCContentDependency` | Removed |
+| `Tools/Import-CommunityRules.ps1` | `Import-iSOCCommunityRule` | Removed |
+| `Deploy/permissions/Set-PlaybookPermissions.ps1` | `Grant-iSOCPlaybookPermission` | Removed |
+| `Deploy/permissions/Set-RunbookPermissions.ps1` | `Grant-iSOCRunbookPermission`, `Revoke-iSOCRunbookPermission` | Removed |
+| `Deploy/setup/Setup-ServicePrincipal.ps1` | `Initialize-iSOCServicePrincipal` | Removed |
+| `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` | `Get-iSOCTableMigrationImpact`, `Export-iSOCTableMigrationReport` | Removed |
+| `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` | `Invoke-iSOCClassicTableMigration` | Removed |
+| `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1` | `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` | Removed |
+| `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` | `New-iSOCDependencyFixture`, `Remove-iSOCDependencyFixture` | Removed |
+| `Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1` | `Test-iSOCDcrIngestion` | Removed |
+| `Tools/DcrFromSchema/New-DcrFromSchema.ps1` | `New-iSOCDcrFromSchema` | Removed |
 | `Pipelines/Sentinel-Deploy.yml` | `Get-iSOCWorkspaceOnboarding` (the Check for Existing Log Analytics Workspace step), `Deploy-iSOCContent -ContentType WorkspaceSetting` (the Configure Sentinel Settings step) and `Deploy-iSOCWorkspace` (the stages after the infrastructure, their conditions and the dependency manifest guard) | Ported |
 | `.github/workflows/sentinel-deploy.yml` | `Get-iSOCWorkspaceOnboarding` (the Check for Existing Resources step), `Deploy-iSOCContent -ContentType WorkspaceSetting` (the Configure Sentinel Settings step) and `Deploy-iSOCWorkspace` (the stages after the infrastructure, their conditions and the dependency manifest guard) | Ported |
 
@@ -557,7 +559,7 @@ separate module, and are not part of this map.
 | E20 | The Content Hub catalogue, the installed packages, and the automation rule and hunting query templates are read through every page; the script read the first page of each, and followed `nextLink` only for analytics rule and workbook templates and for analytics rules. A solution on a later page of the catalogue was reported not found, and the template counts could be short. | One REST client that always pages (E3). |
 | E21 | `ConvertTo-ArmTemplate` is not ported: nothing in `Deploy-SentinelContentHub.ps1` called it. | Dead code. |
 | E22 | Drift compares what deploy would send. A repository rule is compared as `ConvertTo-iSOCAnalyticsRuleRequest` builds it, a Content Hub rule as its template's rule resource, and the workspace rule as the API returns it, field by field with the comparers the analytics rule type names: the query ignores whitespace but not case, and the display name is compared exactly, where the script compared both ignoring case; kind is compared too; the schedule and trigger are compared for Scheduled rules only, as the script did for NRT rules. A repository rule file that does not validate is skipped, where the script compared whatever fields it had. The differences carry each side's values as they are, not the normalised forms the script compared: a query edited in the portal is written into the YAML with its line breaks, where the script wrote it as one whitespace-collapsed line, and the report shows both queries in full with a line diff. The YAML rewrite replaces values literally (a `$` in a query is kept) and keeps a CRLF file's line endings, where the script's name and severity patterns took the line's carriage return with them. | Deploy, compare and sync then agree on what a rule is; a change of case in KQL is a real change; and absorbing a portal edit should not destroy the query's layout. |
-| E23 | The repository's rules and the Content Hub templates are always read, and a source left out with `-ExcludeSource` has its rules reported as Skipped. The script read no rule files under `-SkipCustom` and no templates under `-SkipContentHub`, so those rules were classed as orphans and, without `-ReportOnly`, exported again as new orphan YAML files: under `-SkipCustom`, every rule in the repository (`Tests/iSOCDeployments/Drift.Tests.ps1` shows both). | Leaving a source out should leave its rules alone, not duplicate them. |
+| E23 | The repository's rules and the Content Hub templates are always read, and a source left out with `-ExcludeSource` has its rules reported as Skipped. The script read no rule files under `-SkipCustom` and no templates under `-SkipContentHub`, so those rules were classed as orphans and, without `-ReportOnly`, exported again as new orphan YAML files: under `-SkipCustom`, every rule in the repository (`Tests/iSOCDeployments/Drift.Tests.ps1` showed both on release/26.11.0, and holds the module to the skip). | Leaving a source out should leave its rules alone, not duplicate them. |
 | E24 | Detecting, absorbing and reporting are three commands. `Compare-iSOCContent` returns the result: one item per workspace rule with its state (InSync, PortalEdit, ContentHubCustomised, PortalOnly, Managed or Skipped) and the reason. `Sync-iSOCContent` absorbs it, which the script did unless `-ReportOnly`; `Export-iSOCDriftReport` writes the same `reports/sentinel-drift-<UTC>.json` and `.md` files, and only when something drifted, as before. The report names each rule by its name and leaves out the full resource id the script wrote as `ruleId`, which holds the subscription id. The Markdown says what was done: the script headed its Custom section auto-synced even under `-ReportOnly`, and its Content Hub and orphan sections report-only even when it had written those rules into the repository. `-FailOnDrift` becomes the result's `HasDrift`, and nothing exits. An absorbed file is left alone only when its content is the same in case too. | Each step can run on its own (a report that changes no file, a sync checked with `-WhatIf`), and the report the bot commits should say what its pull request holds and carry no tenant detail. |
 | E25 | Workbooks and playbooks are exported by one command, `Export-iSOCContent`, over the content type registry. An item the repository already has is found by its identity (a workbook's workbookId, or the GUID deploy makes for a folder without one; a Logic App's PlaybookName), wherever its file is, and left alone unless `-Force` is given, when it is written over in its own file or folder. The scripts knew an item only by the path its display name or trigger made: the workbook script wrote over that folder unless `-OnlyMissing`, and the playbook script left that file unless `-Force`, so a workbook whose name makes another folder name (Detection Engineering Dashboard lives in `DetectionEngineering`) was written to a second folder that deploys the same workbook, even under `-OnlyMissing`. A Logic App two templates name (five pairs in this repository) is skipped as ambiguous, where the playbook script with `-Force` wrote over the one its trigger chose. A new item's path that another item already holds, or that an earlier item of the run was written to, is never written over. A file whose content would not change is left alone and reported Unchanged. Every page of the workbook list is read; the workbook script read the first. A workbook the list returns empty that then cannot be read on its own fails, where the workbook script skipped it. `-Filter` (a regular expression) and `-NameFilter` become `-Name` (wildcards); `-BasePath` and `-OutputPath` become `-Path`, under which files go to their repository-relative paths; `-WhatIf` says of each item whether it would be created or updated. Each item has an outcome, the run an `ExitCode`, and nothing exits. Nothing logged names the subscription: the workbook script logged the list URL. | The repository says which items it already has, as it does for deploy and drift; an export should never make two files deploy one item, or replace another item's file. |
 | E26 | A workbook's `metadata.json` keys are written in the order displayName, description, category, sourceId, workbookId, then the folder's own keys as they were: the script passed the ordered metadata through a `[hashtable]` parameter, so its keys came out in hash order (the committed `Content/Workbooks/MicrosoftSentinelCostGbpV2/metadata.json` starts with sourceId), and a one-item list among the folder's own keys became a single value. The template is written to depth 100; the script wrote to depth 32, so a deeper workbook lost its innermost levels. Both files have LF line endings on every platform. The script's help described a backup of the old `workbook.json`, which it never made; none is made. | An export that changes nothing changes no file, and a deep workbook survives the round trip. |

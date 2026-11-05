@@ -3,18 +3,18 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the watchlist content type's handlers, and for parity
-    with the deployer they were taken from.
+    Pester tests for the watchlist content type's handlers.
 
 .DESCRIPTION
     The handlers are tested on the fixture repository: reading one item
-    per folder, validation (the messages Deploy-CustomContent.ps1 logs,
+    per folder, validation (the messages Deploy-CustomContent.ps1 logged,
     including the 3.5 MB inline limit), and the upload body with its rows
-    and defaults (MIGRATION.md edit E9). The parity block lifts
-    Deploy-CustomWatchlists out of Deploy/content/Deploy-CustomContent.ps1
-    by AST, runs it over every watchlist in Content/Watchlists/ with the
-    REST call captured, and holds each captured request (path, api-version
-    and body) to the one the module builds for the same folder.
+    and defaults (MIGRATION.md edit E9). Every watchlist folder under
+    Content/Watchlists/ in this repository is read through the ReadRepo
+    handler, must pass Test-iSOCWatchlist with no issues, and must build a
+    request through the ToRequest handler. Parity with
+    Deploy-CustomContent.ps1 was proven on release/26.11.0 before the
+    script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Watchlist.Tests.ps1
@@ -27,12 +27,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
-
-    The parity block goes when Deploy-CustomContent.ps1 is removed at
-    cut-over.
 #>
 
 BeforeDiscovery {
@@ -44,7 +41,6 @@ BeforeDiscovery {
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-WatchlistItem {
@@ -147,68 +143,28 @@ Describe 'Watchlist handlers' {
     }
 }
 
-Describe 'Parity with Deploy-CustomContent.ps1' {
+Describe 'Content/Watchlists in this repository' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-CustomContent.ps1')
-        function Write-PipelineMessage { param($Message, $Level) }
-        # The deployer asks about watchlist.json first; the folder it is in
-        # names the watchlist each captured request belongs to.
-        function Test-ShouldDeployFile { param($FilePath) $script:legacyFolder = Split-Path -Parent $FilePath; $true }
-        function Test-ContentDependencies { param($ContentPath) @{ Passed = $true; Missing = @() } }
-        function Set-DeploymentItemState { param($FilePath, $Status) }
-        function Invoke-SentinelApi {
-            param($Uri, $Method, $Headers, $Body)
-            $script:legacyCalls.Add([pscustomobject]@{ Folder = $script:legacyFolder; Uri = $Uri; Method = $Method; Body = $Body })
-        }
-
-        $script:workspacePath = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws'
-        $script:BasePath = $script:repoRoot
-        $script:WhatIf = $false
-        $script:BaseUri = "https://management.azure.com$($script:workspacePath)"
-        $script:SentinelApiVersion = '2025-09-01'
-        $script:AuthHeader = @{}
-        $script:legacyCalls = [System.Collections.Generic.List[object]]::new()
-        $script:legacyCounters = Deploy-CustomWatchlists
-
-        $script:legacyByFolder = @{}
-        foreach ($call in $script:legacyCalls) {
-            $relative = [System.IO.Path]::GetRelativePath($script:repoRoot, $call.Folder).Replace('\', '/')
-            if (-not $script:legacyByFolder.ContainsKey($relative)) { $script:legacyByFolder[$relative] = [System.Collections.Generic.List[object]]::new() }
-            $script:legacyByFolder[$relative].Add($call)
-        }
-        $script:context = InModuleScope iSOCDeployments -Parameters @{ W = $script:workspacePath } {
-            param($W)
-            New-iSOCContext -Value @{
-                TenantId = 't'; SubscriptionId = '00000000-0000-0000-0000-000000000000'; ResourceGroup = 'rg'; WorkspaceName = 'ws'
-                WorkspaceResourceId = $W; WorkspaceId = 'c'; Region = 'uksouth'; PlaybookResourceGroup = 'rg'; Environment = 'AzureCloud'
-                IsGov = $false; ArmUrl = 'https://management.azure.com'; GraphUrl = 'https://graph.microsoft.com'; Account = 'a'
+        Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+        $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name Watchlist }
+        function Invoke-RepoHandler {
+            param([string] $Handler, [hashtable] $Parameters)
+            InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
+                param($T, $H, $P)
+                Invoke-iSOCContentTypeHandler -ContentType $T -Handler $H -Parameters $P
             }
         }
-        $script:moduleItems = @{}
-        foreach ($item in Get-WatchlistItem -Repo $script:repoRoot) { $script:moduleItems[$item.RelativePath] = $item }
-    }
-
-    It 'sent a request for every watchlist it read' {
-        $script:legacyCounters.Failed | Should -Be 0
-        $script:legacyCounters.Skipped | Should -Be 0
-        $script:legacyCalls.Count | Should -Be $script:moduleItems.Count
-    }
-
-    It 'sends <Path> as Deploy-CustomContent.ps1 does' -ForEach $watchlistFolders {
-        $item = $script:moduleItems[$Path]
-        Test-Item $item | Should -BeNullOrEmpty
-        $request = Get-Request $item
-        $legacy = @($script:legacyByFolder[$Path])
-        $legacy.Count | Should -Be 1
-
-        $path = InModuleScope iSOCDeployments -Parameters @{ C = $script:context; N = $request.ResourceName } {
-            param($C, $N)
-            $type = Get-iSOCContentTypeDefinition -Name Watchlist
-            '{0}?api-version={1}' -f (Get-iSOCResourcePath -Context $C -ContentType $type -Name $N), (Get-iSOCApiVersion $type.ApiVersion)
+        $script:repoItems = @{}
+        foreach ($item in Invoke-RepoHandler -Handler ReadRepo -Parameters @{ RepoPath = $script:repoRoot; ContentType = $script:repoType }) {
+            $script:repoItems[$item.RelativePath] = $item
         }
-        "https://management.azure.com$path" | Should -BeExactly $legacy[0].Uri
-        $legacy[0].Method | Should -Be 'Put'
-        ConvertTo-ParityJson $request.Body | Should -BeExactly (ConvertTo-ParityJson $legacy[0].Body)
+    }
+
+    It 'reads, validates and builds <Path>' -ForEach $watchlistFolders {
+        $item = $script:repoItems[$Path]
+        $item | Should -Not -BeNullOrEmpty -Because 'the ReadRepo handler reads everything under Content/Watchlists'
+        Test-Item $item | Should -BeNullOrEmpty
+        { $script:repoRequest = Invoke-RepoHandler -Handler ToRequest -Parameters @{ Item = $item } } | Should -Not -Throw
+        $script:repoRequest.Body | Should -Not -BeNullOrEmpty
     }
 }

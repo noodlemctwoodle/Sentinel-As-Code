@@ -138,7 +138,7 @@ Conventional commit format: `type(scope): brief description`.
    pushed by their workflows.
 3. **Never modify `dependencies.json` by hand.** It is auto-derived.
    To update it, edit the content that generates it and run
-   `./Tools/Build-DependencyManifest.ps1 -Mode Generate`. The
+   `Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest`. The
    PR-validation `dependency-manifest` job will fail any hand-edit.
 4. **Don't commit secrets.** Use OIDC federated credentials for Azure
    auth (already configured); use Key Vault references for runtime

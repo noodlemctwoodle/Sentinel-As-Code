@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-// data/update-solution-mapping.mjs
+// Tools/update-solution-mapping.mjs
 //
 // Downloads the latest Content Hub solution mapping CSVs from the
 // Azure-Sentinel Solutions Analyzer and regenerates the static JSON
-// lookup used by the PowerShell report and the web app solution matcher.
+// lookup used by the classic table migration review and the web app
+// solution matcher.
 //
-// Usage:  node data/update-solution-mapping.mjs
+// Usage:  node Tools/update-solution-mapping.mjs
 //
 // Outputs:
-//   data/solution-mapping.json          (this folder - used by the PS script)
+//   Modules/iSOCDeployments/Resources/ClassicToDcr/solution-mapping.json
+//                                       (the copy the iSOCDeployments module ships)
 //   src/lib/data/solution-mapping.json  (web app - if the repo root is reachable)
 
 import { writeFileSync, existsSync } from 'fs';
@@ -16,8 +18,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const LOCAL_OUTPUT = join(__dirname, 'solution-mapping.json');
-const WEBAPP_OUTPUT = join(__dirname, '..', '..', '..', 'src', 'lib', 'data', 'solution-mapping.json');
+const LOCAL_OUTPUT = join(__dirname, '..', 'Modules', 'iSOCDeployments', 'Resources', 'ClassicToDcr', 'solution-mapping.json');
+const WEBAPP_OUTPUT = join(__dirname, '..', 'src', 'lib', 'data', 'solution-mapping.json');
 
 const BASE =
   'https://raw.githubusercontent.com/Azure/Azure-Sentinel/master/Tools/Solutions%20Analyzer';

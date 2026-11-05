@@ -4,7 +4,7 @@
 <#
 .SYNOPSIS
     Pester tests for the workspace setting content type, against the
-    Configure Sentinel Settings step of the deploy pipelines.
+    Configure Sentinel Settings step of the GitHub deploy workflow.
 
 .DESCRIPTION
     The handlers on their own: every file under Content/WorkspaceSettings/
@@ -12,16 +12,17 @@
     file's kind and properties, and the Deploy handler sends the
     workspace's etag and skips a setting it is not allowed to change.
 
-    Then parity: the Configure Sentinel Settings step of
-    Pipelines/Sentinel-Deploy.yml and of .github/workflows/sentinel-deploy.yml
-    is lifted out of the YAML unchanged and run in a child pwsh, with
-    stand-in Az cmdlets, beside Deploy-iSOCContent -ContentType
-    WorkspaceSetting over the repository's files, against one stand-in
-    workspace (_helpers/WorkspaceStandIn.psm1). Both must write the same
-    settings with the same bodies and etags, and succeed and fail on the
-    same ones, as MIGRATION.md edit E43 describes. Until the pipelines move
-    to the module, this holds the repository's files to the values the
-    pipelines send.
+    Then parity with GitHub: the Configure Sentinel Settings step of
+    .github/workflows/sentinel-deploy.yml is lifted out of the YAML
+    unchanged and run in a child pwsh, with stand-in Az cmdlets, beside
+    Deploy-iSOCContent -ContentType WorkspaceSetting over the repository's
+    files, against one stand-in workspace (_helpers/WorkspaceStandIn.psm1).
+    Both must write the same settings with the same bodies and etags, and
+    succeed and fail on the same ones, as MIGRATION.md edit E43 describes.
+    Until the workflow moves to the module, this holds the repository's
+    files to the values it sends. Parity with the old Configure Sentinel
+    Settings step of Pipelines/Sentinel-Deploy.yml was proven on
+    release/26.11.0 before that step was replaced by the module.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/WorkspaceSetting.Tests.ps1
@@ -34,8 +35,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
@@ -43,7 +44,6 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:files = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content/WorkspaceSettings') -Filter '*.json' -File | ForEach-Object { @{ File = $_.Name; Path = $_.FullName } })
     $pipelines = @(
-        @{ Pipeline = 'Azure DevOps'; File = 'Pipelines/Sentinel-Deploy.yml' }
         @{ Pipeline = 'GitHub Actions'; File = '.github/workflows/sentinel-deploy.yml' }
     )
     $cases = @(
@@ -109,17 +109,14 @@ BeforeAll {
     }
 
     function Invoke-PipelineSettingStep {
-        <# Run the pipeline's Configure Sentinel Settings step unchanged in a child pwsh over $State. #>
+        <# Run the workflow's Configure Sentinel Settings step unchanged in a child pwsh over $State. #>
         param([string] $File, $State)
 
         $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
         New-Item -ItemType Directory -Path $dir | Out-Null
         $statePath = Join-Path $dir 'state.json'
         Export-WorkspaceStandIn -State $State -Path $statePath
-        $variables = @{
-            RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; AZURE_SUBSCRIPTION_ID = $State.SubscriptionId
-            sentinelResourceGroup = 'rg-sentinel'; sentinelWorkspaceName = 'law-sentinel'; azureSubscriptionId = $State.SubscriptionId
-        }
+        $variables = @{ RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; AZURE_SUBSCRIPTION_ID = $State.SubscriptionId }
         $inline = Get-PipelineInlineScript -Path (Join-Path $script:repoRoot $File) -Step 'Configure Sentinel Settings' -Variables $variables
         $wrapper = @'
 $ErrorActionPreference = 'Stop'

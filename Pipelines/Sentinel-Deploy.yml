@@ -14,17 +14,11 @@
 #   Trigger manually or via schedule. Override parameters at queue time
 #   to target specific solutions or toggle content switches.
 #
-# Engine (the iSOCDeployments pipeline switch):
-#   - scripts  -> the scripts under Deploy/content/ and the inline checks
-#                 (default)
-#   - module   -> Get-iSOCWorkspaceOnboarding for the check, a stage of its
-#                 own for the workspace settings, and Deploy-iSOCWorkspace
-#                 -Stage for each content stage
-#   - compare  -> the scripts deploy, each check is compared with the
-#                 module's, and each stage then runs the module with
-#                 -WhatIf to show what it would do
-#   Registering providers, Bicep, the waits and the deployment state stay
-#   pipeline steps for every engine.
+# Every stage runs the iSOCDeployments module (Modules/iSOCDeployments):
+# Get-iSOCWorkspaceOnboarding for the check, a stage of its own for the
+# workspace settings, and Deploy-iSOCWorkspace -Stage for each content stage.
+# Registering providers, Bicep, the waits and the deployment state stay
+# pipeline steps.
 # ---------------------------------------------------------------------------
 
 trigger: none
@@ -183,15 +177,6 @@ parameters:
     type: boolean
     default: false
 
-  - name: engine
-    displayName: "Engine: scripts, module (iSOCDeployments) or compare (scripts deploy, the module dry-runs beside them)"
-    type: string
-    default: scripts
-    values:
-      - scripts
-      - module
-      - compare
-
 variables:
   - group: sentinel-deployment      # Variable group containing:
                                      #   - azureSubscriptionId
@@ -209,128 +194,13 @@ variables:
   - name: yamlVersion
     value: "0.4.12"
 
-  # Map boolean parameters to switch flag strings at compile time.
-  # Each resolves to either the switch name or an empty string.
-  - name: flagDisableRules
-    ${{ if eq(parameters.disableRules, true) }}:
-      value: "-DisableRules"
-    ${{ else }}:
-      value: ""
-
-  - name: flagProtectCustomisedRules
-    ${{ if eq(parameters.protectCustomisedRules, true) }}:
-      value: "-ProtectCustomisedRules"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipAnalyticsRules
-    ${{ if eq(parameters.skipAnalyticsRules, true) }}:
-      value: "-SkipAnalyticsRules"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipWorkbooks
-    ${{ if eq(parameters.skipWorkbooks, true) }}:
-      value: "-SkipWorkbooks"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipAutomationRules
-    ${{ if eq(parameters.skipAutomationRules, true) }}:
-      value: "-SkipAutomationRules"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipHuntingQueries
-    ${{ if eq(parameters.skipHuntingQueries, true) }}:
-      value: "-SkipHuntingQueries"
-    ${{ else }}:
-      value: ""
-
-  - name: flagForceSolutionUpdate
-    ${{ if eq(parameters.forceSolutionUpdate, true) }}:
-      value: "-ForceSolutionUpdate"
-    ${{ else }}:
-      value: ""
-
-  - name: flagForceContentDeployment
-    ${{ if eq(parameters.forceContentDeployment, true) }}:
-      value: "-ForceContentDeployment"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomParsers
-    ${{ if eq(parameters.skipCustomParsers, true) }}:
-      value: "-SkipParsers"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomDetections
-    ${{ if eq(parameters.skipCustomDetections, true) }}:
-      value: "-SkipDetections"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCommunityDetections
-    ${{ if eq(parameters.skipCommunityDetections, true) }}:
-      value: "-SkipCommunityDetections"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomWatchlists
-    ${{ if eq(parameters.skipCustomWatchlists, true) }}:
-      value: "-SkipWatchlists"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomPlaybooks
-    ${{ if eq(parameters.skipCustomPlaybooks, true) }}:
-      value: "-SkipPlaybooks"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomWorkbooks
-    ${{ if eq(parameters.skipCustomWorkbooks, true) }}:
-      value: "-SkipWorkbooks"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomHuntingQueries
-    ${{ if eq(parameters.skipCustomHuntingQueries, true) }}:
-      value: "-SkipHuntingQueries"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomAutomationRules
-    ${{ if eq(parameters.skipCustomAutomationRules, true) }}:
-      value: "-SkipAutomationRules"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustomSummaryRules
-    ${{ if eq(parameters.skipCustomSummaryRules, true) }}:
-      value: "-SkipSummaryRules"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSmartDeployment
-    ${{ if eq(parameters.smartDeployment, true) }}:
-      value: "-SmartDeployment"
-    ${{ else }}:
-      value: ""
-
-  - name: flagWhatIf
-    ${{ if eq(parameters.whatIf, true) }}:
-      value: "-WhatIf"
-    ${{ else }}:
-      value: ""
-
 stages:
   # =================================================================================
   # Stage 1: Check Existing Resources
-  # Checks whether the Resource Group and Log Analytics Workspace already exist.
+  # Checks whether the Resource Group, the Log Analytics Workspace, the two
+  # Sentinel onboarding resources and the playbook Resource Group exist.
   # Handles the case where the RG doesn't exist yet (greenfield deployment).
-  # If resources are found, the Bicep deployment stage is skipped.
+  # If everything is found, the Bicep deployment stage is skipped.
   # =================================================================================
   - stage: CheckInfrastructure
     displayName: "Check Existing Infrastructure"
@@ -341,137 +211,39 @@ stages:
         pool:
           vmImage: "ubuntu-latest"
         steps:
-          - ${{ if ne(parameters.engine, 'scripts') }}:
-            - checkout: self
+          - checkout: self
 
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Check for Existing Log Analytics Workspace"
-              name: CheckSentinelResources
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                pwsh: true
-                azurePowerShellVersion: LatestVersion
-                Inline: |
-                  Write-Host "##[section]Checking for existing Sentinel infrastructure"
-                  Write-Host "Resource Group: $(sentinelResourceGroup)"
-                  Write-Host "Workspace: $(sentinelWorkspaceName)"
-
-                  $resourcesExist = "false"
-                  $bicepNeeded = $false
-
-                  # Check Sentinel Resource Group
-                  $rg = Get-AzResourceGroup -Name "$(sentinelResourceGroup)" -ErrorAction SilentlyContinue
-                  if (-not $rg) {
-                      Write-Host "Resource Group '$(sentinelResourceGroup)' not found — Bicep deployment required."
-                      $bicepNeeded = $true
-                  } else {
-                      Write-Host "Resource Group '$(sentinelResourceGroup)' exists."
-
-                      # Check Log Analytics Workspace
-                      $law = Get-AzOperationalInsightsWorkspace `
-                          -ResourceGroupName "$(sentinelResourceGroup)" `
-                          -Name "$(sentinelWorkspaceName)" `
-                          -ErrorAction SilentlyContinue
-
-                      if ($law) {
-                          Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' exists."
-                      } else {
-                          Write-Host "Log Analytics Workspace '$(sentinelWorkspaceName)' not found — Bicep deployment required."
-                          $bicepNeeded = $true
-                      }
-                  }
-
-                  # Check optional Playbook Resource Group
-                  # ADO leaves unset variables as the literal '$(varName)' — treat that as empty
-                  $playbookRG = "$(playbookResourceGroup)"
-                  if ($playbookRG -like '`$(*') { $playbookRG = '' }
-                  if ($playbookRG -and $playbookRG -ne "$(sentinelResourceGroup)") {
-                      $pRg = Get-AzResourceGroup -Name $playbookRG -ErrorAction SilentlyContinue
-                      if (-not $pRg) {
-                          Write-Host "Playbook Resource Group '$playbookRG' not found — Bicep deployment required."
-                          $bicepNeeded = $true
-                      } else {
-                          Write-Host "Playbook Resource Group '$playbookRG' exists."
-                      }
-                  }
-
-                  if (-not $bicepNeeded) {
-                      Write-Host "All required resources exist — skipping Bicep deployment."
-                      $resourcesExist = "true"
-                  }
-
-                  echo "##vso[task.setvariable variable=RESOURCES_EXIST;isOutput=true]$resourcesExist"
-
-          # The module's check sets the same output, and the onboarding
-          # checks' DEPLOY_SENTINEL, which Bicep reads.
-          - ${{ if eq(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Check for Existing Resources (iSOCDeployments)"
-              name: CheckSentinelResources
-              target:
-                commands: restricted
-                settableVariables:
-                  - RESOURCES_EXIST
-                  - DEPLOY_SENTINEL
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                pwsh: true
-                azurePowerShellVersion: LatestVersion
-                Inline: |
-                  $ErrorActionPreference = 'Stop'
-                  Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  # An unset variable reaches the step as its own macro text.
-                  $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
-                  $onboarding = Get-iSOCWorkspaceOnboarding -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME -PlaybookResourceGroup $playbookGroup
-                  $resourcesExist = (-not $onboarding.InfrastructureNeeded).ToString().ToLower()
-                  $deploySentinel = $onboarding.DeploySentinel.ToString().ToLower()
-                  Write-Host "##vso[task.setvariable variable=RESOURCES_EXIST;isOutput=true]$resourcesExist"
-                  Write-Host "##vso[task.setvariable variable=DEPLOY_SENTINEL;isOutput=true]$deploySentinel"
-                  exit $onboarding.ExitCode
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-                PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
-
-          - ${{ if eq(parameters.engine, 'compare') }}:
-            - task: AzurePowerShell@5
-              displayName: "Compare the check with iSOCDeployments"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                pwsh: true
-                azurePowerShellVersion: LatestVersion
-                Inline: |
-                  # The scripts' decision stands; this only checks that the
-                  # module would decide the same.
-                  $ErrorActionPreference = 'Stop'
-                  Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
-                  $onboarding = Get-iSOCWorkspaceOnboarding -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME -PlaybookResourceGroup $playbookGroup
-                  $resourcesExist = (-not $onboarding.InfrastructureNeeded).ToString().ToLower()
-                  Write-Host "The scripts say RESOURCES_EXIST $env:SCRIPTS_RESOURCES_EXIST; the module says $resourcesExist ($($onboarding.Status))."
-                  if ($env:SCRIPTS_RESOURCES_EXIST -ne $resourcesExist) {
-                      if ($onboarding.Status -in 'NotOnboarded', 'StateMissing', 'SolutionMissing') {
-                          Write-Host "##vso[task.logissue type=warning]The module also checks the two Sentinel onboarding resources, and finds $($onboarding.Status) (MIGRATION.md edit E42)."
-                      }
-                      else {
-                          Write-Host '##vso[task.logissue type=error]The scripts and the module decide differently whether Bicep must run.'
-                          exit 1
-                      }
-                  }
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-                PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
-                SCRIPTS_RESOURCES_EXIST: $(CheckSentinelResources.RESOURCES_EXIST)
+          # The check sets RESOURCES_EXIST, which the infrastructure stage's
+          # condition reads, and DEPLOY_SENTINEL, which Bicep reads.
+          - task: AzurePowerShell@5
+            displayName: "Check for Existing Resources"
+            name: CheckSentinelResources
+            target:
+              commands: restricted
+              settableVariables:
+                - RESOURCES_EXIST
+                - DEPLOY_SENTINEL
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              pwsh: true
+              azurePowerShellVersion: LatestVersion
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+                Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                # An unset variable reaches the step as its own macro text.
+                $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
+                $onboarding = Get-iSOCWorkspaceOnboarding -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME -PlaybookResourceGroup $playbookGroup
+                $resourcesExist = (-not $onboarding.InfrastructureNeeded).ToString().ToLower()
+                $deploySentinel = $onboarding.DeploySentinel.ToString().ToLower()
+                Write-Host "##vso[task.setvariable variable=RESOURCES_EXIST;isOutput=true]$resourcesExist"
+                Write-Host "##vso[task.setvariable variable=DEPLOY_SENTINEL;isOutput=true]$deploySentinel"
+                exit $onboarding.ExitCode
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
+              PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
 
   # =================================================================================
   # Stage 2: Deploy Infrastructure (Bicep)
@@ -494,8 +266,8 @@ stages:
         pool:
           vmImage: "ubuntu-latest"
         variables:
-          # From the module's check (engine module); empty otherwise, and
-          # then the template's default (deploy Sentinel) stands.
+          # From the check; when it is empty the template's default (deploy
+          # Sentinel) stands.
           - name: deploySentinel
             value: $[ stageDependencies.CheckInfrastructure.CheckResources.outputs['CheckSentinelResources.DEPLOY_SENTINEL'] ]
         steps:
@@ -540,7 +312,7 @@ stages:
                   PARAMS="$PARAMS playbookRgName=$PLAYBOOK_RG"
                 fi
 
-                # The module's check says whether the Sentinel module must run
+                # The check says whether the template's Sentinel module must run
                 # (deploying the onboarding state twice returns Conflict).
                 case "${DEPLOY_SENTINEL:-}" in
                   true|false)
@@ -567,144 +339,75 @@ stages:
                 Start-Sleep -Seconds 60
                 Write-Host "Done."
 
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Configure Sentinel Settings"
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                Inline: |
-                  $token = (Get-AzAccessToken -ResourceUrl "https://management.azure.com" -WarningAction SilentlyContinue)
-                  if ($token.Token -is [System.Security.SecureString]) {
-                      $accessToken = $token.Token | ConvertFrom-SecureString -AsPlainText
-                  } else {
-                      $accessToken = $token.Token
-                  }
-                  $headers = @{
-                      Authorization  = "Bearer $accessToken"
-                      'Content-Type' = 'application/json'
-                  }
-                  $baseUri = "https://management.azure.com/subscriptions/$(azureSubscriptionId)/resourceGroups/$(sentinelResourceGroup)/providers/Microsoft.OperationalInsights/workspaces/$(sentinelWorkspaceName)"
-                  $api = "api-version=2024-01-01-preview"
-
-                  $settings = @(
-                      @{ name = 'Anomalies';       body = @{ kind = 'Anomalies';       etag = $null; properties = @{} } }
-                      @{ name = 'EyesOn';          body = @{ kind = 'EyesOn';          etag = $null; properties = @{} } }
-                      @{ name = 'EntityAnalytics'; body = @{ kind = 'EntityAnalytics'; etag = $null; properties = @{ entityProviders = @('AzureActiveDirectory') } } }
-                      @{ name = 'Ueba';            body = @{ kind = 'Ueba';            etag = $null; properties = @{ dataSources = @('AuditLogs','AzureActivity','SigninLogs','SecurityEvent') } } }
-                  )
-
-                  foreach ($s in $settings) {
-                      $uri = "$baseUri/providers/Microsoft.SecurityInsights/settings/$($s.name)?$api"
-                      # GET current setting to retrieve etag
-                      try {
-                          $getHeaders = @{ Authorization = "Bearer $accessToken" }
-                          $current = Invoke-RestMethod -Uri $uri -Method Get -Headers $getHeaders
-                          if ($current.etag) { $s.body['etag'] = $current.etag }
-                      } catch {}
-
-                      $json = $s.body | ConvertTo-Json -Depth 5
-
-                      $putHeaders = @{
-                          Authorization  = "Bearer $accessToken"
-                          'Content-Type' = 'application/json'
-                          'If-Match'     = if ($s.body.etag) { $s.body.etag } else { '*' }
-                      }
-
-                      try {
-                          Invoke-RestMethod -Uri $uri -Method Put -Headers $putHeaders -Body $json | Out-Null
-                          Write-Host "Configured: $($s.name)"
-                      }
-                      catch {
-                          $errorBody = $null
-                          if ($_.Exception.Response) {
-                              try {
-                                  $stream = $_.Exception.Response.GetResponseStream()
-                                  $reader = [System.IO.StreamReader]::new($stream)
-                                  $errorBody = $reader.ReadToEnd()
-                                  $reader.Close()
-                              } catch {}
-                          }
-                          if ($errorBody) {
-                              Write-Host "##[warning]Failed to configure $($s.name): $($_.Exception.Message) — $errorBody"
-                          } else {
-                              Write-Host "##[warning]Failed to configure $($s.name): $($_.Exception.Message)"
-                          }
-                      }
-                  }
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-
   # =================================================================================
-  # Workspace settings (engine module or compare)
-  # The module deploys the settings in Content/WorkspaceSettings/ in a stage of
-  # their own, before the Content Hub solutions, on every run: the scripts
-  # configured them in the infrastructure stage only. They gate nothing.
+  # Workspace settings
+  # The settings in Content/WorkspaceSettings/ deploy in a stage of their own,
+  # after the infrastructure and before the Content Hub solutions, on every
+  # run. No stage's condition reads this one, so a failed setting holds back
+  # nothing.
   # =================================================================================
-  - ${{ if ne(parameters.engine, 'scripts') }}:
-    - stage: DeployWorkspaceSettings
-      displayName: "Deploy Workspace Settings (iSOCDeployments)"
-      dependsOn:
-        - CheckInfrastructure
-        - DeployInfrastructure
-      condition: |
-        or(
-          eq('${{ parameters.deployInfrastructure }}', 'False'),
-          in(dependencies.DeployInfrastructure.result, 'Succeeded', 'Skipped')
-        )
-      jobs:
-        - job: DeploySettings
-          displayName: "Deploy Workspace Settings"
-          pool:
-            vmImage: "ubuntu-latest"
-          timeoutInMinutes: 15
-          steps:
-            - checkout: self
+  - stage: DeployWorkspaceSettings
+    displayName: "Deploy Workspace Settings"
+    dependsOn:
+      - CheckInfrastructure
+      - DeployInfrastructure
+    condition: |
+      or(
+        eq('${{ parameters.deployInfrastructure }}', 'False'),
+        in(dependencies.DeployInfrastructure.result, 'Succeeded', 'Skipped')
+      )
+    jobs:
+      - job: DeploySettings
+        displayName: "Deploy Workspace Settings"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 15
+        steps:
+          - checkout: self
 
-            - task: PowerShell@2
-              displayName: "Install powershell-yaml Module"
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  $ErrorActionPreference = 'Stop'
-                  $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
-                      Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
-                  if (-not $haveYaml) {
-                      Install-Module -Name powershell-yaml `
-                          -RequiredVersion '$(yamlVersion)' `
-                          -Force -Scope CurrentUser -AllowClobber
-                  }
+          - task: PowerShell@2
+            displayName: "Install powershell-yaml Module"
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                $ErrorActionPreference = 'Stop'
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
 
-            - task: AzurePowerShell@5
-              displayName: "Deploy Workspace Settings (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                Inline: |
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  # An unset variable reaches the step as its own macro text.
-                  $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
-                  $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
-                  if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
-                  $null = Connect-iSOCWorkspace @connect
-                  $stage = @{ Stage = 'WorkspaceSettings'; RepoPath = $repo }
-                  # Under compare the scripts deploy and the module only shows what it would do.
-                  if ('${{ parameters.whatIf }}' -eq 'True' -or '${{ parameters.engine }}' -eq 'compare') { $stage['WhatIf'] = $true }
-                  $run = Deploy-iSOCWorkspace @stage
-                  exit $run.ExitCode
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-                PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
+          - task: AzurePowerShell@5
+            displayName: "Deploy Workspace Settings"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+                $repo = $env:BUILD_SOURCESDIRECTORY
+                Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                # An unset variable reaches the step as its own macro text.
+                $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
+                $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
+                if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+                $null = Connect-iSOCWorkspace @connect
+                $stage = @{ Stage = 'WorkspaceSettings'; RepoPath = $repo }
+                if ('${{ parameters.whatIf }}' -eq 'True') { $stage['WhatIf'] = $true }
+                $run = Deploy-iSOCWorkspace @stage
+                exit $run.ExitCode
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
+              PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
 
   # =================================================================================
   # Stage 3: Deploy Content Hub
@@ -716,8 +419,7 @@ stages:
     dependsOn:
       - CheckInfrastructure
       - DeployInfrastructure
-      - ${{ if ne(parameters.engine, 'scripts') }}:
-        - DeployWorkspaceSettings
+      - DeployWorkspaceSettings
     condition: |
       and(
         eq('${{ parameters.deployContentHub }}', 'True'),
@@ -735,97 +437,51 @@ stages:
         steps:
           - checkout: self
 
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Deploy Content Hub Solutions"
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                Inline: |
-                  # Build the solution and severity arrays from comma-separated parameters
-                  $solutionList = "${{ parameters.solutions }}" -split ',' | ForEach-Object { $_.Trim() }
-                  $severityList = "${{ parameters.severitiesToInclude }}" -split ',' | ForEach-Object { $_.Trim() }
-
-                  # Build the base parameter hashtable (splatting)
-                  $scriptParams = @{
-                      SubscriptionId      = "$(azureSubscriptionId)"
-                      ResourceGroup       = "$(sentinelResourceGroup)"
-                      Workspace           = "$(sentinelWorkspaceName)"
-                      Region              = "$(sentinelRegion)"
-                      Solutions           = $solutionList
-                      SeveritiesToInclude = $severityList
-                  }
-
-                  # Conditionally add switch parameters based on compile-time flag variables.
-                  # Each flag variable is either the switch name (truthy) or empty string (falsy).
-                  if ("$(flagDisableRules)")            { $scriptParams['DisableRules']            = $true }
-                  # ProtectCustomisedRules is a [bool] defaulting to $true, not a switch:
-                  # pass the value either way, or leaving it out would keep protection on.
-                  $scriptParams['ProtectCustomisedRules'] = [bool]"$(flagProtectCustomisedRules)"
-                  if ("$(flagSkipAnalyticsRules)")       { $scriptParams['SkipAnalyticsRules']       = $true }
-                  if ("$(flagSkipWorkbooks)")            { $scriptParams['SkipWorkbooks']            = $true }
-                  if ("$(flagSkipAutomationRules)")      { $scriptParams['SkipAutomationRules']      = $true }
-                  if ("$(flagSkipHuntingQueries)")       { $scriptParams['SkipHuntingQueries']       = $true }
-                  if ("$(flagForceSolutionUpdate)")      { $scriptParams['ForceSolutionUpdate']      = $true }
-                  if ("$(flagForceContentDeployment)")   { $scriptParams['ForceContentDeployment']   = $true }
-                  if ("$(flagWhatIf)")                   { $scriptParams['WhatIf']                   = $true }
-
-                  Write-Host "##[section]Launching Sentinel Content Hub Deployment"
-                  Write-Host "Solutions: $($solutionList -join ', ')"
-                  Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
-
-                  & "$(Build.SourcesDirectory)/Deploy/content/Deploy-SentinelContentHub.ps1" @scriptParams
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                errorActionPreference: "Continue"
-
-          - ${{ if ne(parameters.engine, 'scripts') }}:
-            - task: AzurePowerShell@5
-              displayName: "Deploy Content Hub Solutions (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                Inline: |
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  # An unset variable reaches the step as its own macro text.
-                  $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
-                  $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
-                  if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
-                  $null = Connect-iSOCWorkspace @connect
-                  $stage = @{
-                      Stage    = 'ContentHub'
-                      RepoPath = $repo
-                      Solution = @($env:CONTENT_HUB_SOLUTIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-                      Severity = @($env:CONTENT_HUB_SEVERITIES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-                  }
-                  if ('${{ parameters.disableRules }}' -eq 'True') { $stage['DisableRules'] = $true }
-                  if ('${{ parameters.protectCustomisedRules }}' -ne 'True') { $stage['OverwriteCustomisedRules'] = $true }
-                  $leftOut = @()
-                  if ('${{ parameters.skipAnalyticsRules }}' -eq 'True') { $leftOut += 'AnalyticsRule' }
-                  if ('${{ parameters.skipWorkbooks }}' -eq 'True') { $leftOut += 'Workbook' }
-                  if ('${{ parameters.skipAutomationRules }}' -eq 'True') { $leftOut += 'AutomationRule' }
-                  if ('${{ parameters.skipHuntingQueries }}' -eq 'True') { $leftOut += 'HuntingQuery' }
-                  if ($leftOut) { $stage['ExcludeSolutionContentType'] = $leftOut }
-                  if ('${{ parameters.forceSolutionUpdate }}' -eq 'True') { $stage['ForceSolutionUpdate'] = $true }
-                  if ('${{ parameters.forceContentDeployment }}' -eq 'True') { $stage['ForceContentDeployment'] = $true }
-                  # Under compare the scripts deploy and the module only shows what it would do.
-                  if ('${{ parameters.whatIf }}' -eq 'True' -or '${{ parameters.engine }}' -eq 'compare') { $stage['WhatIf'] = $true }
-                  $run = Deploy-iSOCWorkspace @stage
-                  exit $run.ExitCode
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-                PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
-                CONTENT_HUB_SOLUTIONS: ${{ parameters.solutions }}
-                CONTENT_HUB_SEVERITIES: ${{ parameters.severitiesToInclude }}
+          - task: AzurePowerShell@5
+            displayName: "Deploy Content Hub Solutions"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+                $repo = $env:BUILD_SOURCESDIRECTORY
+                Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                # An unset variable reaches the step as its own macro text.
+                $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
+                $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
+                if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+                $null = Connect-iSOCWorkspace @connect
+                $stage = @{
+                    Stage    = 'ContentHub'
+                    RepoPath = $repo
+                    Solution = @($env:CONTENT_HUB_SOLUTIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+                    Severity = @($env:CONTENT_HUB_SEVERITIES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+                }
+                if ('${{ parameters.disableRules }}' -eq 'True') { $stage['DisableRules'] = $true }
+                if ('${{ parameters.protectCustomisedRules }}' -ne 'True') { $stage['OverwriteCustomisedRules'] = $true }
+                $leftOut = @()
+                if ('${{ parameters.skipAnalyticsRules }}' -eq 'True') { $leftOut += 'AnalyticsRule' }
+                if ('${{ parameters.skipWorkbooks }}' -eq 'True') { $leftOut += 'Workbook' }
+                if ('${{ parameters.skipAutomationRules }}' -eq 'True') { $leftOut += 'AutomationRule' }
+                if ('${{ parameters.skipHuntingQueries }}' -eq 'True') { $leftOut += 'HuntingQuery' }
+                if ($leftOut) { $stage['ExcludeSolutionContentType'] = $leftOut }
+                if ('${{ parameters.forceSolutionUpdate }}' -eq 'True') { $stage['ForceSolutionUpdate'] = $true }
+                if ('${{ parameters.forceContentDeployment }}' -eq 'True') { $stage['ForceContentDeployment'] = $true }
+                if ('${{ parameters.whatIf }}' -eq 'True') { $stage['WhatIf'] = $true }
+                $run = Deploy-iSOCWorkspace @stage
+                exit $run.ExitCode
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
+              PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
+              CONTENT_HUB_SOLUTIONS: ${{ parameters.solutions }}
+              CONTENT_HUB_SEVERITIES: ${{ parameters.severitiesToInclude }}
 
   # =================================================================================
   # Stage 4: Deploy Custom Content
@@ -892,109 +548,52 @@ stages:
                     Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
                     Format-Table Name, Version
 
-          # Pre-deploy guard: dependencies.json must match what discovery
-          # produces from current content. The PR-validation gate already
-          # checks this on every PR to main, but a scheduled deploy could
-          # still race a non-deploy commit (e.g. a doc-only change that
-          # adjusts a rule's query inline) that bypassed the gate. Failing
-          # fast here is cheap and prevents the deployer from running
-          # against a stale dependency graph.
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: PowerShell@2
-              displayName: "Verify dependency manifest is current"
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  & "$(Build.SourcesDirectory)/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
-                  if ($LASTEXITCODE -ne 0) {
-                      Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
-                      Write-Host "##vso[task.logissue type=error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this pipeline."
-                      exit 1
-                  }
-
-            - task: AzurePowerShell@5
-              displayName: "Deploy Custom Content"
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                Inline: |
-                  $scriptParams = @{
-                      SubscriptionId = "$(azureSubscriptionId)"
-                      ResourceGroup  = "$(sentinelResourceGroup)"
-                      Workspace      = "$(sentinelWorkspaceName)"
-                      Region         = "$(sentinelRegion)"
-                      BasePath       = "$(Build.SourcesDirectory)"
-                  }
-
-                  # ADO leaves unset variables as the literal '$(varName)' — treat that as empty
-                  $playbookRG = "$(playbookResourceGroup)"
-                  if ($playbookRG -like '`$(*') { $playbookRG = '' }
-                  if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
-
-                  if ("$(flagSkipCustomParsers)")           { $scriptParams['SkipParsers']         = $true }
-                  if ("$(flagSkipCustomDetections)")       { $scriptParams['SkipDetections']      = $true }
-                  if ("$(flagSkipCommunityDetections)")    { $scriptParams['SkipCommunityDetections'] = $true }
-                  if ("$(flagSkipCustomWatchlists)")      { $scriptParams['SkipWatchlists']     = $true }
-                  if ("$(flagSkipCustomPlaybooks)")       { $scriptParams['SkipPlaybooks']      = $true }
-                  if ("$(flagSkipCustomWorkbooks)")       { $scriptParams['SkipWorkbooks']      = $true }
-                  if ("$(flagSkipCustomHuntingQueries)")  { $scriptParams['SkipHuntingQueries'] = $true }
-                  if ("$(flagSkipCustomAutomationRules)") { $scriptParams['SkipAutomationRules']= $true }
-                  if ("$(flagSkipCustomSummaryRules)")    { $scriptParams['SkipSummaryRules']   = $true }
-                  if ("$(flagSmartDeployment)")           { $scriptParams['SmartDeployment']    = $true }
-                  if ("$(flagWhatIf)")                    { $scriptParams['WhatIf']             = $true }
-
-                  Write-Host "##[section]Launching Custom Content Deployment"
-                  Write-Host "Switches: $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
-
-                  & "$(Build.SourcesDirectory)/Deploy/content/Deploy-CustomContent.ps1" @scriptParams
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                errorActionPreference: "Continue"
-
-          - ${{ if ne(parameters.engine, 'scripts') }}:
-            - task: AzurePowerShell@5
-              displayName: "Deploy Custom Content (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                Inline: |
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  # An unset variable reaches the step as its own macro text.
-                  $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
-                  $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
-                  if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
-                  $null = Connect-iSOCWorkspace @connect
-                  # The command checks dependencies.json first and refuses a stale one.
-                  $stage = @{ Stage = 'CustomContent'; RepoPath = $repo }
-                  $leftOut = @()
-                  if ('${{ parameters.skipCustomParsers }}' -eq 'True') { $leftOut += 'Parser' }
-                  if ('${{ parameters.skipCustomDetections }}' -eq 'True') { $leftOut += 'AnalyticsRule' }
-                  if ('${{ parameters.skipCustomWatchlists }}' -eq 'True') { $leftOut += 'Watchlist' }
-                  if ('${{ parameters.skipCustomPlaybooks }}' -eq 'True') { $leftOut += 'Playbook' }
-                  if ('${{ parameters.skipCustomWorkbooks }}' -eq 'True') { $leftOut += 'Workbook' }
-                  if ('${{ parameters.skipCustomHuntingQueries }}' -eq 'True') { $leftOut += 'HuntingQuery' }
-                  if ('${{ parameters.skipCustomAutomationRules }}' -eq 'True') { $leftOut += 'AutomationRule' }
-                  if ('${{ parameters.skipCustomSummaryRules }}' -eq 'True') { $leftOut += 'SummaryRule' }
-                  if ($leftOut) { $stage['ExcludeContentType'] = $leftOut }
-                  if ('${{ parameters.skipCommunityDetections }}' -eq 'True') { $stage['Exclude'] = 'Content/AnalyticalRules/Community/*' }
-                  if ('${{ parameters.smartDeployment }}' -eq 'True') { $stage['SmartDeployment'] = $true }
-                  # Under compare the scripts deploy and the module only shows what it would do.
-                  if ('${{ parameters.whatIf }}' -eq 'True' -or '${{ parameters.engine }}' -eq 'compare') { $stage['WhatIf'] = $true }
-                  $run = Deploy-iSOCWorkspace @stage
-                  exit $run.ExitCode
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-                PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
+          # Deploy-iSOCWorkspace checks dependencies.json against what
+          # discovery produces from current content before it deploys. The
+          # PR-validation gate already checks this on every PR to main, but a
+          # scheduled deploy could still race a non-deploy commit that
+          # bypassed the gate, so a stale manifest fails the stage.
+          - task: AzurePowerShell@5
+            displayName: "Deploy Custom Content"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+                $repo = $env:BUILD_SOURCESDIRECTORY
+                Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                # An unset variable reaches the step as its own macro text.
+                $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
+                $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
+                if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+                $null = Connect-iSOCWorkspace @connect
+                # The command checks dependencies.json first and refuses a stale one.
+                $stage = @{ Stage = 'CustomContent'; RepoPath = $repo }
+                $leftOut = @()
+                if ('${{ parameters.skipCustomParsers }}' -eq 'True') { $leftOut += 'Parser' }
+                if ('${{ parameters.skipCustomDetections }}' -eq 'True') { $leftOut += 'AnalyticsRule' }
+                if ('${{ parameters.skipCustomWatchlists }}' -eq 'True') { $leftOut += 'Watchlist' }
+                if ('${{ parameters.skipCustomPlaybooks }}' -eq 'True') { $leftOut += 'Playbook' }
+                if ('${{ parameters.skipCustomWorkbooks }}' -eq 'True') { $leftOut += 'Workbook' }
+                if ('${{ parameters.skipCustomHuntingQueries }}' -eq 'True') { $leftOut += 'HuntingQuery' }
+                if ('${{ parameters.skipCustomAutomationRules }}' -eq 'True') { $leftOut += 'AutomationRule' }
+                if ('${{ parameters.skipCustomSummaryRules }}' -eq 'True') { $leftOut += 'SummaryRule' }
+                if ($leftOut) { $stage['ExcludeContentType'] = $leftOut }
+                if ('${{ parameters.skipCommunityDetections }}' -eq 'True') { $stage['Exclude'] = 'Content/AnalyticalRules/Community/*' }
+                if ('${{ parameters.smartDeployment }}' -eq 'True') { $stage['SmartDeployment'] = $true }
+                if ('${{ parameters.whatIf }}' -eq 'True') { $stage['WhatIf'] = $true }
+                $run = Deploy-iSOCWorkspace @stage
+                exit $run.ExitCode
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
+              PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
 
           - task: PublishPipelineArtifact@1
             displayName: "Save Deployment State"
@@ -1053,53 +652,31 @@ stages:
                     Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
                     Format-Table Name, Version
 
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: AzurePowerShell@5
-              displayName: "Deploy Defender Custom Detections"
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                Inline: |
-                  $scriptParams = @{
-                      BasePath = "$(Build.SourcesDirectory)"
-                  }
-
-                  if ("$(flagWhatIf)") { $scriptParams['WhatIf'] = $true }
-
-                  Write-Host "##[section]Launching Defender XDR Custom Detections Deployment"
-
-                  & "$(Build.SourcesDirectory)/Deploy/content/Deploy-DefenderDetections.ps1" @scriptParams
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                errorActionPreference: "Continue"
-
-          - ${{ if ne(parameters.engine, 'scripts') }}:
-            - task: AzurePowerShell@5
-              displayName: "Deploy Defender Custom Detections (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                azureSubscription: $(serviceConnection)
-                ScriptType: "InlineScript"
-                azurePowerShellVersion: "LatestVersion"
-                pwsh: true
-                Inline: |
-                  $ErrorActionPreference = 'Stop'
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  # An unset variable reaches the step as its own macro text.
-                  $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
-                  $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
-                  if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
-                  $null = Connect-iSOCWorkspace @connect
-                  $stage = @{ Stage = 'DefenderDetections'; RepoPath = $repo }
-                  # Under compare the scripts deploy and the module only shows what it would do.
-                  if ('${{ parameters.whatIf }}' -eq 'True' -or '${{ parameters.engine }}' -eq 'compare') { $stage['WhatIf'] = $true }
-                  $run = Deploy-iSOCWorkspace @stage
-                  exit $run.ExitCode
-              env:
-                SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
-                SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
-                SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
-                PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)
+          - task: AzurePowerShell@5
+            displayName: "Deploy Defender Custom Detections"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              azureSubscription: $(serviceConnection)
+              ScriptType: "InlineScript"
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+              Inline: |
+                $ErrorActionPreference = 'Stop'
+                $repo = $env:BUILD_SOURCESDIRECTORY
+                Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                # An unset variable reaches the step as its own macro text.
+                $playbookGroup = if ($env:PLAYBOOK_RESOURCE_GROUP -like '$(*') { '' } else { $env:PLAYBOOK_RESOURCE_GROUP }
+                $connect = @{ SubscriptionId = $env:SENTINEL_SUBSCRIPTION_ID; ResourceGroup = $env:SENTINEL_RESOURCE_GROUP; WorkspaceName = $env:SENTINEL_WORKSPACE_NAME }
+                if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+                $null = Connect-iSOCWorkspace @connect
+                $stage = @{ Stage = 'DefenderDetections'; RepoPath = $repo }
+                if ('${{ parameters.whatIf }}' -eq 'True') { $stage['WhatIf'] = $true }
+                $run = Deploy-iSOCWorkspace @stage
+                exit $run.ExitCode
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
+              PLAYBOOK_RESOURCE_GROUP: $(playbookResourceGroup)

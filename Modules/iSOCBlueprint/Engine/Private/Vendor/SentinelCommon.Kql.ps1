@@ -8,11 +8,10 @@
 .DESCRIPTION
     Remove-KqlComments and Get-KqlBareIdentifiers, copied unchanged from
     Modules/Sentinel.Common/Sentinel.Common.psm1. The collector's
-    table-reference captures need them; the shared module also needs
-    Az.Accounts and lives outside the iSOCBlueprint module, so a copy keeps
-    the module self-contained. Fix them in Sentinel.Common first, then copy
-    the function here: Tests/iSOCBlueprint/Vendored.Tests.ps1 fails
-    while the two differ.
+    table-reference captures need them. Sentinel.Common retired in release
+    26.11.0, so these are the Blueprint's own code from then on: fix them
+    here. They are not shared with the iSOCDeployments module, which has
+    its own KQL helpers.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1
@@ -20,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-10-13
+    Version:      0.1.2
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Each function's help

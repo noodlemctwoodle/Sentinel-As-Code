@@ -53,9 +53,10 @@ other agent has the full picture.
 - [`Docs/Tools/Sentinel-Drift-Detection.md`](../../Docs/Tools/Sentinel-Drift-Detection.md) —
   full reference for the drift sub-system: bucket semantics,
   absorption rules, the auto-PR pattern.
-- [`Tools/Test-SentinelRuleDrift.ps1`](../../Tools/Test-SentinelRuleDrift.ps1) —
-  the script header carries the operating model; read the
-  `.SYNOPSIS` and `.DESCRIPTION` blocks before diving in.
+- [`Docs/Modules/iSOCDeployments/Drift.md`](../../Docs/Modules/iSOCDeployments/Drift.md) -
+  `Compare-iSOCContent`, `Sync-iSOCContent` and `Export-iSOCDriftReport`,
+  which replaced `Tools/Test-SentinelRuleDrift.ps1`; their help carries
+  the operating model.
 
 ## The three buckets
 

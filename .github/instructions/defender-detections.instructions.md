@@ -103,5 +103,5 @@ detectionAction:
 ## Cross-references
 
 - Full schema, automated actions and the old-to-new field table: [`Docs/Content/Defender-Custom-Detections.md`](../../Docs/Content/Defender-Custom-Detections.md)
-- Deploy script: [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content/Deploy-DefenderDetections.ps1)
+- Deploy: `Deploy-iSOCContent -ContentType DefenderDetection` ([`Docs/Modules/iSOCDeployments/Deploy.md`](../../Docs/Modules/iSOCDeployments/Deploy.md))
 - Tests: [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1)

@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Equivalent of .github/workflows/sentinel-dependency-update.yml.
 #
-# Runs Tools/Build-DependencyManifest.ps1 -Mode Update against the
+# Runs Update-iSOCDependencyManifest (Modules/iSOCDeployments) against the
 # current main branch. If the regenerated dependencies.json diverges from
 # the on-disk version, pushes the regenerated file to a rolling auto-sync
 # branch and opens (or refreshes) a PR for review.
@@ -29,14 +29,6 @@
 # That makes this pipeline cheaper and more reliable than the drift
 # detection one; no service-principal permissions needed.
 #
-# Engine (the iSOCDeployments pipeline switch):
-#   - scripts  -> Tools/Build-DependencyManifest.ps1 -Mode Update (default)
-#   - module   -> Update-iSOCDependencyManifest from Modules/iSOCDeployments
-#   - compare  -> the scripts, plus a step that has both engines write a
-#                 fresh manifest from the same content and fails the run
-#                 when the bytes differ
-#   The commit, push and PR step is the same for every engine.
-#
 # Prerequisites:
 #   - 'Project Collection Build Service ($org)' identity granted
 #     'Contribute', 'Create branch', and 'Contribute to pull requests' on
@@ -59,14 +51,6 @@ parameters:
     displayName: "Report Only — show drift but do not commit / open a PR"
     type: boolean
     default: false
-  - name: engine
-    displayName: "Engine: scripts, module (iSOCDeployments) or compare (both, failing on a difference)"
-    type: string
-    default: scripts
-    values:
-      - scripts
-      - module
-      - compare
 
 variables:
   # Read-only, so no step can point the bot push at another branch.
@@ -82,13 +66,6 @@ variables:
       value: "true"
     ${{ else }}:
       value: "false"
-
-  # How a maintainer reproduces the manifest locally, named in the commit.
-  - name: manifestCommand
-    ${{ if eq(parameters.engine, 'module') }}:
-      value: "Update-iSOCDependencyManifest (Modules/iSOCDeployments)"
-    ${{ else }}:
-      value: "Tools/Build-DependencyManifest.ps1 -Mode Generate"
 
 stages:
   - stage: RefreshDependencyManifest
@@ -119,70 +96,24 @@ stages:
                         -Force -Scope CurrentUser -AllowClobber
                 }
 
-          - ${{ if ne(parameters.engine, 'module') }}:
-            - task: PowerShell@2
-              displayName: "Run dependency-manifest update"
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  # -Mode Update writes the regenerated manifest to disk on
-                  # drift and exits 0; the pipeline owns commit + push + PR.
-                  # On no drift it leaves the file untouched and exits 0.
-                  & "$(Build.SourcesDirectory)/Tools/Build-DependencyManifest.ps1" `
-                      -Mode Update `
-                      -RepoPath "$(Build.SourcesDirectory)"
-
           # The module steps may not set variables or change PATH: they log
           # text read from content files, and nothing after them reads a
           # variable they set.
-          - ${{ if eq(parameters.engine, 'module') }}:
-            - task: PowerShell@2
-              displayName: "Update the dependency manifest (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  # Writes dependencies.json when it differs from what the
-                  # content needs and leaves it alone when it is current;
-                  # the pipeline owns commit + push + PR.
-                  Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $result = Update-iSOCDependencyManifest -RepoPath $env:BUILD_SOURCESDIRECTORY
-                  Write-Host "dependencies.json: $($result.Entries) entries, $(if ($result.Changed) { 'written' } else { 'already current' })."
-
-          - ${{ if eq(parameters.engine, 'compare') }}:
-            - task: PowerShell@2
-              displayName: "Compare the scripts and the module (iSOCDeployments)"
-              target:
-                commands: restricted
-                settableVariables: none
-              inputs:
-                targetType: "inline"
-                pwsh: true
-                script: |
-                  # Both engines write a fresh manifest from the same content
-                  # to the agent's temporary folder, so the comparison does
-                  # not depend on the committed file; the bytes must match.
-                  $repo = $env:BUILD_SOURCESDIRECTORY
-                  $scriptsFile = Join-Path $env:AGENT_TEMPDIRECTORY 'dependencies.scripts.json'
-                  $moduleFile = Join-Path $env:AGENT_TEMPDIRECTORY 'dependencies.module.json'
-                  Remove-Item -LiteralPath $scriptsFile, $moduleFile -ErrorAction SilentlyContinue
-
-                  & (Join-Path $repo 'Tools/Build-DependencyManifest.ps1') -Mode Generate -RepoPath $repo -ManifestPath $scriptsFile
-                  if ($LASTEXITCODE) { throw "Tools/Build-DependencyManifest.ps1 failed with exit code $LASTEXITCODE." }
-
-                  Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-                  $null = Update-iSOCDependencyManifest -RepoPath $repo -ManifestPath $moduleFile
-
-                  if ((Get-FileHash -LiteralPath $scriptsFile).Hash -ne (Get-FileHash -LiteralPath $moduleFile).Hash) {
-                      Write-Host '##vso[task.logissue type=error]The module wrote a different dependencies.json from Tools/Build-DependencyManifest.ps1. Modules/iSOCDeployments/MIGRATION.md lists the differences it makes on purpose (E8: it reads .yml content files as well as .yaml).'
-                      git --no-pager diff --no-index -- $scriptsFile $moduleFile
-                      exit 1
-                  }
-                  Write-Host "The scripts and the module wrote the same dependencies.json ($((Get-Item -LiteralPath $moduleFile).Length) bytes)."
+          - task: PowerShell@2
+            displayName: "Update the dependency manifest"
+            target:
+              commands: restricted
+              settableVariables: none
+            inputs:
+              targetType: "inline"
+              pwsh: true
+              script: |
+                # Writes dependencies.json when it differs from what the
+                # content needs and leaves it alone when it is current;
+                # the pipeline owns commit + push + PR.
+                Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                $result = Update-iSOCDependencyManifest -RepoPath $env:BUILD_SOURCESDIRECTORY
+                Write-Host "dependencies.json: $($result.Entries) entries, $(if ($result.Changed) { 'written' } else { 'already current' })."
 
           # Commit + push + PR. Skipped when -reportOnly is true (the run
           # log already shows the diff) or when the working tree is clean.
@@ -215,7 +146,7 @@ stages:
               git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
               git stash pop --quiet || true
 
-              # Stage only the manifest. Neither engine touches anything
+              # Stage only the manifest. The module touches nothing
               # else; staging strictly avoids accidentally including a
               # stray local file.
               git add dependencies.json
@@ -225,7 +156,7 @@ stages:
 
               git commit \
                   -m "chore(deps): refresh dependency manifest $(date -u +%Y-%m-%dT%H:%MZ)" \
-                  -m "Auto-generated by Pipelines/Sentinel-Dependency-Update.yml. Discovery walked content and produced a manifest with $ENTRY_COUNT entries that differs from the on-disk version. Re-run $MANIFEST_COMMAND locally to reproduce."
+                  -m "Auto-generated by Pipelines/Sentinel-Dependency-Update.yml. Discovery walked content and produced a manifest with $ENTRY_COUNT entries that differs from the on-disk version. Re-run Update-iSOCDependencyManifest (Modules/iSOCDeployments) locally to reproduce."
 
               # The lease needs a remote-tracking ref for the rolling branch. The
               # checkout only fetched the target, so without this a branch left over
@@ -311,4 +242,3 @@ stages:
               REPORT_ONLY: $(flagReportOnly)
               SYNC_BRANCH: $(syncBranch)
               TARGET_BRANCH: $(targetBranch)
-              MANIFEST_COMMAND: $(manifestCommand)

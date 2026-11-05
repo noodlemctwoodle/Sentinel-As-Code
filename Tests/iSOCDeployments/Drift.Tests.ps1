@@ -4,7 +4,7 @@
 <#
 .SYNOPSIS
     Pester tests for Compare-iSOCContent, Sync-iSOCContent and
-    Export-iSOCDriftReport, and for parity with Tools/Test-SentinelRuleDrift.ps1.
+    Export-iSOCDriftReport.
 
 .DESCRIPTION
     - The pieces, one case at a time, carried over from
@@ -13,18 +13,20 @@
       of a workspace rule, the file slug, the absorbed rule's YAML and its
       path, and the report.
     - The behaviour the module changes on purpose (MIGRATION.md edits E22
-      to E24), each shown against the script: a query written back with its
-      line breaks, case counted in a query and a name, excluded sources
-      skipped instead of exported again as orphans, and a report that says
-      what it did and carries no resource id.
-    - Parity: the script's functions are lifted out by AST and its own
-      Invoke-Main is run with its REST calls stood in for, against a
-      workspace built from this repository's analytics rules as deploy
-      would send them, some edited "in the portal", with Content Hub rules,
-      orphans, a Microsoft-managed rule and a deprecated one beside them.
-      The module's three commands run against the same workspace on
-      another copy of the repository. Both must count the same, report the
-      same rules and fields, and leave the same files behind.
+      to E24): a query written back with its line breaks, case counted in a
+      query and a name, excluded sources skipped instead of exported again
+      as orphans, and a report that says what it did and carries no
+      resource id.
+    - Whole runs: the module's three commands, with their REST calls stood
+      in for, against a workspace built from this repository's analytics
+      rules as deploy would send them, some edited "in the portal", with
+      Content Hub rules, orphans, a Microsoft-managed rule and a deprecated
+      one beside them, on a copy of the repository. Every bucket must be
+      filled, what drifted absorbed and reported, and a second run must
+      find nothing more.
+
+    Parity with Tools/Test-SentinelRuleDrift.ps1, run against the same
+    workspace, was proven on release/26.11.0 before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Drift.Tests.ps1
@@ -37,18 +39,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.1
+    Version:      0.2.0
     Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
-
-    The parity block goes when Tools/Test-SentinelRuleDrift.ps1 is removed
-    at cut-over.
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     Import-Module powershell-yaml -ErrorAction Stop
     $script:workspacePath = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws'
     $script:fixtureRule = Join-Path $script:repoRoot 'Content/AnalyticalRules/AzureActivity/AzureVmRunCommandExecutionDetectionRule.yaml'
@@ -384,26 +382,8 @@ Describe 'Get-iSOCAnalyticsRuleSource' {
     }
 }
 
-Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
+Describe 'Whole runs against a workspace built from this repository' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Tools/Test-SentinelRuleDrift.ps1')
-        function Write-PipelineMessage { param($Message, $Level) }
-        function Connect-AzureEnvironment {
-            param($ResourceGroup, $Workspace, $Region, $SubscriptionId, [switch] $IsGov)
-            @{ SubscriptionId = '00000000-0000-0000-0000-000000000000'; ServerUrl = 'https://management.azure.com'; BaseUri = "https://management.azure.com$($script:workspacePath)"; WorkspaceResourceId = $script:workspacePath; WorkspaceId = 'c'; AuthHeader = @{} }
-        }
-        function Invoke-SentinelApi {
-            param($Uri, $Method, $Headers, $Body)
-            [pscustomobject]@{ value = @(Get-StandInAnswer -Path $Uri) }
-        }
-        $script:SentinelApiVersion = '2025-09-01'
-        $script:AlertRuleApiVersion = '2025-07-01-preview'
-        $script:ManagedRuleKinds = @('Fusion', 'MicrosoftSecurityIncidentCreation', 'MLBehaviorAnalytics', 'ThreatIntelligence')
-        $script:ResourceGroup = 'rg'
-        $script:Workspace = 'ws'
-        $script:Region = 'uksouth'
-
         # The stand-in workspace: every repository rule as deploy sends it,
         # with the API's spelling of its durations; some edited in the
         # portal; and the rules the repository does not have.
@@ -527,18 +507,6 @@ Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
             $copy
         }
 
-        function Invoke-LegacyDrift {
-            param([hashtable] $Setting = @{})
-            $copy = New-RepoCopy
-            $script:RepoPath = $copy
-            $script:Solutions = if ($Setting.ContainsKey('Solution')) { $Setting.Solution } else { @() }
-            $script:SeveritiesToInclude = if ($Setting.ContainsKey('Severity')) { $Setting.Severity } else { @('High', 'Medium', 'Low', 'Informational') }
-            foreach ($name in 'SkipContentHub', 'SkipCustom', 'SkipOrphans', 'ReportOnly', 'FailOnDrift', 'IsGov', 'WhatIf') { Set-Variable -Scope Script -Name $name -Value ([bool]$Setting[$name]) }
-            $script:SubscriptionId = $null
-            Invoke-Main
-            $copy
-        }
-
         function Invoke-ModuleDrift {
             param([hashtable] $Setting = @{}, [switch] $NoSync)
             $copy = New-RepoCopy
@@ -546,8 +514,6 @@ Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
             Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
             Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest { Get-StandInAnswer -Path $Path }
             $parameters = @{ Context = $script:context; RepoPath = $copy }
-            if ($Setting.ContainsKey('Solution')) { $parameters.Solution = $Setting.Solution }
-            if ($Setting.ContainsKey('Severity')) { $parameters.Severity = $Setting.Severity }
             $exclude = @(foreach ($pair in @(@('SkipContentHub', 'ContentHub'), @('SkipCustom', 'Custom'), @('SkipOrphans', 'Orphan'))) { if ($Setting[$pair[0]]) { $pair[1] } })
             if ($exclude.Count -gt 0) { $parameters.ExcludeSource = $exclude }
             $drift = Compare-iSOCContent @parameters
@@ -563,44 +529,6 @@ Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
             Get-Content -LiteralPath $file[0].FullName -Raw | ConvertFrom-Json -AsHashtable -Depth 30
         }
 
-        # The forms the script compared and reported: the module reports
-        # values as each side has them (MIGRATION.md edit E22).
-        function ConvertTo-LegacyValue {
-            param([string] $Field, $Value)
-            if ($null -eq $Value) { return $null }
-            switch ($Field) {
-                'query' { return (Convert-QueryWhitespace ([string]$Value)) }
-                { $_ -in 'queryFrequency', 'queryPeriod' } { return (ConvertTo-NormalisedDuration ([string]$Value)) }
-                'triggerOperator' { return (Convert-TriggerOperator ([string]$Value)) }
-                'severity' { return (Convert-Severity ([string]$Value)) }
-                'triggerThreshold' { return [int]$Value }
-            }
-            [string]$Value
-        }
-        function Get-ComparableReport {
-            param([System.Collections.IDictionary] $Report, [switch] $Module)
-            $shape = {
-                param($Entry)
-                $copy = [ordered]@{}
-                foreach ($key in $Entry.Keys) { if ($key -ne 'ruleId') { $copy[$key] = $Entry[$key] } }
-                if ($copy.Contains('modifiedFields')) {
-                    $copy.modifiedFields = @(foreach ($m in $copy.modifiedFields) {
-                            [ordered]@{
-                                field    = $m.field
-                                deployed = if ($Module) { ConvertTo-LegacyValue $m.field $m.deployed } else { $m.deployed }
-                                expected = if ($Module) { ConvertTo-LegacyValue $m.field $m.expected } else { $m.expected }
-                            }
-                        })
-                }
-                $copy
-            }
-            [ordered]@{
-                summary = $Report.summary
-                drifted = @($Report.drifted | Sort-Object { $_.ruleName } | ForEach-Object { & $shape $_ })
-                orphans = @($Report.orphans | Sort-Object { $_.ruleName } | ForEach-Object { & $shape $_ })
-            }
-        }
-
         # Every file under Content/ that differs between a copy and the
         # repository, as relative path to text.
         function Get-ChangedFile {
@@ -614,61 +542,27 @@ Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
             }
             $changed
         }
-        function Remove-QueryBlock {
-            param([string] $Text)
-            [regex]::Replace($Text, '(?m)^query:[ \t]*\|[^\r\n]*\r?\n(?:[ \t][^\r\n]*\r?\n?)*?(?=^[A-Za-z][\w-]*:)', "query: QUERY`n")
-        }
-        function Assert-SameFile {
-            param([string] $LegacyRepo, [string] $ModuleRepo)
-            $old = Get-ChangedFile $LegacyRepo
-            $new = Get-ChangedFile $ModuleRepo
-            @($new.Keys) | Should -Be @($old.Keys)
-            foreach ($path in $old.Keys) {
-                if ($new[$path] -ceq $old[$path]) { continue }
-                # Only the query may differ: the script wrote it collapsed.
-                (Remove-QueryBlock $new[$path]) | Should -BeExactly (Remove-QueryBlock $old[$path]) -Because $path
-                $newQuery = (ConvertFrom-Yaml $new[$path])['query']
-                Convert-QueryWhitespace $newQuery | Should -BeExactly (Convert-QueryWhitespace (ConvertFrom-Yaml $old[$path])['query']) -Because $path
-            }
-        }
     }
 
     Context 'the defaults: compare, absorb and report' {
         BeforeAll {
-            $script:legacyA = Invoke-LegacyDrift
             $script:moduleA = Invoke-ModuleDrift
-            $script:legacyReportA = Read-Report $script:legacyA
             $script:moduleReportA = Read-Report $script:moduleA.Repo
         }
 
         It 'exercises every bucket' {
-            $s = $script:legacyReportA.summary
+            $s = $script:moduleReportA.summary
             foreach ($bucket in 'contentHubClean', 'contentHubDrift', 'customClean', 'customDrift', 'orphan', 'managed', 'skipped') { $s[$bucket] | Should -BeGreaterThan 0 -Because $bucket }
             $s.customDrift | Should -Be (@($script:mutated.Keys | Where-Object { $_ -like 'Content/*' }).Count)
         }
 
-        It 'counts the same' {
-            ConvertTo-ParityJson $script:moduleReportA.summary | Should -BeExactly (ConvertTo-ParityJson $script:legacyReportA.summary)
-        }
-
-        It 'reports the same rules and changed fields' {
-            $old = Get-ComparableReport $script:legacyReportA
-            $new = Get-ComparableReport $script:moduleReportA -Module
-            ConvertTo-ParityJson $new.drifted | Should -BeExactly (ConvertTo-ParityJson $old.drifted)
-            ConvertTo-ParityJson $new.orphans | Should -BeExactly (ConvertTo-ParityJson $old.orphans)
-        }
-
-        It 'leaves the same files, the query written with its line breaks (MIGRATION.md edit E22)' {
-            Assert-SameFile $script:legacyA $script:moduleA.Repo
+        It 'writes an edited query back with its line breaks (MIGRATION.md edit E22)' {
             $queryEdited = @($script:moduleA.Drift.Items | Where-Object { $_.State -eq 'PortalEdit' -and $_.Modifications.Field -contains 'query' })[0]
-            $legacyText = Get-Content -LiteralPath (Join-Path $script:legacyA $queryEdited.SourceRef) -Raw
             $moduleText = Get-Content -LiteralPath (Join-Path $script:moduleA.Repo $queryEdited.SourceRef) -Raw
-            @((ConvertFrom-Yaml $legacyText)['query'].Trim() -split "`n").Count | Should -Be 1
             (ConvertFrom-Yaml $moduleText)['query'].TrimEnd() | Should -BeExactly ([string]$queryEdited.WorkspaceItem.properties.query).TrimEnd()
         }
 
         It 'writes no resource id, so no subscription id, into the report (MIGRATION.md edit E24)' {
-            @($script:legacyReportA.drifted)[0].Contains('ruleId') | Should -BeTrue
             $files = Get-ChildItem -LiteralPath (Join-Path $script:moduleA.Repo 'reports') -File
             $files.Count | Should -Be 2
             foreach ($file in $files) { Get-Content -LiteralPath $file.FullName -Raw | Should -Not -Match '00000000-0000-0000-0000-000000000000' }
@@ -700,19 +594,11 @@ Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
 
     Context 'report only' {
         BeforeAll {
-            $script:legacyB = Invoke-LegacyDrift -Setting @{ ReportOnly = $true }
             $script:moduleB = Invoke-ModuleDrift -NoSync
         }
 
         It 'changes no rule file' {
-            (Get-ChangedFile $script:legacyB).Count | Should -Be 0
             (Get-ChangedFile $script:moduleB.Repo).Count | Should -Be 0
-        }
-
-        It 'reports the same' {
-            $old = Get-ComparableReport (Read-Report $script:legacyB)
-            $new = Get-ComparableReport (Read-Report $script:moduleB.Repo) -Module
-            ConvertTo-ParityJson $new | Should -BeExactly (ConvertTo-ParityJson $old)
         }
 
         It 'says in the Markdown that nothing was written (MIGRATION.md edit E24)' {
@@ -723,40 +609,18 @@ Describe 'Parity with Tools/Test-SentinelRuleDrift.ps1' {
         }
     }
 
-    Context 'one solution and two severities' {
-        BeforeAll {
-            $setting = @{ Solution = @('Fixture Alpha'); Severity = @('High', 'Medium') }
-            $script:legacyC = Invoke-LegacyDrift -Setting $setting
-            $script:moduleC = Invoke-ModuleDrift -Setting $setting
-        }
-
-        It 'reports the same' {
-            $old = Get-ComparableReport (Read-Report $script:legacyC)
-            $new = Get-ComparableReport (Read-Report $script:moduleC.Repo) -Module
-            ConvertTo-ParityJson $new | Should -BeExactly (ConvertTo-ParityJson $old)
-        }
-
-        It 'leaves the same files' { Assert-SameFile $script:legacyC $script:moduleC.Repo }
-    }
-
     Context 'a source left out (MIGRATION.md edit E23)' {
-        It 'skips Content Hub rules, where the script exported them again as orphans' {
-            $legacy = Read-Report (Invoke-LegacyDrift -Setting @{ SkipContentHub = $true })
+        It 'skips Content Hub rules, rather than exporting them again as orphans' {
             $module = Invoke-ModuleDrift -Setting @{ SkipContentHub = $true }
             $linked = @($module.Drift.Items | Where-Object { $_.Source -eq 'ContentHub' })
             $linked.Count | Should -BeGreaterThan 0
             @($linked.State | Select-Object -Unique) | Should -Be @('Skipped')
-            $legacy.summary.orphan | Should -Be ($module.Drift.Summary.orphan + $linked.Count)
-            @($legacy.orphans.ruleName) | Should -Contain 'a2a2a2a2-0000-4000-8000-000000000002'
         }
 
-        It 'skips repository rules, where the script exported every one of them again as an orphan' {
-            $legacyRepo = Invoke-LegacyDrift -Setting @{ SkipCustom = $true }
+        It 'skips repository rules, rather than exporting every one of them again as an orphan' {
             $module = Invoke-ModuleDrift -Setting @{ SkipCustom = $true }
             $governed = @($module.Drift.Items | Where-Object { $_.Source -eq 'Custom' })
             @($governed.State | Select-Object -Unique) | Should -Be @('Skipped')
-            $legacyOrphanFiles = @((Get-ChangedFile $legacyRepo).Keys | Where-Object { $_ -like '*/Orphans/*' })
-            $legacyOrphanFiles.Count | Should -BeGreaterThan 100
             @((Get-ChangedFile $module.Repo).Keys | Where-Object { $_ -like '*/Orphans/*' }).Count | Should -Be 3
         }
     }

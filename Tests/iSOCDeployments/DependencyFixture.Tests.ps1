@@ -3,22 +3,23 @@
 
 <#
 .SYNOPSIS
-    Tests for New-iSOCDependencyFixture and Remove-iSOCDependencyFixture,
-    against Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1.
+    Tests for New-iSOCDependencyFixture and Remove-iSOCDependencyFixture.
 
 .DESCRIPTION
     The naming plan, rule ids, ownership tests, alias guard and body
-    builders run beside the script's own and must answer the same.
+    builders are held to explicit expected values for a handful of
+    representative inputs.
 
-    Then the script runs unchanged in a child pwsh, its Az cmdlets,
-    Invoke-RestMethod and Start-Sleep stood in for, and the commands run
-    through mocks of the module's REST client, HTTP client and log query,
-    over one stand-in workspace
+    The commands run through mocks of the module's REST client, HTTP client
+    and log query, over one stand-in workspace
     (Tests/iSOCDeployments/_helpers/DependencyFixtureStandIn.psm1) that
     validates rule queries, refuses to delete classic tables, checks Data
-    Collector signatures, and changes as it is written to. For each run both
-    must make the same posts, saved searches, rules, migrations and
-    deletions, in order, refuse the same way, and return the same result.
+    Collector signatures, and changes as it is written to: each refusal must
+    give its message and write nothing, and a full run and a removal must
+    write every kind of object.
+
+    Parity with New-DependencyFixture.ps1 was proven on release/26.11.0
+    before the script was removed.
 
 .NOTES
     File:         Tests/iSOCDeployments/DependencyFixture.Tests.ps1
@@ -26,102 +27,26 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
 BeforeDiscovery {
-    $script:runs = @(
-        @{ Label = 'every scenario'; Parameters = @{} }
-        @{ Label = 'the hunting query, which brings OneHop, with rules enabled'; Parameters = @{ Scenario = @('Hunt'); EnableRules = $true } }
-        @{ Label = 'a live query, unclamped'; Parameters = @{ Scenario = @('Direct'); EnableRules = $true; EnableRulesWithLiveQuery = $true } }
-        @{ Label = 'a fixture already there'; Existing = $true; Parameters = @{} }
-        @{ Label = 'a fixture already there, reseeded'; Existing = $true; Parameters = @{ Reseed = $true; Scenario = @('OneHop', 'Orphan') } }
-        @{ Label = 'rules whose queries resolve only on a second try'; RaceOnce = $true; Parameters = @{ Scenario = @('OneHop', 'TwoHop') } }
-        @{ Label = 'another prefix'; Parameters = @{ NamePrefix = 'Bravo'; RecordCount = 2 } }
-        @{ Label = '-WhatIf'; Parameters = @{ WhatIf = $true } }
-        @{ Label = 'a removal'; Remove = $true; Existing = $true; UnmarkedOrphan = $true; Parameters = @{} }
-        @{ Label = 'a removal migrating classic tables'; Remove = $true; Existing = $true; UnmarkedOrphan = $true; Parameters = @{ MigrateBeforeRemove = $true } }
-        @{ Label = 'a removal taking the unmarked table too'; Remove = $true; Existing = $true; UnmarkedOrphan = $true; Parameters = @{ MigrateBeforeRemove = $true; RemoveUnmarkedTable = $true } }
-        @{ Label = 'a removal of one scenario'; Remove = $true; Existing = $true; Parameters = @{ Scenario = @('Direct') } }
-        @{ Label = 'a removal under -WhatIf'; Remove = $true; Existing = $true; Parameters = @{ MigrateBeforeRemove = $true; WhatIf = $true } }
-        @{ Label = 'a removal from a clean workspace'; Remove = $true; Parameters = @{} }
-    )
     $script:refusals = @(
-        @{ Label = 'an alias another parser has'; Parameters = @{ NamePrefix = 'Coll' } }
-        @{ Label = 'an alias a workspace table has'; Parameters = @{ NamePrefix = 'Sec' } }
-        @{ Label = 'a table name taken by someone else'; Parameters = @{ NamePrefix = 'Taken' } }
-        @{ Label = 'a workspace without Sentinel'; NotOnboarded = $true; Parameters = @{} }
-        @{ Label = 'a live query without -EnableRules'; Parameters = @{ EnableRulesWithLiveQuery = $true } }
+        @{ Label = 'an alias another parser has'; Parameters = @{ NamePrefix = 'Coll' }; Message = 'Refusing to create the fixture. A function alias would shadow a table or an existing parser for every query in this workspace. Pick a different -NamePrefix.' }
+        @{ Label = 'an alias a workspace table has'; Parameters = @{ NamePrefix = 'Sec' }; Message = 'Refusing to create the fixture. A function alias would shadow a table or an existing parser for every query in this workspace. Pick a different -NamePrefix.' }
+        @{ Label = 'a table name taken by someone else'; Parameters = @{ NamePrefix = 'Taken' }; Message = 'Refusing to create the fixture. One or more target names belong to existing content. Nothing was written. Pick a different -NamePrefix.' }
+        @{ Label = 'a workspace without Sentinel'; NotOnboarded = $true; Parameters = @{}; Message = 'Microsoft Sentinel is not onboarded on workspace ''law-sentinel''. The analytics rules could never be created, and a partial fixture is worse than none.' }
+        @{ Label = 'a live query without -EnableRules'; Parameters = @{ EnableRulesWithLiveQuery = $true }; Message = '-EnableRulesWithLiveQuery only has meaning with -EnableRules. Two separate switches are required on purpose, so neither can be reached by a typo.' }
     )
 }
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:scriptPath = Join-Path $script:repoRoot 'Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1'
     $script:helperPath = Join-Path $PSScriptRoot '_helpers/DependencyFixtureStandIn.psm1'
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     Import-Module $script:helperPath -Force
-
-    $script:wrapper = @'
-param([string] $Script, [string] $Helper, [string] $Parameters, [string] $Out, [switch] $Existing, [switch] $UnmarkedOrphan, [switch] $NotOnboarded, [switch] $RaceOnce)
-$ErrorActionPreference = 'Stop'
-Import-Module $Helper -Force
-$global:DepState = Get-DependencyFixtureStandIn -Existing:$Existing -UnmarkedOrphan:$UnmarkedOrphan -NotOnboarded:$NotOnboarded -RaceOnce:$RaceOnce
-function Get-AzContext { [pscustomobject]@{ Subscription = [pscustomobject]@{ Id = $global:DepState.SubscriptionId }; Account = [pscustomobject]@{ Id = 'tester' } } }
-function Set-AzContext { param($Subscription, $WhatIf) }
-function Get-AzOperationalInsightsWorkspace { param($ResourceGroupName, $Name) [pscustomobject]@{ CustomerId = [guid]$global:DepState.WorkspaceId; ResourceId = $global:DepState.WorkspacePath } }
-function Get-AzOperationalInsightsWorkspaceSharedKey { param($ResourceGroupName, $Name) [pscustomobject]@{ PrimarySharedKey = $global:DepState.SharedKey } }
-function Invoke-AzRestMethod {
-    param($Path, $Uri, $Method = 'GET', $Payload)
-    $t = if ($Path) { $Path } else { ([Uri]$Uri).PathAndQuery }
-    $a = Invoke-DependencyFixtureArm -State $global:DepState -Method $Method -Path $t -Body $Payload
-    [pscustomobject]@{ StatusCode = $a.Status; Content = $(if ($null -ne $a.Body) { ConvertTo-Json -InputObject $a.Body -Depth 30 } else { '' }) }
-}
-function Invoke-RestMethod {
-    param($Uri, $Method, $ContentType, $Headers, $Body)
-    $s = Invoke-DependencyFixtureCollector -State $global:DepState -Uri $Uri -Headers $Headers -Body $Body
-    if ($s -ne 200) { throw "Response status code does not indicate success: $s." }
-}
-function Invoke-AzOperationalInsightsQuery { param($WorkspaceId, $Query, $ErrorAction) Invoke-DependencyFixtureQuery -State $global:DepState -Query $Query }
-function Invoke-AzOperationalInsightsMigrateTable { param($ResourceGroupName, $WorkspaceName, $TableName, $Confirm) $null = Invoke-DependencyFixtureArm -State $global:DepState -Method POST -Path "$($global:DepState.WorkspacePath)/tables/$TableName/migrate" }
-function Start-Sleep { param($Seconds) }
-$splat = Get-Content -LiteralPath $Parameters -Raw | ConvertFrom-Json -AsHashtable
-$code = 0
-$result = $null
-try { $result = & $Script @splat }
-catch { $code = 1; Set-Content -LiteralPath (Join-Path $Out 'error.txt') -Value $_.Exception.Message }
-Set-Content -LiteralPath (Join-Path $Out 'results.json') -Value (ConvertTo-Json -InputObject @($result) -Depth 10)
-Set-Content -LiteralPath (Join-Path $Out 'writes.json') -Value (ConvertTo-Json -InputObject @($global:DepState.Writes) -Depth 10)
-exit $code
-'@
-
-    function Invoke-LegacyFixture {
-        param([hashtable] $Parameters, [switch] $Remove, [hashtable] $StandIn = @{})
-        $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-        $kit = Join-Path $tree 'Rehearsal'
-        $out = Join-Path $tree 'out'
-        New-Item -ItemType Directory -Path $kit, $out -Force | Out-Null
-        Copy-Item -LiteralPath (Join-Path $script:repoRoot 'Tools/ClassicToDcr/data') -Destination $tree -Recurse
-        $copy = Join-Path $kit 'New-DependencyFixture.ps1'
-        Set-Content -LiteralPath $copy -Value ((Get-Content -LiteralPath $script:scriptPath -Raw) -replace '(?m)^#Requires -Modules[^\r\n]*\r?\n', '') -NoNewline
-        Set-Content -LiteralPath (Join-Path $tree 'run.ps1') -Value $script:wrapper
-        $splat = @{ ResourceGroupName = 'rg-sentinel'; WorkspaceName = 'law-sentinel'; Confirm = $false } + $Parameters
-        if ($Remove) { $splat.Remove = $true }
-        Set-Content -LiteralPath (Join-Path $tree 'parameters.json') -Value (ConvertTo-Json -InputObject $splat)
-        $switches = @{}
-        foreach ($k in 'Existing', 'UnmarkedOrphan', 'NotOnboarded', 'RaceOnce') { if ($StandIn[$k]) { $switches[$k] = $true } }
-        $output = & pwsh -NoProfile -NonInteractive -File (Join-Path $tree 'run.ps1') -Script $copy -Helper $script:helperPath -Parameters (Join-Path $tree 'parameters.json') -Out $out @switches 2>&1 | Out-String
-        $errorFile = Join-Path $out 'error.txt'
-        [pscustomobject]@{
-            ExitCode = $LASTEXITCODE
-            Output   = $output
-            Error    = if (Test-Path -LiteralPath $errorFile) { (Get-Content -LiteralPath $errorFile -Raw).Trim() } else { $null }
-            Result   = @(Get-Content -LiteralPath (Join-Path $out 'results.json') -Raw | ConvertFrom-Json -Depth 10 | Where-Object { $null -ne $_ }) | Select-Object -First 1
-            Writes   = @(Get-Content -LiteralPath (Join-Path $out 'writes.json') -Raw | ConvertFrom-Json -Depth 10 | Where-Object { $null -ne $_ })
-        }
-    }
 
     function Invoke-ModuleFixture {
         param([hashtable] $Parameters, [switch] $Remove, [hashtable] $StandIn = @{})
@@ -161,57 +86,53 @@ exit $code
         catch { $failure = $_.Exception.Message }
         [pscustomobject]@{ Result = $result; Error = $failure; Writes = @($script:depState.Writes) }
     }
-
-    function ConvertTo-ComparableResult {
-        param($Result)
-        if ($null -eq $Result) { return 'none' }
-        $o = [ordered]@{}
-        foreach ($n in $Result.PSObject.Properties.Name) { if ($n -notin 'RunId', 'PSTypeName') { $o[$n] = $Result.$n } }
-        ConvertTo-StandInCanonical $o
-    }
 }
 
-Describe 'The dependency fixture helpers, beside the script''s' {
+Describe 'The dependency fixture helpers' {
     BeforeAll {
-        $script:DataCollectorApiVersion = '2016-04-01'
-        $script:FixtureMarker = 'ClassicToDcr-DependencyFixture'
-        $script:FixtureTagName = 'SacFixture'
-        $script:FixtureRunTag = 'SacFixtureRun'
-        $script:FixtureScenTag = 'SacFixtureScenario'
-        $script:MarkerFieldName = 'SacFixtureMarker'
-        $script:MarkerColumnName = 'SacFixtureMarker_s'
-        $script:RuleIdNamespace = 'Sentinel-As-Code/ClassicToDcr/DependencyFixture'
-        $script:QueryClamp = '| where 1 == 0'
-        $script:ScenarioOrder = @('Direct', 'OneHop', 'TwoHop', 'Cycle', 'Orphan', 'Hunt')
-        $script:ReservedTableFloor = @('SecurityEvent', 'SigninLogs')
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path $script:scriptPath
         $script:state = Get-DependencyFixtureStandIn -Existing -UnmarkedOrphan
         $script:asObjects = { param($Items) @($Items | ForEach-Object { $_ | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30 }) }
     }
 
-    It 'plans the same objects, for <Label>' -ForEach @(
-        @{ Label = 'every scenario'; Prefix = 'SacDep'; Scenario = $null; Clamp = '| where 1 == 0' }
-        @{ Label = 'Hunt alone'; Prefix = 'Alpha'; Scenario = @('Hunt'); Clamp = '| where 1 == 0' }
-        @{ Label = 'no clamp'; Prefix = 'Bravo99'; Scenario = @('Cycle', 'direct'); Clamp = '' }
+    It 'plans the objects, for <Label>' -ForEach @(
+        @{ Label = 'every scenario'; Prefix = 'SacDep'; Scenario = $null; Clamp = '| where 1 == 0'
+            Expected = '{"Alias":["SacDepOneHopParser","SacDepInnerParser","SacDepOuterParser","SacDepCycleA","SacDepCycleB"],' +
+                '"HuntingQuery":[{"DisplayName":"SacDep fixture hunting query via parser","Query":"SacDepOneHopParser\n| summarize Hits = count() by SourceHost_s","SavedSearchId":"SacDep-Hunt","ScenarioName":"Hunt"}],' +
+                '"NamePrefix":"SacDep",' +
+                '"Parser":[{"Alias":"SacDepOneHopParser","DisplayName":"SacDep fixture one-hop parser","IsCycleClosure":false,"Order":1,"Query":"SacDepOneHop_CL\n| project TimeGenerated, SourceHost_s, Severity_s, SacFixtureMarker_s","SavedSearchId":"SacDep-OneHopParser","ScenarioName":"OneHop"},{"Alias":"SacDepInnerParser","DisplayName":"SacDep fixture inner parser","IsCycleClosure":false,"Order":2,"Query":"SacDepTwoHop_CL\n| project TimeGenerated, SourceHost_s, Severity_s, SacFixtureMarker_s","SavedSearchId":"SacDep-InnerParser","ScenarioName":"TwoHop"},{"Alias":"SacDepOuterParser","DisplayName":"SacDep fixture outer parser","IsCycleClosure":false,"Order":3,"Query":"SacDepInnerParser\n| where isnotempty(SourceHost_s)","SavedSearchId":"SacDep-OuterParser","ScenarioName":"TwoHop"},{"Alias":"SacDepCycleA","DisplayName":"SacDep fixture cycle parser A","IsCycleClosure":false,"Order":4,"Query":"SacDepCycle_CL\n| project TimeGenerated, SourceHost_s, Severity_s, SacFixtureMarker_s","SavedSearchId":"SacDep-CycleA","ScenarioName":"Cycle"},{"Alias":"SacDepCycleB","DisplayName":"SacDep fixture cycle parser B","IsCycleClosure":false,"Order":5,"Query":"SacDepCycleA\n| where isnotempty(SourceHost_s)","SavedSearchId":"SacDep-CycleB","ScenarioName":"Cycle"},{"Alias":"SacDepCycleA","DisplayName":"SacDep fixture cycle parser A","IsCycleClosure":true,"Order":6,"Query":"union SacDepCycle_CL, SacDepCycleB\n| project TimeGenerated, SourceHost_s","SavedSearchId":"SacDep-CycleA","ScenarioName":"Cycle"}],' +
+                '"Rule":[{"DisplayName":"SacDep fixture - direct table reference","IsIndirect":false,"Query":"SacDepDirect_CL\n| where 1 == 0","RuleId":"412fec7b-ed6b-b50b-341e-accf45200b25","ScenarioName":"Direct"},{"DisplayName":"SacDep fixture - one hop through a parser","IsIndirect":true,"Query":"SacDepOneHopParser\n| where 1 == 0","RuleId":"00545365-7482-4581-4bc7-ec52f79e0354","ScenarioName":"OneHop"},{"DisplayName":"SacDep fixture - two hops through parsers","IsIndirect":true,"Query":"SacDepOuterParser\n| where 1 == 0","RuleId":"a7364c68-7dfd-3219-7cea-09e53a04ecb3","ScenarioName":"TwoHop"},{"DisplayName":"SacDep fixture - table also read by a cyclic parser pair","IsIndirect":false,"Query":"SacDepCycle_CL\n| where 1 == 0","RuleId":"d080f63f-d32d-07e8-5865-d778be0f3b63","ScenarioName":"Cycle"}],' +
+                '"ScenarioName":["Direct","OneHop","TwoHop","Cycle","Orphan","Hunt"],' +
+                '"Table":[{"LogType":"SacDepDirect","ScenarioName":"Direct","TableName":"SacDepDirect_CL"},{"LogType":"SacDepOneHop","ScenarioName":"OneHop","TableName":"SacDepOneHop_CL"},{"LogType":"SacDepTwoHop","ScenarioName":"TwoHop","TableName":"SacDepTwoHop_CL"},{"LogType":"SacDepCycle","ScenarioName":"Cycle","TableName":"SacDepCycle_CL"},{"LogType":"SacDepOrphan","ScenarioName":"Orphan","TableName":"SacDepOrphan_CL"}]}'
+        }
+        @{ Label = 'Hunt alone'; Prefix = 'Alpha'; Scenario = @('Hunt'); Clamp = '| where 1 == 0'
+            Expected = '{"Alias":["AlphaOneHopParser"],' +
+                '"HuntingQuery":[{"DisplayName":"Alpha fixture hunting query via parser","Query":"AlphaOneHopParser\n| summarize Hits = count() by SourceHost_s","SavedSearchId":"Alpha-Hunt","ScenarioName":"Hunt"}],' +
+                '"NamePrefix":"Alpha",' +
+                '"Parser":[{"Alias":"AlphaOneHopParser","DisplayName":"Alpha fixture one-hop parser","IsCycleClosure":false,"Order":1,"Query":"AlphaOneHop_CL\n| project TimeGenerated, SourceHost_s, Severity_s, SacFixtureMarker_s","SavedSearchId":"Alpha-OneHopParser","ScenarioName":"OneHop"}],' +
+                '"Rule":[{"DisplayName":"Alpha fixture - one hop through a parser","IsIndirect":true,"Query":"AlphaOneHopParser\n| where 1 == 0","RuleId":"d80fc495-839a-a41d-b56a-d2a7969e55cb","ScenarioName":"OneHop"}],' +
+                '"ScenarioName":["OneHop","Hunt"],' +
+                '"Table":[{"LogType":"AlphaOneHop","ScenarioName":"OneHop","TableName":"AlphaOneHop_CL"}]}'
+        }
+        @{ Label = 'no clamp'; Prefix = 'Bravo99'; Scenario = @('Cycle', 'direct'); Clamp = ''
+            Expected = '{"Alias":["Bravo99CycleA","Bravo99CycleB"],' +
+                '"HuntingQuery":[],' +
+                '"NamePrefix":"Bravo99",' +
+                '"Parser":[{"Alias":"Bravo99CycleA","DisplayName":"Bravo99 fixture cycle parser A","IsCycleClosure":false,"Order":4,"Query":"Bravo99Cycle_CL\n| project TimeGenerated, SourceHost_s, Severity_s, SacFixtureMarker_s","SavedSearchId":"Bravo99-CycleA","ScenarioName":"Cycle"},{"Alias":"Bravo99CycleB","DisplayName":"Bravo99 fixture cycle parser B","IsCycleClosure":false,"Order":5,"Query":"Bravo99CycleA\n| where isnotempty(SourceHost_s)","SavedSearchId":"Bravo99-CycleB","ScenarioName":"Cycle"},{"Alias":"Bravo99CycleA","DisplayName":"Bravo99 fixture cycle parser A","IsCycleClosure":true,"Order":6,"Query":"union Bravo99Cycle_CL, Bravo99CycleB\n| project TimeGenerated, SourceHost_s","SavedSearchId":"Bravo99-CycleA","ScenarioName":"Cycle"}],' +
+                '"Rule":[{"DisplayName":"Bravo99 fixture - direct table reference","IsIndirect":false,"Query":"Bravo99Direct_CL","RuleId":"d3e59fda-4962-8e5e-215d-96d7130da334","ScenarioName":"Direct"},{"DisplayName":"Bravo99 fixture - table also read by a cyclic parser pair","IsIndirect":false,"Query":"Bravo99Cycle_CL","RuleId":"295c5405-3741-a2b1-05e6-e8c92f9146bb","ScenarioName":"Cycle"}],' +
+                '"ScenarioName":["Direct","Cycle"],' +
+                '"Table":[{"LogType":"Bravo99Direct","ScenarioName":"Direct","TableName":"Bravo99Direct_CL"},{"LogType":"Bravo99Cycle","ScenarioName":"Cycle","TableName":"Bravo99Cycle_CL"}]}'
+        }
     ) {
-        $old = Get-FixtureNamingPlan -NamePrefix $Prefix -ScenarioName $Scenario -QueryClamp $Clamp
         $new = InModuleScope iSOCDeployments -Parameters @{ P = $Prefix; S = $Scenario; C = $Clamp } { param($P, $S, $C) Get-iSOCFixtureNamingPlan -NamePrefix $P -ScenarioName $S -QueryClamp $C }
-        (ConvertTo-StandInCanonical $new) | Should -BeExactly (ConvertTo-StandInCanonical $old)
+        (ConvertTo-StandInCanonical $new) | Should -BeExactly $Expected
     }
 
-    It 'judges ownership the same' {
+    It 'judges ownership' {
         $tables = & $script:asObjects ((Invoke-DependencyFixtureArm -State $script:state -Method GET -Path "$($script:state.WorkspacePath)/tables").Body.value)
         $saved = & $script:asObjects $script:state.Saved.Values
         $rules = & $script:asObjects $script:state.Rules.Values
         $names = @('SacDepDirect_CL', 'SacDepOneHop_CL', 'SacDepOrphan_CL', 'SecOneHopParser')
-        $ids = @((Get-FixtureNamingPlan -NamePrefix SacDep).Rule.RuleId)
-        $old = [ordered]@{
-            Tables = @($tables | ForEach-Object { Test-FixtureOwnedTable -Table $_ -ExpectedTableName $names })
-            Saved  = @($saved | ForEach-Object { Test-FixtureOwnedSavedSearch -SavedSearch $_ -FixtureMarker $script:FixtureMarker })
-            Rules  = @($rules | ForEach-Object { Test-FixtureOwnedAlertRule -AlertRule $_ -FixtureMarker $script:FixtureMarker -ExpectedRuleId $ids })
-            Sub    = @($tables | ForEach-Object { Get-TableSubType -Table $_ })
-        }
+        $ids = @('412fec7b-ed6b-b50b-341e-accf45200b25', '00545365-7482-4581-4bc7-ec52f79e0354', 'a7364c68-7dfd-3219-7cea-09e53a04ecb3', 'd080f63f-d32d-07e8-5865-d778be0f3b63')
         $new = InModuleScope iSOCDeployments -Parameters @{ T = $tables; S = $saved; R = $rules; N = $names; I = $ids } {
             param($T, $S, $R, $N, $I)
             $m = (Get-iSOCDependencyFixtureSetting).FixtureMarker
@@ -222,31 +143,36 @@ Describe 'The dependency fixture helpers, beside the script''s' {
                 Sub    = @($T | ForEach-Object { $s = [string](Get-iSOCPropertyValue -InputObject $_ -Path 'properties.schema.tableSubType'); if ($s) { $s } else { 'Unknown' } })
             }
         }
-        (ConvertTo-StandInCanonical $new) | Should -BeExactly (ConvertTo-StandInCanonical $old)
-        @($old.Tables) | Should -Contain $true
-        @($old.Tables) | Should -Contain $false
-        @($old.Rules) | Should -Contain $true
+        @($tables.name) | Should -Be @('SecurityEvent', 'SigninLogs', 'SecOneHopParser', 'TakenDirect_CL', 'SacDepDirect_CL', 'SacDepOneHop_CL', 'SacDepTwoHop_CL', 'SacDepCycle_CL', 'SacDepOrphan_CL')
+        @($saved.name) | Should -Be @('cust-parser', 'SacDepNotes', 'SacDep-OneHopParser', 'SacDep-InnerParser', 'SacDep-OuterParser', 'SacDep-CycleA', 'SacDep-CycleB', 'SacDep-Hunt', 'SacDep-OldStray')
+        @($rules.name) | Should -Be @('cust-rule', 'hub-rule', '412fec7b-ed6b-b50b-341e-accf45200b25', '00545365-7482-4581-4bc7-ec52f79e0354', 'a7364c68-7dfd-3219-7cea-09e53a04ecb3', 'd080f63f-d32d-07e8-5865-d778be0f3b63')
+        (ConvertTo-StandInCanonical $new) | Should -BeExactly '{"Rules":[false,false,true,true,true,true],"Saved":[false,false,true,true,true,true,true,true,true],"Sub":["Any","Any","DataCollectionRuleBased","Classic","DataCollectionRuleBased","Classic","Classic","DataCollectionRuleBased","Classic"],"Tables":[false,false,false,false,true,true,false,false,false]}'
+        @($new.Tables) | Should -Contain $true
+        @($new.Tables) | Should -Contain $false
+        @($new.Rules) | Should -Contain $true
     }
 
-    It 'guards aliases and decides actions the same' {
-        $cases = @(@{ A = 'SigninLogs' }, @{ A = 'signinlogs' }, @{ A = 'OfficeActivity' }, @{ A = 'CollOneHopParser' }, @{ A = 'FreshParser' })
-        $old = foreach ($c in $cases) { Get-AliasCollisionReason -Alias $c.A -WorkspaceTableName 'SigninLogs' -ReservedName 'OfficeActivity' -ForeignAlias 'CollOneHopParser' }
-        $new = InModuleScope iSOCDeployments -Parameters @{ Cases = $cases } { param($Cases) foreach ($c in $Cases) { Get-iSOCAliasCollisionReason -Alias $c.A -WorkspaceTableName 'SigninLogs' -ReservedName 'OfficeActivity' -ForeignAlias 'CollOneHopParser' } }
-        @($new) | Should -Be @($old)
-        $acts = foreach ($e in $null, 'x') { foreach ($o in $true, $false) { foreach ($r in $true, $false) { Get-FixtureObjectAction -Existing $e -IsOwned $o -ForRemoval:$r } } }
-        $newActs = InModuleScope iSOCDeployments { foreach ($e in $null, 'x') { foreach ($o in $true, $false) { foreach ($r in $true, $false) { Get-iSOCFixtureObjectAction -Existing $e -IsOwned $o -ForRemoval:$r } } } }
-        @($newActs) | Should -Be @($acts)
-    }
-
-    It 'builds the same saved search and rule bodies and records' {
-        $at = [datetime]::new(2026, 11, 4, 9, 0, 0, [System.DateTimeKind]::Utc)
-        $old = [ordered]@{
-            Saved   = New-SavedSearchBody -Category 'C' -DisplayName 'D' -Query 'Q' -FixtureMarker 'M' -RunId 'R' -ScenarioName 'S' -FunctionAlias 'A'
-            Hunt    = New-SavedSearchBody -Category 'Hunting Queries' -DisplayName 'D' -Query 'Q' -FixtureMarker 'M' -RunId 'R' -ScenarioName 'S'
-            Rule    = New-AlertRuleBody -DisplayName 'D' -Description 'X' -Query 'Q' -Enabled $true
-            Records = New-DependencyFixtureRecord -Count 4 -ReferenceTime $at -Marker 'M|R' -ScenarioName 'OneHop'
-            Id      = New-FixtureRuleId -NamePrefix 'SacDep' -ScenarioName 'TwoHop'
+    It 'guards aliases and decides actions' {
+        $cases = @(
+            @{ A = 'SigninLogs'; Reason = 'alias ''SigninLogs'' matches a table that exists in this workspace; a function alias shadows a table for every query in the workspace' }
+            @{ A = 'signinlogs'; Reason = 'alias ''signinlogs'' matches a table that exists in this workspace; a function alias shadows a table for every query in the workspace' }
+            @{ A = 'OfficeActivity'; Reason = 'alias ''OfficeActivity'' matches a known Log Analytics or Content Hub table name' }
+            @{ A = 'CollOneHopParser'; Reason = 'alias ''CollOneHopParser'' is already used by a saved search that this fixture does not own' }
+            @{ A = 'FreshParser'; Reason = $null }
+        )
+        $new = InModuleScope iSOCDeployments -Parameters @{ Cases = $cases } { param($Cases) foreach ($c in $Cases) { , @(Get-iSOCAliasCollisionReason -Alias $c.A -WorkspaceTableName 'SigninLogs' -ReservedName 'OfficeActivity' -ForeignAlias 'CollOneHopParser') } }
+        @($new).Count | Should -Be $cases.Count
+        for ($i = 0; $i -lt $cases.Count; $i++) {
+            $reason = @(@($new)[$i] | Where-Object { $null -ne $_ })
+            if ($null -eq $cases[$i].Reason) { $reason | Should -BeNullOrEmpty -Because $cases[$i].A }
+            else { $reason | Should -BeExactly @($cases[$i].Reason) -Because $cases[$i].A }
         }
+        $newActs = InModuleScope iSOCDeployments { foreach ($e in $null, 'x') { foreach ($o in $true, $false) { foreach ($r in $true, $false) { Get-iSOCFixtureObjectAction -Existing $e -IsOwned $o -ForRemoval:$r } } } }
+        @($newActs) | Should -BeExactly @('ABSENT', 'CREATE', 'ABSENT', 'CREATE', 'DELETE', 'UPDATE', 'SKIP', 'ABORT')
+    }
+
+    It 'builds the saved search and rule bodies and records' {
+        $at = [datetime]::new(2026, 11, 4, 9, 0, 0, [System.DateTimeKind]::Utc)
         $new = InModuleScope iSOCDeployments -Parameters @{ At = $at } {
             param($At)
             [ordered]@{
@@ -257,40 +183,20 @@ Describe 'The dependency fixture helpers, beside the script''s' {
                 Id      = New-iSOCFixtureRuleId -NamePrefix 'SacDep' -ScenarioName 'TwoHop'
             }
         }
-        (ConvertTo-StandInCanonical $new) | Should -BeExactly (ConvertTo-StandInCanonical $old)
+        $expected = '{"Hunt":{"etag":"*","properties":{"category":"Hunting Queries","displayName":"D","query":"Q","tags":[{"name":"SacFixture","value":"M"},{"name":"SacFixtureRun","value":"R"},{"name":"SacFixtureScenario","value":"S"}],"version":2}},' +
+            '"Id":"a7364c68-7dfd-3219-7cea-09e53a04ecb3",' +
+            '"Records":[{"Message":"Dependency fixture record 0 for scenario OneHop.","SacFixtureMarker":"M|R","Scenario":"OneHop","Severity":"Information","SourceHost":"fixture-01","Timestamp":"2026-11-04T09:00:00.0000000Z"},{"Message":"Dependency fixture record 1 for scenario OneHop.","SacFixtureMarker":"M|R","Scenario":"OneHop","Severity":"Warning","SourceHost":"fixture-02","Timestamp":"2026-11-04T08:59:59.0000000Z"},{"Message":"Dependency fixture record 2 for scenario OneHop.","SacFixtureMarker":"M|R","Scenario":"OneHop","Severity":"Information","SourceHost":"fixture-03","Timestamp":"2026-11-04T08:59:58.0000000Z"},{"Message":"Dependency fixture record 3 for scenario OneHop.","SacFixtureMarker":"M|R","Scenario":"OneHop","Severity":"Warning","SourceHost":"fixture-01","Timestamp":"2026-11-04T08:59:57.0000000Z"}],' +
+            '"Rule":{"kind":"Scheduled","properties":{"description":"X","displayName":"D","enabled":true,"eventGroupingSettings":{"aggregationKind":"SingleAlert"},"incidentConfiguration":{"createIncident":false,"groupingConfiguration":{"enabled":false,"lookbackDuration":"PT5H","matchingMethod":"AllEntities","reopenClosedIncident":false}},"query":"Q","queryFrequency":"PT24H","queryPeriod":"PT24H","severity":"Informational","suppressionDuration":"PT1H","suppressionEnabled":false,"triggerOperator":"GreaterThan","triggerThreshold":0}},' +
+            '"Saved":{"etag":"*","properties":{"category":"C","displayName":"D","functionAlias":"A","query":"Q","tags":[{"name":"SacFixture","value":"M"},{"name":"SacFixtureRun","value":"R"},{"name":"SacFixtureScenario","value":"S"}],"version":2}}}'
+        (ConvertTo-StandInCanonical $new) | Should -BeExactly $expected
         $new.Id | Should -Be (Get-StandInRuleId -Prefix 'SacDep' -Scenario 'TwoHop')
     }
 }
 
-Describe 'Parity with New-DependencyFixture.ps1: <Label>' -ForEach $script:runs {
-    BeforeAll {
-        $standIn = @{ Existing = [bool]$Existing; UnmarkedOrphan = [bool]$UnmarkedOrphan; RaceOnce = [bool]$RaceOnce }
-        $script:legacy = Invoke-LegacyFixture -Parameters $Parameters -Remove:([bool]$Remove) -StandIn $standIn
-        $script:module = Invoke-ModuleFixture -Parameters $Parameters -Remove:([bool]$Remove) -StandIn $standIn
-    }
-
-    It 'runs the script and the command to the end' {
-        $script:legacy.ExitCode | Should -Be 0 -Because $script:legacy.Output
-        $script:module.Error | Should -BeNullOrEmpty
-    }
-
-    It 'makes the same writes, in order' {
-        @($script:module.Writes | ForEach-Object { ConvertTo-StandInCanonical $_ }) | Should -Be @($script:legacy.Writes | ForEach-Object { ConvertTo-StandInCanonical $_ })
-    }
-
-    It 'returns the same result' {
-        (ConvertTo-ComparableResult $script:module.Result) | Should -BeExactly (ConvertTo-ComparableResult $script:legacy.Result)
-    }
-}
-
-Describe 'Refusing as New-DependencyFixture.ps1 does: <Label>' -ForEach $script:refusals {
-    It 'refuses with the same message and writes nothing' {
-        $standIn = @{ NotOnboarded = [bool]$NotOnboarded }
-        $legacy = Invoke-LegacyFixture -Parameters $Parameters -StandIn $standIn
-        $module = Invoke-ModuleFixture -Parameters $Parameters -StandIn $standIn
-        $legacy.ExitCode | Should -Be 1
-        $module.Error | Should -BeExactly $legacy.Error
-        $legacy.Writes | Should -BeNullOrEmpty
+Describe 'Refusing: <Label>' -ForEach $script:refusals {
+    It 'refuses with its message and writes nothing' {
+        $module = Invoke-ModuleFixture -Parameters $Parameters -StandIn @{ NotOnboarded = [bool]$NotOnboarded }
+        $module.Error | Should -BeExactly $Message
         $module.Writes | Should -BeNullOrEmpty
     }
 }

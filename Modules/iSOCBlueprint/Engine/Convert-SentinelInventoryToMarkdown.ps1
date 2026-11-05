@@ -79,8 +79,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.8.0
-    Last Updated:   2026-10-15
+    Version:        0.8.1
+    Last Updated:   2026-11-05
     Component:      iSOC Blueprint, Renderer
     Requires:       PowerShell 7.2+, powershell-yaml
 
@@ -5598,7 +5598,7 @@ xychart-beta
 
 Each bar is one calendar month (MM). Tempo reveals release cadence: sustained months at zero suggest abandoned content; periodic spikes usually align with vendor content-pack updates.
 
-Every rule, most recently modified first. Cross-reference with [Test-SentinelRuleDrift.ps1](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Tools/Test-SentinelRuleDrift.ps1): a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
+Every rule, most recently modified first. Cross-reference with [Compare-iSOCContent](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Docs/Modules/iSOCDeployments/Drift.md): a recent modification on a rule that has a Content Hub template or repo YAML source-of-truth indicates portal drift.
 
 $(Format-Table -Items $modifiedRows -Columns 'Name','Kind','LastModified','Enabled')
 "@

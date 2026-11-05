@@ -7,11 +7,12 @@
     reading files and writing scalars and nested blocks.
 
 .DESCRIPTION
-    The writers were copied from Tools/Test-SentinelRuleDrift.ps1, so they
-    are run beside the originals (lifted out of the script by AST) over
-    every rule name in the repository and a set of awkward values, and must
-    write the same text. The loader is tested for the module's rule that it
-    never installs anything (MIGRATION.md edit E4).
+    The writers are held to explicit text for a set of awkward values and
+    a nested block, and every rule name in the repository must read back
+    as itself. They were copied from Tools/Test-SentinelRuleDrift.ps1, and
+    parity with that script was proven on release/26.11.0 before it was
+    removed. The loader is tested for the module's rule that it never
+    installs anything (MIGRATION.md edit E4).
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Yaml.Tests.ps1
@@ -24,8 +25,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
@@ -33,8 +34,6 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     Import-Module powershell-yaml -ErrorAction Stop
-    Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-    Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Tools/Test-SentinelRuleDrift.ps1')
 
     $script:values = @(
         '', 'plain', 'with: colon', '# hash', '- dash', '?question', ' leading', 'trailing ', "it's", 'say "hi"',
@@ -59,11 +58,19 @@ Describe 'ConvertTo-iSOCYamlScalar' {
         InModuleScope iSOCDeployments -Parameters @{ V = $Value } { param($V) ConvertTo-iSOCYamlScalar $V } | Should -BeExactly $Expected
     }
 
-    It 'writes what ConvertTo-YamlScalarString writes, for every rule name and the awkward values' {
-        foreach ($value in $script:values) {
-            $new = InModuleScope iSOCDeployments -Parameters @{ V = $value } { param($V) ConvertTo-iSOCYamlScalar $V }
-            $new | Should -BeExactly (ConvertTo-YamlScalarString $value) -Because "the value was '$value'"
-        }
+    It 'writes the awkward value <Value> as <Expected>' -ForEach @(
+        @{ Value = '# hash'; Expected = "'# hash'" }
+        @{ Value = '?question'; Expected = "'?question'" }
+        @{ Value = ' leading'; Expected = "' leading'" }
+        @{ Value = 'trailing '; Expected = "'trailing '" }
+        @{ Value = 'say "hi"'; Expected = '''say "hi"''' }
+        @{ Value = '100%'; Expected = "'100%'" }
+        @{ Value = '@user'; Expected = "'@user'" }
+        @{ Value = '[x]'; Expected = "'[x]'" }
+        @{ Value = 'a | b'; Expected = "'a | b'" }
+        @{ Value = 'multi word value'; Expected = 'multi word value' }
+    ) {
+        InModuleScope iSOCDeployments -Parameters @{ V = $Value } { param($V) ConvertTo-iSOCYamlScalar $V } | Should -BeExactly $Expected
     }
 
     It 'writes a value that reads back as itself' {
@@ -90,9 +97,20 @@ Describe 'ConvertTo-iSOCYamlSubtree' {
         foreach ($line in $text -split "`n" | Where-Object { $_ }) { $line | Should -Match '^  \S|^   ' }
     }
 
-    It 'writes what ConvertTo-IndentedSubtreeYaml writes, at <Indent> spaces' -ForEach @(@{ Indent = 0 }, @{ Indent = 2 }, @{ Indent = 4 }) {
+    It 'writes the block at <Indent> spaces' -ForEach @(@{ Indent = 0 }, @{ Indent = 2 }, @{ Indent = 4 }) {
+        $prefix = ' ' * $Indent
+        $expected = @(
+            'entityMappings:'
+            '- entityType: Account'
+            '  fieldMappings:'
+            '  - identifier: FullName'
+            '    columnName: UserPrincipalName'
+            'grouping:'
+            '  enabled: false'
+            '  lookbackDuration: PT5H'
+        ) | ForEach-Object { "$prefix$_" }
         $new = InModuleScope iSOCDeployments -Parameters @{ T = $script:tree; I = $Indent } { param($T, $I) ConvertTo-iSOCYamlSubtree -Object $T -Indent $I }
-        $new | Should -BeExactly (ConvertTo-IndentedSubtreeYaml -Object $script:tree -Indent $Indent)
+        $new | Should -BeExactly ($expected -join "`n")
     }
 }
 

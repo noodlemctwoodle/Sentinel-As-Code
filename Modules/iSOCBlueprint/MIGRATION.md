@@ -23,6 +23,8 @@ Actions:
   module ships its own copy of.
   [`Tests/iSOCBlueprint/Vendored.Tests.ps1`](../../Tests/iSOCBlueprint/Vendored.Tests.ps1)
   keeps each identical to its original.
+- **Adopted** - a vendored copy whose original has been removed from the
+  repository, so the copy is the module's own code.
 
 Edits made in the copy:
 
@@ -84,5 +86,5 @@ beneath it.
 | `Tools/Blueprint/SharePoint/Private/SacSharePoint.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/SacSharePoint.ps1` | | |
 | `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html` | | |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Modules/iSOCBlueprint/WebParts/**` | | SPFx web part source (TypeScript, not PowerShell): beside the engine, outside what the module loads |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needs Az.Accounts, the renderer does not |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
 | `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

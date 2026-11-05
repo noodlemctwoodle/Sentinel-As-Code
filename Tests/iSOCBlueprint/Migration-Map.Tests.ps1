@@ -30,8 +30,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
-    Last Updated: 2026-10-13
+    Version:      0.2.1
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 
     Version 0.1.0 checked the map against the old folder while it still
@@ -66,7 +66,7 @@ Describe 'The move out of Tools/Blueprint' {
     }
 
     It '<Source> uses a known action' -ForEach $rows {
-        $Row.Action | Should -BeIn @('Copy', 'Move', 'Retire', 'Vendor')
+        $Row.Action | Should -BeIn @('Copy', 'Move', 'Retire', 'Vendor', 'Adopted')
     }
 
     It '<Source> is where the map says' -ForEach $rows {
@@ -78,6 +78,10 @@ Describe 'The move out of Tools/Blueprint' {
             'Retire' {
                 Test-RepoPath $Row.Source | Should -BeFalse
                 $Row.Destination | Should -BeNullOrEmpty
+            }
+            'Adopted' {
+                Test-RepoPath $Row.Source | Should -BeFalse -Because 'the original has been removed'
+                Test-RepoPath $Row.Destination | Should -BeTrue
             }
             default {
                 Test-RepoPath $Row.Source | Should -BeFalse -Because 'the old copy is gone'

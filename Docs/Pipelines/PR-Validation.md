@@ -268,12 +268,10 @@ Steps, in order:
    `-RepoPath`, `-TestResultsPath "$(testResultsFile)"` and
    `-InstallModules:$false` - the same entrypoint the GitHub `validate` job
    uses.
-4. **Verify dependency manifest**: `Tools/Build-DependencyManifest.ps1
-   -Mode Verify`; logs an error and exits non-zero on drift. This is the ADO
-   equivalent of the GitHub `dependency-manifest` job. The `engine`
-   parameter (`scripts` by default, which every PR build takes) swaps it for
-   `Test-iSOCDependencyManifest` (`module`), or for a step that runs both and
-   fails when they disagree (`compare`); see
+4. **Verify dependency manifest**: `Test-iSOCDependencyManifest` from the
+   iSOCDeployments module; logs two errors naming the fix and exits
+   non-zero on drift. This is the ADO equivalent of the GitHub
+   `dependency-manifest` job; see
    [the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md).
 5. **Publish Pester results** (`condition: always()`): `PublishTestResults@2`
    with `testResultsFormat: NUnit` against `$(testResultsFile)`.

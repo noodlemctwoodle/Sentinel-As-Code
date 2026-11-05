@@ -8,9 +8,9 @@ PowerShell written inline in the pipeline YAML, are in the module:
 | `Get-iSOCWorkspaceOnboarding` | The Check for Existing Resources step of `.github/workflows/sentinel-deploy.yml` and the Check for Existing Log Analytics Workspace step of `Pipelines/Sentinel-Deploy.yml` |
 | `Deploy-iSOCContent -ContentType WorkspaceSetting`, with the files in `Content/WorkspaceSettings/` | The Configure Sentinel Settings step of both pipelines |
 
-The pipelines run their own steps by default; the Azure DevOps deploy
-pipeline runs these with `engine` `module`
-([The pipeline switch](Pipeline-Switch.md)). Registering the resource providers and running
+The Azure DevOps deploy pipeline runs these
+([The pipeline switch](Pipeline-Switch.md)); the GitHub workflow keeps its
+own steps until it moves to the module. Registering the resource providers and running
 `Infra/sentinel/main.bicep` stay pipeline steps.
 
 ## Onboarding
@@ -89,9 +89,9 @@ Sentinel setting the repository manages, named after the setting's kind:
 
 The files hold what the pipelines send today, and
 `Tests/iSOCDeployments/WorkspaceSetting.Tests.ps1` keeps the two equal
-until the pipelines move to the module. Until then, a change to a file
-does nothing in a pipeline run with `engine` `scripts`, and the test fails
-until the pipelines' values change with it.
+until the GitHub workflow moves to the module. Until then, a change to a
+file does nothing in a GitHub run, and the test fails until the workflow's
+values change with it.
 
 `Deploy-iSOCContent` deploys the settings before every other content type,
 so UEBA is on before the rules that read its tables, and

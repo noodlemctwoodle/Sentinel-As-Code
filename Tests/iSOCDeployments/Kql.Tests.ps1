@@ -7,18 +7,17 @@
     Sentinel.Common.
 
 .DESCRIPTION
-    Three layers:
+    Two layers:
 
     - the KQL cases from Tests/Test-SentinelCommon.Tests.ps1, carried over
       against the module's helpers;
-    - each copied function, token for token without comments, against its
-      original, with only the helper names changed (and the YAML loader
-      call Get-iSOCContentKqlQuery adds, MIGRATION.md edit E4);
-    - every content file under Content/, read by both
-      Get-ContentDependencies (Sentinel.Common) and by
-      Get-iSOCContentKqlQuery with Get-iSOCQueryDependency, which must
-      agree, with the parser
-      aliases the dependency manifest builder uses.
+    - Get-iSOCContentKqlQuery with Get-iSOCQueryDependency over one file
+      of each content shape (YAML rules, a parser, a JSON summary rule, a
+      Defender detection and files with no readable query), held to
+      explicit buckets.
+
+    Parity with Sentinel.Common, function by function and over every file
+    under Content/, was proven on release/26.11.0 before it was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Kql.Tests.ps1
@@ -31,41 +30,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-03
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml, Az.Accounts
-                  (Sentinel.Common declares it)
-
-    The parity layer goes when Sentinel.Common is retired at cut-over; the
-    first two stay.
+    Version:      0.3.0
+    Last Updated: 2026-11-05
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
-
-BeforeDiscovery {
-    $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $pairs = @(
-        @{ Old = 'Remove-KqlComments'; New = 'Remove-iSOCKqlComment' }
-        @{ Old = 'Get-KqlWatchlistReferences'; New = 'Get-iSOCKqlWatchlistReference' }
-        @{ Old = 'Get-KqlExternalDataReferences'; New = 'Get-iSOCKqlExternalDataReference' }
-        @{ Old = 'Get-KqlBareIdentifiers'; New = 'Get-iSOCKqlBareIdentifier' }
-        @{ Old = 'Get-ContentKqlQuery'; New = 'Get-iSOCContentKqlQuery' }
-    )
-    $contentFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content') -Recurse -File -Include '*.yaml', '*.yml', '*.json') |
-        ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
-}
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     Import-Module powershell-yaml -ErrorAction Stop
-
-    $script:renames = @{
-        'Remove-KqlComments'            = 'Remove-iSOCKqlComment'
-        'Get-KqlWatchlistReferences'    = 'Get-iSOCKqlWatchlistReference'
-        'Get-KqlExternalDataReferences' = 'Get-iSOCKqlExternalDataReference'
-        'Get-KqlBareIdentifiers'        = 'Get-iSOCKqlBareIdentifier'
-        'Get-ContentKqlQuery'           = 'Get-iSOCContentKqlQuery'
-    }
 
     function Get-FileDependency {
         param([string] $Path, [hashtable] $KnownFunctions)
@@ -83,7 +56,6 @@ BeforeAll {
 
 AfterAll {
     Remove-Module iSOCDeployments -ErrorAction SilentlyContinue
-    Remove-Module Sentinel.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Remove-iSOCKqlComment' {
@@ -229,34 +201,97 @@ Describe 'Get-iSOCQueryDependency' {
     }
 }
 
-Describe '<New> keeps the code of <Old>' -ForEach $pairs {
-    It 'has the same tokens once the helper names are mapped' {
-        $old = Get-ParityTokenText -Path (Join-Path $script:repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psm1') -Name $Old |
-            ForEach-Object { if ($script:renames.ContainsKey($_)) { $script:renames[$_] } else { $_ } }
-        $new = Get-ParityTokenText -Path (Join-Path $script:repoRoot "Modules/iSOCDeployments/Private/Kql/$New.ps1") -Name $New |
-            Where-Object { $_ -ne 'Import-iSOCYamlModule' }
-        @($new) | Should -Be @($old)
-    }
-}
-
-Describe 'Dependencies of <Path>' -ForEach $contentFiles {
+Describe 'Dependencies of a content file' {
     BeforeAll {
-        if (-not (Get-Module Sentinel.Common)) {
-            Import-Module (Join-Path $script:repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psd1') -Force
-        }
-        if (-not (Get-Variable -Name knownFunctions -Scope Script -ErrorAction SilentlyContinue)) {
-            $script:knownFunctions = @{}
-            Get-ChildItem -LiteralPath (Join-Path $script:repoRoot 'Content/Parsers') -Recurse -File -Include '*.yaml', '*.yml' | ForEach-Object {
-                $y = ConvertFrom-Yaml (Get-Content -LiteralPath $_.FullName -Raw)
-                if ($y -and $y.functionAlias) { $script:knownFunctions[[string]$y.functionAlias] = $_.FullName }
-            }
-        }
+        $script:knownParsers = @{ UnifiedSignInLogs = 'Parsers/UnifiedSignInLogs.yaml'; MyParser = 'Parsers/MyParser.yaml' }
     }
 
-    It 'are what Sentinel.Common finds' {
-        $full = Join-Path $script:repoRoot $Path
-        $old = Get-ContentDependencies -Path $full -KnownFunctions $script:knownFunctions
-        $new = Get-FileDependency $full $script:knownFunctions
-        ConvertTo-ParityJson $new | Should -BeExactly (ConvertTo-ParityJson $old)
+    It 'are what <Name> reads from' -ForEach @(
+        @{
+            Name = 'rule.yaml'; Tables = @('AuditLogs'); Watchlists = @('breakGlassAccounts'); Functions = @('UnifiedSignInLogs'); ExternalData = @()
+            Lines = @(
+                'id: 11111111-2222-3333-4444-555555555555'
+                'name: Sign-in from a break-glass account'
+                'query: |'
+                '  let breakGlass = _GetWatchlist(''breakGlassAccounts'') | project UPN = SearchKey;'
+                '  UnifiedSignInLogs'
+                '  | where UserPrincipalName in (breakGlass)'
+                '  | join kind=leftouter (AuditLogs | where OperationName == "Add member to role") on $left.UserId == $right.InitiatedBy'
+                '  | project TimeGenerated, UserPrincipalName, IPAddress'
+            )
+        }
+        @{
+            Name = 'hunting.yml'; Tables = @('AADNonInteractiveUserSignInLogs', 'SigninLogs'); Watchlists = @(); Functions = @(); ExternalData = @('https://example.com/ranges.csv')
+            Lines = @(
+                'id: 22222222-3333-4444-5555-666666666666'
+                'name: Sign-ins from listed ranges'
+                'query: |'
+                '  let ranges = externaldata(network: string) ["https://example.com/ranges.csv"] with(format=''csv'');'
+                '  let cached = materialize(SigninLogs | where TimeGenerated > ago(1d));'
+                '  let total = toscalar(AADNonInteractiveUserSignInLogs | count);'
+                '  cached'
+                '  | evaluate ipv4_lookup(ranges, IPAddress, network)'
+                '  | extend Total = total'
+            )
+        }
+        @{
+            Name = 'parser.yaml'; Tables = @('SecurityEvent'); Watchlists = @(); Functions = @('_ASim_ProcessEvent', 'imAuthentication'); ExternalData = @()
+            Lines = @(
+                'id: MyParser'
+                'functionAlias: MyParser'
+                'query: |'
+                '  let readTable = (tableName: string) { table(tableName) | take 1 };'
+                '  union isfuzzy=true imAuthentication, readTable("SecurityEvent")'
+                '  | join kind=inner (_ASim_ProcessEvent | take 1) on EventID'
+            )
+        }
+        @{
+            Name = 'summary.json'; Tables = @('SecurityAlert'); Watchlists = @(); Functions = @('MyParser'); ExternalData = @()
+            Lines = @(
+                '{'
+                '  "name": "AlertSummary",'
+                '  "query": "SecurityAlert\n| summarize Alerts = count() by AlertName, bin(TimeGenerated, 1h)\n| join kind=inner (MyParser | take 1) on AlertName",'
+                '  "binSize": 60,'
+                '  "destinationTable": "AlertSummary_CL"'
+                '}'
+            )
+        }
+        @{
+            Name = 'detection.yaml'; Tables = @('DeviceNetworkEvents', 'DeviceProcessEvents'); Watchlists = @(); Functions = @(); ExternalData = @()
+            Lines = @(
+                'displayName: Encoded PowerShell with a network connection'
+                'queryCondition:'
+                '  queryText: |'
+                '    DeviceProcessEvents'
+                '    | where FileName =~ "powershell.exe" and ProcessCommandLine has "-enc"'
+                '    | join kind=inner (DeviceNetworkEvents | where RemotePort == 443) on DeviceId'
+            )
+        }
+        @{
+            Name = 'workbook.json'; Tables = @(); Watchlists = @(); Functions = @(); ExternalData = @()
+            Lines = @(
+                '{'
+                '  "version": "Notebook/1.0",'
+                '  "items": [ { "type": 3, "content": { "query": "SigninLogs | take 1" } } ]'
+                '}'
+            )
+        }
+        @{
+            Name = 'broken.yaml'; Tables = @(); Watchlists = @(); Functions = @(); ExternalData = @()
+            Lines = @('id: [unclosed', 'query: SigninLogs | take 1')
+        }
+        @{
+            Name = 'list.yaml'; Tables = @(); Watchlists = @(); Functions = @(); ExternalData = @()
+            Lines = @('- query: SigninLogs | take 1')
+        }
+    ) {
+        $path = Join-Path $TestDrive $Name
+        Set-Content -LiteralPath $path -Value ($Lines -join "`n")
+        $deps = Get-FileDependency $path $script:knownParsers
+        @($deps.Keys | Sort-Object) | Should -Be @('externalData', 'functions', 'tables', 'watchlists')
+        (@($deps.tables) -join ',') | Should -BeExactly ($Tables -join ',')
+        (@($deps.watchlists) -join ',') | Should -BeExactly ($Watchlists -join ',')
+        (@($deps.functions) -join ',') | Should -BeExactly ($Functions -join ',')
+        (@($deps.externalData) -join ',') | Should -BeExactly ($ExternalData -join ',')
     }
 }

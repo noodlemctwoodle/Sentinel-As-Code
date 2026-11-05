@@ -65,9 +65,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-07-08
-    Version:        1.0.1
-    Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Sentinel.Common (logging only)
+    Version:        1.1.0
+    Last Updated:   2026-11-05
+    Requires:       PowerShell 7.2+
 #>
 
 [CmdletBinding()]
@@ -82,12 +82,42 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Logging only. Importing Sentinel.Common keeps the ADO / GitHub / local
-# output branching in one place (Write-PipelineMessage) rather than
-# reimplementing it here, per the repo's PowerShell hard rules. The
-# module's Az.Accounts requirement is satisfied by the runner image (the
-# dependency-manifest gate imports the same module the same way).
-Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
+# ---------------------------------------------------------------------------
+# Write-TemplateMessage
+# ---------------------------------------------------------------------------
+# The script's own logger: Azure DevOps logging commands under ADO, plain or
+# coloured text elsewhere. It was Write-PipelineMessage from
+# Modules/Sentinel.Common, which retired when the iSOCDeployments module
+# replaced it; this script is not part of that module, so it keeps the
+# three levels it uses, unchanged.
+function Write-TemplateMessage {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Pipeline logging commands must reach the host stream.')]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string] $Message,
+
+        [ValidateSet('Error', 'Section', 'Success')]
+        [string] $Level = 'Success'
+    )
+
+    $isAdo = $null -ne $env:BUILD_BUILDID
+    switch ($Level) {
+        'Error' {
+            if ($isAdo) { Write-Host "##[error]$Message" }
+            else { Write-Error $Message -ErrorAction Continue }
+        }
+        'Section' {
+            if ($isAdo) { Write-Host "##[section]$Message" }
+            else { Write-Host "`n$Message" -ForegroundColor Cyan }
+        }
+        'Success' {
+            if ($isAdo) { Write-Host $Message }
+            else { Write-Host $Message -ForegroundColor Green }
+        }
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Remove-MarkdownComment
@@ -235,7 +265,7 @@ elseif ($BodyPath) {
         $resolvedBody = Get-Content -LiteralPath $BodyPath -Raw
     }
     else {
-        Write-PipelineMessage -Level Error -Message "BodyPath not found: $BodyPath"
+        Write-TemplateMessage -Level Error -Message "BodyPath not found: $BodyPath"
         exit 1
     }
 }
@@ -247,16 +277,14 @@ if ($null -eq $resolvedBody) { $resolvedBody = '' }
 $result = Test-PullRequestTemplateBody -Body $resolvedBody
 
 if ($result.IsValid) {
-    Write-PipelineMessage -Level Success -Message 'PR template validation passed.'
+    Write-TemplateMessage -Level Success -Message 'PR template validation passed.'
     exit 0
 }
 
-Write-PipelineMessage -Level Section -Message 'PR template validation failed. Fix the description and the check re-runs when you save it.'
+Write-TemplateMessage -Level Section -Message 'PR template validation failed. Fix the description and the check re-runs when you save it.'
 
 # Emit each failure as a GitHub workflow annotation when running in Actions
-# (Write-PipelineMessage only knows ADO / local), otherwise a plain bullet.
-# This keeps the annotation support the shared helper lacks without
-# duplicating its ADO / local branching.
+# (Write-TemplateMessage only knows ADO / local), otherwise a plain bullet.
 $inGitHub = $env:GITHUB_ACTIONS -eq 'true'
 foreach ($failure in $result.Errors) {
     if ($inGitHub) {

@@ -5,9 +5,8 @@ the infrastructure, in order, as one command. It replaces the stage
 sequence of `Pipelines/Sentinel-Deploy.yml` and
 `.github/workflows/sentinel-deploy.yml`: their stage conditions, the
 dependency manifest guard, and the inline PowerShell that built each
-script's parameters. The pipelines run their own stages by default; the
-Azure DevOps deploy pipeline runs the command one stage at a time with
-`engine` `module` ([The pipeline switch](Pipeline-Switch.md)).
+script's parameters. The Azure DevOps deploy pipeline runs the command one
+stage at a time ([The pipeline switch](Pipeline-Switch.md)).
 
 ```powershell
 Import-Module ./Modules/iSOCDeployments

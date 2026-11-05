@@ -3,8 +3,7 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the workbook content type's handlers, and for parity
-    with the deployer they were taken from.
+    Pester tests for the workbook content type's handlers.
 
 .DESCRIPTION
     The handlers are tested on the fixture repository: reading one item
@@ -13,11 +12,11 @@
     defaults, the workbookId derived from the workspace and folder name
     when metadata has none (checked against a value worked out outside
     PowerShell), and the inner serializedData of an ARM-wrapped template.
-    The parity block lifts Deploy-CustomWorkbooks out of
-    Deploy/content/Deploy-CustomContent.ps1 by AST, runs it over every
-    workbook in Content/Workbooks/ with the REST call captured, and holds
-    each captured request (path, api-version and body) to the one the
-    module builds for the same folder.
+    Every workbook folder under Content/Workbooks/ in this repository is
+    read through the ReadRepo handler, must pass Test-iSOCWorkbook with no
+    issues, and must build a request through the ToRequest handler.
+    Parity with Deploy-CustomContent.ps1 was proven on release/26.11.0
+    before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Workbook.Tests.ps1
@@ -30,12 +29,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
-
-    The parity block goes when Deploy-CustomContent.ps1 is removed at
-    cut-over.
 #>
 
 BeforeDiscovery {
@@ -47,7 +43,6 @@ BeforeDiscovery {
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
     $script:workspacePath = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws'
     $script:context = InModuleScope iSOCDeployments -Parameters @{ W = $script:workspacePath } {
@@ -166,61 +161,28 @@ Describe 'Workbook handlers' {
     }
 }
 
-Describe 'Parity with Deploy-CustomContent.ps1' {
+Describe 'Content/Workbooks in this repository' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-CustomContent.ps1')
-        function Write-PipelineMessage { param($Message, $Level) }
-        # The deployer asks about workbook.json; its folder names the workbook
-        # each captured request belongs to.
-        function Test-ShouldDeployFile { param($FilePath) $script:legacyFolder = Split-Path -Parent $FilePath; $true }
-        function Test-ContentDependencies { param($ContentPath) @{ Passed = $true; Missing = @() } }
-        function Set-DeploymentItemState { param($FilePath, $Status) }
-        function Invoke-SentinelApi {
-            param($Uri, $Method, $Headers, $Body)
-            $script:legacyCalls.Add([pscustomobject]@{ Folder = $script:legacyFolder; Uri = $Uri; Method = $Method; Body = $Body })
-        }
-
-        $script:BasePath = $script:repoRoot
-        $script:WhatIf = $false
-        $script:Region = 'uksouth'
-        $script:ServerUrl = 'https://management.azure.com'
-        $script:SubscriptionId = '00000000-0000-0000-0000-000000000000'
-        $script:ResourceGroup = 'rg'
-        $script:WorkspaceResourceId = $script:workspacePath
-        $script:WorkbookApiVersion = '2022-04-01'
-        $script:AuthHeader = @{}
-        $script:legacyCalls = [System.Collections.Generic.List[object]]::new()
-        $script:legacyCounters = Deploy-CustomWorkbooks
-
-        $script:legacyByFolder = @{}
-        foreach ($call in $script:legacyCalls) {
-            $script:legacyByFolder[[System.IO.Path]::GetRelativePath($script:repoRoot, $call.Folder).Replace('\', '/')] = $call
-        }
-        $script:moduleItems = @{}
-        foreach ($item in Get-WorkbookItem -Repo $script:repoRoot) { $script:moduleItems[$item.RelativePath] = $item }
-    }
-
-    It 'sent a request for every workbook it read' {
-        $script:legacyCounters.Failed | Should -Be 0
-        $script:legacyCounters.Skipped | Should -Be 0
-        $script:legacyCalls.Count | Should -Be $script:moduleItems.Count
-    }
-
-    It 'sends <Path> as Deploy-CustomContent.ps1 does' -ForEach $workbookFolders {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
-        $item = $script:moduleItems[$Path]
-        Test-Item $item | Should -BeNullOrEmpty
-        $request = Get-Request $item
-        $legacy = $script:legacyByFolder[$Path]
-
-        $path = InModuleScope iSOCDeployments -Parameters @{ C = $script:context; N = $request.ResourceName } {
-            param($C, $N)
-            $type = Get-iSOCContentTypeDefinition -Name Workbook
-            '{0}?api-version={1}' -f (Get-iSOCResourcePath -Context $C -ContentType $type -Name $N), (Get-iSOCApiVersion $type.ApiVersion)
+        $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name Workbook }
+        function Invoke-RepoHandler {
+            param([string] $Handler, [hashtable] $Parameters)
+            InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
+                param($T, $H, $P)
+                Invoke-iSOCContentTypeHandler -ContentType $T -Handler $H -Parameters $P
+            }
         }
-        "https://management.azure.com$path" | Should -BeExactly $legacy.Uri
-        $legacy.Method | Should -Be 'Put'
-        ConvertTo-ParityJson $request.Body | Should -BeExactly (ConvertTo-ParityJson $legacy.Body)
+        $script:repoItems = @{}
+        foreach ($item in Invoke-RepoHandler -Handler ReadRepo -Parameters @{ RepoPath = $script:repoRoot; ContentType = $script:repoType }) {
+            $script:repoItems[$item.RelativePath] = $item
+        }
+    }
+
+    It 'reads, validates and builds <Path>' -ForEach $workbookFolders {
+        $item = $script:repoItems[$Path]
+        $item | Should -Not -BeNullOrEmpty -Because 'the ReadRepo handler reads everything under Content/Workbooks'
+        Test-Item $item | Should -BeNullOrEmpty
+        { $script:repoRequest = Invoke-RepoHandler -Handler ToRequest -Parameters @{ Item = $item; Context = $script:context } } | Should -Not -Throw
+        $script:repoRequest.Body | Should -Not -BeNullOrEmpty
     }
 }

@@ -16,12 +16,12 @@
       - Role assignments over REST: reading them, finding one that applies
         at a scope or above it, creating one under a stable name (a 409 is
         Exists), deleting one, and managed identity principals.
-      - Parity: Deploy/permissions/Set-PlaybookPermissions.ps1 and
-        Deploy/permissions/Set-RunbookPermissions.ps1, run unchanged in a
-        child pwsh with the Az cmdlets and az stood in for over one stand-in
-        tenant, beside the module against the same one: the same role
-        assignments attempted, created and removed, and the same counts;
-        and the differences MIGRATION.md edits E32 and E33 describe, shown.
+      - The commands over one stand-in tenant: the role assignments
+        attempted, created and removed, and the counts, held to the
+        explicit values the old permission scripts produced over the same
+        tenant; and the differences MIGRATION.md edits E32 and E33
+        describe, shown. Parity with those scripts was proven on
+        release/26.11.0 before they were removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Permissions.Tests.ps1
@@ -34,13 +34,12 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 
-    The stand-ins shape objects as Az.Resources and the az CLI return them;
-    the scripts have not been run here against a tenant. The parity block
-    goes when the scripts are removed at cut-over.
+    The stand-in shapes objects as the ARM REST API returns them; the
+    commands have not been run here against a tenant.
 #>
 
 BeforeAll {
@@ -199,10 +198,11 @@ Describe 'Role assignments over REST' {
     }
 }
 
-Describe 'Parity with the permission scripts' {
+Describe 'The permission commands over a stand-in tenant' {
     BeforeAll {
         $role = $script:roleIds
         $principal = { param([string] $Name) Invoke-Private ConvertTo-iSOCNameBasedGuid @{ Name = "principal:$Name" } }
+        $script:principal = $principal
 
         # The stand-in tenant: tagged Logic Apps needing each kind of role,
         # one untagged, one without an identity, one needing nothing, one
@@ -248,83 +248,6 @@ Describe 'Parity with the permission scripts' {
             Conflict       = @((& $principal 'Incident-Race'))
             Automation     = @{ Name = 'aa-dcr-watchlist-sync'; ResourceGroup = 'rg-dcr-watchlist-sync'; PrincipalId = (& $principal 'automation') }
         }
-        $script:standInPath = Join-Path $TestDrive 'permissions-standin.json'
-        Set-Content -LiteralPath $script:standInPath -Value (ConvertTo-Json -InputObject $script:standIn -Depth 100)
-
-        # Runs a script unchanged in a child pwsh, its Az cmdlets, az and
-        # Read-Host stood in for by functions defined first; each write is
-        # appended to a log as JSON.
-        $script:stubs = @'
-param([string] $Script, [string] $StandInPath, [string] $Log, [string] $Parameters)
-$standIn = Get-Content -LiteralPath $StandInPath -Raw | ConvertFrom-Json -Depth 100
-function Write-Log { param([hashtable] $Entry) Add-Content -LiteralPath $Log -Value (ConvertTo-Json -InputObject $Entry -Compress) }
-function Get-AzContext { [pscustomobject]@{ Subscription = [pscustomobject]@{ Id = $standIn.SubscriptionId }; Account = [pscustomobject]@{ Id = 'tester' } } }
-function Set-AzContext { param($SubscriptionId, $WarningAction) }
-function ConvertTo-PSResource {
-    param($App)
-    $tags = @{}
-    if ($App.PSObject.Properties['tags'] -and $App.tags) { foreach ($p in $App.tags.PSObject.Properties) { $tags[$p.Name] = $p.Value } }
-    $identity = [pscustomobject]@{ Type = $App.identity.type; PrincipalId = $(if ($App.identity.PSObject.Properties['principalId']) { $App.identity.principalId } else { $null }); UserAssignedIdentities = $null }
-    [pscustomobject]@{ Name = $App.name; ResourceId = $App.id; Tags = $tags; Properties = $App.properties; Identity = $identity }
-}
-function Get-AzResource {
-    param($ResourceGroupName, $ResourceType, $ResourceId, [switch] $ExpandProperties, $ErrorAction)
-    if ($ResourceId) { return ConvertTo-PSResource (@($standIn.LogicApps | Where-Object { $_.id -eq $ResourceId })[0]) }
-    foreach ($app in $standIn.LogicApps) { ConvertTo-PSResource $app }
-}
-function Get-AzRoleAssignment {
-    param($Scope, $ErrorAction)
-    foreach ($a in $standIn.Assignments) {
-        if ($Scope -eq $a.Scope -or $Scope.StartsWith("$($a.Scope)/")) { [pscustomobject]@{ ObjectId = $a.PrincipalId; RoleDefinitionId = $a.RoleDefinitionId; Scope = $a.Scope } }
-    }
-}
-function New-AzRoleAssignment {
-    param($ObjectId, $RoleDefinitionId, $Scope, $ErrorAction)
-    Write-Log @{ Action = 'Create'; PrincipalId = $ObjectId; RoleDefinitionId = $RoleDefinitionId; Scope = $Scope }
-    if (@($standIn.Refuse) -contains $ObjectId) { throw 'Operation returned an invalid status code ''Forbidden''' }
-    if (@($standIn.Conflict) -contains $ObjectId) { throw 'Operation returned an invalid status code ''Conflict''' }
-}
-function Read-Host { param($Prompt) 'Y' }
-function az {
-    $line = $args -join ' '
-    $global:LASTEXITCODE = 0
-    $flags = @{}
-    for ($i = 0; $i -lt $args.Count; $i++) { if ("$($args[$i])" -like '--*' -and $i + 1 -lt $args.Count) { $flags["$($args[$i])"] = "$($args[$i + 1])" } }
-    if ($line -like 'automation account show*') { return $standIn.Automation.PrincipalId }
-    if ($line -like 'role assignment create*') { Write-Log @{ Action = 'Create'; PrincipalId = $flags['--assignee']; Role = $flags['--role']; Scope = $flags['--scope'] }; return '' }
-    if ($line -like 'role assignment delete*') { Write-Log @{ Action = 'Delete'; PrincipalId = $flags['--assignee']; Role = $flags['--role']; Scope = $flags['--scope'] }; return '' }
-    ''
-}
-$splat = Get-Content -LiteralPath $Parameters -Raw | ConvertFrom-Json -AsHashtable
-$global:LASTEXITCODE = 0
-& $Script @splat
-exit $LASTEXITCODE
-'@
-
-        function Invoke-LegacyPermission {
-            param([string] $Script, [hashtable] $Parameters)
-            $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-            New-Item -ItemType Directory -Path $tree | Out-Null
-            $copy = Join-Path $tree (Split-Path -Leaf $Script)
-            Set-Content -LiteralPath $copy -Value ((Get-Content -LiteralPath (Join-Path $script:repoRoot $Script) -Raw) -replace '(?m)^#Requires -Modules[^\r\n]*\r?\n', '') -NoNewline
-            $wrapper = Join-Path $tree 'run.ps1'
-            Set-Content -LiteralPath $wrapper -Value $script:stubs
-            $log = Join-Path $tree 'writes.jsonl'
-            New-Item -ItemType File -Path $log | Out-Null
-            $splat = Join-Path $tree 'parameters.json'
-            Set-Content -LiteralPath $splat -Value (ConvertTo-Json -InputObject $Parameters)
-            $output = & pwsh -NoProfile -NonInteractive -File $wrapper -Script $copy -StandInPath $script:standInPath -Log $log -Parameters $splat 2>&1 | Out-String
-            $exit = $LASTEXITCODE
-            $count = { param([string] $Label) if ($output -match "(?m)^\s*$($Label):\s+(\d+)") { [int]$Matches[1] } else { -1 } }
-            [pscustomobject]@{
-                Output   = $output
-                ExitCode = $exit
-                Writes   = @(Get-Content -LiteralPath $log | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json })
-                Assigned = & $count 'Assigned'
-                Skipped  = & $count 'Skipped'
-                Failed   = & $count 'Failed'
-            }
-        }
 
         function Invoke-ModulePermission {
             param([scriptblock] $Command)
@@ -353,31 +276,41 @@ exit $LASTEXITCODE
         }
 
         $script:key = { param($Write) "$($Write.Action) $($Write.PrincipalId) $($Write.RoleDefinitionId) $($Write.Scope)" }
-        $script:playbookArgs = @{ PlaybookResourceGroup = 'rg-automation'; SentinelResourceGroup = 'rg-sentinel'; SentinelWorkspaceName = 'law-lab'; KeyVaultName = 'kv-lab'; SubscriptionId = $script:Sub }
+
+        # The role definition GUIDs, written out so the expected writes do not
+        # come from the module's own table.
+        $script:guid = @{
+            Responder   = '3e150937-b8fe-4cfb-8069-0eaf05ecd056'
+            Contributor = 'ab8e14d6-4a74-4a29-9ba8-549422addade'
+            SecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
+            LogReader   = '73c42c96-874c-492b-b04d-ab87d138a893'
+            MonReader   = '43d0d8ad-25c7-4714-9337-8ba259a9fe05'
+        }
     }
 
     Context 'playbooks' {
         BeforeAll {
-            $script:legacy = Invoke-LegacyPermission -Script 'Deploy/permissions/Set-PlaybookPermissions.ps1' -Parameters $script:playbookArgs
             $script:run = Invoke-ModulePermission { Grant-iSOCPlaybookPermission -Context $script:context -KeyVaultName 'kv-lab' }
         }
 
-        It 'exercises every case' {
-            $script:legacy.ExitCode | Should -Be 1 -Because $script:legacy.Output
-            $script:legacy.Assigned | Should -Be 5
-            $script:legacy.Failed | Should -Be 1
-            $script:legacy.Output | Should -Match 'No managed identity configured'
-            $script:legacy.Output | Should -Match 'already assigned \(conflict\)'
+        It 'attempts the role assignments the old playbook script attempted over this tenant' {
+            # The writes the script made over this stand-in tenant on release/26.11.0.
+            $expected = @(
+                @{ App = 'Incident-Closer'; Role = $script:guid.Contributor; Scope = $script:rgScope }
+                @{ App = 'Incident-Race'; Role = $script:guid.Responder; Scope = $script:rgScope }
+                @{ App = 'Incident-Reader'; Role = $script:guid.Responder; Scope = $script:rgScope }
+                @{ App = 'Incident-Refused'; Role = $script:guid.Responder; Scope = $script:rgScope }
+                @{ App = 'Module-Arm'; Role = $script:guid.Contributor; Scope = $script:rgScope }
+                @{ App = 'Module-GetSecret'; Role = $script:guid.SecretsUser; Scope = $script:kvScope }
+                @{ App = 'Module-Query'; Role = $script:guid.LogReader; Scope = $script:rgScope }
+            ) | ForEach-Object { "Create $(& $script:principal $_.App) $($_.Role) $($_.Scope)" }
+            @($script:moduleWrites | ForEach-Object { & $script:key $_ } | Sort-Object) | Should -Be @($expected | Sort-Object)
         }
 
-        It 'attempts the same role assignments' {
-            @($script:moduleWrites | ForEach-Object { & $script:key $_ } | Sort-Object) | Should -Be @($script:legacy.Writes | ForEach-Object { & $script:key $_ } | Sort-Object)
-        }
-
-        It 'counts the same' {
-            $script:run.Assigned | Should -Be $script:legacy.Assigned
-            ($script:run.Skipped + $script:run.Unchanged) | Should -Be $script:legacy.Skipped
-            $script:run.Failed | Should -Be $script:legacy.Failed
+        It 'counts as the old playbook script counted over this tenant' {
+            $script:run.Assigned | Should -Be 5
+            ($script:run.Skipped + $script:run.Unchanged) | Should -Be 5
+            $script:run.Failed | Should -Be 1
             $script:run.ExitCode | Should -Be 1
         }
 
@@ -396,11 +329,9 @@ exit $LASTEXITCODE
         }
 
         It 'assigns nothing with -WhatIf and says what would be' {
-            $legacy = Invoke-LegacyPermission -Script 'Deploy/permissions/Set-PlaybookPermissions.ps1' -Parameters ($script:playbookArgs + @{ WhatIf = $true })
-            $legacy.Writes.Count | Should -Be 0
             $run = Invoke-ModulePermission { Grant-iSOCPlaybookPermission -Context $script:context -KeyVaultName 'kv-lab' -WhatIf }
             $script:moduleWrites.Count | Should -Be 0
-            $run.WhatIf | Should -Be $legacy.Assigned
+            $run.WhatIf | Should -Be 7
         }
 
         It 'skips Key Vault roles without -KeyVaultName' {
@@ -412,23 +343,18 @@ exit $LASTEXITCODE
 
     Context 'the runbook' {
         BeforeAll {
-            $script:runbookArgs = @{ SubscriptionId = $script:Sub; AutomationAccountName = 'aa-dcr-watchlist-sync'; AutomationResourceGroup = 'rg-dcr-watchlist-sync'; SentinelResourceGroup = 'rg-sentinel' }
             $script:automation = $script:standIn.Automation.PrincipalId
-            $script:asModuleKey = { param($Write) "$($Write.Action) $($Write.PrincipalId) $($script:roleIds[$Write.Role]) $($Write.Scope)" }
         }
 
-        It 'assigns the same two roles at the same scopes' {
-            $legacy = Invoke-LegacyPermission -Script 'Deploy/permissions/Set-RunbookPermissions.ps1' -Parameters $script:runbookArgs
-            $legacy.ExitCode | Should -Be 0 -Because $legacy.Output
+        It 'assigns Monitoring Reader on the subscription and Microsoft Sentinel Contributor on the resource group' {
             $run = Invoke-ModulePermission { Grant-iSOCRunbookPermission -Context $script:context -AutomationAccountName 'aa-dcr-watchlist-sync' -AutomationResourceGroup 'rg-dcr-watchlist-sync' -Confirm:$false }
-            @($script:moduleWrites | ForEach-Object { & $script:key $_ } | Sort-Object) | Should -Be @($legacy.Writes | ForEach-Object { & $script:asModuleKey $_ } | Sort-Object)
+            $expected = @("Create $($script:automation) $($script:guid.MonReader) $($script:subScope)", "Create $($script:automation) $($script:guid.Contributor) $($script:rgScope)")
+            @($script:moduleWrites | ForEach-Object { & $script:key $_ } | Sort-Object) | Should -Be @($expected | Sort-Object)
             $run.Assigned | Should -Be 2
             @($script:moduleWrites | ForEach-Object { $_.Scope } | Sort-Object) | Should -Be @($script:rgScope, $script:subScope | Sort-Object)
         }
 
-        It 'removes the same two, and only what is at the scope itself' {
-            $legacy = Invoke-LegacyPermission -Script 'Deploy/permissions/Set-RunbookPermissions.ps1' -Parameters ($script:runbookArgs + @{ Remove = $true })
-            @($legacy.Writes | ForEach-Object { "$($_.Role) $($_.Scope)" } | Sort-Object) | Should -Be @("Microsoft Sentinel Contributor $($script:rgScope)", "Monitoring Reader $($script:subScope)")
+        It 'removes those two, and only what is at the scope itself' {
             $script:standIn.Assignments = @(
                 [ordered]@{ Scope = $script:subScope; PrincipalId = $script:automation; RoleDefinitionId = $script:roleIds['Monitoring Reader'] }
                 [ordered]@{ Scope = $script:subScope; PrincipalId = $script:automation; RoleDefinitionId = $script:roleIds['Microsoft Sentinel Contributor'] }
@@ -437,6 +363,7 @@ exit $LASTEXITCODE
                 $run = Invoke-ModulePermission { Revoke-iSOCRunbookPermission -Context $script:context -AutomationAccountName 'aa-dcr-watchlist-sync' -AutomationResourceGroup 'rg-dcr-watchlist-sync' -Confirm:$false }
             }
             finally { $script:standIn.Assignments = @() }
+            @($run.Results | ForEach-Object { "$($_.Role) $($_.Scope)" } | Sort-Object) | Should -Be @("Microsoft Sentinel Contributor $($script:rgScope)", "Monitoring Reader $($script:subScope)")
             @($script:moduleWrites | ForEach-Object { $_.Id }) | Should -Be @("$($script:subScope)/providers/Microsoft.Authorization/roleAssignments/$($script:automation)-$($script:roleIds['Monitoring Reader'])")
             ($run.Results | Where-Object Role -eq 'Microsoft Sentinel Contributor').Reason | Should -Be 'not assigned at this scope'
         }
@@ -447,7 +374,6 @@ exit $LASTEXITCODE
                 $binding.ConfirmImpact | Should -Be 'High'
                 $binding.SupportsShouldProcess | Should -BeTrue
             }
-            (Get-Content -LiteralPath (Join-Path $script:repoRoot 'Deploy/permissions/Set-RunbookPermissions.ps1') -Raw) | Should -Match 'Read-Host'
         }
 
         It 'leaves an assignment it finds alone, where the script asked az to create it again (MIGRATION.md edit E33)' {

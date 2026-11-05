@@ -8,8 +8,8 @@
 
 .DESCRIPTION
     MIGRATION.md records where every script and function the module
-    replaces goes. These tests hold it to the repository in both
-    directions while the module is built beside the scripts:
+    replaced goes. These tests hold it to the repository in both
+    directions:
 
     - a script that is not yet removed still exists, and one marked
       Removed does not;
@@ -17,13 +17,14 @@
       (while the source exists) and a destination file that defines one
       function named after it, or (not ported) with the edit that says
       why;
-    - every Sentinel.Common function has a row, since that module is
-      absorbed whole;
+    - every Sentinel.Common function has a row while that module is in
+      the repository, since it was absorbed whole;
     - every edit a row names is described, and every described edit is
       named by a row;
-    - an unmerged source that has been ported (named by its commit) is
-      read from its byte-for-byte copy under Fixtures/legacy/, whose git
-      blob id is checked, since the commit is not on any remote.
+    - an unmerged source that has been ported (named by its commit) and
+      not yet removed is read from its byte-for-byte copy under
+      Fixtures/legacy/, whose git blob id is checked, since the commit is
+      not on any remote.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Migration-Map.Tests.ps1
@@ -36,8 +37,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.4.0
-    Last Updated: 2026-11-03
+    Version:      0.4.1
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -142,7 +143,7 @@ Describe 'Script <Source>' -ForEach $scriptRows {
     }
 
     It 'is read, when ported from a commit, from a copy that is that commit''s file' {
-        if ($Row.Source -notmatch '^[0-9a-f]{7,40}:' -or $Row.Status -eq 'Unmerged') { Set-ItResult -Skipped -Because 'it is not a ported unmerged source'; return }
+        if ($Row.Source -notmatch '^[0-9a-f]{7,40}:' -or $Row.Status -in 'Unmerged', 'Removed') { Set-ItResult -Skipped -Because 'it is not a ported unmerged source still in the repository'; return }
         $script:frozen.ContainsKey($Row.Source) | Should -BeTrue -Because 'the test records the blob id of every frozen copy'
         Get-GitBlobId (Resolve-SourcePath $Row.Source) | Should -Be $script:frozen[$Row.Source]
         $atCommit = & git -C $script:repoRoot rev-parse --verify --quiet $Row.Source 2>$null

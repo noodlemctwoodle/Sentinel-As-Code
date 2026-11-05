@@ -14,14 +14,13 @@
       - The Graph SDK wrappers: a sign-in kept when it holds the scopes and
         tenant, renewed when it does not, in the right cloud; requests and
         paging.
-      - The command: every grant made, every grant left when held, the skip
-        switches, a failure reported with ExitCode 1, -WhatIf, a missing
-        service principal.
-      - Parity: Deploy/setup/Setup-ServicePrincipal.ps1 run unchanged in a
-        child pwsh, its Az, Graph SDK and Read-Host commands stood in for
-        over one stand-in tenant, beside the command against the same one:
-        the same role assignments, directory role and app role assignment;
-        and the differences MIGRATION.md edit E34 describes, shown.
+      - The command over one stand-in tenant: every grant made, held to the
+        explicit role assignments, directory role and app role assignment
+        the old setup script made over the same tenant; every grant left
+        when held, the skip switches, a failure reported with ExitCode 1,
+        -WhatIf, a missing service principal; and the differences
+        MIGRATION.md edit E34 describes, shown. Parity with that script was
+        proven on release/26.11.0 before it was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Setup.Tests.ps1
@@ -34,13 +33,13 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 
-    The stand-in Graph SDK grants a sign-in only the scopes it asked for,
-    as a first sign-in does; the scripts have not been run here against a
-    tenant. The parity block goes when the script is removed at cut-over.
+    The stand-in Graph client grants a sign-in only the scopes it asked
+    for, as a first sign-in does; the command has not been run here
+    against a tenant.
 #>
 
 BeforeAll {
@@ -135,65 +134,8 @@ Describe 'The Graph SDK wrappers' {
     }
 }
 
-Describe 'Initialize-iSOCServicePrincipal and parity with Deploy/setup/Setup-ServicePrincipal.ps1' {
+Describe 'Initialize-iSOCServicePrincipal' {
     BeforeAll {
-        $script:stubs = @'
-param([string] $Script, [string] $TenantPath, [string] $Log, [string] $Parameters)
-$tenant = Get-Content -LiteralPath $TenantPath -Raw | ConvertFrom-Json -Depth 100
-$script:mg = $null
-function Write-Log { param([hashtable] $Entry) Add-Content -LiteralPath $Log -Value (ConvertTo-Json -InputObject $Entry -Compress) }
-function Get-AzContext { param($WarningAction) [pscustomobject]@{ Account = [pscustomobject]@{ Id = 'tester' }; Subscription = [pscustomobject]@{ Id = $tenant.SubscriptionId } } }
-function Set-AzContext { param($SubscriptionId, $WarningAction) }
-function Get-AzADServicePrincipal { param($ApplicationId, $ErrorAction, $WarningAction) if ($ApplicationId -eq $tenant.AppId) { [pscustomobject]@{ Id = $tenant.ObjectId; DisplayName = $tenant.DisplayName } } }
-function Get-AzRoleAssignment {
-    param($ObjectId, $RoleDefinitionId, $Scope, $ErrorAction)
-    foreach ($a in $tenant.Assignments) { if ($a.PrincipalId -eq $ObjectId -and $a.RoleDefinitionId -eq $RoleDefinitionId -and ($Scope -eq $a.Scope -or $Scope.StartsWith("$($a.Scope)/"))) { [pscustomobject]@{ ObjectId = $a.PrincipalId; RoleDefinitionId = $a.RoleDefinitionId; Scope = $a.Scope } } }
-}
-function New-AzRoleAssignment { param($ObjectId, $RoleDefinitionId, $Scope, $Condition, $ConditionVersion, $ErrorAction) Write-Log @{ Kind = 'Rbac'; PrincipalId = $ObjectId; RoleDefinitionId = $RoleDefinitionId; Scope = $Scope; Condition = $Condition; ConditionVersion = $ConditionVersion } }
-function Get-Module { param([switch] $ListAvailable, $Name) [pscustomobject]@{ Name = $Name } }
-function Install-Module { param($Name) Write-Log @{ Kind = 'Install'; Name = $Name } }
-function Get-MgContext { param($ErrorAction) $script:mg }
-function Connect-MgGraph { param($Scopes, [switch] $NoWelcome) Write-Log @{ Kind = 'SignIn'; Scopes = @($Scopes -split ',') }; $script:mg = [pscustomobject]@{ Scopes = @($Scopes -split ',') } }
-function Assert-Scope { param([string] $Scope) if (@($script:mg.Scopes) -notcontains $Scope) { throw "Insufficient privileges to complete the operation (the sign-in lacks $Scope)." } }
-function Get-MgRoleManagementDirectoryRoleAssignment { param($Filter, $ErrorAction) foreach ($r in $tenant.DirectoryRoles) { if ($Filter -eq "principalId eq '$($r.PrincipalId)' and roleDefinitionId eq '$($r.RoleDefinitionId)'") { [pscustomobject]@{ Id = 'x' } } } }
-function New-MgRoleManagementDirectoryRoleAssignment {
-    param($PrincipalId, $RoleDefinitionId, $DirectoryScopeId, $ErrorAction)
-    Assert-Scope 'RoleManagement.ReadWrite.Directory'
-    if ($tenant.FailEntra) { throw 'Insufficient privileges to complete the operation.' }
-    Write-Log @{ Kind = 'DirectoryRole'; PrincipalId = $PrincipalId; RoleDefinitionId = $RoleDefinitionId; DirectoryScopeId = $DirectoryScopeId }
-}
-function Get-MgServicePrincipal { param($Filter, $ErrorAction) if ($Filter -eq "appId eq '00000003-0000-0000-c000-000000000000'") { [pscustomobject]@{ Id = $tenant.GraphSpId; AppRoles = @([pscustomobject]@{ Value = 'User.Read.All'; Id = 'other' }, [pscustomobject]@{ Value = 'CustomDetection.ReadWrite.All'; Id = $tenant.AppRoleId }) } } }
-function Get-MgServicePrincipalAppRoleAssignment { param($ServicePrincipalId, $ErrorAction) foreach ($g in $tenant.AppRoleAssignments) { if ($g.PrincipalId -eq $ServicePrincipalId) { [pscustomobject]@{ AppRoleId = $g.AppRoleId; ResourceId = $g.ResourceId } } } }
-function New-MgServicePrincipalAppRoleAssignment {
-    param($ServicePrincipalId, $PrincipalId, $ResourceId, $AppRoleId, $ErrorAction)
-    Assert-Scope 'AppRoleAssignment.ReadWrite.All'
-    Write-Log @{ Kind = 'AppRole'; PrincipalId = $PrincipalId; ResourceId = $ResourceId; AppRoleId = $AppRoleId }
-}
-function Read-Host { param($Prompt) 'Y' }
-$splat = Get-Content -LiteralPath $Parameters -Raw | ConvertFrom-Json -AsHashtable
-$global:LASTEXITCODE = 0
-& $Script @splat
-exit $LASTEXITCODE
-'@
-
-        function Invoke-LegacySetup {
-            param([hashtable] $Tenant, [hashtable] $Parameters = @{})
-            $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-            New-Item -ItemType Directory -Path $tree | Out-Null
-            $copy = Join-Path $tree 'Setup-ServicePrincipal.ps1'
-            Set-Content -LiteralPath $copy -Value ((Get-Content -LiteralPath (Join-Path $script:repoRoot 'Deploy/setup/Setup-ServicePrincipal.ps1') -Raw) -replace '(?m)^#Requires -Modules[^\r\n]*\r?\n', '') -NoNewline
-            Set-Content -LiteralPath (Join-Path $tree 'run.ps1') -Value $script:stubs
-            Set-Content -LiteralPath (Join-Path $tree 'tenant.json') -Value (ConvertTo-Json -InputObject $Tenant -Depth 20)
-            $splat = @{ SubscriptionId = $script:Sub; ServicePrincipalAppId = $script:AppId } + $Parameters
-            Set-Content -LiteralPath (Join-Path $tree 'parameters.json') -Value (ConvertTo-Json -InputObject $splat)
-            $log = Join-Path $tree 'writes.jsonl'
-            New-Item -ItemType File -Path $log | Out-Null
-            $output = & pwsh -NoProfile -NonInteractive -File (Join-Path $tree 'run.ps1') -Script $copy -TenantPath (Join-Path $tree 'tenant.json') -Log $log -Parameters (Join-Path $tree 'parameters.json') 2>&1 | Out-String
-            $status = @{}
-            foreach ($m in [regex]::Matches($output, '\[[+=\-!?]\] (.+?): (Assigned|Granted|Already exists|Skipped|Failed)')) { $status[$m.Groups[1].Value] = $m.Groups[2].Value }
-            [pscustomobject]@{ Output = $output; ExitCode = $LASTEXITCODE; Writes = @(Get-Content -LiteralPath $log | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json }); Status = $status }
-        }
-
         function Invoke-ModuleSetup {
             param([hashtable] $Tenant, [hashtable] $Parameters = @{})
             $script:tenantState = $Tenant
@@ -241,28 +183,35 @@ exit $LASTEXITCODE
             }
         }
         function Get-WriteKey { param($Writes, [string[]] $Kind) @($Writes | Where-Object { $_.Kind -in $Kind } | ForEach-Object { & $script:writeKey $_ } | Sort-Object) }
+
+        # The grants Setup-ServicePrincipal.ps1 made over this stand-in tenant
+        # on release/26.11.0, with the role definition GUIDs and the condition
+        # written out so they do not come from the module: Contributor and the
+        # conditioned User Access Administrator on the subscription, Security
+        # Administrator in Entra ID, and CustomDetection.ReadWrite.All on
+        # Microsoft Graph.
+        $allowed = @('3e150937-b8fe-4cfb-8069-0eaf05ecd056', '8d289c81-5878-46d4-8554-54e1e3d8b5cb', '73c42c96-874c-492b-b04d-ab87d138a893', '87a39d53-fc1b-424a-814c-f7e04687dc9e', 'f1a07417-d97a-45cb-824c-7a7467783830') |
+            ForEach-Object { "(@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] StringEquals '/subscriptions/$($script:Sub)/providers/Microsoft.Authorization/roleDefinitions/$_')" }
+        $allowed = $allowed -join ' OR '
+        $condition = "((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})) OR ($allowed)) AND ((!(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})) OR ($allowed))"
+        $script:expectedRbac = @(
+            [pscustomobject]@{ Kind = 'Rbac'; PrincipalId = $script:ObjectId; RoleDefinitionId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'; Scope = $script:subScope; Condition = $null; ConditionVersion = $null }
+            [pscustomobject]@{ Kind = 'Rbac'; PrincipalId = $script:ObjectId; RoleDefinitionId = '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9'; Scope = $script:subScope; Condition = $condition; ConditionVersion = '2.0' }
+        )
+        $script:expectedDirectoryRole = [pscustomobject]@{ Kind = 'DirectoryRole'; PrincipalId = $script:ObjectId; RoleDefinitionId = '194ae4cb-b126-40b2-bd5b-6091b380977d'; DirectoryScopeId = '/' }
+        $script:expectedAppRole = [pscustomobject]@{ Kind = 'AppRole'; PrincipalId = $script:ObjectId; ResourceId = $script:GraphSpId; AppRoleId = $script:AppRoleId }
     }
 
-    It 'makes the same Azure role assignments and directory role assignment on a fresh tenant' {
-        $legacy = Invoke-LegacySetup -Tenant (Get-StandInTenant)
-        $legacy.ExitCode | Should -Be 0 -Because $legacy.Output
+    It 'makes the Azure role assignments and directory role assignment the old setup script made on a fresh tenant' {
         $run = Invoke-ModuleSetup -Tenant (Get-StandInTenant)
-        Get-WriteKey $script:moduleWrites 'Rbac', 'DirectoryRole' | Should -Be (Get-WriteKey $legacy.Writes 'Rbac', 'DirectoryRole')
-        (Get-WriteKey $legacy.Writes 'Rbac').Count | Should -Be 2
-        @($legacy.Writes | Where-Object Kind -eq 'Install').Count | Should -Be 0
+        Get-WriteKey $script:moduleWrites 'Rbac', 'DirectoryRole' | Should -Be (Get-WriteKey (@($script:expectedRbac) + $script:expectedDirectoryRole) 'Rbac', 'DirectoryRole')
         $run.Assigned | Should -Be 4
         $run.ExitCode | Should -Be 0
     }
 
     It 'grants the Graph permission, which the script could not do after the directory role: it kept that sign-in, without the scope (MIGRATION.md edit E34)' {
-        $legacy = Invoke-LegacySetup -Tenant (Get-StandInTenant)
-        $legacy.Status['CustomDetection.ReadWrite.All (Graph)'] | Should -Be 'Failed' -Because $legacy.Output
-        @($legacy.Writes | Where-Object Kind -eq 'SignIn').Count | Should -Be 1
-        $alone = Invoke-LegacySetup -Tenant (Get-StandInTenant) -Parameters @{ SkipEntraRole = $true }
-        $alone.Status['CustomDetection.ReadWrite.All (Graph)'] | Should -Be 'Granted' -Because $alone.Output
-
         Invoke-ModuleSetup -Tenant (Get-StandInTenant) | Out-Null
-        Get-WriteKey $script:moduleWrites 'AppRole' | Should -Be (Get-WriteKey $alone.Writes 'AppRole')
+        Get-WriteKey $script:moduleWrites 'AppRole' | Should -Be (Get-WriteKey $script:expectedAppRole 'AppRole')
         $signIn = @($script:moduleWrites | Where-Object Kind -eq 'SignIn')
         $signIn.Count | Should -Be 1
         @($signIn[0].Scopes) | Should -Be @('RoleManagement.ReadWrite.Directory', 'AppRoleAssignment.ReadWrite.All', 'Application.Read.All')
@@ -270,9 +219,6 @@ exit $LASTEXITCODE
     }
 
     It 'leaves alone every grant the service principal holds' {
-        $legacy = Invoke-LegacySetup -Tenant (Get-StandInTenant -Held)
-        @($legacy.Writes | Where-Object { $_.Kind -ne 'SignIn' }).Count | Should -Be 0
-        @($legacy.Status.Values | Sort-Object -Unique) | Should -Be @('Already exists')
         $run = Invoke-ModuleSetup -Tenant (Get-StandInTenant -Held)
         @($script:moduleWrites | Where-Object { $_.Kind -ne 'SignIn' }).Count | Should -Be 0
         $run.Unchanged | Should -Be 4
@@ -280,18 +226,13 @@ exit $LASTEXITCODE
 
     It 'leaves out the directory role and the Graph permission when skipped, and never signs in to Graph' {
         $skip = @{ SkipEntraRole = $true; SkipGraphPermission = $true }
-        $legacy = Invoke-LegacySetup -Tenant (Get-StandInTenant) -Parameters $skip
-        @($legacy.Writes | Where-Object { $_.Kind -in 'SignIn', 'DirectoryRole', 'AppRole' }).Count | Should -Be 0
         $run = Invoke-ModuleSetup -Tenant (Get-StandInTenant) -Parameters $skip
         @($script:moduleWrites | Where-Object { $_.Kind -in 'SignIn', 'DirectoryRole', 'AppRole' }).Count | Should -Be 0
-        Get-WriteKey $script:moduleWrites 'Rbac' | Should -Be (Get-WriteKey $legacy.Writes 'Rbac')
+        Get-WriteKey $script:moduleWrites 'Rbac' | Should -Be (Get-WriteKey $script:expectedRbac 'Rbac')
         @($run.Results | Where-Object Outcome -eq 'Skipped' | ForEach-Object { $_.Role }) | Should -Be @('Security Administrator (Entra ID)', 'CustomDetection.ReadWrite.All (Graph)')
     }
 
     It 'reports a refused directory role and fails the run, where the script ended with exit code 0 (MIGRATION.md edit E34)' {
-        $legacy = Invoke-LegacySetup -Tenant (Get-StandInTenant -FailEntra) -Parameters @{ SkipGraphPermission = $true }
-        $legacy.Status['Security Administrator (Entra ID)'] | Should -Be 'Failed'
-        $legacy.ExitCode | Should -Be 0
         $run = Invoke-ModuleSetup -Tenant (Get-StandInTenant -FailEntra) -Parameters @{ SkipGraphPermission = $true }
         ($run.Results | Where-Object Role -eq 'Security Administrator (Entra ID)').Outcome | Should -Be 'Failed'
         $run.ExitCode | Should -Be 1

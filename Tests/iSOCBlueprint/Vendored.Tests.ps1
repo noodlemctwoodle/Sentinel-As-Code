@@ -7,14 +7,16 @@
     their originals.
 
 .DESCRIPTION
-    The module ships its own copy of two things that live elsewhere in the
-    repository, so it can run on its own: Remove-KqlComments and
-    Get-KqlBareIdentifiers from Modules/Sentinel.Common (the shared module
-    needs Az.Accounts; rendering does not), and Blueprint-References.md
-    from Docs/Modules/iSOCBlueprint (page 99 of every report). A copy that drifts
-    from its original reintroduces the fix-in-one-place bug the shared
-    module exists to prevent, so this suite fails until both sides match.
-    Fix the original first, then copy it across.
+    The module ships its own copy of Blueprint-References.md from
+    Docs/Modules/iSOCBlueprint (page 99 of every report), so it can run on
+    its own. A copy that drifts from its original reintroduces the
+    fix-in-one-place bug, so this suite fails until both sides match: fix
+    the original first, then copy it across.
+
+    The KQL helpers Remove-KqlComments and Get-KqlBareIdentifiers were a
+    copy of Modules/Sentinel.Common's until that module retired in release
+    26.11.0; they are the Blueprint's own code now, and the suite holds the
+    vendor file to just those two.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Vendored.Tests.ps1
@@ -27,22 +29,17 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.1
-    Last Updated: 2026-10-13
+    Version:      0.3.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 
     Version 0.1.0 was Engine-Copy.Tests.ps1, which also held the engine
     byte-identical to Tools/Blueprint until that folder was removed.
 #>
 
-BeforeDiscovery {
-    $vendored = @('Remove-KqlComments', 'Get-KqlBareIdentifiers' | ForEach-Object { @{ Name = $_ } })
-}
-
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:vendorFile = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1'
-    $script:commonFile = Join-Path $script:repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psm1'
 
     function Get-FunctionText {
         param([string] $Path, [string] $Name)
@@ -53,12 +50,8 @@ BeforeAll {
 }
 
 Describe 'Vendored KQL helpers' {
-    It '<Name> is identical to the Sentinel.Common original' -ForEach $vendored {
-        $copy = @(Get-FunctionText -Path $script:vendorFile -Name $Name)
-        $original = @(Get-FunctionText -Path $script:commonFile -Name $Name)
-        $copy.Count | Should -Be 1
-        $original.Count | Should -Be 1
-        $copy[0] | Should -BeExactly $original[0]
+    It 'defines <_> once' -ForEach @('Remove-KqlComments', 'Get-KqlBareIdentifiers') {
+        @(Get-FunctionText -Path $script:vendorFile -Name $_).Count | Should -Be 1
     }
 
     It 'the vendor file defines only the two helpers' {

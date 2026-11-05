@@ -3,8 +3,8 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the playbook content type's handlers, its Az.Resources
-    wrappers, and parity with the deployer they were taken from.
+    Pester tests for the playbook content type's handlers and its
+    Az.Resources wrappers.
 
 .DESCRIPTION
     The handlers are tested on the fixture repository: which files are
@@ -14,13 +14,14 @@
     warned about) and the deploy handler, which deploys, or under -WhatIf
     validates without a deployment name (MIGRATION.md edit E14). The Az
     wrappers are held to refusing a deployment under -WhatIf and to passing
-    the parameters through. The parity block lifts Deploy-CustomPlaybooks
-    out of Deploy/content/Deploy-CustomContent.ps1 by AST and runs it over
-    every playbook in Content/Playbooks/ with the Az cmdlets stood in for:
-    each template must get the same deployment parameters from both, both
-    orders must put every module after the modules it calls, and the
-    script's own -WhatIf validation is shown to fail on the deployment name
-    for every template.
+    the parameters through. Every template under Content/Playbooks/ in
+    this repository is read through the ReadRepo handler, must pass
+    Test-iSOCPlaybook with no issues, and must build its deployment
+    parameters through the ToRequest handler; the module's deploy order
+    over those templates must put every module after the modules it calls,
+    checked by a helper written apart from the module's code. Parity with
+    Deploy-CustomContent.ps1 was proven on release/26.11.0 before the
+    script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Playbook.Tests.ps1
@@ -33,18 +34,25 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 
-    Az.Resources is not needed: the cmdlets are stood in for. The parity
-    block goes when Deploy-CustomContent.ps1 is removed at cut-over.
+    Az.Resources is not needed: the cmdlets are stood in for.
 #>
+
+BeforeDiscovery {
+    $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    # Every template the module should read: each JSON file under
+    # Content/Playbooks/ but parameter files and the Template folder.
+    $script:playbookFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content/Playbooks') -Filter '*.json' -Recurse -File) |
+        Where-Object { $_.Name -notmatch '\.parameters\.json$' -and $_.Directory.Name -ne 'Template' } |
+        ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
+}
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function New-TestContext {
@@ -95,28 +103,6 @@ BeforeAll {
         param([string[]] $Calls = @())
         $actions = ($Calls | ForEach-Object { "`"$_`": { `"id`": `"[concat(resourceGroup().id, '/providers/Microsoft.Logic/workflows/$_')]`" }" }) -join ', '
         "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", `"parameters`": {}, `"resources`": [ { $actions } ] }"
-    }
-
-    # Dependency pairs worked out here, apart from the module's code: a
-    # module that names Microsoft.Logic/workflows/Module-X calls module X.
-    function Test-ModulesFirst {
-        param([string[]] $Path)
-        $isModule = { param($P) (Split-Path -Leaf (Split-Path -Parent $P)) -eq 'Module' }
-        $modules = @($Path | Where-Object { & $isModule $_ })
-        $firstOther = @($Path | ForEach-Object { $_ } | Where-Object { -not (& $isModule $_) } | Select-Object -First 1)
-        if ($firstOther) {
-            $lastModule = [array]::LastIndexOf($Path, $modules[-1])
-            if ($lastModule -gt [array]::IndexOf($Path, $firstOther[0])) { return "a playbook that is not a module deploys before $($modules[-1])" }
-        }
-        $position = @{}
-        for ($i = 0; $i -lt $Path.Count; $i++) { $position["Module-$([System.IO.Path]::GetFileNameWithoutExtension($Path[$i]))"] = $i }
-        foreach ($module in $modules) {
-            $self = "Module-$([System.IO.Path]::GetFileNameWithoutExtension($module))"
-            foreach ($match in [regex]::Matches((Get-Content -LiteralPath $module -Raw), 'Microsoft\.Logic/workflows/(Module-[A-Za-z0-9_-]+)')) {
-                $called = $match.Groups[1].Value
-                if ($called -ne $self -and $position.ContainsKey($called) -and $position[$called] -gt $position[$self]) { "$self deploys before $called, which it calls" }
-            }
-        }
     }
 
     $script:items = @(Get-PlaybookItem)
@@ -337,83 +323,55 @@ Describe 'Az.Resources wrappers' {
     }
 }
 
-Describe 'Parity with Deploy-CustomContent.ps1' {
+Describe 'Content/Playbooks in this repository' {
     BeforeAll {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-CustomContent.ps1')
-        function Write-PipelineMessage { param($Message, $Level) $script:legacyLog.Add([pscustomobject]@{ Message = $Message; Level = $Level }) }
-        function Test-ShouldDeployFile { param($FilePath) $true }
-        function Test-ContentDependencies { param($ContentPath) @{ Passed = $true; Missing = @() } }
-        function Set-DeploymentItemState { param($FilePath, $Status) }
-        # Stand-ins with the real cmdlets' parameters for everything the
-        # script passes: New-AzResourceGroupDeployment takes -Name and
-        # Test-AzResourceGroupDeployment does not.
-        function New-AzResourceGroupDeployment {
-            [CmdletBinding()]
-            param($Name, $ResourceGroupName, $TemplateFile, $TemplateParameterFile, $AutomationResourceGroup, $SentinelResourceGroup,
-                $SentinelResourceGroupName, $PlaybookResourceGroup, $SentinelWorkpaceName, $SentinelWorkspaceName, $SubscriptionId, $WorkspaceId)
-            $script:legacyDeployments.Add([hashtable] $PSBoundParameters)
-        }
-        function Test-AzResourceGroupDeployment {
-            [CmdletBinding()]
-            param($ResourceGroupName, $TemplateFile, $TemplateParameterFile, $AutomationResourceGroup, $SentinelResourceGroup,
-                $SentinelResourceGroupName, $PlaybookResourceGroup, $SentinelWorkpaceName, $SentinelWorkspaceName, $SubscriptionId, $WorkspaceId)
-        }
-
-        $script:BasePath = $script:repoRoot
-        $script:PlaybookRG = 'rg-playbooks'
-        $script:ResourceGroup = 'rg'
-        $script:Workspace = 'ws'
-        $script:SubscriptionId = '00000000-0000-0000-0000-000000000000'
-        $script:WorkspaceId = 'c'
-
-        $script:WhatIf = $true
-        $script:legacyLog = [System.Collections.Generic.List[object]]::new()
-        $script:legacyDeployments = [System.Collections.Generic.List[object]]::new()
-        $script:whatIfCounters = Deploy-CustomPlaybooks
-        $script:whatIfLog = @($script:legacyLog)
-
-        $script:WhatIf = $false
-        $script:legacyLog = [System.Collections.Generic.List[object]]::new()
-        $script:legacyCounters = Deploy-CustomPlaybooks
-
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
-        $script:moduleItems = @(Get-PlaybookItem -Repo $script:repoRoot)
-        $script:moduleOrder = Get-Order $script:moduleItems
-    }
-
-    It 'deployed every template it read' {
-        $script:legacyCounters.Failed | Should -Be 0
-        $script:legacyCounters.Skipped | Should -Be 0
-        $script:legacyDeployments.Count | Should -Be $script:moduleItems.Count
-        @($script:moduleItems | Where-Object { @(Test-Item $_).Count -gt 0 }) | Should -BeNullOrEmpty
-    }
-
-    It 'gives every template the same deployment parameters, apart from the deployment name' {
-        $legacyByFile = @{}
-        foreach ($deployment in $script:legacyDeployments) {
-            $deployment.Name | Should -Match '^Playbook-.{1,40}-\d{14}$'
-            $parameters = @{} + $deployment
-            $parameters.Remove('Name')
-            $parameters.Remove('ErrorAction')
-            $legacyByFile[$deployment.TemplateFile] = ConvertTo-ParityJson $parameters
+        function Invoke-RepoHandler {
+            param([string] $Handler, [hashtable] $Parameters)
+            InModuleScope iSOCDeployments -Parameters @{ T = $script:playbookType; H = $Handler; P = $Parameters } {
+                param($T, $H, $P)
+                Invoke-iSOCContentTypeHandler -ContentType $T -Handler $H -Parameters $P
+            }
         }
-        $different = foreach ($item in $script:moduleItems) {
-            if ((ConvertTo-ParityJson (Get-Request $item).Body) -cne $legacyByFile[$item.Path]) { $item.RelativePath }
+
+        # Dependency pairs worked out here, apart from the module's code: a
+        # module that names Microsoft.Logic/workflows/Module-X calls module X.
+        function Test-ModulesFirst {
+            param([string[]] $Path)
+            $isModule = { param($P) (Split-Path -Leaf (Split-Path -Parent $P)) -eq 'Module' }
+            $modules = @($Path | Where-Object { & $isModule $_ })
+            $firstOther = @($Path | ForEach-Object { $_ } | Where-Object { -not (& $isModule $_) } | Select-Object -First 1)
+            if ($firstOther) {
+                $lastModule = [array]::LastIndexOf($Path, $modules[-1])
+                if ($lastModule -gt [array]::IndexOf($Path, $firstOther[0])) { return "a playbook that is not a module deploys before $($modules[-1])" }
+            }
+            $position = @{}
+            for ($i = 0; $i -lt $Path.Count; $i++) { $position["Module-$([System.IO.Path]::GetFileNameWithoutExtension($Path[$i]))"] = $i }
+            foreach ($module in $modules) {
+                $self = "Module-$([System.IO.Path]::GetFileNameWithoutExtension($module))"
+                foreach ($match in [regex]::Matches((Get-Content -LiteralPath $module -Raw), 'Microsoft\.Logic/workflows/(Module-[A-Za-z0-9_-]+)')) {
+                    $called = $match.Groups[1].Value
+                    if ($called -ne $self -and $position.ContainsKey($called) -and $position[$called] -gt $position[$self]) { "$self deploys before $called, which it calls" }
+                }
+            }
         }
-        @($different) | Should -BeNullOrEmpty
+
+        $script:repoList = @(Invoke-RepoHandler -Handler ReadRepo -Parameters @{ RepoPath = $script:repoRoot; ContentType = $script:playbookType })
+        $script:repoItems = @{}
+        foreach ($item in $script:repoList) { $script:repoItems[$item.RelativePath] = $item }
     }
 
-    It 'deploys every module after the modules it calls, as the script does' {
-        @(Test-ModulesFirst -Path @($script:legacyDeployments | ForEach-Object { $_.TemplateFile })) | Should -BeNullOrEmpty
-        @(Test-ModulesFirst -Path @($script:moduleOrder | ForEach-Object { $_.Path })) | Should -BeNullOrEmpty
-        @($script:moduleOrder | ForEach-Object { $_.Path } | Sort-Object) | Should -Be @($script:legacyDeployments | ForEach-Object { $_.TemplateFile } | Sort-Object)
+    It 'reads, validates and builds <Path>' -ForEach $script:playbookFiles {
+        $item = $script:repoItems[$Path]
+        $item | Should -Not -BeNullOrEmpty -Because 'the ReadRepo handler reads every template under Content/Playbooks'
+        Test-Item $item | Should -BeNullOrEmpty
+        { $script:repoRequest = Invoke-RepoHandler -Handler ToRequest -Parameters @{ Item = $item; Context = $script:context } } | Should -Not -Throw
+        $script:repoRequest.Body | Should -Not -BeNullOrEmpty
     }
 
-    It 'shows the script''s -WhatIf validation failing on the deployment name for every template (MIGRATION.md edit E14)' {
-        $failed = @($script:whatIfLog | Where-Object { $_.Message -like '`[WhatIf`] Template validation failed*' })
-        $failed.Count | Should -Be $script:moduleItems.Count
-        @($failed | Where-Object { $_.Message -notlike "*parameter name 'Name'*" }) | Should -BeNullOrEmpty
-        $script:whatIfCounters.Deployed | Should -Be $script:moduleItems.Count
+    It 'deploys every module in Content/Playbooks after the modules it calls' {
+        $order = @(Get-Order $script:repoList)
+        @(Test-ModulesFirst -Path @($order | ForEach-Object { $_.Path })) | Should -BeNullOrEmpty
+        @($order | ForEach-Object { $_.Path } | Sort-Object) | Should -Be @($script:repoList | ForEach-Object { $_.Path } | Sort-Object)
     }
 }

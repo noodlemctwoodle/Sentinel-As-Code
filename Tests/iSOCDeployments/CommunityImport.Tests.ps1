@@ -15,11 +15,13 @@
         repository's own Dalonso rules keeping every id.
       - The source definition, the README (MIGRATION.md edit E30), the git
         requirement and the checkout.
-      - Parity: a synthetic upstream git repository, cloned over file://
-        both by Tools/Import-CommunityRules.ps1, run unchanged in a child
-        pwsh from a copy of the repository, and by the module on another
-        copy: the same rules, ids, manifest and README, and the differences
-        MIGRATION.md edits E28 to E31 describe, shown.
+      - Whole runs: a synthetic upstream git repository, cloned over
+        file:// by the module into a copy of the repository: the rules,
+        ids, manifest and README it writes, and the behaviour MIGRATION.md
+        edits E28 to E31 describe.
+
+    Parity with Tools/Import-CommunityRules.ps1, run against the same
+    upstream, was proven on release/26.11.0 before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/CommunityImport.Tests.ps1
@@ -32,18 +34,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.1.0
-    Last Updated: 2026-11-04
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml, git
-
-    The parity block goes when Tools/Import-CommunityRules.ps1 is removed
-    at cut-over.
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     Import-Module powershell-yaml -ErrorAction Stop
 
     function Invoke-Private {
@@ -356,9 +354,8 @@ Describe 'Sources, the README, git and the checkout' {
     }
 }
 
-Describe 'Parity with Tools/Import-CommunityRules.ps1' {
+Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
     BeforeAll {
-        $script:legacyScript = Join-Path $script:repoRoot 'Tools/Import-CommunityRules.ps1'
         $script:inHouseId = Invoke-Private Get-iSOCRuleFileId @{ Path = (Join-Path $script:repoRoot 'Content/AnalyticalRules/AzureActivity/AzureVmRunCommandExecutionDetectionRule.yaml') }
         $script:existingFile = 'SigninLogs/11-SIGNIN-SlowLowPasswordSpray.yaml'
         $script:existingId = Invoke-Private Get-iSOCRuleFileId @{ Path = (Join-Path $script:repoRoot "Content/AnalyticalRules/Community/Dalonso/$($script:existingFile)") }
@@ -414,22 +411,10 @@ Describe 'Parity with Tools/Import-CommunityRules.ps1' {
         }
 
         function New-Tree {
-            param([switch] $WithScript)
             $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
             New-Item -ItemType Directory -Path (Join-Path $tree 'Content') -Force | Out-Null
             Copy-Item -LiteralPath (Join-Path $script:repoRoot 'Content/AnalyticalRules') -Destination (Join-Path $tree 'Content') -Recurse
-            if ($WithScript) {
-                New-Item -ItemType Directory -Path (Join-Path $tree 'Tools') | Out-Null
-                Copy-Item -LiteralPath $script:legacyScript -Destination (Join-Path $tree 'Tools/Import-CommunityRules.ps1')
-            }
             $tree
-        }
-
-        function Invoke-Legacy {
-            param([string] $Tree, [string] $Url, [string[]] $Extra = @('-IncludeKqlConversion'))
-            $output = & pwsh -NoProfile -NonInteractive -File (Join-Path $Tree 'Tools/Import-CommunityRules.ps1') -SourceRepo $Url @Extra 2>&1 | Out-String
-            $count = { param([string] $Label) if ($output -match "(?m)$([regex]::Escape($Label)):\s+(\d+)") { [int]$Matches[1] } else { 0 } }
-            [pscustomobject]@{ Output = $output; ExitCode = $LASTEXITCODE; Imported = & $count 'Imported (new)'; Updated = & $count 'Updated'; Unchanged = & $count 'Skipped (no diff)'; Errors = & $count 'Errors' }
         }
 
         function Invoke-Module {
@@ -452,97 +437,219 @@ Describe 'Parity with Tools/Import-CommunityRules.ps1' {
         }
 
         $script:upstream = New-Upstream -Name 'upstream'
-        $script:legacyTree = New-Tree -WithScript
-        $script:legacy = Invoke-Legacy -Tree $script:legacyTree -Url $script:upstream.Url
         $script:moduleTree = New-Tree
         $script:run = Invoke-Module -Tree $script:moduleTree -Url $script:upstream.Url
-        $script:legacyFiles = Get-Snapshot $script:legacyTree
         $script:moduleFiles = Get-Snapshot $script:moduleTree
         $script:rules = 'Content/AnalyticalRules/Community/Dalonso'
+        $script:imported = @(
+            'AzureActivity/Azure-role-assigned-then-used.yaml'
+            'AzureActivity/Azure-run-command.yaml'
+            'CommonSecurityLog/csl-inhouse.yaml'
+            'CommonSecurityLog/csl-shared.yaml'
+            'DNSEvents/dns.yaml'
+            'SigninLogs/11-SIGNIN-SlowLowPasswordSpray.yaml'
+            'SigninLogs/A-new-rule.yaml'
+        )
     }
 
     It 'exercises every case' {
-        $script:legacy.ExitCode | Should -Be 0 -Because $script:legacy.Output
-        $script:legacy.Imported | Should -Be 6 -Because $script:legacy.Output
-        $script:legacy.Updated | Should -Be 1
-        $script:legacy.Errors | Should -Be 2
-        $script:legacy.Output | Should -Match 'Failed to parse ARM template'
-        $script:legacy.Output | Should -Match 'No alertRule resources found'
-        $script:legacy.Output | Should -Match 'Source folder not found, skipping'
+        $reasons = @($script:run.Results | Where-Object Outcome -eq 'Skipped' | ForEach-Object Reason)
+        $reasons.Count | Should -Be 2
+        $reasons[0] | Should -Match 'B-no-severity\.yaml'' is missing required fields: severity$'
+        $reasons[1] | Should -BeExactly 'the YAML is not a mapping'
+        # The first test, so only the run in BeforeAll has logged yet.
+        foreach ($text in 'Failed to parse ARM template', 'No alertRule resources found', 'Source folder not found, skipping') {
+            Should -Invoke -ModuleName iSOCDeployments Write-iSOCLog -Scope Describe -ParameterFilter { $Level -eq 'Warning' -and $Message -like "$text*" } -Because $text
+        }
     }
 
-    It 'counts the same' {
-        $script:run.Created | Should -Be $script:legacy.Imported
-        $script:run.Updated | Should -Be $script:legacy.Updated
-        $script:run.Skipped | Should -Be $script:legacy.Errors
+    It 'counts every outcome, at the upstream commit' {
+        $script:run.Created | Should -Be 6
+        $script:run.Updated | Should -Be 1
+        $script:run.Skipped | Should -Be 2
         $script:run.SourceCommit | Should -Be $script:upstream.Commit
         $script:run.ExitCode | Should -Be 0
     }
 
-    It 'writes the same rule files, each ending in one newline where the script left a blank line (MIGRATION.md edit E29)' {
-        $legacyRules = @($script:legacyFiles.Keys | Where-Object { $_ -like "$($script:rules)/*" -and $_ -notlike '*/import-manifest.json' })
+    It 'writes each imported rule ending in one newline (MIGRATION.md edit E29), and leaves every other rule file as it was' {
+        $existing = @(Get-ChildItem -LiteralPath (Join-Path $script:repoRoot $script:rules) -Recurse -File |
+                ForEach-Object { [System.IO.Path]::GetRelativePath($script:repoRoot, $_.FullName).Replace('\', '/') } |
+                Where-Object { $_ -notlike '*/import-manifest.json' })
+        $expected = [string[]]@($existing + @($script:imported | ForEach-Object { "$($script:rules)/$_" }) | Select-Object -Unique)
+        [Array]::Sort($expected, [System.StringComparer]::Ordinal)
         $moduleRules = @($script:moduleFiles.Keys | Where-Object { $_ -like "$($script:rules)/*" -and $_ -notlike '*/import-manifest.json' })
-        $moduleRules | Should -Be $legacyRules
+        $moduleRules | Should -Be $expected
         foreach ($result in @($script:run.Results | Where-Object { $_.Outcome -in 'Created', 'Updated' })) {
             $file = "$($script:rules)/$($result.Path)"
-            $script:legacyFiles[$file].EndsWith("`n`n") | Should -BeTrue -Because $file
+            $script:moduleFiles[$file].EndsWith("`n") | Should -BeTrue -Because $file
             $script:moduleFiles[$file].EndsWith("`n`n") | Should -BeFalse -Because $file
-            # The attribution is its own paragraph (MIGRATION.md edit E28).
-            $legacy = $script:legacyFiles[$file].TrimEnd("`n").Replace("Licensed under The Unlicense.`n  ", "Licensed under The Unlicense.`n`n  ")
-            $script:moduleFiles[$file].TrimEnd("`n") | Should -BeExactly $legacy -Because $file
         }
-        foreach ($file in $legacyRules | Where-Object { $_ -notin @($script:run.Results | ForEach-Object { "$($script:rules)/$($_.Path)" }) }) {
-            $script:moduleFiles[$file] | Should -BeExactly $script:legacyFiles[$file] -Because "$file is not imported"
+        foreach ($file in $moduleRules | Where-Object { $_ -notin @($script:run.Results | ForEach-Object { "$($script:rules)/$($_.Path)" }) }) {
+            $script:moduleFiles[$file] | Should -BeExactly (Get-Content -LiteralPath (Join-Path $script:repoRoot $file) -Raw) -Because "$file is not imported"
         }
     }
 
-    It 'makes the attribution its own paragraph, where the script''s here-string lost the blank line (MIGRATION.md edit E28)' {
+    It 'writes <File> with the attribution as its own paragraph (MIGRATION.md edits E28 and E29)' -ForEach @(
+        @{
+            File  = 'SigninLogs/11-SIGNIN-SlowLowPasswordSpray.yaml'
+            Lines = @(
+                'id: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
+                'name: Slow and low password spray'
+                'description: |'
+                '  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.'
+                ''
+                '  Slow and low password spray does things.'
+                '  A second line.'
+                'severity: High'
+                'queryFrequency: PT1H'
+                'queryPeriod: PT1H'
+                'triggerOperator: GreaterThan'
+                'triggerThreshold: 0'
+                'enabled: false'
+                'tags:'
+                '- Community'
+                '- Dalonso'
+                '- Identity'
+                '- ThreatHunting'
+                'query: |'
+                '  SigninLogs'
+                '  | where ResultType != 0'
+                'kind: Scheduled'
+            )
+        }
+        @{
+            File  = 'DNSEvents/dns.yaml'
+            Lines = @(
+                'id: aaaaaaaa-1111-4111-8111-000000000005'
+                'name: DNS rule'
+                'description: |'
+                '  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.'
+                ''
+                '  DNS rule does things.'
+                '  A second line.'
+                'severity: High'
+                'queryFrequency: PT1H'
+                'queryPeriod: PT1H'
+                'triggerOperator: GreaterThan'
+                'triggerThreshold: 0'
+                'enabled: false'
+                'query: |'
+                '  SigninLogs'
+                '  | where ResultType != 0'
+                'kind: Scheduled'
+                'tags:'
+                '- Community'
+                '- Dalonso'
+                '- ThreatHunting'
+            )
+        }
+        @{
+            File  = 'AzureActivity/Azure-role-assigned-then-used.yaml'
+            Lines = @(
+                'id: bbbbbbbb-2222-4222-8222-000000000001'
+                'name: ''Azure: role assigned / then used'''
+                'kind: Scheduled'
+                'description: |-'
+                '  Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.'
+                ''
+                '  Azure: role assigned / then used from ARM.'
+                'severity: Medium'
+                'query: AzureActivity | take 1'
+                'queryFrequency: PT5M'
+                'queryPeriod: P1D'
+                'triggerOperator: GreaterThan'
+                'triggerThreshold: 1'
+                'tactics:'
+                '- Persistence'
+                'techniques:'
+                '- T1098'
+                'entityMappings:'
+                '- entityType: Account'
+                '  fieldMappings:'
+                '  - identifier: Name'
+                '    columnName: Caller'
+                'enabled: false'
+                'tags:'
+                '- Community'
+                '- Dalonso'
+                '- ThreatHunting'
+            )
+        }
+    ) {
+        $script:moduleFiles["$($script:rules)/$File"] | Should -BeExactly (($Lines -join "`n") + "`n")
+    }
+
+    It 'makes the attribution its own paragraph (MIGRATION.md edit E28)' {
         $file = "$($script:rules)/SigninLogs/A-new-rule.yaml"
-        (ConvertFrom-Yaml $script:legacyFiles[$file]).description | Should -BeExactly ($script:attribution.TrimEnd("`n") + "`nNew sign-in rule | with a pipe does things.`nA second line.`n")
         (ConvertFrom-Yaml $script:moduleFiles[$file]).description | Should -BeExactly ($script:attribution + "New sign-in rule | with a pipe does things.`nA second line.`n")
     }
 
-    It 'settles the same ids: the repository''s kept, a shared one and an in-house one derived' {
+    It 'settles the ids: the repository''s kept, a shared one and an in-house one derived' {
         $id = { param([string] $Files, [string] $Path) ([regex]::Match($Files, '(?m)^id:[ \t]*(\S+)')).Groups[1].Value }
-        foreach ($tree in $script:legacyFiles, $script:moduleFiles) {
-            & $id $tree["$($script:rules)/$($script:existingFile)"] | Should -Be $script:existingId
-            & $id $tree["$($script:rules)/CommonSecurityLog/csl-shared.yaml"] | Should -Be 'aaaaaaaa-1111-4111-8111-000000000002'
-            & $id $tree["$($script:rules)/SigninLogs/A-new-rule.yaml"] | Should -Not -Be 'aaaaaaaa-1111-4111-8111-000000000002'
-            & $id $tree["$($script:rules)/CommonSecurityLog/csl-inhouse.yaml"] | Should -Not -Be $script:inHouseId
-        }
+        $tree = $script:moduleFiles
+        & $id $tree["$($script:rules)/$($script:existingFile)"] | Should -Be $script:existingId
+        & $id $tree["$($script:rules)/CommonSecurityLog/csl-shared.yaml"] | Should -Be 'aaaaaaaa-1111-4111-8111-000000000002'
+        & $id $tree["$($script:rules)/SigninLogs/A-new-rule.yaml"] | Should -Not -Be 'aaaaaaaa-1111-4111-8111-000000000002'
+        & $id $tree["$($script:rules)/CommonSecurityLog/csl-inhouse.yaml"] | Should -Not -Be $script:inHouseId
         @($script:run.IdChanges).Count | Should -Be 3
     }
 
-    It 'writes the same manifest' {
-        $legacyManifest = $script:legacyFiles["$($script:rules)/import-manifest.json"] | ConvertFrom-Json -AsHashtable
+    It 'writes the manifest of the upstream commit, with the hash of every file written' {
         $moduleManifest = $script:moduleFiles["$($script:rules)/import-manifest.json"] | ConvertFrom-Json -AsHashtable
-        foreach ($key in 'sourceRepo', 'sourceBranch', 'sourceCommitSha') { $moduleManifest[$key] | Should -BeExactly $legacyManifest[$key] }
-        @($moduleManifest.files.Keys | Sort-Object) | Should -Be @($legacyManifest.files.Keys | Sort-Object)
+        $moduleManifest['sourceRepo'] | Should -BeExactly $script:upstream.Url
+        $moduleManifest['sourceBranch'] | Should -BeExactly 'main'
+        $moduleManifest['sourceCommitSha'] | Should -BeExactly $script:upstream.Commit
+        @($moduleManifest.files.Keys | Sort-Object) | Should -Be @($script:imported | Sort-Object)
         foreach ($key in $moduleManifest.files.Keys) {
             $moduleManifest.files[$key] | Should -BeExactly (Invoke-Private Get-iSOCTextHash @{ Content = $script:moduleFiles["$($script:rules)/$key"] }) -Because "the hash is of the file written, $key"
         }
         $script:moduleFiles["$($script:rules)/import-manifest.json"] | Should -Match '"importDate": "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ"'
     }
 
-    It 'writes the same README, but for the description column, the date and how to re-import (MIGRATION.md edit E30)' {
-        $legacy = @($script:legacyFiles['Docs/Content/Community/Dalonso.md'] -split "`n")
+    It 'writes the README, with each rule''s own description and how to re-import (MIGRATION.md edit E30)' {
         $module = @($script:moduleFiles['Docs/Content/Community/Dalonso.md'] -split "`n")
-        $head = $legacy.IndexOf('## Categories')
-        $module[0..$head] | Should -Be $legacy[0..$head]
+        $header = @(
+            '# Community Rules: David Alonso - Threat Hunting'
+            ''
+            '## Attribution'
+            ''
+            'These analytical rules were authored by **David Alonso** and sourced from the'
+            '[Dalonso Security Repository](https://github.com/davidalonsod/Dalonso-Security-Repo).'
+            'David maintains a comprehensive collection of Microsoft Sentinel threat-hunting'
+            'detections across identity, endpoint, cloud, and network data sources.'
+            ''
+            '## License'
+            ''
+            'All rules in this directory are released under **The Unlicense** (public domain).'
+            'You are free to use, modify, and distribute them without restriction.'
+            'See [The Unlicense](https://unlicense.org) for full terms.'
+            ''
+            '## Deployment Note'
+            ''
+            'These rules deploy as **disabled** by default. Enable individual rules in the'
+            'Microsoft Sentinel portal after reviewing them against your environment''s data'
+            'sources, retention, and noise tolerance.'
+            ''
+            '## Categories'
+        )
+        $module[0..($header.Count - 1)] | Should -BeExactly $header
         $rows = { param([string[]] $Lines) @($Lines | Where-Object { $_ -match '^\| .+ \| (High|Medium|Low|Informational) \| ' } | ForEach-Object { ($_ -split ' \| ')[0..1] -join ' | ' } | Sort-Object) }
-        & $rows $module | Should -Be (& $rows $legacy)
-        @($legacy | Where-Object { $_ -match '^\| .+ \| (High|Medium) \| Community rule by David Alonso' }).Count | Should -Be ($script:run.Created + $script:run.Updated)
+        $expectedRows = @(
+            '| Azure: role assigned / then used | Medium'
+            '| Azure run command | Medium'
+            '| In-house id rule | High'
+            '| Shared id rule | High'
+            '| DNS rule | High'
+            '| Slow and low password spray | High'
+            '| New sign-in rule \| with a pipe | High'
+        ) | Sort-Object
+        & $rows $module | Should -BeExactly $expectedRows
         @($module | Where-Object { $_ -match 'Community rule by David Alonso' }).Count | Should -Be 0
         $module | Should -Contain '| New sign-in rule \| with a pipe | High | New sign-in rule \| with a pipe does things. |'
         $module | Should -Contain 'Import-iSOCCommunityRule -Source Dalonso'
-        $legacy | Should -Contain '.\Tools\Import-CommunityRules.ps1'
     }
 
-    It 'finds nothing to write when it runs again, where the script rewrote every rule (MIGRATION.md edit E29)' {
-        $again = Invoke-Legacy -Tree $script:legacyTree -Url $script:upstream.Url
-        $again.Updated | Should -Be ($script:legacy.Imported + $script:legacy.Updated) -Because $again.Output
-        $again.Unchanged | Should -Be 0
-
+    It 'finds nothing to write when it runs again (MIGRATION.md edit E29)' {
         $before = Get-Snapshot $script:moduleTree
         $second = Invoke-Module -Tree $script:moduleTree -Url $script:upstream.Url
         $second.Unchanged | Should -Be ($script:run.Created + $script:run.Updated)
@@ -553,29 +660,23 @@ Describe 'Parity with Tools/Import-CommunityRules.ps1' {
         (ConvertTo-Json -InputObject $after -Compress) | Should -BeExactly (ConvertTo-Json -InputObject $before -Compress)
     }
 
-    It 'writes nothing with -WhatIf and says what each rule would be, where the script''s dry run counted every rule new (MIGRATION.md edit E28)' {
-        $legacy = Invoke-Legacy -Tree (New-Tree -WithScript) -Url $script:upstream.Url -Extra @('-IncludeKqlConversion', '-DryRun')
-        $legacy.Imported | Should -Be ($script:legacy.Imported + $script:legacy.Updated)
-        $legacy.Updated | Should -Be 0
-
+    It 'writes nothing with -WhatIf and says what each rule would be (MIGRATION.md edit E28)' {
         $tree = New-Tree
         $before = Get-Snapshot $tree
         $run = Invoke-Module -Tree $tree -Url $script:upstream.Url -Parameters @{ IncludeKqlConversion = $true; WhatIf = $true }
         (ConvertTo-Json -InputObject (Get-Snapshot $tree) -Compress) | Should -BeExactly (ConvertTo-Json -InputObject $before -Compress)
-        @($run.Results | Where-Object Reason -eq 'would be created').Count | Should -Be $script:legacy.Imported
-        @($run.Results | Where-Object Reason -eq 'would be updated').Count | Should -Be $script:legacy.Updated
+        @($run.Results | Where-Object Reason -eq 'would be created').Count | Should -Be 6
+        @($run.Results | Where-Object Reason -eq 'would be updated').Count | Should -Be 1
         $run.Manifest | Should -Be 'WhatIf'
         $run.Readme | Should -Be 'WhatIf'
     }
 
-    It 'gives an ARM rule without a template name the same id every time, where the script made a new one (MIGRATION.md edit E31)' {
+    It 'gives an ARM rule without a template name the same id every time (MIGRATION.md edit E31)' {
         $upstream = New-Upstream -Name 'upstream-no-template' -NoTemplateName
         $file = "$($script:rules)/AzureActivity/Azure-role-assigned-then-used.yaml"
         $id = { param([string] $Tree) Invoke-Private Get-iSOCRuleFileId @{ Path = (Join-Path $Tree $file) } }
-        $legacyIds = foreach ($n in 1, 2) { $tree = New-Tree -WithScript; Invoke-Legacy -Tree $tree -Url $upstream.Url | Out-Null; & $id $tree }
         $moduleIds = foreach ($n in 1, 2) { $tree = New-Tree; Invoke-Module -Tree $tree -Url $upstream.Url | Out-Null; & $id $tree }
-        $legacyIds[0] | Should -Not -BeNullOrEmpty
-        $legacyIds[0] | Should -Not -Be $legacyIds[1]
+        $moduleIds[0] | Should -Not -BeNullOrEmpty
         $moduleIds[0] | Should -Be $moduleIds[1]
     }
 

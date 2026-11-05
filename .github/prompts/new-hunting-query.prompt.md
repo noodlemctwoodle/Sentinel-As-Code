@@ -52,7 +52,7 @@ need to interpret the results?"
 
 6. **Regenerate dependencies + run tests:**
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1
    Invoke-Pester -Path Tests/Test-DependencyManifest.Tests.ps1
    ```

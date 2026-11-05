@@ -70,10 +70,10 @@ Still to come ([MIGRATION.md](MIGRATION.md) lists every script and its
 status): `Get-iSOCRepoContent` and `Get-iSOCWorkspaceContent`, the readers
 every type already has, as commands; and the GitHub half of the pipeline
 switch. The Azure DevOps pipelines (deploy, drift, the dependency manifest
-update and the PR gate) already take an `engine` parameter that runs these
-commands in place of the scripts, or both side by side
+update and the PR gate) run these commands
 ([The pipeline switch](../../Docs/Modules/iSOCDeployments/Pipeline-Switch.md)).
-`Sentinel.Common` is ported in full and retires at the cut-over.
+The scripts the module replaced, and `Sentinel.Common`, were removed at the
+cut-over.
 
 ## What it needs
 

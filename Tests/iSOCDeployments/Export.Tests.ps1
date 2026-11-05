@@ -23,12 +23,15 @@
         (MIGRATION.md edit E27).
       - Export-iSOCContent: outcomes, -Force, -Name, -Path, -WhatIf, paths
         held by another item or claimed earlier in the run, the exit code.
-      - Parity: Tools/Export-SentinelWorkbooks.ps1 and the playbook
-        exporter, frozen at Fixtures/legacy/Export-Playbooks.ps1, run
-        unchanged in a child pwsh against a stand-in workspace
-        (_helpers/ExportStandIn.psm1) beside the module against the same
-        one, with the same files and counts; and the differences
-        MIGRATION.md edits E25 to E27 describe, shown.
+      - Whole runs against a stand-in workspace built from this
+        repository's workbooks (_helpers/ExportStandIn.psm1): every case
+        counted, curated metadata kept, every page of a list read, and the
+        behaviour MIGRATION.md edits E25 to E27 describe.
+
+    Parity with Tools/Export-SentinelWorkbooks.ps1 and the unmerged
+    playbook exporter (847ef86:Tools/Export-Playbooks.ps1), run against the
+    same stand-in with the same files and counts, was proven on
+    release/26.11.0 before they were removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Export.Tests.ps1
@@ -41,20 +44,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
-
-    The parity block goes when Tools/Export-SentinelWorkbooks.ps1 is
-    removed at cut-over, with the frozen playbook exporter.
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
-    $script:helper = Join-Path $PSScriptRoot '_helpers/ExportStandIn.psm1'
-    Import-Module $script:helper -Force
+    Import-Module (Join-Path $PSScriptRoot '_helpers/ExportStandIn.psm1') -Force
 
     $script:Sub = '11111111-2222-3333-4444-555555555555'
     $script:WsId = '99999999-8888-7777-6666-555555555555'
@@ -1027,11 +1026,8 @@ Describe 'Export-iSOCContent' {
     }
 }
 
-Describe 'Parity with the export scripts' {
+Describe 'Export-iSOCContent against a workspace built from this repository' {
     BeforeAll {
-        $script:legacyWorkbooks = Join-Path $script:repoRoot 'Tools/Export-SentinelWorkbooks.ps1'
-        $script:legacyPlaybooks = Join-Path $PSScriptRoot 'Fixtures/legacy/Export-Playbooks.ps1'
-
         # The stand-in workspace. Workbooks: every workbook in the
         # repository as deploy sends it, the workspace's resource id in its
         # fallbackResourceIds and Sentinel Data Lake with the workspace
@@ -1102,29 +1098,6 @@ Describe 'Parity with the export scripts' {
         $script:standInPath = Join-Path $TestDrive 'export-standin.json'
         Set-Content -LiteralPath $script:standInPath -Value (ConvertTo-Json -InputObject $standIn -Depth 100)
 
-        function Invoke-LegacyExport {
-            param([string] $Script, [string[]] $Arguments, [string] $StandInPath = $script:standInPath)
-            $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-            New-Item -ItemType Directory -Path (Join-Path $tree 'Tools') -Force | Out-Null
-            New-ExportLegacyCommon -Folder (Join-Path $tree 'Modules/Sentinel.Common')
-            $copy = Join-Path $tree "Tools/$(Split-Path -Leaf $Script)"
-            $text = (Get-Content -LiteralPath $Script -Raw) -replace '(?m)^#Requires -Modules[^\r\n]*\r?\n', ''
-            Set-Content -LiteralPath $copy -Value $text -NoNewline
-            $saved = @{ S = $env:ISOC_EXPORT_STANDIN; H = $env:ISOC_EXPORT_HELPER }
-            $env:ISOC_EXPORT_STANDIN = $StandInPath
-            $env:ISOC_EXPORT_HELPER = $script:helper
-            try {
-                $output = & pwsh -NoProfile -NonInteractive -File $copy @Arguments 2>&1 | Out-String
-                $exit = $LASTEXITCODE
-            }
-            finally {
-                $env:ISOC_EXPORT_STANDIN = $saved.S
-                $env:ISOC_EXPORT_HELPER = $saved.H
-            }
-            $count = { param([string] $Label) if ($output -match "(?m)$($Label):\s+(\d+)") { [int]$Matches[1] } else { -1 } }
-            [pscustomobject]@{ Output = $output; ExitCode = $exit; Exported = & $count 'Exported'; Skipped = & $count 'Skipped'; Failed = & $count 'Failed' }
-        }
-
         function Invoke-ModuleExport {
             param([string] $RepoPath, [hashtable] $Parameters = @{}, [string] $StandInPath = $script:standInPath)
             $script:moduleStandIn = Read-ExportStandIn -Path $StandInPath
@@ -1141,77 +1114,35 @@ Describe 'Parity with the export scripts' {
             }
             Export-iSOCContent -Context $script:context -RepoPath $RepoPath -Author 'noodlemctwoodle' @Parameters
         }
-
-        # Every file under the folder: the same names, and the same text,
-        # metadata.json compared as JSON (MIGRATION.md edit E26).
-        function Assert-SameTree {
-            param([string] $Legacy, [string] $Module, [string] $Folder, [string[]] $Except = @())
-            $left = @(Get-TreeFile -Root $Legacy -Folder $Folder | Where-Object { $_ -notin $Except })
-            $right = @(Get-TreeFile -Root $Module -Folder $Folder | Where-Object { $_ -notin $Except })
-            $right | Should -Be $left
-            foreach ($file in $left) {
-                # The script wrote the platform's line ending; the module LF.
-                $a = (Get-Content -LiteralPath (Join-Path $Legacy $file) -Raw).Replace("`r`n", "`n")
-                $b = Get-Content -LiteralPath (Join-Path $Module $file) -Raw
-                if ($file -like '*/metadata.json') { (ConvertTo-ParityJson $b) | Should -BeExactly (ConvertTo-ParityJson $a) -Because $file }
-                else { $b | Should -BeExactly $a -Because $file }
-            }
-        }
-
-        $script:workbookArgs = @('-ResourceGroup', 'rg-sentinel', '-Workspace', 'law-lab', '-Region', 'uksouth')
-        $script:playbookArgs = @('-ResourceGroup', 'rg-sentinel', '-Workspace', 'law-lab', '-Region', 'uksouth', '-PlaybookResourceGroup', 'rg-automation')
     }
 
     Context 'workbooks new to the repository' {
         BeforeAll {
-            $script:legacyW1 = New-RepoCopy -Folder @()
-            $script:resultW1 = Invoke-LegacyExport -Script $script:legacyWorkbooks -Arguments ($script:workbookArgs + @('-BasePath', $script:legacyW1))
             $script:moduleW1 = New-RepoCopy -Folder @()
             $script:runW1 = Invoke-ModuleExport -RepoPath $script:moduleW1 -Parameters @{ ContentType = 'Workbook' }
         }
 
         It 'exercises every case' {
-            $script:resultW1.ExitCode | Should -Be 0 -Because $script:resultW1.Output
-            $script:resultW1.Exported | Should -Be ($script:repoWorkbookNames.Count + 3)
-            $script:resultW1.Skipped | Should -Be 3
-            $script:resultW1.Output | Should -Match 'Detail Only.*fetching detail'
-            $script:resultW1.Output | Should -Match 'Stripped workspace suffix'
+            $script:runW1.ExitCode | Should -Be 0
+            ($script:runW1.Created + $script:runW1.Updated + $script:runW1.Unchanged) | Should -Be ($script:repoWorkbookNames.Count + 3)
+            $script:runW1.Skipped | Should -Be 3
+            $script:runW1.Failed | Should -Be 0
+            ($script:runW1.Results | Where-Object Name -eq 'Detail Only').Outcome | Should -Be 'Created'
+            ($script:runW1.Results | Where-Object Name -eq 'Identity Overview - law-lab').Path | Should -Be 'Content/Workbooks/IdentityOverview'
         }
 
-        It 'counts the same' {
-            ($script:runW1.Created + $script:runW1.Updated + $script:runW1.Unchanged) | Should -Be $script:resultW1.Exported
-            $script:runW1.Skipped | Should -Be $script:resultW1.Skipped
-            $script:runW1.Failed | Should -Be $script:resultW1.Failed
-        }
-
-        It 'writes the same folders and files' {
-            Assert-SameTree -Legacy $script:legacyW1 -Module $script:moduleW1 -Folder 'Content/Workbooks'
-        }
-
-        It 'writes metadata.json keys in a set order, where the script''s came out in a [hashtable]''s order (MIGRATION.md edit E26)' {
+        It 'writes metadata.json keys in a set order (MIGRATION.md edit E26)' {
             foreach ($file in @(Get-TreeFile -Root $script:moduleW1 -Folder 'Content/Workbooks' | Where-Object { $_ -like '*/metadata.json' })) {
                 @((Get-Content -LiteralPath (Join-Path $script:moduleW1 $file) -Raw | ConvertFrom-Json -AsHashtable).Keys) | Should -Be @('displayName', 'description', 'category', 'sourceId', 'workbookId') -Because $file
             }
-            # Write-WorkbookFolder's [hashtable] parameter turns the ordered
-            # metadata into a hashtable, whose order is its hash buckets'.
-            Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-            Import-ScriptFunctions -Path $script:legacyWorkbooks
-            $ordered = [ordered]@{ displayName = 'd'; description = ''; category = 'c'; sourceId = 's'; workbookId = 'w' }
-            $folder = Join-Path $TestDrive 'legacy-order'
-            Write-WorkbookFolder -FolderPath $folder -WorkbookJson '{}' -Metadata $ordered
-            @((Get-Content -LiteralPath (Join-Path $folder 'metadata.json') -Raw | ConvertFrom-Json -AsHashtable).Keys) | Should -Be @(([hashtable]$ordered).Keys)
         }
     }
 
     Context 'workbooks the repository has, written over' {
         BeforeAll {
-            # The workbooks whose display name makes their own folder name:
-            # the only ones the script writes back in place.
+            # The workbooks whose display name makes their own folder name.
             $script:inPlace = @($script:repoWorkbookNames.Keys | Where-Object { (Invoke-Private ConvertTo-iSOCWorkbookFolderName @{ DisplayName = $script:repoWorkbookNames[$_] }) -ceq $_ } | Sort-Object)
             $names = @($script:inPlace | ForEach-Object { $script:repoWorkbookNames[$_] })
-            $filter = '^(' + (($names | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')( - law-lab)?$'
-            $script:legacyW2 = New-RepoCopy -Folder @('Content/Workbooks')
-            $script:resultW2 = Invoke-LegacyExport -Script $script:legacyWorkbooks -Arguments ($script:workbookArgs + @('-BasePath', $script:legacyW2, '-Filter', $filter))
             $script:moduleW2 = New-RepoCopy -Folder @('Content/Workbooks')
             $script:runW2 = Invoke-ModuleExport -RepoPath $script:moduleW2 -Parameters @{ ContentType = 'Workbook'; Force = $true; Name = @($names | ForEach-Object { $_; "$_ - law-lab" }) }
         }
@@ -1220,29 +1151,20 @@ Describe 'Parity with the export scripts' {
             $script:inPlace | Should -Contain 'MicrosoftSentinelCostGbpV2'
             $script:inPlace | Should -Contain 'SentinelDataLake'
             $script:inPlace.Count | Should -BeGreaterOrEqual 4
-            $script:resultW2.Exported | Should -Be $script:inPlace.Count -Because $script:resultW2.Output
         }
 
-        It 'counts the same' {
-            ($script:runW2.Created + $script:runW2.Updated + $script:runW2.Unchanged) | Should -Be $script:resultW2.Exported
+        It 'writes every one of them, and creates none' {
+            ($script:runW2.Created + $script:runW2.Updated + $script:runW2.Unchanged) | Should -Be $script:inPlace.Count
             $script:runW2.Created | Should -Be 0
         }
 
-        It 'leaves the same files, the curated values kept' {
-            Assert-SameTree -Legacy $script:legacyW2 -Module $script:moduleW2 -Folder 'Content/Workbooks'
+        It 'keeps the curated values' {
             (Get-Content (Join-Path $script:moduleW2 'Content/Workbooks/Perimeter81/metadata.json') -Raw | ConvertFrom-Json).category | Should -Be 'Network'
         }
     }
 
     Context 'a workbook whose name makes another folder (MIGRATION.md edit E25)' {
-        It 'is written over in its own folder, where the script wrote a second folder deploying the same workbook' {
-            $legacy = New-RepoCopy -Folder @('Content/Workbooks')
-            $result = Invoke-LegacyExport -Script $script:legacyWorkbooks -Arguments ($script:workbookArgs + @('-BasePath', $legacy, '-Filter', '^Detection Engineering Dashboard$', '-OnlyMissing'))
-            $result.Exported | Should -Be 1 -Because $result.Output
-            Test-Path (Join-Path $legacy 'Content/Workbooks/DetectionEngineeringDashboard') | Should -BeTrue
-            $duplicate = (Get-Content (Join-Path $legacy 'Content/Workbooks/DetectionEngineeringDashboard/metadata.json') -Raw | ConvertFrom-Json).workbookId
-            $duplicate | Should -Be (Invoke-Private Get-iSOCWorkbookResourceName @{ Context = $script:context; FolderName = 'DetectionEngineering' })
-
+        It 'is written over in its own folder, not a second folder deploying the same workbook' {
             $module = New-RepoCopy -Folder @('Content/Workbooks')
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Workbook'; Name = 'Detection Engineering Dashboard' }
             ($run.Results | Where-Object Name -eq 'Detection Engineering Dashboard').Reason | Should -Match 'already in the repository'
@@ -1251,27 +1173,22 @@ Describe 'Parity with the export scripts' {
             Test-Path (Join-Path $module 'Content/Workbooks/DetectionEngineeringDashboard') | Should -BeFalse
         }
 
-        It 'fails when it cannot be read, where the script skipped it' {
+        It 'fails when it cannot be read' {
             $raw = Get-Content -LiteralPath $script:standInPath -Raw | ConvertFrom-Json -AsHashtable -Depth 100
             $raw.Fail = @("$($script:wbBase)/aaaaaaaa-0000-0000-0000-000000000014".ToLowerInvariant())
             $path = Join-Path $TestDrive 'standin-fail.json'
             Set-Content -LiteralPath $path -Value (ConvertTo-Json -InputObject $raw -Depth 100)
-            $result = Invoke-LegacyExport -Script $script:legacyWorkbooks -Arguments ($script:workbookArgs + @('-BasePath', (New-RepoCopy -Folder @()), '-Filter', '^Detail Only$')) -StandInPath $path
-            $result.Skipped | Should -BeGreaterThan 0
-            $result.Failed | Should -Be 0
             $run = Invoke-ModuleExport -RepoPath (New-RepoCopy -Folder @()) -Parameters @{ ContentType = 'Workbook'; Name = 'Detail Only' } -StandInPath $path
             ($run.Results | Where-Object Name -eq 'Detail Only').Outcome | Should -Be 'Failed'
             $run.ExitCode | Should -Be 1
         }
 
-        It 'reads every page of the list, where the script read the first' {
+        It 'reads every page of the list' {
             $raw = Get-Content -LiteralPath $script:standInPath -Raw | ConvertFrom-Json -AsHashtable -Depth 100
             $all = @($raw.Lists[$script:wbBase.ToLowerInvariant()][0])
             $raw.Lists[$script:wbBase.ToLowerInvariant()] = @(, @($all[0..1]); , @($all[2..($all.Count - 1)]))
             $path = Join-Path $TestDrive 'standin-pages.json'
             Set-Content -LiteralPath $path -Value (ConvertTo-Json -InputObject $raw -Depth 100)
-            $result = Invoke-LegacyExport -Script $script:legacyWorkbooks -Arguments ($script:workbookArgs + @('-BasePath', (New-RepoCopy -Folder @()))) -StandInPath $path
-            $result.Output | Should -Match 'Found 2 workbook\(s\)'
             $run = Invoke-ModuleExport -RepoPath (New-RepoCopy -Folder @()) -Parameters @{ ContentType = 'Workbook' } -StandInPath $path
             $run.Results.Count | Should -Be $all.Count
         }
@@ -1279,53 +1196,34 @@ Describe 'Parity with the export scripts' {
 
     Context 'playbooks' {
         BeforeAll {
-            $script:legacyP1 = New-RepoCopy -Folder @('Content/Playbooks')
-            $script:resultP1 = Invoke-LegacyExport -Script $script:legacyPlaybooks -Arguments ($script:playbookArgs + @('-OutputPath', (Join-Path $script:legacyP1 'Content/Playbooks')))
             $script:moduleP1 = New-RepoCopy -Folder @('Content/Playbooks')
             $script:runP1 = Invoke-ModuleExport -RepoPath $script:moduleP1 -Parameters @{ ContentType = 'Playbook' }
         }
 
         It 'exercises every case' {
-            $script:resultP1.ExitCode | Should -Be 0 -Because $script:resultP1.Output
-            $script:resultP1.Exported | Should -Be 7
-            $script:resultP1.Skipped | Should -Be 2
-            $script:resultP1.Output | Should -Match 'plain-text secret'
-        }
-
-        It 'counts the same, and writes the same templates' {
-            $script:runP1.Created | Should -Be $script:resultP1.Exported
-            $script:runP1.Skipped | Should -Be $script:resultP1.Skipped
-            $script:runP1.Failed | Should -Be $script:resultP1.Failed
+            $script:runP1.ExitCode | Should -Be 0
+            $script:runP1.Created | Should -Be 7
+            $script:runP1.Skipped | Should -Be 2
+            $script:runP1.Failed | Should -Be 0
             $script:runP1.Warnings | Should -Be 2
-            Assert-SameTree -Legacy $script:legacyP1 -Module $script:moduleP1 -Folder 'Content/Playbooks'
+            @($script:runP1.Results.Warnings | Where-Object { $_ -match 'plain-text secret' }).Count | Should -Be 2
         }
 
         It 'writes over the same template with -Force, but not one two templates name (MIGRATION.md edit E25)' {
-            $legacy = New-RepoCopy -Folder @('Content/Playbooks')
-            $result = Invoke-LegacyExport -Script $script:legacyPlaybooks -Arguments ($script:playbookArgs + @('-OutputPath', (Join-Path $legacy 'Content/Playbooks'), '-Force'))
             $module = New-RepoCopy -Folder @('Content/Playbooks')
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Force = $true }
-            $result.Exported | Should -Be 9 -Because $result.Output
             $run.Created + $run.Updated + $run.Unchanged | Should -Be 8
             ($run.Results | Where-Object Name -eq 'AzureOpenAIAssistant').Reason | Should -Match '^ambiguous'
-            Assert-SameTree -Legacy $legacy -Module $module -Folder 'Content/Playbooks' -Except @('Content/Playbooks/Incident/AzureOpenAIAssistant.json')
-            (Get-Content (Join-Path $legacy 'Content/Playbooks/Incident/AzureOpenAIAssistant.json') -Raw) | Should -Not -BeExactly (Get-Content (Join-Path $script:repoRoot 'Content/Playbooks/Incident/AzureOpenAIAssistant.json') -Raw)
             (Get-Content (Join-Path $module 'Content/Playbooks/Incident/AzureOpenAIAssistant.json') -Raw) | Should -BeExactly (Get-Content (Join-Path $script:repoRoot 'Content/Playbooks/Incident/AzureOpenAIAssistant.json') -Raw)
         }
 
-        It 'leaves a template alone when only its date would change, where the script rewrote it (MIGRATION.md edit E27)' {
-            $legacy = New-RepoCopy -Folder @('Content/Playbooks')
+        It 'leaves a template alone when only its date would change (MIGRATION.md edit E27)' {
             $module = New-RepoCopy -Folder @('Content/Playbooks')
-            Invoke-LegacyExport -Script $script:legacyPlaybooks -Arguments ($script:playbookArgs + @('-OutputPath', (Join-Path $legacy 'Content/Playbooks'), '-NameFilter', 'Module-AddSentinelComment', '-Force')) | Out-Null
             Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Name = 'Module-AddSentinelComment'; Force = $true } | Out-Null
             $file = 'Content/Playbooks/Module/AddSentinelComment.json'
-            foreach ($root in $legacy, $module) {
-                $path = Join-Path $root $file
-                Set-Content -LiteralPath $path -Value ((Get-Content -LiteralPath $path -Raw) -replace '"lastUpdateTime": "[^"]+"', '"lastUpdateTime": "01-01-2020"') -NoNewline
-            }
-            Invoke-LegacyExport -Script $script:legacyPlaybooks -Arguments ($script:playbookArgs + @('-OutputPath', (Join-Path $legacy 'Content/Playbooks'), '-NameFilter', 'Module-AddSentinelComment', '-Force')) | Out-Null
+            $path = Join-Path $module $file
+            Set-Content -LiteralPath $path -Value ((Get-Content -LiteralPath $path -Raw) -replace '"lastUpdateTime": "[^"]+"', '"lastUpdateTime": "01-01-2020"') -NoNewline
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Name = 'Module-AddSentinelComment'; Force = $true }
-            (Get-Content -LiteralPath (Join-Path $legacy $file) -Raw) | Should -Not -Match '01-01-2020'
             (Get-Content -LiteralPath (Join-Path $module $file) -Raw) | Should -Match '01-01-2020'
             ($run.Results | Where-Object Name -eq 'Module-AddSentinelComment').Outcome | Should -Be 'Unchanged'
         }

@@ -54,7 +54,7 @@ For every new rule:
 
 6. **Regenerate the dependency manifest:**
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
    Stage `dependencies.json` together with the new rule.
 

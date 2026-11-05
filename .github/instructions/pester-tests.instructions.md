@@ -18,10 +18,10 @@ new test file.
 
 - `Tests/Test-AnalyticalRuleYaml.Tests.ps1` — schema test for content
   under `Content/AnalyticalRules/` and `Content/HuntingQueries/`
-- `Tests/Test-DeployCustomContent.Tests.ps1` — unit tests for
-  functions inside `Deploy/content/Deploy-CustomContent.ps1`
-- `Tests/Test-SentinelCommon.Tests.ps1` — unit tests for the
-  `Modules/Sentinel.Common/` PowerShell module
+- `Tests/Test-PullRequestTemplate.Tests.ps1` - unit tests for
+  functions inside `Tools/Test-PullRequestTemplate.ps1`
+- `Tests/iSOCDeployments/<Area>.Tests.ps1` - unit tests for the
+  `Modules/iSOCDeployments/` PowerShell module, one suite per area
 
 ## File header
 
@@ -63,7 +63,8 @@ Describe 'AnalyticalRule schema' -ForEach $files {
 
 ### 2. AST extraction for script unit tests
 
-Used by every `Tests/Test-Deploy*.Tests.ps1` and similar. The pattern
+Used by the suites for scripts outside the modules (for example
+`Tests/Test-PullRequestTemplate.Tests.ps1`). The pattern
 extracts function definitions from a script via PowerShell's AST,
 dot-sources them into the test scope, and unit-tests them in
 isolation — so the script's `Main` block (which would call Az
@@ -72,7 +73,7 @@ cmdlets and connect to Azure) never runs.
 ```powershell
 BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
-    $scriptPath = Join-Path $repoRoot 'Deploy/content/Deploy-CustomContent.ps1'
+    $scriptPath = Join-Path $repoRoot 'Tools/Test-PullRequestTemplate.ps1'
 
     Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
 
@@ -80,15 +81,10 @@ BeforeAll {
     # into the caller's session via InvokeWithContext — no need to
     # capture a string and re-execute it.
     Import-ScriptFunctions -Path $scriptPath
-
-    # If the script imports Sentinel.Common at top level, the AST
-    # extractor skips that statement — import the module here so
-    # extracted functions can call its exports at runtime.
-    Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force -ErrorAction Stop
 }
 
-Describe 'Get-PrioritizedFiles' {
-    It 'orders parsers before detections' {
+Describe 'Get-PullRequestSection' {
+    It 'splits the description at each heading' {
         # ... arrange / act / assert
     }
 }
@@ -98,21 +94,27 @@ The AST helper is at
 [`Tests/_helpers/Import-ScriptFunctions.psm1`](../../Tests/_helpers/Import-ScriptFunctions.psm1).
 Its self-test is [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1).
 
-## Mocking in module-scope
+## Module suites and mocking in module scope
 
-When the script under test calls a `Sentinel.Common` function (e.g.
-`Invoke-SentinelApi`, `Connect-AzureEnvironment`), use Pester's
-`Mock -ModuleName Sentinel.Common` so the mock binds in the right
-scope:
+The `iSOCDeployments` suites import the module and reach its private
+functions with `InModuleScope`. When the code under test calls another
+function of the module (for example the REST client
+`Invoke-iSOCRestRequest`), mock it with `-ModuleName iSOCDeployments`
+so the mock binds in the module's scope:
 
 ```powershell
-Mock -ModuleName Sentinel.Common Invoke-SentinelApi {
-    [pscustomobject]@{ value = @() }
+BeforeAll {
+    Import-Module (Join-Path $repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+}
+
+It 'reads the rules' {
+    Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest { @() }
+    InModuleScope iSOCDeployments { Read-iSOCAnalyticsRuleWorkspace -Context $ctx }
 }
 ```
 
 Without `-ModuleName`, Pester scopes the mock to the test scope and
-the module's call to `Invoke-SentinelApi` doesn't see it.
+the module's call doesn't see it.
 
 ## `$TestDrive` for file-touching tests
 
@@ -126,14 +128,14 @@ It 'reads a YAML file' {
 id: 12345...
 name: Test
 "@
-    Get-ContentDependencies -Path $tmp -KnownFunctions @{}
+    Get-iSOCContentDependency -Path $tmp -RepoPath $TestDrive
 }
 ```
 
 ## Hard rules
 
 1. **No live Azure calls.** Every test must run offline. Use `Mock`
-   for `Az.*` cmdlets and the `Sentinel.Common` REST wrappers.
+   for `Az.*` cmdlets and the module's REST client.
 2. **Single-element array indexing trap.** When a function returns
    one item, `$result[0]` indexes into the *string* (returns the
    first character). Use `@($result)[0]` to force array context first.

@@ -14,8 +14,9 @@
     place after Microsoft removed isEnabled, schedule.period, category,
     mitreTechniques, impactedAssets and responseActions on 2026-10-01). The
     field rules come from the deployer itself: every file is run through
-    Test-DetectionRule from Deploy/content/Deploy-DefenderDetections.ps1, so
-    the CI gate and the deployer cannot disagree. On top of that, each file
+    Test-iSOCDefenderDetection, the validation Deploy-iSOCContent runs
+    before it sends a detection (Modules/iSOCDeployments), so the CI gate and
+    the deployer cannot disagree. On top of that, each file
     must:
 
     - carry a client-provided `id` (Graph requires one to create a rule) in
@@ -44,8 +45,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.2.0
-    Last Updated: 2026-10-23
+    Version:      0.2.1
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 
 .LINK
@@ -89,8 +90,7 @@ BeforeDiscovery {
 
 BeforeAll {
     $repoRoot = Split-Path -Parent $PSScriptRoot
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
-    Import-ScriptFunctions -Path (Join-Path $repoRoot 'Deploy/content/Deploy-DefenderDetections.ps1')
+    Import-Module (Join-Path $repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force -ErrorAction Stop
 
     # Field paths Graph removed on 2026-10-01. The deployer still translates
     # them, but repo files must use the current names.
@@ -131,13 +131,17 @@ Describe 'Defender custom detection: <RelativePath>' -ForEach $script:defenderCa
         }
 
         It 'passes the deployer''s rule validation' {
-            $issues = @(Test-DetectionRule -Rule $Yaml)
-            $issues | Should -BeNullOrEmpty -Because 'Deploy-DefenderDetections.ps1 would skip this file'
+            $issues = @(InModuleScope iSOCDeployments -Parameters @{ Rule = $Yaml } {
+                    param($Rule)
+                    Test-iSOCDefenderDetection -Item ([pscustomobject]@{ Rule = $Rule; ParseError = $null })
+                })
+            $issues | Should -BeNullOrEmpty -Because 'Deploy-iSOCContent would refuse this file'
         }
 
         It 'names only columns its query mentions' {
             $query = [string]$Yaml['queryCondition']['queryText']
-            $unknown = @(Get-DetectionMappedColumn -Rule $Yaml | Where-Object { $query -cnotmatch "\b$([regex]::Escape($_))\b" })
+            $columns = @(InModuleScope iSOCDeployments -Parameters @{ Rule = $Yaml } { param($Rule) Get-iSOCDefenderDetectionMappedColumn -Rule $Rule })
+            $unknown = @($columns | Where-Object { $query -cnotmatch "\b$([regex]::Escape($_))\b" })
             $unknown | Should -BeNullOrEmpty -Because 'entity mappings, automated actions and custom details name query result columns; each must be one the query returns'
         }
     }

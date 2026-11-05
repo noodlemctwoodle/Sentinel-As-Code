@@ -7,15 +7,16 @@
     them.
 
 .DESCRIPTION
-    Parity first: the manifest the module builds for this repository must
-    be byte for byte the dependencies.json in it, which the PR gate holds
-    to Tools/Build-DependencyManifest.ps1; and the copied comparison and
-    serialisation must report and write what the script's do (lifted out
-    of the script by AST). Then the fixture repository: the inventory, the
-    entries and missing watchlists, and the commands on a copy of it
+    This repository first: the manifest the module builds for it must show
+    no drift and be byte for byte the committed dependencies.json; and the
+    comparison and serialisation must report and write explicit diff lines
+    and JSON. Then the fixture repository: the inventory, the entries and
+    missing watchlists, and the commands on a copy of it
     (Update-iSOCDependencyManifest writing, not rewriting an unchanged
     file, honouring -WhatIf; Test-iSOCDependencyManifest finding drift;
     Get-iSOCContentDependency on single files and from the pipeline).
+    Parity with Tools/Build-DependencyManifest.ps1 was proven on
+    release/26.11.0 before it was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/Manifest.Tests.ps1
@@ -28,16 +29,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-    Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Tools/Build-DependencyManifest.ps1')
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function New-FixtureCopy {
@@ -52,31 +51,53 @@ AfterAll {
     Remove-Module iSOCDeployments -ErrorAction SilentlyContinue
 }
 
-Describe 'Parity with Tools/Build-DependencyManifest.ps1' {
-    It 'builds this repository''s dependencies.json byte for byte' {
+Describe 'The manifest of this repository, its JSON and its comparison' {
+    It 'builds this repository''s committed dependencies.json byte for byte, with no drift' {
         $state = InModuleScope iSOCDeployments -Parameters @{ R = $script:repoRoot } { param($R) Get-iSOCDependencyManifestState -RepoPath $R 6>$null 3>$null }
         $expected = [System.IO.File]::ReadAllText((Join-Path $script:repoRoot 'dependencies.json'))
         ($state.Json.Replace("`r`n", "`n").TrimEnd("`n") + "`n") | Should -BeExactly $expected
         $state.HasDrift | Should -BeFalse
     }
 
-    It 'writes the JSON ConvertTo-OrderedManifestJson writes' {
+    It 'writes the entries under version, description and dependencies, indented' {
         $entries = [ordered]@{ 'Content/A.yaml' = [ordered]@{ tables = @('T1', 'T2') }; 'Content/B.yaml' = [ordered]@{ watchlists = @('w') } }
         $new = InModuleScope iSOCDeployments -Parameters @{ E = $entries } { param($E) ConvertTo-iSOCManifestJson -Entries $E -Version '1.0' -Description 'd' }
-        $new | Should -BeExactly (ConvertTo-OrderedManifestJson -Entries $entries -Version '1.0' -Description 'd')
+        $expected = @(
+            '{'
+            '  "version": "1.0",'
+            '  "description": "d",'
+            '  "dependencies": {'
+            '    "Content/A.yaml": {'
+            '      "tables": ['
+            '        "T1",'
+            '        "T2"'
+            '      ]'
+            '    },'
+            '    "Content/B.yaml": {'
+            '      "watchlists": ['
+            '        "w"'
+            '      ]'
+            '    }'
+            '  }'
+            '}'
+        ) -join "`n"
+        $new.Replace("`r`n", "`n") | Should -BeExactly $expected
     }
 
-    It 'reports what Compare-Manifest reports: <Case>' -ForEach @(
-        @{ Case = 'no change'; Disk = @{ 'a' = @{ tables = @('T') } }; Found = @{ 'a' = @{ tables = @('T') } } }
-        @{ Case = 'an added entry'; Disk = @{}; Found = @{ 'a' = @{ tables = @('T') } } }
-        @{ Case = 'a removed entry'; Disk = @{ 'a' = @{ tables = @('T') } }; Found = @{} }
-        @{ Case = 'a changed bucket'; Disk = @{ 'a' = @{ tables = @('T'); functions = @('F') } }; Found = @{ 'a' = @{ tables = @('T', 'U') } } }
-        @{ Case = 'members in another order'; Disk = @{ 'a' = @{ tables = @('U', 'T') } }; Found = @{ 'a' = @{ tables = @('T', 'U') } } }
+    It 'reports <Case>' -ForEach @(
+        @{ Case = 'no change'; Disk = @{ 'a' = @{ tables = @('T') } }; Found = @{ 'a' = @{ tables = @('T') } }; HasDrift = $false; Diff = @() }
+        @{ Case = 'an added entry'; Disk = @{}; Found = @{ 'a' = @{ tables = @('T') } }; HasDrift = $true; Diff = @('ADDED:    a') }
+        @{ Case = 'a removed entry'; Disk = @{ 'a' = @{ tables = @('T') } }; Found = @{}; HasDrift = $true; Diff = @('REMOVED:  a') }
+        @{
+            Case = 'a changed bucket'; Disk = @{ 'a' = @{ tables = @('T'); functions = @('F') } }; Found = @{ 'a' = @{ tables = @('T', 'U') } }; HasDrift = $true
+            Diff = @('CHANGED:  a', '    tables :  on-disk=[T]  discovered=[T,U]', '    functions :  on-disk=[F]  discovered=[]')
+        }
+        @{ Case = 'members in another order'; Disk = @{ 'a' = @{ tables = @('U', 'T') } }; Found = @{ 'a' = @{ tables = @('T', 'U') } }; HasDrift = $false; Diff = @() }
     ) {
         $new = InModuleScope iSOCDeployments -Parameters @{ F = $Found; D = $Disk } { param($F, $D) Compare-iSOCDependencyManifest -Discovered $F -OnDisk $D }
-        $old = Compare-Manifest -Discovered $Found -OnDisk $Disk
-        $new.HasDrift | Should -Be $old.HasDrift
-        @($new.Diff) | Should -Be @($old.Diff)
+        $new.HasDrift | Should -Be $HasDrift
+        @($new.Diff).Count | Should -Be $Diff.Count
+        if ($Diff.Count) { @($new.Diff) | Should -BeExactly $Diff }
     }
 }
 

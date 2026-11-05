@@ -3,21 +3,21 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the analytics rule content type's handlers, and for
-    parity with the deployer they were taken from.
+    Pester tests for the analytics rule content type's handlers.
 
 .DESCRIPTION
     The handlers are tested on the fixture repository: reading (identity,
     name, Community source, unreadable files), validation (the messages
-    Deploy-CustomContent.ps1 logs), the request body (every field the
-    deployer sends, the operator map, the technique split, the enabled
-    rules) and the query.
+    Deploy-CustomContent.ps1 logged), the request body (every field the
+    deployer sent, the operator map, the technique split, the enabled
+    rules) and the query. The operator map is also held to the values the
+    drift script's Convert-TriggerOperator returned. Every rule under
+    Content/AnalyticalRules/ in this repository is read through the
+    ReadRepo handler, must pass Test-iSOCAnalyticsRule with no issues, and
+    must build a request through the ToRequest handler.
 
-    The parity block lifts Deploy-CustomDetections out of
-    Deploy/content/Deploy-CustomContent.ps1 by AST, runs it over every rule
-    in Content/AnalyticalRules/ with the REST call captured, and holds each
-    captured request (path, api-version and body) to the one the module
-    builds for the same file.
+    Parity with Deploy-CustomContent.ps1 was proven on release/26.11.0
+    before the script was removed.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/AnalyticsRule.Tests.ps1
@@ -30,12 +30,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
-
-    The parity block goes when Deploy-CustomContent.ps1 is removed at
-    cut-over; its captured requests are kept as golden files first.
 #>
 
 BeforeDiscovery {
@@ -47,7 +44,6 @@ BeforeDiscovery {
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Parity.psm1') -Force
     Import-Module powershell-yaml -ErrorAction Stop
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
@@ -254,11 +250,15 @@ Describe 'ConvertTo-iSOCTriggerOperator' {
         InModuleScope iSOCDeployments { ConvertTo-iSOCTriggerOperator '' } | Should -BeNullOrEmpty
     }
 
-    It 'agrees with Convert-TriggerOperator in the drift script' {
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Tools/Test-SentinelRuleDrift.ps1')
-        foreach ($value in 'gt', 'lt', 'eq', 'ne', 'GreaterThan', 'lessthan', 'Equal', 'NOTEQUAL', 'Other') {
-            InModuleScope iSOCDeployments -Parameters @{ V = $value } { param($V) ConvertTo-iSOCTriggerOperator $V } | Should -BeExactly (Convert-TriggerOperator $value)
+    It 'returns what Convert-TriggerOperator in the drift script returned' {
+        # What Convert-TriggerOperator in the drift script returned for each
+        # value, run on release/26.11.0 before the script was removed.
+        $expected = [ordered]@{
+            'gt' = 'GreaterThan'; 'lt' = 'LessThan'; 'eq' = 'Equal'; 'ne' = 'NotEqual'; 'GreaterThan' = 'GreaterThan'
+            'lessthan' = 'LessThan'; 'Equal' = 'Equal'; 'NOTEQUAL' = 'NotEqual'; 'Other' = 'Other'
+        }
+        foreach ($value in $expected.Keys) {
+            InModuleScope iSOCDeployments -Parameters @{ V = $value } { param($V) ConvertTo-iSOCTriggerOperator $V } | Should -BeExactly $expected[$value] -Because $value
         }
     }
 }
@@ -270,75 +270,28 @@ Describe 'Get-iSOCAnalyticsRuleKql' {
     }
 }
 
-Describe 'Parity with Deploy-CustomContent.ps1' {
+Describe 'Content/AnalyticalRules in this repository' {
     BeforeAll {
-        # Run the old deployer's rule step over the real repository with
-        # everything around it stood in for, capturing each request.
-        Import-Module (Join-Path $script:repoRoot 'Tests/_helpers/Import-ScriptFunctions.psm1') -Force
-        Import-ScriptFunctions -Path (Join-Path $script:repoRoot 'Deploy/content/Deploy-CustomContent.ps1')
-        function Write-PipelineMessage { param($Message, $Level) }
-        # The deployer asks this once per file, just before it sends the file,
-        # so it tags each captured request with the file it came from.
-        function Test-ShouldDeployFile { param($FilePath) $script:legacyFile = $FilePath; $true }
-        function Get-PrioritizedFiles { param($Files) $Files }
-        function Test-ContentDependencies { param($ContentPath) @{ Passed = $true; Missing = @() } }
-        function Set-DeploymentItemState { param($FilePath, $Status) }
-        function Invoke-SentinelApi {
-            param($Uri, $Method, $Headers, $Body)
-            $script:legacyCalls.Add([pscustomobject]@{ File = $script:legacyFile; Uri = $Uri; Method = $Method; Body = $Body })
-        }
-
-        $script:workspacePath = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws'
-        $script:BasePath = $script:repoRoot
-        $script:SkipCommunityDetections = $false
-        $script:WhatIf = $false
-        $script:BaseUri = "https://management.azure.com$($script:workspacePath)"
-        $script:AuthHeader = @{}
-        $script:AlertRuleApiVersion = '2025-07-01-preview'
-        $script:legacyCalls = [System.Collections.Generic.List[object]]::new()
-        $script:legacyCounters = Deploy-CustomDetections
-
-        $script:legacyByFile = @{}
-        foreach ($call in $script:legacyCalls) {
-            $relative = [System.IO.Path]::GetRelativePath($script:repoRoot, $call.File).Replace('\', '/')
-            if (-not $script:legacyByFile.ContainsKey($relative)) { $script:legacyByFile[$relative] = [System.Collections.Generic.List[object]]::new() }
-            $script:legacyByFile[$relative].Add($call)
-        }
-
-        $script:context = InModuleScope iSOCDeployments -Parameters @{ W = $script:workspacePath } {
-            param($W)
-            New-iSOCContext -Value @{
-                TenantId = 't'; SubscriptionId = '00000000-0000-0000-0000-000000000000'; ResourceGroup = 'rg'; WorkspaceName = 'ws'
-                WorkspaceResourceId = $W; WorkspaceId = 'c'; Region = 'uksouth'; PlaybookResourceGroup = 'rg'; Environment = 'AzureCloud'
-                IsGov = $false; ArmUrl = 'https://management.azure.com'; GraphUrl = 'https://graph.microsoft.com'; Account = 'a'
+        Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+        $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticsRule }
+        function Invoke-RepoHandler {
+            param([string] $Handler, [hashtable] $Parameters)
+            InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
+                param($T, $H, $P)
+                Invoke-iSOCContentTypeHandler -ContentType $T -Handler $H -Parameters $P
             }
         }
-        $script:moduleItems = @{}
-        foreach ($item in Get-FixtureItem -Repo $script:repoRoot) { $script:moduleItems[$item.RelativePath] = $item }
-    }
-
-    It 'sent a request for every rule it read' {
-        $script:legacyCounters.Failed | Should -Be 0
-        $script:legacyCounters.Skipped | Should -Be 0
-        $script:legacyCalls.Count | Should -Be $script:moduleItems.Count
-    }
-
-    It 'sends <Path> as Deploy-CustomContent.ps1 does' -ForEach $ruleFiles {
-        $item = $script:moduleItems[$Path]
-        $item | Should -Not -BeNullOrEmpty
-        @(InModuleScope iSOCDeployments -Parameters @{ I = $item } { param($I) Test-iSOCAnalyticsRule -Item $I }) | Should -BeNullOrEmpty
-
-        $request = Get-Request $item
-        $legacy = @($script:legacyByFile[$Path])
-        $legacy.Count | Should -Be 1 -Because 'the deployer sent one request for this file'
-
-        $path = InModuleScope iSOCDeployments -Parameters @{ C = $script:context; N = $request.ResourceName } {
-            param($C, $N)
-            $type = Get-iSOCContentTypeDefinition -Name AnalyticsRule
-            '{0}?api-version={1}' -f (Get-iSOCResourcePath -Context $C -ContentType $type -Name $N), (Get-iSOCApiVersion $type.ApiVersion)
+        $script:repoItems = @{}
+        foreach ($item in Invoke-RepoHandler -Handler ReadRepo -Parameters @{ RepoPath = $script:repoRoot; ContentType = $script:repoType }) {
+            $script:repoItems[$item.RelativePath] = $item
         }
-        "https://management.azure.com$path" | Should -BeExactly $legacy[0].Uri
-        $legacy[0].Method | Should -Be 'Put'
-        ConvertTo-ParityJson $request.Body | Should -BeExactly (ConvertTo-ParityJson $legacy[0].Body)
+    }
+
+    It 'reads, validates and builds <Path>' -ForEach $ruleFiles {
+        $item = $script:repoItems[$Path]
+        $item | Should -Not -BeNullOrEmpty -Because 'the ReadRepo handler reads everything under Content/AnalyticalRules'
+        @(InModuleScope iSOCDeployments -Parameters @{ I = $item } { param($I) Test-iSOCAnalyticsRule -Item $I }) | Should -BeNullOrEmpty
+        { $script:repoRequest = Invoke-RepoHandler -Handler ToRequest -Parameters @{ Item = $item } } | Should -Not -Throw
+        $script:repoRequest.Body | Should -Not -BeNullOrEmpty
     }
 }
