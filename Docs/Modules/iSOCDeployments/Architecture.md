@@ -242,6 +242,15 @@ writes Azure DevOps logging commands (`##[warning]`, `##[error]`,
 local console. It is the only place the module writes to the console
 (`Module.Tests.ps1`).
 
+A message often carries text the module did not write, such as a rule
+name set in the portal, so before writing it `Write-iSOCLog` breaks up
+anything a pipeline would read as a command, on every host: `##vso[`
+becomes `# #vso[`, `##[` becomes `# #[`, and a line that starts with `::`
+starts `: :` (MIGRATION.md edit E45). The Azure DevOps agent acts on
+`##vso[` anywhere in a line, and a command such as `task.setvariable`
+changes what later steps run. The module's own prefixes are added after
+this, so they are the only commands in the output.
+
 ## Prerequisites
 
 `Get-iSOCRequirement` lists what each step needs; `Assert-iSOCPrerequisite

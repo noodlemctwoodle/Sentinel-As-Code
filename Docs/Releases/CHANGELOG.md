@@ -85,7 +85,10 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   dependency manifest commands
   (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
   `Get-iSOCContentDependency`), which write `dependencies.json` byte for
-  byte as `Tools/Build-DependencyManifest.ps1` does. Nothing uses it yet:
+  byte as `Tools/Build-DependencyManifest.ps1` does. Its logger breaks up
+  any text that Azure DevOps or GitHub Actions would read as a pipeline
+  command, so a rule or workbook name set in the portal cannot set
+  pipeline variables. Nothing uses it yet:
   every pipeline still runs the scripts. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).

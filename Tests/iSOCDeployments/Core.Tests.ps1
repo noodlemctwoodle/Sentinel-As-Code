@@ -23,8 +23,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
+    Version:      0.2.0
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -114,6 +114,102 @@ Describe 'Write-iSOCLog' {
         It 'escapes the characters that would end a workflow command' {
             $output = InModuleScope iSOCDeployments { Write-iSOCLog -Message "100% done`r`nnext line" -Level Warning 6>&1 }
             "$output" | Should -BeExactly '::warning::100%25 done%0D%0Anext line'
+        }
+    }
+
+    Context 'Text that reads as a pipeline command' {
+        BeforeAll {
+            # Each form an agent acts on: Azure DevOps ##vso[ anywhere in a
+            # line, GitHub ##[ anywhere in a line and a line that starts with
+            # :: once trimmed; lines end at CR, LF or CRLF. The commands are
+            # harmless ones, and no test name holds one, because a failing
+            # test prints them into the PR validation log.
+            $script:hostile = "rule x ##vso[task.setvariable variable=iSOCLogTest]syncBranch`n##VSO[task.setvariable variable=iSOCLogTest]y`r###[group]z`r`n  ::debug name=a::b`r`t::debug::t`n::::debug::m"
+
+            # The commands an agent would find in the output, after the
+            # module's own prefix.
+            $script:findCommand = {
+                param([string] $Output, [string] $Prefix)
+                $body = if ($Prefix) { $Output.Substring($Prefix.Length) } else { $Output }
+                $found = [System.Collections.Generic.List[string]]::new()
+                foreach ($match in [regex]::Matches($body, '##(vso)?\[', 'IgnoreCase')) { $found.Add($match.Value) }
+                foreach ($line in ($body -split '\r\n|\r|\n')) {
+                    if ($line.Trim().StartsWith('::')) { $found.Add($line) }
+                }
+                , $found.ToArray()
+            }
+
+            $script:capture = {
+                param([string] $Level, [string] $Message)
+                $records = InModuleScope iSOCDeployments -Parameters @{ Level = $Level; Message = $Message } {
+                    param($Level, $Message)
+                    Write-iSOCLog -Message $Message -Level $Level -Verbose -WarningAction Continue *>&1
+                }
+                (@($records) | ForEach-Object { "$_" }) -join "`n"
+            }
+        }
+
+        It 'leaves no command in <Level> on <PipelineHost>' -ForEach @(
+            @{ PipelineHost = 'Local'; Level = 'Info'; Prefix = '' }
+            @{ PipelineHost = 'Local'; Level = 'Section'; Prefix = '' }
+            @{ PipelineHost = 'Local'; Level = 'Success'; Prefix = '' }
+            @{ PipelineHost = 'Local'; Level = 'Warning'; Prefix = '' }
+            @{ PipelineHost = 'Local'; Level = 'Error'; Prefix = '' }
+            @{ PipelineHost = 'Local'; Level = 'Debug'; Prefix = '' }
+            @{ PipelineHost = 'AzureDevOps'; Level = 'Info'; Prefix = '' }
+            @{ PipelineHost = 'AzureDevOps'; Level = 'Section'; Prefix = '##[section]' }
+            @{ PipelineHost = 'AzureDevOps'; Level = 'Success'; Prefix = '' }
+            @{ PipelineHost = 'AzureDevOps'; Level = 'Warning'; Prefix = '##[warning]' }
+            @{ PipelineHost = 'AzureDevOps'; Level = 'Error'; Prefix = '##[error]' }
+            @{ PipelineHost = 'AzureDevOps'; Level = 'Debug'; Prefix = '' }
+            @{ PipelineHost = 'GitHubActions'; Level = 'Info'; Prefix = '' }
+            @{ PipelineHost = 'GitHubActions'; Level = 'Section'; Prefix = '' }
+            @{ PipelineHost = 'GitHubActions'; Level = 'Success'; Prefix = '' }
+            @{ PipelineHost = 'GitHubActions'; Level = 'Warning'; Prefix = '::warning::' }
+            @{ PipelineHost = 'GitHubActions'; Level = 'Error'; Prefix = '::error::' }
+            @{ PipelineHost = 'GitHubActions'; Level = 'Debug'; Prefix = '' }
+        ) {
+            switch ($PipelineHost) {
+                'AzureDevOps' { $env:TF_BUILD = 'True' }
+                'GitHubActions' { $env:GITHUB_ACTIONS = 'true' }
+            }
+            $output = & $script:capture $Level $script:hostile
+            $output | Should -Match 'rule x .*syncBranch'
+            if ($Prefix) { $output.StartsWith($Prefix) | Should -BeTrue -Because "the module's own $Prefix prefix stays" }
+            (& $script:findCommand $output $Prefix) -join ' | ' | Should -BeNullOrEmpty
+        }
+
+        It 'breaks <Name> with a space' -ForEach @(
+            @{ Name = 'an Azure DevOps command'; Message = 'x ##vso[task.setvariable variable=iSOCLogTest]b'; Expected = 'x # #vso[task.setvariable variable=iSOCLogTest]b' }
+            @{ Name = 'an Azure DevOps command in capitals'; Message = 'x ##VSO[task.setvariable variable=iSOCLogTest]b'; Expected = 'x # #VSO[task.setvariable variable=iSOCLogTest]b' }
+            @{ Name = 'a hash-bracket command'; Message = '##[group]g'; Expected = '# #[group]g' }
+            @{ Name = 'a command after a third hash'; Message = '###vso[x]'; Expected = '## #vso[x]' }
+            @{ Name = 'a line starting with two colons'; Message = '::debug name=a::b'; Expected = ': :debug name=a::b' }
+            @{ Name = 'a line starting with spaces and two colons'; Message = '  ::x'; Expected = '  : :x' }
+            @{ Name = 'a line after a lone carriage return'; Message = "a`r::x"; Expected = "a`r: :x" }
+            @{ Name = 'a line after a line feed and a tab'; Message = "a`n`t::x"; Expected = "a`n`t: :x" }
+            @{ Name = 'a line starting with four colons'; Message = '::::x'; Expected = ': :::x' }
+        ) {
+            InModuleScope iSOCDeployments -Parameters @{ Message = $Message } { param($Message) Write-iSOCLog -Message $Message 6>&1 } |
+                ForEach-Object { "$_" } | Should -BeExactly $Expected
+        }
+
+        It 'leaves <Message> unchanged' -ForEach @(
+            @{ Message = '[System.IO.File]::WriteAllText' }
+            @{ Message = 'a::b' }
+            @{ Message = '## [x]' }
+            @{ Message = 'issue #12 [open]' }
+            @{ Message = 'vso[x]' }
+            @{ Message = '100% done' }
+        ) {
+            InModuleScope iSOCDeployments -Parameters @{ Message = $Message } { param($Message) Write-iSOCLog -Message $Message 6>&1 } |
+                ForEach-Object { "$_" } | Should -BeExactly $Message
+        }
+
+        It 'breaks the commands before the GitHub escaping' {
+            $env:GITHUB_ACTIONS = 'true'
+            $output = InModuleScope iSOCDeployments { Write-iSOCLog -Message "50% ##vso[x]`n::y" -Level Warning 6>&1 }
+            "$output" | Should -BeExactly '::warning::50%25 # #vso[x]%0A: :y'
         }
     }
 

@@ -37,8 +37,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.1.1
+    Last Updated: 2026-11-05
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 
     The parity block goes when Tools/Test-SentinelRuleDrift.ps1 is removed
@@ -797,5 +797,37 @@ Describe 'Sync-iSOCContent and Export-iSOCDriftReport under -WhatIf, and with no
 
     It 'refuses a content type it cannot compare' {
         { Compare-iSOCContent -Context $script:context -RepoPath $script:quietRepo -ContentType Parser } | Should -Throw -ExpectedMessage '*cannot compare Parser*'
+    }
+}
+
+Describe 'Write-iSOCDriftSummary' {
+    BeforeEach {
+        $script:savedHost = @{ TF_BUILD = $env:TF_BUILD; BUILD_BUILDID = $env:BUILD_BUILDID; GITHUB_ACTIONS = $env:GITHUB_ACTIONS }
+        $env:TF_BUILD = 'True'
+        $env:BUILD_BUILDID = $null
+        $env:GITHUB_ACTIONS = $null
+    }
+
+    AfterEach {
+        foreach ($name in $script:savedHost.Keys) { [Environment]::SetEnvironmentVariable($name, $script:savedHost[$name]) }
+    }
+
+    It 'writes a portal rule name holding an Azure DevOps logging command without the command' {
+        # A rule name is portal text: anyone who can edit a rule sets it.
+        $records = InModuleScope iSOCDeployments {
+            $name = 'x ##vso[task.setvariable variable=iSOCLogTest]y'
+            $drift = [pscustomobject]@{
+                Items   = @(
+                    [pscustomobject]@{ State = 'PortalOnly'; Source = 'Custom'; Name = $name; ResourceName = 'r1'; Modifications = @() }
+                    [pscustomobject]@{ State = 'PortalEdit'; Source = 'Custom'; Name = $name; ResourceName = 'r2'; Modifications = @([pscustomobject]@{ Field = 'query' }) }
+                )
+                Summary = [pscustomobject]@{ totalDeployed = 2; contentHubClean = 0; contentHubDrift = 0; customClean = 0; customDrift = 1; orphan = 1; managed = 0; skipped = 0 }
+            }
+            Write-iSOCDriftSummary -Drift $drift 6>&1
+        }
+        $lines = @($records | ForEach-Object { "$_" })
+        @($lines | Where-Object { $_.StartsWith('##[warning]') }).Count | Should -Be 2
+        ($lines -join "`n") | Should -Not -Match '##vso\['
+        ($lines -join "`n") | Should -Match '# #vso\[task\.setvariable'
     }
 }
