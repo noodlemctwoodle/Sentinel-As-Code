@@ -244,6 +244,7 @@ dry-run flag. Rules are read from `Content/DefenderCustomDetections/`.
 | GitHub input | ADO parameter | Type | Default | Description |
 | --- | --- | --- | --- | --- |
 | `what_if` | `whatIf` | boolean | `false` | Dry run: preview changes without applying (passed to every script as `-WhatIf`) |
+| *(not yet)* | `engine` | `scripts`, `module` or `compare` | `scripts` | Which engine deploys: the scripts, the iSOCDeployments module (`Get-iSOCWorkspaceOnboarding`, a workspace settings stage of its own, and `Deploy-iSOCWorkspace -Stage` for each content stage), or the scripts with the module checking beside them. See [the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md) |
 
 ## Stages and steps, in order
 

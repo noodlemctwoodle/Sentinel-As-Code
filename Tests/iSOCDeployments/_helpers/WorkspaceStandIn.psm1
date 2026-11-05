@@ -266,6 +266,45 @@ function Get-PipelineStep {
     }
 }
 
+function Get-PipelineStage {
+    <#
+    The stages of an Azure DevOps pipeline file after template insertion
+    with the parameter defaults and $Parameters, each with its dependsOn
+    list expanded too (as an array, empty when it has none).
+    #>
+    param([string] $Path, [hashtable] $Parameters = @{})
+
+    $yaml = Read-PipelineYaml -Path $Path
+    $values = Resolve-PipelineParameter -Yaml $yaml -Parameters $Parameters
+    foreach ($stage in (Expand-PipelineSequence -Items @($yaml.stages) -Values $values)) {
+        $stage['dependsOn'] = if ($stage.Contains('dependsOn')) { @(Expand-PipelineSequence -Items @($stage.dependsOn) -Values $values) } else { @() }
+        $stage
+    }
+}
+
+function Get-PipelineVariableValue {
+    <#
+    The compile-time value of each variable an Azure DevOps pipeline file
+    declares in its top-level variables list, by name: a value, or the
+    ${{ if }} / ${{ else }} branch its parameters take. Variable groups are
+    left out.
+    #>
+    param([string] $Path, [hashtable] $Parameters = @{})
+
+    $yaml = Read-PipelineYaml -Path $Path
+    $values = Resolve-PipelineParameter -Yaml $yaml -Parameters $Parameters
+    $result = @{}
+    foreach ($variable in @($yaml.variables)) {
+        if (-not $variable.Contains('name')) { continue }
+        if ($variable.Contains('value')) { $result[$variable.name] = [string]$variable.value; continue }
+        $branch = @($variable.Keys | Where-Object { $_ -match '^\$\{\{\s*if\s+.+\}\}$' })
+        if ($branch.Count -ne 1) { throw "The test cannot read the variable '$($variable.name)'." }
+        $condition = [regex]::Match($branch[0], '^\$\{\{\s*if\s+(.+?)\s*\}\}$').Groups[1].Value
+        $result[$variable.name] = if (Test-PipelineCondition -Condition $condition -Values $values) { [string]$variable[$branch[0]].value } else { [string]$variable['${{ else }}'].value }
+    }
+    $result
+}
+
 function Get-PipelineInlineScript {
     <#
     Return the inline PowerShell of the step named $Step (an ADO step's
@@ -302,4 +341,4 @@ function Get-PipelineInlineScript {
     $text
 }
 
-Export-ModuleMember -Function Get-WorkspaceStandIn, Export-WorkspaceStandIn, Import-WorkspaceStandIn, Invoke-WorkspaceStandInArm, Read-PipelineYaml, Resolve-PipelineParameter, Test-PipelineCondition, Get-PipelineStep, Get-PipelineInlineScript
+Export-ModuleMember -Function Get-WorkspaceStandIn, Export-WorkspaceStandIn, Import-WorkspaceStandIn, Invoke-WorkspaceStandInArm, Read-PipelineYaml, Resolve-PipelineParameter, Test-PipelineCondition, Get-PipelineStep, Get-PipelineStage, Get-PipelineVariableValue, Get-PipelineInlineScript

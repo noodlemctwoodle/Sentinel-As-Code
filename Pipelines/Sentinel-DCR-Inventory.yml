@@ -15,6 +15,13 @@
 #   After the first deployment, run manually:
 #     az role assignment create --assignee <principalId> --role "Monitoring Reader" --scope /subscriptions/<subId>
 #     az role assignment create --assignee <principalId> --role "Microsoft Sentinel Contributor" --scope /subscriptions/<subId>
+#   or, with the iSOCDeployments module (Monitoring Reader on the
+#   subscription, Microsoft Sentinel Contributor on the Sentinel resource
+#   group, nothing broader):
+#     Connect-iSOCWorkspace -ResourceGroup <sentinelRg> -WorkspaceName <workspace>
+#     Grant-iSOCRunbookPermission -AutomationAccountName <name> -AutomationResourceGroup <rg>
+#   This pipeline runs no script the module replaces, so it has no engine
+#   parameter; only this one-time grant moves to the module.
 #
 # Prerequisites:
 #   - Azure Service Connection with Contributor on the target subscription

@@ -72,10 +72,11 @@ Asymmetries worth knowing:
   report; on GitHub it is a separate workflow chained with `workflow_run`.
   See [SharePoint-Publish.md](SharePoint-Publish.md).
 - The **iSOCDeployments engine** is **ADO-only** for now: while the
-  pipelines move to the module, Azure DevOps first, `Sentinel-Dependency-Update.yml`
-  and the manifest gate of `Sentinel-PR-Validation.yml` take an `engine`
-  parameter (`scripts`, `module` or `compare`, `scripts` by default) that
-  their GitHub mirrors do not have yet. See
+  pipelines move to the module, Azure DevOps first, `Sentinel-Deploy.yml`,
+  `Sentinel-Drift-Detect.yml`, `Sentinel-Dependency-Update.yml` and the
+  manifest gate of `Sentinel-PR-Validation.yml` take an `engine` parameter
+  (`scripts`, `module` or `compare`, `scripts` by default) that their
+  GitHub mirrors do not have yet. See
   [The pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md).
 
 ## Shared Concepts

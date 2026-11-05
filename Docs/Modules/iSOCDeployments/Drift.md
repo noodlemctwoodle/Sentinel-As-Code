@@ -5,7 +5,9 @@ the repository. `Sync-iSOCContent` writes those changes into the
 repository, so the next deploy keeps them instead of undoing them, and
 `Export-iSOCDriftReport` writes the report the drift pipelines commit.
 Together they will replace `Tools/Test-SentinelRuleDrift.ps1` at the
-26.11.0 cut-over; until then the drift pipelines run the script, and
+26.11.0 cut-over; until then the drift pipelines run the script by default
+(the Azure DevOps one runs the commands with `engine` `module`, see
+[The pipeline switch](Pipeline-Switch.md)), and
 [Sentinel drift detection](../../Tools/Sentinel-Drift-Detection.md)
 describes them.
 

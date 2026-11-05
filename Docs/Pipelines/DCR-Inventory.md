@@ -195,6 +195,14 @@ system-assigned identity (helper:
 - **Microsoft Sentinel Contributor** on the subscription (to upsert the
   watchlist).
 
+The iSOCDeployments module grants the same identity the narrower pair,
+Monitoring Reader on the subscription and Microsoft Sentinel Contributor on
+the Sentinel resource group, with `Grant-iSOCRunbookPermission
+-AutomationAccountName <name> -AutomationResourceGroup <rg>` after
+`Connect-iSOCWorkspace` ([Permissions](../Modules/iSOCDeployments/Permissions.md)).
+The pipelines run no script the module replaces, so they take no `engine`
+parameter.
+
 Once granted, the runbook runs autonomously on its Automation schedule.
 
 ## Artefacts and outputs

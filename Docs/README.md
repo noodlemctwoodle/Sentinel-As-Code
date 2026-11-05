@@ -113,7 +113,7 @@ docs live in `Docs/Modules/iSOCDeployments/`.
 | [Deploying a workspace](Modules/iSOCDeployments/Deploy-Workspace.md) | `Deploy-iSOCWorkspace` and how it maps to the stage sequence of `Pipelines/Sentinel-Deploy.yml` and `.github/workflows/sentinel-deploy.yml` |
 | [Workspace settings and onboarding](Modules/iSOCDeployments/Workspace-Settings.md) | `Get-iSOCWorkspaceOnboarding`, the workspace setting type, and how they map to the inline steps of `Pipelines/Sentinel-Deploy.yml` and `.github/workflows/sentinel-deploy.yml` |
 | [Custom tables from a schema](Modules/iSOCDeployments/Dcr-From-Schema.md) | `New-iSOCDcrFromSchema` and how it maps to `Tools/DcrFromSchema/New-DcrFromSchema.ps1` |
-| [The pipeline switch](Modules/iSOCDeployments/Pipeline-Switch.md) | The pipelines' `engine` parameter (scripts, module or compare) and which pipelines run the module so far |
+| [The pipeline switch](Modules/iSOCDeployments/Pipeline-Switch.md) | The Azure DevOps pipelines' `engine` parameter (scripts, module or compare) and what each engine runs |
 | [Permissions](Modules/iSOCDeployments/Permissions.md) | The service principal setup and the playbook and runbook permission commands, and how they map to `Deploy/setup/` and `Deploy/permissions/` |
 | [Community rule import](Modules/iSOCDeployments/Community-Import.md) | `Import-iSOCCommunityRule` and how it maps to `Tools/Import-CommunityRules.ps1` |
 | [Dependency manifest](Modules/iSOCDeployments/Dependency-Manifest.md) | The module's manifest commands and how they map to `Tools/Build-DependencyManifest.ps1` |

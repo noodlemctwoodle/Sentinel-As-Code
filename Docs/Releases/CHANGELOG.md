@@ -88,11 +88,16 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   byte as `Tools/Build-DependencyManifest.ps1` does. Its logger breaks up
   any text that Azure DevOps or GitHub Actions would read as a pipeline
   command, so a rule or workbook name set in the portal cannot set
-  pipeline variables. The Azure DevOps dependency manifest pipelines (the
-  daily update and the PR gate) can run it: queued with `engine` `module`
-  they use the module, and with `compare` they run both and fail when the
-  two disagree; every other pipeline, and every scheduled or PR run, still
-  runs the scripts. See
+  pipeline variables. The Azure DevOps deploy, drift, dependency manifest
+  update and PR gate pipelines can run it: queued with `engine` `module`
+  they use the module, and with `compare` they run the scripts with the
+  module checking beside them, failing when the two disagree; every
+  scheduled or PR run, and every GitHub workflow, still runs the scripts.
+  The module steps may not set pipeline variables or change PATH, and the
+  bot commit steps take their branch names through env from read-only
+  variables. The deploy pipeline's module engine also gives Bicep
+  `deploySentinel` from the onboarding check, and deploys the workspace
+  settings on every run in a stage of their own. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
 - **A classic table fixture stream ends when its posts fail** -

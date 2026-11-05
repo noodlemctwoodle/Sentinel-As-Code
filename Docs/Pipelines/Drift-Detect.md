@@ -69,6 +69,14 @@ On GitHub they are `workflow_dispatch` inputs; on ADO they are pipeline
 | `skipCustom` | `false` | `-SkipCustom` | Skip the Custom (repo YAML) drift bucket |
 | `skipOrphans` | `false` | `-SkipOrphans` | Skip the Orphan (ungoverned) drift bucket |
 
+Azure DevOps also takes `engine` (`scripts` by default, `module` or
+`compare`): with `module` the run uses `Compare-iSOCContent`,
+`Sync-iSOCContent` and `Export-iSOCDriftReport` (the toggles become
+`-ExcludeSource`, leaving out `Sync-iSOCContent`, and the exit), and with
+`compare` the module reads the workspace first, the script runs as usual,
+and the run fails when their reports count drift differently. See
+[the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md).
+
 Solution-name filtering is deliberately **not** exposed as a pipeline
 input. ADO `values:` lists are evaluated at compile time and cannot be
 populated from the live workspace catalogue, and hardcoding solution names
@@ -256,7 +264,8 @@ them:
    avoids "Added in both" merge conflicts when a previous drift PR has
    already merged.
 4. Regenerate the dependency manifest with
-   `Tools/Build-DependencyManifest.ps1 -Mode Generate`. Absorbed rules change
+   `Tools/Build-DependencyManifest.ps1 -Mode Generate` (on ADO with engine
+   `module`, `Update-iSOCDependencyManifest`). Absorbed rules change
    the dependency graph, and the deploy and PR gates fail on a stale
    `dependencies.json`.
 5. `git add Content/AnalyticalRules reports dependencies.json` - only the
@@ -271,6 +280,12 @@ them:
    and would exceed the PR-description limits.
 8. Look for an existing open PR from the sync branch into `main`; **edit**
    its description if found, otherwise **create** a new PR.
+
+On ADO the step prints the report, which holds rule names set in the
+portal, so it runs with `target: { commands: restricted, settableVariables:
+none }`; it reads `syncBranch` and `targetBranch` through `env:`, and both
+variables are `readonly`, so no earlier step can point the push at another
+branch. The step that runs the script cannot set variables either.
 
 ## Artefacts and outputs
 
