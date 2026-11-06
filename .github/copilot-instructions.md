@@ -37,7 +37,7 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 | `Content/HuntingQueries/` | Custom hunting queries (YAML) | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) |
 | `Content/DefenderCustomDetections/` | Defender XDR custom detections (YAML) | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) |
 | `Content/Watchlists/` | Reusable data lists (`watchlist.json` + `data.csv` per alias) | [Docs/Content/Watchlists.md](../Docs/Content/Watchlists.md) |
-| `Content/Playbooks/` | Logic App playbooks (ARM templates, JSON) | [Docs/Content/Playbooks.md](../Docs/Content/Playbooks.md) |
+| `Content/Playbooks/` | Logic App playbooks (Bicep) | [Docs/Content/Playbooks.md](../Docs/Content/Playbooks.md) |
 | `Content/Workbooks/` | Workbook gallery JSON | [Docs/Content/Workbooks.md](../Docs/Content/Workbooks.md) |
 | `Content/Parsers/` | KQL parser/function YAMLs | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md#deploy-customcontentps1) |
 | `Content/SummaryRules/` | Summary-rule JSON | [Docs/Content/Summary-Rules.md](../Docs/Content/Summary-Rules.md) |

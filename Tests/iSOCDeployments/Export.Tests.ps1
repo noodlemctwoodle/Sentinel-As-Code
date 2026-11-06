@@ -815,7 +815,7 @@ Describe 'Export handlers' {
         It 'skips as ambiguous a Logic App two templates name, as five pairs in this repository do' {
             $source = Get-Source Playbook (New-LogicApp -Name 'AzureOpenAIAssistant' -Triggers @{ t = @{ type = 'Recurrence' } }) (New-Run -RepoPath $script:repoRoot)
             $source.State | Should -Be 'Skipped'
-            $source.Reason | Should -Match 'Content/Playbooks/Alert/AzureOpenAIAssistant.json and Content/Playbooks/Incident/AzureOpenAIAssistant.json'
+            $source.Reason | Should -Match 'Content/Playbooks/Alert/AzureOpenAIAssistant.bicep and Content/Playbooks/Incident/AzureOpenAIAssistant.bicep'
         }
 
         It 'fails one that could not be read and skips one with no definition' {
@@ -1261,15 +1261,15 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Force = $true }
             $run.Created + $run.Updated + $run.Unchanged | Should -Be 8
             ($run.Results | Where-Object Name -eq 'AzureOpenAIAssistant').Reason | Should -Match '^ambiguous'
-            (Get-Content (Join-Path $module 'Content/Playbooks/Incident/AzureOpenAIAssistant.json') -Raw) | Should -BeExactly (Get-Content (Join-Path $script:repoRoot 'Content/Playbooks/Incident/AzureOpenAIAssistant.json') -Raw)
+            (Get-Content (Join-Path $module 'Content/Playbooks/Incident/AzureOpenAIAssistant.bicep') -Raw) | Should -BeExactly (Get-Content (Join-Path $script:repoRoot 'Content/Playbooks/Incident/AzureOpenAIAssistant.bicep') -Raw)
         }
 
         It 'leaves a template alone when only its date would change (MIGRATION.md edit E27)' {
             $module = New-RepoCopy -Folder @('Content/Playbooks')
             Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Name = 'Module-AddSentinelComment'; Force = $true } | Out-Null
-            $file = 'Content/Playbooks/Module/AddSentinelComment.json'
+            $file = 'Content/Playbooks/Module/AddSentinelComment.bicep'
             $path = Join-Path $module $file
-            Set-Content -LiteralPath $path -Value ((Get-Content -LiteralPath $path -Raw) -replace '"lastUpdateTime": "[^"]+"', '"lastUpdateTime": "01-01-2020"') -NoNewline
+            Set-Content -LiteralPath $path -Value ((Get-Content -LiteralPath $path -Raw) -replace "(?m)^metadata lastUpdateTime = '[^']+'$", "metadata lastUpdateTime = '01-01-2020'") -NoNewline
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Name = 'Module-AddSentinelComment'; Force = $true }
             (Get-Content -LiteralPath (Join-Path $module $file) -Raw) | Should -Match '01-01-2020'
             ($run.Results | Where-Object Name -eq 'Module-AddSentinelComment').Outcome | Should -Be 'Unchanged'

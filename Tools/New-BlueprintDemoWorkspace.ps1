@@ -96,9 +96,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.4
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
+    Version:      0.2.5
+    Last Updated: 2026-11-06
+    Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
 
     Offline: reads the repository and writes files, and calls no Azure
     API. Prices are the public UK South list prices in GBP as published on
@@ -590,10 +590,25 @@ $workbookTemplates = foreach ($n in @('Microsoft Entra ID Sign-in logs', 'Micros
 }
 Save-DemoJson 'workbook-templates.json' $workbookTemplates
 
-# Playbooks: each Logic App the repository ships, with its trigger.
+# Playbooks: each Logic App the repository ships, with its trigger. The
+# playbooks are Bicep (JSON in a fork not converted yet): the Bicep files
+# are compiled together, in one run of the Bicep CLI, into a temporary
+# folder, and each is read as its compiled template.
 $playbooks = [System.Collections.Generic.List[object]]::new(); $playbookModels = [System.Collections.Generic.List[object]]::new()
-foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Playbooks') -Recurse -Filter '*.json' | Sort-Object FullName)) {
-    $doc = try { Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json -Depth 64 } catch { $null }
+$playbookRoot = Join-Path $content 'Playbooks'
+$playbookFiles = @(Get-ChildItem -LiteralPath $playbookRoot -Recurse -File |
+        Where-Object { $_.Extension -in '.bicep', '.json' -and $_.Name -ne 'bicepconfig.json' -and $_.Name -notlike '*.parameters.json' } |
+        Sort-Object FullName)
+$compiledPlaybooks = $null
+if (@($playbookFiles | Where-Object Extension -eq '.bicep').Count -gt 0) {
+    $bicep = Get-Command bicep -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $bicep) { throw 'The Bicep CLI is needed on the PATH to read the Bicep playbooks: install it with az bicep install and put ~/.azure/bin on the PATH.' }
+    $compiledPlaybooks = Join-Path ([System.IO.Path]::GetTempPath()) "demo-playbooks-$([guid]::NewGuid().ToString('N'))"
+    & $bicep.Source build --pattern "$($playbookRoot.Replace('\', '/'))/**/*.bicep" --outdir "$compiledPlaybooks" 2>$null | Out-Null
+}
+foreach ($f in $playbookFiles) {
+    $source = if ($f.Extension -eq '.bicep') { Join-Path $compiledPlaybooks ([System.IO.Path]::ChangeExtension([System.IO.Path]::GetRelativePath($playbookRoot, $f.FullName), '.json')) } else { $f.FullName }
+    $doc = try { Get-Content -LiteralPath $source -Raw -ErrorAction Stop | ConvertFrom-Json -Depth 64 } catch { $null }
     if (-not $doc -or -not $doc.PSObject.Properties['resources']) { continue }
     $wf = @($doc.resources | Where-Object { $_ -and $_.PSObject.Properties['type'] -and $_.type -eq 'Microsoft.Logic/workflows' }) | Select-Object -First 1
     if (-not $wf -or -not $wf.properties.definition) { continue }
@@ -617,6 +632,7 @@ foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Playbooks') -Re
         })
     $playbookModels.Add([pscustomobject]@{ Name = $name; Trigger = $trigger; State = $state; Identity = $hasIdentity; PrincipalId = $miId; Id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Logic/workflows/$name" })
 }
+if ($compiledPlaybooks) { Remove-Item -LiteralPath $compiledPlaybooks -Recurse -Force -ErrorAction SilentlyContinue }
 Save-DemoJson 'playbooks.json' $playbooks
 $incidentPlaybooks = @($playbookModels | Where-Object { $_.Trigger -eq 'Incident' -and $_.State -eq 'Enabled' })
 

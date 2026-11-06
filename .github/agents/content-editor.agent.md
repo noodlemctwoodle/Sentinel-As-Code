@@ -36,7 +36,7 @@ patches.
    | `Content/AnalyticalRules/**/*.yaml` or `Content/HuntingQueries/**/*.yaml` | `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1` |
    | `Content/DefenderCustomDetections/**/*.yaml` | `Invoke-Pester -Path Tests/Test-DefenderDetectionYaml.Tests.ps1` |
    | `Content/Watchlists/**/*` | `Invoke-Pester -Path Tests/Test-WatchlistJson.Tests.ps1` |
-   | `Content/Playbooks/**/*.json` | `Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1` |
+   | `Content/Playbooks/**/*.bicep` | `Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1` |
    | `Content/Parsers/**/*.yaml` | `Invoke-Pester -Path Tests/Test-ParserYaml.Tests.ps1` |
    | `Content/SummaryRules/**/*.json` | `Invoke-Pester -Path Tests/Test-SummaryRuleJson.Tests.ps1` |
    | `Content/AutomationRules/**/*.json` | `Invoke-Pester -Path Tests/Test-AutomationRuleJson.Tests.ps1` |

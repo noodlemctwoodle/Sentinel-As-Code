@@ -3,16 +3,23 @@
 
 <#
 .SYNOPSIS
-    Pester 5 schema validation for every Playbooks/**/*.json (ARM templates).
+    Pester 5 schema validation for every playbook under Content/Playbooks/:
+    each Bicep file and each ARM JSON template.
 
 .DESCRIPTION
     Generates one It block per playbook file via -ForEach so per-file
     pass/fail surfaces directly in the PR check UI.
 
-    Validates the structural invariants every Sentinel playbook must satisfy
-    to deploy through Deploy-CustomContent.ps1:
+    The Bicep files are compiled together, once, through the
+    iSOCDeployments module's Invoke-iSOCBicep (the Bicep CLI must be on the
+    PATH), and each must build with no error and no warning:
+    Content/Playbooks/bicepconfig.json and the module's writer keep a
+    playbook warning-free, so a warning means something new is wrong. A
+    JSON file is parsed as it is. Either way the ARM template is held to
+    the structural invariants every Sentinel playbook must satisfy to
+    deploy through Deploy-iSOCContent:
 
-    - Parses as JSON with a mapping at the root.
+    - Parses as JSON, or compiles, with a mapping at the root.
     - `$schema` is the ARM deploymentTemplate URL.
     - `contentVersion` is present.
     - `resources` array contains at least one Microsoft.Logic/workflows
@@ -30,7 +37,7 @@
 .EXAMPLE
     Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1
 
-    Validates every playbook ARM template in the repo.
+    Validates every playbook in the repo.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/Test-PlaybookArm.Tests.ps1 -Output Detailed
@@ -44,9 +51,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.2.0
+    Last Updated: 2026-11-06
+    Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 #>
 
 BeforeDiscovery {
@@ -59,20 +66,47 @@ BeforeDiscovery {
     # Set in BeforeDiscovery so test-case data carries the Skeleton flag —
     # -Skip: predicates evaluate at discovery and need static data.
     $skeletonPlaybooks = @(
-        'Content/Playbooks/Template/Template.json',
-        'Content/Playbooks/Other/Schedule-AutomationRules.json',
-        'Content/Playbooks/Alert/AzureOpenAIAssistant.json'
+        'Content/Playbooks/Template/Template.bicep',
+        'Content/Playbooks/Other/Schedule-AutomationRules.bicep',
+        'Content/Playbooks/Alert/AzureOpenAIAssistant.bicep'
     )
 
     $script:playbookCases = @()
     $playbookRoot = Join-Path $repoRoot 'Content/Playbooks'
     if (Test-Path $playbookRoot) {
-        $script:playbookCases = @(Get-ChildItem -Path $playbookRoot -Recurse -Filter '*.json' -File | ForEach-Object {
+        $files = @(Get-ChildItem -Path $playbookRoot -Recurse -File |
+                Where-Object { $_.Extension -in '.bicep', '.json' -and $_.Name -ne 'bicepconfig.json' -and $_.Name -notlike '*.parameters.json' } |
+                Sort-Object FullName)
+
+        # Every Bicep file compiled in one run of the CLI, through the
+        # module's own wrapper.
+        $builds = @{}
+        $bicepFiles = @($files | Where-Object Extension -eq '.bicep')
+        if ($bicepFiles.Count -gt 0) {
+            if (-not (Get-Command bicep -CommandType Application -ErrorAction SilentlyContinue)) {
+                foreach ($file in $bicepFiles) { $builds[$file.FullName] = [pscustomobject]@{ Succeeded = $false; Json = $null; Errors = @('The Bicep CLI is not on the PATH: install it with az bicep install and put ~/.azure/bin on the PATH.'); Warnings = @() } }
+            }
+            else {
+                $module = Import-Module (Join-Path $repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force -PassThru
+                foreach ($build in @(& $module { param($Paths) Invoke-iSOCBicep -Path $Paths } @($bicepFiles.FullName))) { $builds[$build.Path] = $build }
+            }
+        }
+
+        $script:playbookCases = @($files | ForEach-Object {
             $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
             $arm = $null
             $parseError = $null
+            $warnings = @()
             try {
-                $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                if ($_.Extension -eq '.bicep') {
+                    $build = $builds[[System.IO.Path]::GetFullPath($_.FullName)]
+                    $warnings = @($build.Warnings)
+                    if (-not $build.Succeeded) { throw "does not compile: $(@($build.Errors) -join ' ')" }
+                    $raw = $build.Json
+                }
+                else {
+                    $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                }
                 if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
                 $arm = ConvertFrom-Json -InputObject $raw -Depth 64 -AsHashtable -ErrorAction Stop
             }
@@ -92,6 +126,8 @@ BeforeDiscovery {
                 ParseFailed  = ($null -ne $parseError) -or ($null -eq $arm)
                 Tier         = $tier
                 IsSkeleton   = ($skeletonPlaybooks -contains $rel)
+                IsBicep      = ($_.Extension -eq '.bicep')
+                Warnings     = $warnings
             }
         })
     }
@@ -103,12 +139,16 @@ BeforeAll {
     $script:NamingParameters         = @('PlaybookName', 'LogicAppName')
 }
 
-Describe 'Playbook ARM: <RelativePath>' -ForEach $script:playbookCases {
+Describe 'Playbook: <RelativePath>' -ForEach $script:playbookCases {
 
-    It 'parses as JSON with a mapping at the root' {
+    It 'parses as JSON, or compiles, with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
         $Arm        | Should -Not -BeNullOrEmpty
         ($Arm -is [System.Collections.IDictionary]) | Should -BeTrue
+    }
+
+    It 'builds without warnings' -Skip:(-not $IsBicep) {
+        @($Warnings) | Should -BeNullOrEmpty -Because 'Content/Playbooks/bicepconfig.json and the module''s writer keep a playbook warning-free'
     }
 
     Context 'ARM template top-level' -Skip:$ParseFailed {

@@ -128,7 +128,8 @@ status check that the branch-protection ruleset can require independently.
   1. Checkout.
   2. [`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc)
      with the three OIDC secrets.
-  3. For every `Content/Playbooks/**/*.json` template, call
+  3. For every playbook under `Content/Playbooks/` (`.bicep`, compiled to
+     read its parameters, or `.json`), call
      `Test-AzResourceGroupDeployment` against the resource group named in the
      `PR_VALIDATION_RESOURCE_GROUP` repository variable, passing a set of stub
      parameter values (only the parameters each template actually declares are

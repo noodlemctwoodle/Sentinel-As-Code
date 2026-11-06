@@ -108,6 +108,25 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   next. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **Playbooks are Bicep** - the 90 playbooks under `Content/Playbooks/`
+  are Bicep files now, converted by the new `Convert-iSOCPlaybook`, which
+  compiled each and proved it deploys exactly what its ARM template did
+  before removing the JSON. `Template/Template.bicep` replaces the old
+  JSON skeleton, with the repository's own conventions (`PlaybookName`, the
+  `Source: Sentinel-As-Code` tag, roles from `Grant-iSOCPlaybookPermission`
+  rather than a nested role assignment). `Export-iSOCContent` writes new
+  playbooks as Bicep through the module's own writer (`-Format Json` for
+  JSON), `Deploy-iSOCContent` reads and deploys `.bicep` and `.json`
+  playbooks, and `Content/Playbooks/bicepconfig.json` keeps them building
+  without warnings. The deploy and PR-validation pipelines put the Bicep
+  CLI on the PATH, and the PR checks build every playbook (failing on a
+  warning) and validate it against a resource group. **For forks:** your
+  JSON playbooks keep deploying; to move to Bicep, copy
+  `Content/Playbooks/bicepconfig.json` into yours and run
+  `Convert-iSOCPlaybook -WhatIf`, then `Convert-iSOCPlaybook`. Deploying a
+  Bicep playbook needs the Bicep CLI on the PATH (`az bicep install` puts
+  it in `~/.azure/bin`). See
+  [Playbooks](../Content/Playbooks.md).
 - **Six Defender XDR custom detections deploy again** - the conversion to
   the current Graph rule shape put each rule's techniques under its one old
   category, and in six rules a technique sat under a tactic it does not

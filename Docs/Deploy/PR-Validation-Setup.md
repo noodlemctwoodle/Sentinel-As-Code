@@ -17,7 +17,8 @@ Four of the five work offline. **`arm-validate` needs Azure
 authentication** because it calls `Test-AzResourceGroupDeployment` (a
 template-validation call against the ARM deployment-validation API - the
 cmdlet has no `-WhatIf` parameter) against a real resource group with a
-real workspace, once for every `Content/Playbooks/**/*.json` template.
+real workspace, once for every playbook under `Content/Playbooks/` (each
+`.bicep` file, and any ARM `.json` template a fork still has).
 This page is the one-off setup runbook for that.
 
 ## Overview

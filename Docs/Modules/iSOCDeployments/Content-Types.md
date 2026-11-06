@@ -156,11 +156,12 @@ E15).
   Az.Resources is needed only when there are playbooks to deploy. `Tests/iSOCDeployments/Playbook.Tests.ps1` holds
   every playbook to the deployment the script runs.
 - **Export**: the Logic Apps in the playbook resource group, each written
-  as a parameterised template to its trigger's folder, or over the
-  template whose `PlaybookName` is its name with `-Force`
-  ([Export](Export.md)).
-  `Tests/iSOCDeployments/Export.Tests.ps1` holds it to the unmerged
-  playbook exporter.
+  as a parameterised Bicep file (or JSON with `-Format Json`) to its
+  trigger's folder, or over the file whose `PlaybookName` is its name, in
+  that file's format, with `-Force` ([Export](Export.md), MIGRATION.md
+  edit E48). `Tests/iSOCDeployments/Export.Tests.ps1` holds the Bicep to
+  the same deployment as the JSON export. `Convert-iSOCPlaybook` converts
+  JSON playbooks to Bicep.
 
 ### Workbook
 

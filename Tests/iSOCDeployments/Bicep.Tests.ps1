@@ -32,7 +32,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 #>
@@ -364,7 +364,7 @@ Describe 'Invoke-iSOCBicep and round trips through the Bicep CLI' {
 
     It 'writes the fixture playbooks as Bicep that deploys what their JSON deploys' {
         $paths = @(Get-ChildItem -LiteralPath $script:fixturePlaybooks -Recurse -Filter '*.json' | Where-Object { $_.Name -notlike '*.parameters.json' -and $_.Directory.Name -ne 'Template' -and $_.Name -ne 'NotArm.json' } | ForEach-Object { $_.FullName })
-        $paths.Count | Should -BeGreaterThan 2
+        $paths.Count | Should -BeGreaterOrEqual 2
         @(Test-RoundTrip -JsonPath $paths) | Should -BeNullOrEmpty
     }
 

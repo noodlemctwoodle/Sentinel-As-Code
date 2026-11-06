@@ -23,8 +23,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.3
-    Last Updated: 2026-10-14
+    Version:      0.1.4
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
@@ -120,6 +120,7 @@ Describe 'The demo workspace generator' {
         }
         # Every automation rule that runs a playbook names one the demo has.
         $playbooks = @(Read-Demo 'playbooks.json')
+        $playbooks.Count | Should -BeGreaterThan 50 -Because 'every Bicep playbook in the repository is compiled and captured'
         @($playbooks.name | Select-Object -Unique).Count | Should -Be $playbooks.Count
         foreach ($a in @($automation | Where-Object { @($_.properties.actions | Where-Object actionType -eq 'RunPlaybook').Count })) {
             $id = @($a.properties.actions | Where-Object actionType -eq 'RunPlaybook')[0].actionConfiguration.logicAppResourceId

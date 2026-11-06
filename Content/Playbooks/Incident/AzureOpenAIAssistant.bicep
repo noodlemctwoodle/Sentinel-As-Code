@@ -1,0 +1,411 @@
+metadata title = 'AzureOpenAIAssistant'
+metadata description = 'Sentinel incident-trigger playbook for AzureOpenAIAssistant.'
+metadata lastUpdateTime = '24-03-2026'
+metadata entities = []
+metadata tags = [
+  'Incident'
+  'Source: Sentinel-As-Code'
+]
+metadata support = {
+  tier: 'community'
+}
+metadata author = {
+  name: 'noodlemctwoodle'
+}
+
+param PlaybookName string = 'AzureOpenAIAssistant'
+param AutomationResourceGroup string = ''
+param SentinelWorkpaceName string = ''
+
+var AzureKeyVault0ConnectionName = 'AzureKeyVault0-${PlaybookName}'
+var Azuresentinel0ConnectionName = 'Azuresentinel0-${PlaybookName}'
+var Azuresentinel1ConnectionName = 'Azuresentinel1-${PlaybookName}'
+
+#disable-next-line BCP081
+resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
+  name: PlaybookName
+  location: resourceGroup().location
+  tags: {
+    Source: 'Sentinel-As-Code'
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    state: 'Enabled'
+    definition: {
+      '$schema': 'https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#'
+      contentVersion: '1.0.0.0'
+      parameters: {
+        '$connections': {
+          defaultValue: {}
+          type: 'Object'
+        }
+      }
+      triggers: {
+        Microsoft_Sentinel_incident: {
+          type: 'ApiConnectionWebhook'
+          inputs: {
+            host: {
+              connection: {
+                name: '@parameters(\'$connections\')[\'azuresentinel\'][\'connectionId\']'
+              }
+            }
+            body: {
+              callback_url: '@{listCallbackUrl()}'
+            }
+            path: '/incident-creation'
+          }
+        }
+      }
+      actions: {
+        HTTP: {
+          runAfter: {
+            Get_secret: [
+              'Succeeded'
+            ]
+          }
+          type: 'Http'
+          inputs: {
+            uri: 'https://your-openai-resource-name.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview'
+            method: 'POST'
+            headers: {
+              'api-key': '@{body(\'Get_secret\')?[\'value\']}'
+            }
+            body: {
+              messages: [
+                {
+                  role: 'system'
+                  content: '''
+You are an advanced AI assistant specialized in Microsoft Sentinel, SIEM/SOAR, and cyber threat detection. Your goal is to investigate security incidents, create KQL queries, analyze logs, and automate threat response.
+
+Please return responses in structured JSON format using the following fields:
+
+- `title`: The title of the incident.
+- `description`: A brief summary of the incident.
+- `entities`: A list of related entities involved in the incident.
+- `tactics`: The MITRE ATT&CK tactics related to this threat.
+- `query_generation`: The KQL query or queries that an analyst could use for investigation.
+- `query_explanation`: Explanation of the query logic.
+- `threat_analysis`: Details on why this incident is important.
+- `response_recommendations`: Recommended actions to respond to the threat.
+- `automation_suggestions`: Suggestions for automating response with Logic Apps or Playbooks.
+
+### **Response Format (Must be JSON)**
+Return all responses in **valid structured JSON** without additional explanations or formatting.'''
+                }
+                {
+                  role: 'user'
+                  content: '''
+{
+  "title": "@{triggerBody()?['object']?['properties']?['title']}",
+  "description": "@{triggerBody()?['object']?['properties']?['description']}",
+  "entities": @{triggerBody()?['object']?['properties']?['relatedEntities']},
+  "tactics": @{triggerBody()?['object']?['properties']?['additionalData']?['tactics']}
+}'''
+                }
+              ]
+              temperature: 0
+              top_p: 1
+              stream: false
+              max_tokens: 4096
+              presence_penalty: 0
+              frequency_penalty: 0
+            }
+          }
+          runtimeConfiguration: {
+            contentTransfer: {
+              transferMode: 'Chunked'
+            }
+          }
+        }
+        Parse_Filtered_JSON: {
+          runAfter: {
+            Filter_HTTP_Response: [
+              'Succeeded'
+            ]
+          }
+          type: 'ParseJson'
+          inputs: {
+            content: '@outputs(\'Filter_HTTP_Response\')'
+            schema: {
+              type: 'object'
+              properties: {
+                title: {
+                  type: 'string'
+                }
+                description: {
+                  type: 'string'
+                }
+                entities: {
+                  type: 'array'
+                  items: {
+                    type: 'object'
+                    properties: {
+                      id: {
+                        type: 'string'
+                      }
+                      name: {
+                        type: 'string'
+                      }
+                      type: {
+                        type: 'string'
+                      }
+                      properties: {
+                        type: 'object'
+                        properties: {
+                          hostName: {
+                            type: 'string'
+                          }
+                          dnsDomain: {
+                            type: 'string'
+                          }
+                          osVersion: {
+                            type: 'string'
+                          }
+                          lastIpAddress: {
+                            type: 'string'
+                          }
+                        }
+                      }
+                    }
+                    required: [
+                      'id'
+                      'name'
+                      'type'
+                      'properties'
+                    ]
+                  }
+                }
+                tactics: {
+                  type: 'array'
+                  items: {
+                    type: 'string'
+                  }
+                }
+                query_generation: {
+                  type: 'array'
+                  items: {
+                    type: 'object'
+                    properties: {
+                      query: {
+                        type: 'string'
+                      }
+                      description: {
+                        type: 'string'
+                      }
+                    }
+                    required: [
+                      'query'
+                      'description'
+                    ]
+                  }
+                }
+                query_explanation: {
+                  type: 'array'
+                  items: {
+                    type: 'object'
+                    properties: {
+                      query: {
+                        type: 'string'
+                      }
+                      explanation: {
+                        type: 'string'
+                      }
+                    }
+                    required: [
+                      'query'
+                      'explanation'
+                    ]
+                  }
+                }
+                threat_analysis: {
+                  type: 'string'
+                }
+                response_recommendations: {
+                  type: 'array'
+                  items: {
+                    type: 'string'
+                  }
+                }
+                automation_suggestions: {
+                  type: 'array'
+                  items: {
+                    type: 'string'
+                  }
+                }
+              }
+            }
+          }
+        }
+        Filter_HTTP_Response: {
+          runAfter: {
+            HTTP: [
+              'Succeeded'
+            ]
+          }
+          type: 'Compose'
+          inputs: '@replace(replace(body(\'HTTP\')?[\'choices\'][0][\'message\'][\'content\'], \'```json\', \'\'), \'```\', \'\')'
+        }
+        'Add_comment_to_incident_(V3)': {
+          runAfter: {
+            Compose: [
+              'Succeeded'
+            ]
+          }
+          type: 'ApiConnection'
+          inputs: {
+            host: {
+              connection: {
+                name: '@parameters(\'$connections\')[\'azuresentinel-1\'][\'connectionId\']'
+              }
+            }
+            method: 'post'
+            body: {
+              incidentArmId: '@triggerBody()?[\'object\']?[\'id\']'
+              message: '<p class="editor-paragraph">@{outputs(\'Compose\')}</p>'
+            }
+            path: '/Incidents/Comment'
+          }
+        }
+        Create_HTML_table: {
+          runAfter: {
+            Parse_Filtered_JSON: [
+              'Succeeded'
+            ]
+          }
+          type: 'Table'
+          inputs: {
+            from: '@body(\'Parse_Filtered_JSON\')?[\'entities\']'
+            format: 'HTML'
+            columns: [
+              {
+                header: 'Entity'
+                value: '@item()?[\'name\']'
+              }
+              {
+                header: 'Type'
+                value: '@item()?[\'type\']'
+              }
+            ]
+          }
+        }
+        Compose: {
+          runAfter: {
+            Create_HTML_table: [
+              'Succeeded'
+            ]
+          }
+          type: 'Compose'
+          inputs: '<div style="max-width: 700px; margin: auto; font-family: Arial, sans-serif;">\n  <!-- Title -->\n  <h2 style="margin: 10px 0 5px 0;">@{body(\'Parse_Filtered_JSON\')?[\'title\']}</h2>\n  <!-- Description -->\n  <p style="margin: 5px 0 10px 0;">@{body(\'Parse_Filtered_JSON\')?[\'description\']}</p>\n  <!-- Table -->\n  <table style="margin: 5px 0; width: 100%; max-width: 700px; \n                border-collapse: collapse; border: 1px solid #ddd; font-size: 14px;">\n    @{body(\'Create_HTML_table\')}\n  </table>\n  <!-- Tactics -->\n  <h3 style="margin: 10px 0 5px 0;">Tactics:</h3>\n  <ul style="margin: 5px 0 10px 0; padding-left: 20px;">\n    @{if(\n       empty(body(\'Parse_Filtered_JSON\')?[\'tactics\']), \n       \'<li>None</li>\', \n       concat(\'<li>\', join(body(\'Parse_Filtered_JSON\')?[\'tactics\'], \'</li><li>\'), \'</li>\')\n    )}\n  </ul>\n  <!-- Query Generation -->\n  <h2 style="margin: 10px 0 5px 0;">Query Generation</h2>\n  <p style="margin: 5px 0;">To investigate the detection, use the following KQL query:</p>\n  <pre style="margin: 5px 0; max-width: 750px; overflow-x: auto; background-color: #f4f4f4; \n              padding: 10px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">\n<code>@{if(\r\n  empty(body(\'Parse_Filtered_JSON\')?[\'query_generation\']),\r\n  \'No query generated.\',\r\n  trim(\r\n    join(\r\n      body(\'Parse_Filtered_JSON\')?[\'query_generation\'],\r\n      decodeUriComponent(\'%0A%0A\') \r\n    )\r\n  )\r\n)}</code>\n  </pre>\n  <!-- Query Explanation -->\n  <h3 style="margin: 10px 0 5px 0;">Query Explanation:</h3>\n  <ul style="margin: 5px 0 10px 0; padding-left: 20px;">\n    <li>@{if(\n          empty(body(\'Parse_Filtered_JSON\')?[\'query_explanation\']), \n          \'No explanation available.\', \n          trim(body(\'Parse_Filtered_JSON\')?[\'query_explanation\'])\n        )}\n    </li>\n  </ul>\n  <!-- Threat Analysis -->\n  <h2 style="margin: 10px 0 5px 0;">Threat Analysis</h2>\n  <p style="margin: 5px 0 10px 0;">\n    @{if(\n      empty(body(\'Parse_Filtered_JSON\')?[\'threat_analysis\']), \n      \'No threat analysis available.\', \n      body(\'Parse_Filtered_JSON\')?[\'threat_analysis\']\n    )}\n  </p>\n  <!-- Response Recommendations -->\n  <h2 style="margin: 10px 0 5px 0;">Response Recommendations</h2>\n  <ul style="margin: 5px 0 10px 0; padding-left: 20px;">\n    @{if(\n       empty(body(\'Parse_Filtered_JSON\')?[\'response_recommendations\']), \n       \'<li>No recommendations available.</li>\', \n       concat(\'<li>\', join(body(\'Parse_Filtered_JSON\')?[\'response_recommendations\'], \'</li><li>\'), \'</li>\')\n    )}\n  </ul>\n  <!-- Automation Suggestions -->\n  <h2 style="margin: 10px 0 5px 0;">Automation Suggestions</h2>\n  <ul style="margin: 5px 0 10px 0; padding-left: 20px;">\n    @{if(\n       empty(body(\'Parse_Filtered_JSON\')?[\'automation_suggestions\']), \n       \'<li>No automation suggestions available.</li>\', \n       concat(\'<li>\', join(body(\'Parse_Filtered_JSON\')?[\'automation_suggestions\'], \'</li><li>\'), \'</li>\')\n    )}\n  </ul>\n</div>'
+        }
+        Get_secret: {
+          runAfter: {}
+          type: 'ApiConnection'
+          inputs: {
+            host: {
+              connection: {
+                name: '@parameters(\'$connections\')[\'keyvault\'][\'connectionId\']'
+              }
+            }
+            method: 'get'
+            path: '/secrets/@{encodeURIComponent(\'your-openai-resource-name\')}/value'
+          }
+          runtimeConfiguration: {
+            secureData: {
+              properties: [
+                'inputs'
+                'outputs'
+              ]
+            }
+          }
+        }
+      }
+      outputs: {}
+    }
+    parameters: {
+      '$connections': {
+        value: {
+          keyvault: {
+            connectionId: AzureKeyVault0Connection.id
+            connectionName: AzureKeyVault0ConnectionName
+            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/keyvault'
+            connectionProperties: {
+              authentication: {
+                type: 'ManagedServiceIdentity'
+              }
+            }
+          }
+          'azuresentinel-1': {
+            connectionId: Azuresentinel0Connection.id
+            connectionName: Azuresentinel0ConnectionName
+            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionProperties: {
+              authentication: {
+                type: 'ManagedServiceIdentity'
+              }
+            }
+          }
+          azuresentinel: {
+            connectionId: Azuresentinel1Connection.id
+            connectionName: Azuresentinel1ConnectionName
+            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionProperties: {
+              authentication: {
+                type: 'ManagedServiceIdentity'
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource AzureKeyVault0Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: AzureKeyVault0ConnectionName
+  location: resourceGroup().location
+  #disable-next-line BCP187
+  kind: 'V1'
+  properties: {
+    displayName: AzureKeyVault0ConnectionName
+    customParameterValues: {}
+    #disable-next-line BCP037
+    parameterValueType: 'Alternative'
+    api: {
+      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/keyvault'
+    }
+  }
+}
+
+resource Azuresentinel0Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: Azuresentinel0ConnectionName
+  location: resourceGroup().location
+  #disable-next-line BCP187
+  kind: 'V1'
+  properties: {
+    displayName: Azuresentinel0ConnectionName
+    customParameterValues: {}
+    #disable-next-line BCP037
+    parameterValueType: 'Alternative'
+    api: {
+      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+    }
+  }
+}
+
+resource Azuresentinel1Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: Azuresentinel1ConnectionName
+  location: resourceGroup().location
+  #disable-next-line BCP187
+  kind: 'V1'
+  properties: {
+    displayName: Azuresentinel1ConnectionName
+    customParameterValues: {}
+    #disable-next-line BCP037
+    parameterValueType: 'Alternative'
+    api: {
+      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+    }
+  }
+}
