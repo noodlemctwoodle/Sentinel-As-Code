@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -38,6 +38,9 @@ function Get-iSOCPlaybookRepoPath {
         A Logic App as Read-iSOCPlaybookWorkspace returns it, with its
         definition.
 
+    .PARAMETER Format
+        Bicep (the default) for a .bicep file, or Json for a .json one.
+
     .OUTPUTS
         [string] The file, relative to the repository.
 
@@ -48,10 +51,14 @@ function Get-iSOCPlaybookRepoPath {
     [OutputType([string])]
     param(
         [Parameter(Mandatory)]
-        [psobject] $WorkspaceItem
+        [psobject] $WorkspaceItem,
+
+        [ValidateSet('Bicep', 'Json')]
+        [string] $Format = 'Bicep'
     )
 
     $category = Get-iSOCPlaybookCategory -Definition (Get-iSOCPropertyValue -InputObject $WorkspaceItem -Path 'properties.definition')
     $fileName = Get-iSOCPlaybookFileName -LogicAppName ([string](Get-iSOCPropertyValue -InputObject $WorkspaceItem -Path 'name'))
-    "Content/Playbooks/$category/$fileName.json"
+    $extension = if ($Format -eq 'Json') { 'json' } else { 'bicep' }
+    "Content/Playbooks/$category/$fileName.$extension"
 }

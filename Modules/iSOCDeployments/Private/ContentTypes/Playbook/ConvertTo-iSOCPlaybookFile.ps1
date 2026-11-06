@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -35,9 +35,11 @@ function ConvertTo-iSOCPlaybookFile {
     .DESCRIPTION
         The template from ConvertTo-iSOCPlaybookTemplate, with the
         workspace's subscription, resource groups, name and id made
-        parameters, as JSON with LF line endings and one final newline.
-        When the repository's file is the same apart from its
-        lastUpdateTime, that file's text is returned, so nothing changes.
+        parameters, with LF line endings and one final newline: as Bicep
+        (ConvertTo-iSOCBicepTemplate) for a .bicep path, otherwise as JSON
+        (MIGRATION.md edit E48). When the repository's file is the same
+        apart from its lastUpdateTime, that file's text is returned, so
+        nothing changes.
         Each value that looks like a plain-text secret is warned about and
         added to -Warning: the export does not remove it, so it should be
         moved to Key Vault before the template is committed.
@@ -47,6 +49,9 @@ function ConvertTo-iSOCPlaybookFile {
 
     .PARAMETER Context
         The workspace context.
+
+    .PARAMETER RelativePath
+        The file the text is for; a .bicep path gets Bicep.
 
     .PARAMETER Existing
         The template's text in the repository now, or nothing.
@@ -72,6 +77,8 @@ function ConvertTo-iSOCPlaybookFile {
         [Parameter(Mandatory)]
         [psobject] $Context,
 
+        [string] $RelativePath,
+
         [AllowNull()]
         [object] $Existing,
 
@@ -96,6 +103,15 @@ function ConvertTo-iSOCPlaybookFile {
         $message = "'$name' holds a plain-text secret at $finding. Move it to Key Vault before committing."
         Write-iSOCLog "  $message" -Level Warning
         if ($null -ne $Warning) { $Warning.Add($message) }
+    }
+
+    if ($RelativePath -like '*.bicep') {
+        $text = ConvertTo-iSOCBicepTemplate -Template $template
+        if ($Existing -and [string]$Existing -match "(?m)^metadata lastUpdateTime = '([^']*)'$" -and $Matches[1] -ne $template.metadata.lastUpdateTime) {
+            $template.metadata.lastUpdateTime = $Matches[1]
+            if ((ConvertTo-iSOCBicepTemplate -Template $template) -ceq [string]$Existing) { return [string]$Existing }
+        }
+        return $text
     }
 
     $serialise = { param($Value) ($Value | ConvertTo-Json -Depth 100).Replace("`r`n", "`n") + "`n" }

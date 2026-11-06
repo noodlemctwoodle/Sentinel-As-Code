@@ -11,7 +11,8 @@
     -Workspace, -Region, -PlaybookResourceGroup and -IsGov come from
     Connect-iSOCWorkspace; -Filter and -NameFilter become -Name, -BasePath
     and -OutputPath -Path, and -OnlyMissing is the default
-    (MIGRATION.md edit E25).
+    (MIGRATION.md edit E25). Playbooks are written as Bicep unless
+    -Format Json is given (edit E48).
 
 .NOTES
     File:         Modules/iSOCDeployments/Public/Export-iSOCContent.ps1
@@ -19,8 +20,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter and
@@ -44,7 +45,9 @@ function Export-iSOCContent {
           PlaybookName) is left alone, unless -Force is given, when it is
           written over in its own file or folder, wherever that is;
         - one only the workspace has is written to a new file or folder:
-          Content/Workbooks/<Name>/ or Content/Playbooks/<Trigger>/<Name>.json;
+          Content/Workbooks/<Name>/ or Content/Playbooks/<Trigger>/<Name>.bicep
+          (.json with -Format Json); a playbook the repository already has
+          keeps its file's format;
         - one a Content Hub solution installed is skipped unless
           -IncludeContentHub is given, since it belongs to its solution;
         - a file or folder that holds another item is never written over,
@@ -53,7 +56,8 @@ function Export-iSOCContent {
         Environment values are made portable: a workbook's workspace
         resource id becomes the repository's placeholder, and a playbook's
         subscription, resource groups, workspace name and id become ARM
-        expressions and parameters. A file whose content would not change
+        expressions and parameters, written by the module's own Bicep
+        writer, so no Bicep CLI is needed. A file whose content would not change
         is left alone. Nothing is deleted, and the workspace is not
         changed. With -WhatIf everything is read and nothing written, and
         each item says what would be.
@@ -74,6 +78,12 @@ function Export-iSOCContent {
 
     .PARAMETER Force
         Write over items the repository already has.
+
+    .PARAMETER Format
+        The format of a new playbook file: Bicep (the default) or Json. A
+        playbook the repository already has is written in its own file's
+        format, so a JSON playbook is never shadowed by a new Bicep file.
+        Workbooks are not affected.
 
     .PARAMETER IncludeContentHub
         Export workbooks Content Hub solutions installed. They belong to
@@ -131,6 +141,9 @@ function Export-iSOCContent {
         [string] $Path,
 
         [switch] $Force,
+
+        [ValidateSet('Bicep', 'Json')]
+        [string] $Format = 'Bicep',
 
         [switch] $IncludeContentHub,
 
@@ -195,7 +208,7 @@ function Export-iSOCContent {
                 }
 
                 $relative = if ($governed) { [string]$source.SourceRef } else {
-                    [string](Invoke-iSOCContentTypeHandler -ContentType $type -Handler GetRepoPath -Parameters @{ WorkspaceItem = $item; Context = $ctx; Provenance = $source.Source; SolutionName = $source.Solution })
+                    [string](Invoke-iSOCContentTypeHandler -ContentType $type -Handler GetRepoPath -Parameters @{ WorkspaceItem = $item; Context = $ctx; Provenance = $source.Source; SolutionName = $source.Solution; Format = $Format })
                 }
                 if ($claimed.ContainsKey($relative)) {
                     Write-iSOCLog "Skipping '$label': $relative is where '$($claimed[$relative])' was written in this run." -Level Warning

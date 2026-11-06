@@ -86,8 +86,10 @@ classes it:
 5. An item only the workspace has goes to a new file or folder:
    `Content/Workbooks/<Name>/` for a workbook, its display name (less the
    ` - <workspace>` suffix Microsoft adds) made one PascalCase word, and
-   `Content/Playbooks/<Trigger>/<Name>.json` for a playbook, its trigger's
-   category folder and its name without a leading category prefix. A path
+   `Content/Playbooks/<Trigger>/<Name>.bicep` for a playbook (`.json`
+   with `-Format Json`), its trigger's category folder and its name
+   without a leading category prefix. A playbook the repository already
+   has keeps its own file's format. A path
    another item already holds, or one an earlier item of the run was
    written to, is never written over.
 6. The files are written, unless they would not change.
@@ -114,7 +116,9 @@ A workbook is two files:
   name that differs only in case keeps the folder's capitalisation, and
   any other key the folder's file has is kept.
 
-A playbook is one parameterised ARM template:
+A playbook is one parameterised template, written as Bicep by the
+module's own writer (no Bicep CLI is needed to export), or as ARM JSON
+with `-Format Json`. Both describe the same deployment:
 
 - the `PlaybookName` parameter defaults to the Logic App's live name, so
   a redeploy updates the same workflow;
@@ -133,7 +137,13 @@ A playbook is one parameterised ARM template:
   tag `Set-PlaybookPermissions.ps1` looks for, and a metadata block
   (title, description, the date, entities, tags, support, author);
 - a template that would differ from the repository's only in that date
-  is left as it is.
+  is left as it is;
+- in Bicep, the connections are referred to by their symbolic names
+  (`MicrosoftSentinelConnection.id`), ARM `concat()` becomes string
+  interpolation, and where Bicep's own type data is wrong or missing for
+  these resource types (Logic Apps `2017-07-01`; `kind` and
+  `parameterValueType` on API connections) a `#disable-next-line` for that
+  warning sits on the line before, so the file builds clean.
 
 The export does not remove secrets. A value that looks like one held in
 plain text (an API key header, an authentication secret, a key in a URI)
@@ -158,8 +168,8 @@ when anything failed). Each result is an `iSOCDeployments.ExportResult`:
 | `Path` | The file or folder, relative to the folder written under |
 | `Warnings` | What to act on before committing |
 
-`MIGRATION.md` edits E25 to E27 list every way the command differs from
-the scripts: items found by identity rather than by path, `-OnlyMissing`
-as the default, ambiguous playbooks skipped, paths never written over,
-every page read, a failed read failing, the metadata key order and depth,
-and the playbook date kept.
+`MIGRATION.md` edits E25 to E27 and E48 list every way the command
+differs from the scripts: items found by identity rather than by path,
+`-OnlyMissing` as the default, ambiguous playbooks skipped, paths never
+written over, every page read, a failed read failing, the metadata key
+order and depth, the playbook date kept, and playbooks written as Bicep.

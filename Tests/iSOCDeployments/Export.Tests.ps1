@@ -20,8 +20,11 @@
       - The handlers: the workspace reads, the classifiers (by GUID, by
         PlaybookName, ambiguous, Content Hub, unreadable, empty), the files
         written, and a playbook left alone when only its date would change
-        (MIGRATION.md edit E27).
-      - Export-iSOCContent: outcomes, -Force, -Name, -Path, -WhatIf, paths
+        (MIGRATION.md edit E27); a playbook written as Bicep by default
+        (E48), compiled through the Bicep CLI and deploying what the JSON
+        export deploys, with its secrets warned about and its date kept.
+      - Export-iSOCContent: outcomes, -Force, -Name, -Path, -WhatIf,
+        -Format Json, a JSON playbook the repository has kept as JSON, paths
         held by another item or claimed earlier in the run, the exit code.
       - Whole runs against a stand-in workspace built from this
         repository's workbooks (_helpers/ExportStandIn.psm1): every case
@@ -44,9 +47,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.3.0
+    Last Updated: 2026-11-06
+    Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 #>
 
 BeforeAll {
@@ -851,8 +854,42 @@ Describe 'Export handlers' {
             { Invoke-Private Get-iSOCWorkbookRepoPath @{ WorkspaceItem = (New-Workbook -Name 'x' -DisplayName '***' -SerializedData '{}'); Context = $script:context } } | Should -Throw '*no letters or digits*'
         }
 
-        It 'gives a new playbook its trigger''s folder and its name without the prefix' {
-            Invoke-Private Get-iSOCPlaybookRepoPath @{ WorkspaceItem = (Get-FixtureLogicApp) } | Should -Be 'Content/Playbooks/Incident/StandInIsolate.json'
+        It 'gives a new playbook its trigger''s folder and its name without the prefix, as Bicep unless asked for JSON' {
+            Invoke-Private Get-iSOCPlaybookRepoPath @{ WorkspaceItem = (Get-FixtureLogicApp) } | Should -Be 'Content/Playbooks/Incident/StandInIsolate.bicep'
+            Invoke-Private Get-iSOCPlaybookRepoPath @{ WorkspaceItem = (Get-FixtureLogicApp); Format = 'Json' } | Should -Be 'Content/Playbooks/Incident/StandInIsolate.json'
+        }
+
+        It 'writes a Bicep playbook that deploys what the JSON export deploys (MIGRATION.md edit E48)' {
+            Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+            $json = Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'Content/Playbooks/Incident/StandInIsolate.json' }
+            $bicep = Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'Content/Playbooks/Incident/StandInIsolate.bicep' }
+            $bicep | Should -Match "(?m)^resource workflow 'Microsoft\.Logic/workflows@2017-07-01' = \{$"
+            $bicep | Should -Match '(?m)^  name: PlaybookName$'
+            $bicep | Should -Not -Match "`r"
+            $bicep.EndsWith("`n") | Should -BeTrue
+            $file = Join-Path $TestDrive 'StandInIsolate.bicep'
+            [System.IO.File]::WriteAllText($file, $bicep)
+            $build = @(Invoke-Private Invoke-iSOCBicep @{ Path = @($file) })[0]
+            $build.Errors | Should -BeNullOrEmpty
+            $build.Succeeded | Should -BeTrue
+            Invoke-Private Compare-iSOCArmTemplate @{ Expected = (Invoke-Private ConvertFrom-iSOCJsonText @{ Text = $json }); Actual = $build.Template } | Should -BeNullOrEmpty
+        }
+
+        It 'warns about plain-text secrets in a Bicep playbook too' {
+            Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+            $warnings = [System.Collections.Generic.List[string]]::new()
+            Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'x.bicep'; Warning = $warnings } | Out-Null
+            @($warnings).Count | Should -Be 1
+        }
+
+        It 'leaves a Bicep template that would change only in its date as it is' {
+            Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+            $text = Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'x.bicep' }
+            $old = $text -replace "(?m)^metadata lastUpdateTime = '[^']+'$", "metadata lastUpdateTime = '01-01-2020'"
+            $old | Should -Not -BeExactly $text
+            Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'x.bicep'; Existing = $old } | Should -BeExactly $old
+            $edited = $old -replace "state: 'Disabled'", "state: 'Enabled'"
+            Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'x.bicep'; Existing = $edited } | Should -BeExactly $text
         }
 
         It 'adds each plain-text secret to the warnings' {
@@ -908,7 +945,7 @@ Describe 'Export handlers' {
     It 'passes a handler only the parameters it declares' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         Invoke-Private Invoke-iSOCContentTypeHandler @{ ContentType = (Get-Type Playbook); Handler = 'GetRepoPath'; Parameters = @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; Unused = 1 } } |
-            Should -Be 'Content/Playbooks/Incident/StandInIsolate.json'
+            Should -Be 'Content/Playbooks/Incident/StandInIsolate.bicep'
     }
 }
 
@@ -974,7 +1011,17 @@ Describe 'Export-iSOCContent' {
         $run.ExitCode | Should -Be 1
         ($run.Results | Where-Object Name -eq 'Incident-StandInIsolate').Warnings | Should -HaveCount 1
         Get-Content (Join-Path $copy 'Content/Workbooks/Twin/workbook.json') -Raw | Should -Match 'Twin one'
-        Test-Path (Join-Path $copy 'Content/Playbooks/Incident/StandInIsolate.json') | Should -BeTrue
+        Test-Path (Join-Path $copy 'Content/Playbooks/Incident/StandInIsolate.bicep') | Should -BeTrue
+        Test-Path (Join-Path $copy 'Content/Playbooks/Incident/StandInIsolate.json') | Should -BeFalse
+    }
+
+    It 'writes a new playbook as JSON with -Format Json, and keeps a JSON playbook the repository has as JSON' {
+        $copy = New-FixtureCopy
+        $run = Invoke-SmallExport -RepoPath $copy -Parameters @{ ContentType = 'Playbook'; Format = 'Json' }
+        ($run.Results | Where-Object Name -eq 'Incident-StandInIsolate').Path | Should -Be 'Content/Playbooks/Incident/StandInIsolate.json'
+        $forced = Invoke-SmallExport -RepoPath $copy -Parameters @{ ContentType = 'Playbook'; Force = $true; Name = 'Module-ZuluBase' }
+        ($forced.Results | Where-Object Name -eq 'Module-ZuluBase').Path | Should -Be 'Content/Playbooks/Module/ZuluBase.json'
+        Test-Path (Join-Path $copy 'Content/Playbooks/Module/ZuluBase.bicep') | Should -BeFalse
     }
 
     It 'finds nothing more to write when it runs again' {
