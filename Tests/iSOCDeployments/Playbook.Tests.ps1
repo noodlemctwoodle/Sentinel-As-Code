@@ -23,7 +23,13 @@
     Test-iSOCPlaybook with no issues, and must build its deployment
     parameters through the ToRequest handler; the module's deploy order
     over those templates must put every module after the modules it calls,
-    checked by a helper written apart from the module's code. Parity with
+    checked by a helper written apart from the module's code.
+    Convert-iSOCPlaybook is tested on copies of the fixture repository:
+    -WhatIf checks everything and changes nothing, a real run leaves Bicep
+    files that read with the same identities (parameters files kept) and
+    has nothing to do a second time, -Name limits it, and a playbook the
+    writer refuses, whose Bicep would deploy something else, or that
+    already has a Bicep file is left as JSON. Parity with
     Deploy-CustomContent.ps1 was proven on release/26.11.0 before the
     script was removed.
 
@@ -406,5 +412,83 @@ Describe 'Content/Playbooks in this repository' {
         $order = @(Get-Order $script:repoList)
         @(Test-ModulesFirst -Path @($order | ForEach-Object { $_.Path })) | Should -BeNullOrEmpty
         @($order | ForEach-Object { $_.Path } | Sort-Object) | Should -Be @($script:repoList | ForEach-Object { $_.Path } | Sort-Object)
+    }
+}
+
+Describe 'Convert-iSOCPlaybook' {
+    BeforeAll {
+        function New-FixtureCopy {
+            $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+            Copy-Item -LiteralPath $script:fixtureRepo -Destination $copy -Recurse
+            $copy
+        }
+        function Get-PlaybookFile {
+            param([string] $Repo)
+            @(Get-ChildItem -LiteralPath (Join-Path $Repo 'Content/Playbooks') -Recurse -File | ForEach-Object { [System.IO.Path]::GetRelativePath($Repo, $_.FullName).Replace('\', '/') } | Sort-Object)
+        }
+    }
+
+    BeforeEach { Mock -ModuleName iSOCDeployments Write-iSOCLog { } }
+
+    It 'converts and checks every JSON playbook under -WhatIf, changing nothing' {
+        $copy = New-FixtureCopy
+        $before = Get-PlaybookFile $copy
+        $run = Convert-iSOCPlaybook -RepoPath $copy -WhatIf
+        @($run.Results | ForEach-Object { "$($_.Outcome) $($_.Path)" }) | Should -Be @(
+            'WhatIf Content/Playbooks/Incident/FixtureIncident.json'
+            'WhatIf Content/Playbooks/Module/ZuluBase.json'
+            'Skipped Content/Playbooks/NotArm.json'
+        )
+        ($run.Results | Where-Object Path -like '*ZuluBase.json').Reason | Should -BeExactly 'would write ZuluBase.bicep and remove the JSON'
+        $run.ExitCode | Should -Be 0
+        Get-PlaybookFile $copy | Should -Be $before
+    }
+
+    It 'writes each as Bicep that deploys the same, removes the JSON, keeps its parameters file, and has nothing to do again' {
+        $copy = New-FixtureCopy
+        $before = @(Get-PlaybookItem -Repo $copy | Where-Object Name -ne 'NotArm')
+        $run = Convert-iSOCPlaybook -RepoPath $copy
+        $run.Converted | Should -Be 2
+        $run.Skipped | Should -Be 1
+        $run.Failed | Should -Be 0
+        @($run.Results | Where-Object Outcome -eq 'Converted' | ForEach-Object { $_.Bicep }) | Should -Be @('Content/Playbooks/Incident/FixtureIncident.bicep', 'Content/Playbooks/Module/ZuluBase.bicep')
+        Get-PlaybookFile $copy | Should -Be @(
+            'Content/Playbooks/Incident/FixtureIncident.bicep'
+            'Content/Playbooks/Incident/FixtureIncident.parameters.json'
+            'Content/Playbooks/Module/AlphaCaller.bicep'
+            'Content/Playbooks/Module/ZuluBase.bicep'
+            'Content/Playbooks/NotArm.json'
+            'Content/Playbooks/Template/FixtureTemplate.json'
+        )
+        $after = @(Get-PlaybookItem -Repo $copy | Where-Object Name -ne 'NotArm')
+        @($after.Format | Sort-Object -Unique) | Should -Be @('Bicep')
+        @($after.Identity) | Should -Be @($before.Identity)
+        foreach ($item in $after) { Test-Item $item | Should -BeNullOrEmpty }
+        (Get-Request ($after | Where-Object Name -eq 'Incident/FixtureIncident')).Body.TemplateParameterFile | Should -BeLike '*FixtureIncident.parameters.json'
+        @((Convert-iSOCPlaybook -RepoPath $copy).Results | Where-Object Outcome -ne 'Skipped').Count | Should -Be 0
+    }
+
+    It 'converts only the playbooks -Name matches' {
+        $copy = New-FixtureCopy
+        @((Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/*').Results.Path) | Should -Be @('Content/Playbooks/Module/ZuluBase.json')
+        Test-Path (Join-Path $copy 'Content/Playbooks/Incident/FixtureIncident.json') | Should -BeTrue
+    }
+
+    It 'leaves a playbook as JSON when <Case>' -ForEach @(
+        @{ Case = 'the writer cannot write it'; Prepare = { param($Repo) $path = Join-Path $Repo 'Content/Playbooks/Module/ZuluBase.json'; $t = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable; $t['outputs'] = @{ o = @{ type = 'string'; value = 'x' } }; Set-Content -LiteralPath $path -Value ($t | ConvertTo-Json -Depth 50) }; Reason = "cannot be written as Bicep: *'outputs'*" }
+        @{ Case = 'the Bicep would deploy something else'; Prepare = { param($Repo) Mock -ModuleName iSOCDeployments Compare-iSOCArmTemplate { 'resources[0].properties.state: differs' } }; Reason = 'the Bicep would deploy something else: resources`[0`].properties.state: differs' }
+        @{ Case = 'a Bicep file is already beside it'; Prepare = { param($Repo) Set-Content -LiteralPath (Join-Path $Repo 'Content/Playbooks/Module/ZuluBase.bicep') -Value 'param x string' }; Reason = 'already has ZuluBase.bicep beside it' }
+    ) {
+        $copy = New-FixtureCopy
+        & $Prepare $copy
+        $result = (Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/ZuluBase').Results | Where-Object Path -like '*ZuluBase.json'
+        $result.Reason | Should -BeLike $Reason
+        Test-Path (Join-Path $copy 'Content/Playbooks/Module/ZuluBase.json') | Should -BeTrue
+    }
+
+    It 'fails the run when a playbook cannot be converted' {
+        $copy = New-FixtureCopy
+        Mock -ModuleName iSOCDeployments Compare-iSOCArmTemplate { 'different' }
+        (Convert-iSOCPlaybook -RepoPath $copy).ExitCode | Should -Be 1
     }
 }

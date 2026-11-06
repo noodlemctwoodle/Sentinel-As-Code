@@ -13,6 +13,7 @@
     FunctionsToExport = @(
         'Compare-iSOCContent'
         'Connect-iSOCWorkspace'
+        'Convert-iSOCPlaybook'
         'Deploy-iSOCContent'
         'Deploy-iSOCWorkspace'
         'Export-iSOCContent'

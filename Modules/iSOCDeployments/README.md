@@ -48,7 +48,8 @@ Deploy-iSOCContent -WhatIf
 | `Install-iSOCContentHubSolution` | Installs or updates Content Hub solutions, then deploys the analytics rules and workbooks they ship, protecting rules changed in the workspace, with `-WhatIf` | Az.Accounts, a connected workspace |
 | `Compare-iSOCContent` | What was changed in the workspace and not in the repository: each analytics rule classed by its source of truth and compared with it field by field | Az.Accounts, powershell-yaml, a connected workspace |
 | `Sync-iSOCContent` | Writes a compare's drift into the repository: portal edits into their files, customised Content Hub and portal-only rules into new ones, with `-WhatIf` | powershell-yaml |
-| `Export-iSOCContent` | Writes the workspace's workbooks and playbooks into the repository, ready to deploy: new items to new files, items the repository has only with `-Force`, environment values made portable, with `-WhatIf` | Az.Accounts, a connected workspace |
+| `Export-iSOCContent` | Writes the workspace's workbooks and playbooks into the repository, ready to deploy: new items to new files (playbooks as Bicep, or JSON with `-Format Json`), items the repository has only with `-Force`, environment values made portable, with `-WhatIf` | Az.Accounts, a connected workspace |
+| `Convert-iSOCPlaybook` | Rewrites the repository's JSON playbooks as Bicep, compiling each and proving it deploys the same before the JSON goes, with `-WhatIf` | The Bicep CLI |
 | `Export-iSOCDriftReport` | Writes a compare's result as the JSON and Markdown drift report, when anything drifted | Nothing |
 | `Get-iSOCContext` | The workspace the module is connected to | Nothing |
 | `Get-iSOCTableMigrationImpact` | The classic custom log tables and what depends on each, directly or through parser functions, with their Content Hub solutions; read-only | Az.Accounts, a connected workspace |

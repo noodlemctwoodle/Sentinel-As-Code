@@ -151,6 +151,33 @@ is warned about and listed in the item's `Warnings`, so it can be moved
 to Key Vault before the template is committed. Every file is UTF-8
 without a byte order mark, with LF line endings.
 
+## Converting JSON playbooks to Bicep
+
+`Convert-iSOCPlaybook` rewrites the repository's JSON playbooks as Bicep, for
+a repository (or fork) that still has them. For each JSON playbook the
+deploy reads, it writes the template as Bicep into a temporary copy of its
+folder (with the repository's `bicepconfig.json`), compiles every candidate
+in one run of the Bicep CLI, and compares each compiled template with the
+JSON it came from. Only when they deploy the same thing is `<Name>.bicep`
+written beside the JSON and the JSON removed; a parameters file beside it
+stays. A playbook the writer cannot write, that does not compile or that
+would deploy something else is left as JSON and reported with why, and
+one that already has a `.bicep` beside it is skipped. `-WhatIf` runs every
+check and changes nothing; `-Name` limits it to playbooks whose
+`Category/File` or file name matches.
+
+```powershell
+Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1
+Convert-iSOCPlaybook -WhatIf
+Convert-iSOCPlaybook
+```
+
+It returns an `iSOCDeployments.ConvertRun`: `Results` (one per JSON
+playbook, in repository order: `Name`, `Path`, `Bicep`, `Outcome`
+(`Converted`, `WhatIf`, `Skipped` or `Failed`), `Reason`, `Warnings`), the
+counts, `Duration` and `ExitCode` (1 when anything failed). It needs the
+Bicep CLI on the PATH.
+
 ## The result
 
 `Export-iSOCContent` returns an `iSOCDeployments.ExportRun`:
