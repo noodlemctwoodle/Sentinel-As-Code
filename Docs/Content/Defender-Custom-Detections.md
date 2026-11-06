@@ -114,6 +114,26 @@ tactics:
 
 Accepted tactic values: `Reconnaissance`, `ResourceDevelopment`, `InitialAccess`, `Execution`, `Persistence`, `PrivilegeEscalation`, `DefenseEvasion`, `CredentialAccess`, `Discovery`, `LateralMovement`, `Collection`, `CommandAndControl`, `Exfiltration`, `Impact`. Techniques match `T` followed by four digits; sub-techniques add `.` and three digits.
 
+Every technique must belong, in MITRE ATT&CK, to the tactic it sits under. A rule that covers techniques from more than one tactic lists one entry per tactic; a technique that belongs to several tactics (T1078 Valid Accounts, for example) can sit under any of them:
+
+```yaml
+tactics:
+  - tactic: InitialAccess
+    techniques:
+      - technique: T1078
+        subTechniques:
+          - T1078.004
+  - tactic: CommandAndControl
+    techniques:
+      - technique: T1090
+        subTechniques:
+          - T1090.003
+```
+
+T1090 (Proxy) under `InitialAccess` is rejected, because Proxy is a Command and Control technique. The iSOCDeployments module checks this against its own map, [`Modules/iSOCDeployments/Resources/DefenderDetection/mitre-attack-tactics.json`](../../Modules/iSOCDeployments/Resources/DefenderDetection/mitre-attack-tactics.json), built from MITRE ATT&CK Enterprise 18.1. That is the last ATT&CK release whose tactics are the fourteen above; 19.0 split Defense Evasion into Stealth and Defense Impairment, which Graph does not accept. Revoked and deprecated ids stay in the map, because a rule may still name one (T1574.002 DLL Side-Loading, for example).
+
+To rebuild the map from another ATT&CK release, download `enterprise-attack-<version>.json` from [mitre-attack/attack-stix-data](https://github.com/mitre-attack/attack-stix-data/tree/master/enterprise-attack). Then write each `attack-pattern`'s `mitre-attack` external id with the PascalCase names of its `mitre-attack` kill chain phases (`initial-access` becomes `InitialAccess`), and set `attackVersion` and `source` to match. Only use a release whose tactics are the fourteen Graph accepts.
+
 ### Entity mappings
 
 `detectionAction.alertTemplate.entityMappings` maps query result columns to the entities attached to each alert. Each collection holds one or more mappings, and each mapping names columns, not identifier tokens:
@@ -244,7 +264,7 @@ Graph removed the original fields on 1 October 2026. The deployer translates a f
 |-----------|---------------|
 | `isEnabled: true` / `false` | `status: enabled` / `disabled` |
 | `schedule.period: "1H"`, `"3H"`, `"12H"`, `"24H"` | `schedule.frequency: PT1H`, `PT3H`, `PT12H`, `P1D` |
-| `alertTemplate.category` plus `mitreTechniques` | `alertTemplate.tactics`: the category becomes the tactic, sub-techniques are grouped under their parent technique |
+| `alertTemplate.category` plus `mitreTechniques` | `alertTemplate.tactics`: the category becomes the tactic, sub-techniques are grouped under their parent technique. Every technique lands under that one tactic, so move any that belong to another tactic into an entry of their own (see [Tactics and techniques](#tactics-and-techniques)) |
 | `alertTemplate.impactedAssets` | `alertTemplate.entityMappings`: `impactedUserAsset` to `accounts`, `impactedDeviceAsset` to `hosts`, `impactedMailboxAsset` to `mailboxes` |
 | `detectionAction.responseActions` | `detectionAction.automatedActions`, one member per action type (see the [table above](#automated-actions)) |
 | `organizationalScope.scopeNames` | `organizationalScope.deviceGroups` |
@@ -287,7 +307,7 @@ Handled by [`Deploy/content/Deploy-DefenderDetections.ps1`](../../Deploy/content
 
 ### How rules are validated
 
-The deploy script targets the Microsoft Graph beta endpoint `security/rules/detectionRules`. It reads every `*.yaml`/`*.yml` file under `Content/DefenderCustomDetections/` recursively, parses each with `powershell-yaml`, translates any old field names, and validates the result with `Test-DetectionRule`: the required fields above, the frequency, status, severity and tactic values, technique patterns, entity mapping collections, and the required properties of each automated action. A file that fails is skipped with a warning listing every problem rather than failing the run. The CI suite [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) runs the same validation on every file, and also requires an `id`, no old field names, and that every mapped column appears in the query.
+`Deploy-iSOCContent -ContentType DefenderDetection` (the iSOCDeployments module) targets the Microsoft Graph beta endpoint `security/rules/detectionRules`. It reads every `*.yaml`/`*.yml` file under `Content/DefenderCustomDetections/` recursively, parses each with `powershell-yaml`, translates any old field names, and validates the result with `Test-iSOCDefenderDetection`: the required fields above, the frequency, status, severity and tactic values, technique patterns, each technique under a tactic it belongs to (see [Tactics and techniques](#tactics-and-techniques)), entity mapping collections, and the required properties of each automated action. A file that fails is skipped with a warning listing every problem rather than failing the run. The CI suite [`Tests/Test-DefenderDetectionYaml.Tests.ps1`](../../Tests/Test-DefenderDetectionYaml.Tests.ps1) runs the same validation on every file, and also requires an `id`, no old field names, and that every mapped column appears in the query.
 
 ### How rules are matched (upsert by displayName)
 

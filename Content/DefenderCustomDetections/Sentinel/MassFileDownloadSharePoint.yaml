@@ -31,6 +31,9 @@ detectionAction:
     tactics:
       - tactic: Exfiltration
         techniques:
+          - technique: T1020
+      - tactic: Collection
+        techniques:
           - technique: T1530
     recommendedActions: |
       1. Verify with the user whether the downloads were business-related.

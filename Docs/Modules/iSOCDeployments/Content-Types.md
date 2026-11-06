@@ -218,7 +218,10 @@ E15).
 - **Validate**: `displayName`, `queryCondition.queryText` and a
   `schedule.frequency` of PT1H, PT3H, PT12H or P1D; a known `status` when
   set; an alert template with a title, a known severity and at least one
-  known tactic, with well-formed techniques; known entity mapping
+  known tactic, with well-formed techniques that each belong to the
+  tactic they sit under in MITRE ATT&CK 18.1 (the module's own map,
+  `Resources/DefenderDetection/mitre-attack-tactics.json`; MIGRATION.md
+  edit E46); known entity mapping
   collections and automated action members, each action entry with the
   columns it needs. Every problem is reported on one line.
 - **Request**: the Graph detectionRule body: status enabled unless the

@@ -16,7 +16,7 @@ detectionAction:
     category: CredentialAccess
     mitreTechniques:
       - T1110.003
-      - T1078
+      - T1621
     impactedAssets:
       - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
         identifier: accountObjectId

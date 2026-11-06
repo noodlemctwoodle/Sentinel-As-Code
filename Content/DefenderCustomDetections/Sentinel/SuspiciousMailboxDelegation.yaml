@@ -29,6 +29,11 @@ detectionAction:
     tactics:
       - tactic: Collection
         techniques:
+          - technique: T1114
+            subTechniques:
+              - T1114.002
+      - tactic: Persistence
+        techniques:
           - technique: T1098
             subTechniques:
               - T1098.002

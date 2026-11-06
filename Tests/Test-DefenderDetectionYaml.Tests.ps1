@@ -16,8 +16,9 @@
     field rules come from the deployer itself: every file is run through
     Test-iSOCDefenderDetection, the validation Deploy-iSOCContent runs
     before it sends a detection (Modules/iSOCDeployments), so the CI gate and
-    the deployer cannot disagree. On top of that, each file
-    must:
+    the deployer cannot disagree. That includes placing every technique
+    under a tactic it belongs to in MITRE ATT&CK (MIGRATION.md E46). On top
+    of that, each file must:
 
     - carry a client-provided `id` (Graph requires one to create a rule) in
       lowercase kebab-case;
@@ -45,8 +46,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.2.1
-    Last Updated: 2026-11-05
+    Version:      0.2.2
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
 
 .LINK

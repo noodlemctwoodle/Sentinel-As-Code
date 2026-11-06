@@ -7,6 +7,8 @@
 .DESCRIPTION
     Copied from Test-DetectionRule (Deploy/content/Deploy-DefenderDetections.ps1),
     with the problems joined onto one line as the deployer logged them.
+    Also checks each technique against its tactic in MITRE ATT&CK, which
+    the deployer did not (MIGRATION.md E46).
 
 .NOTES
     File:         Modules/iSOCDeployments/Private/ContentTypes/DefenderDetection/Test-iSOCDefenderDetection.ps1
@@ -14,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -35,7 +37,8 @@ function Test-iSOCDefenderDetection {
         queryCondition.queryText, a schedule.frequency the service runs, a
         known status when it sets one, and an alertTemplate with a title, a
         known severity and at least one known tactic whose techniques and
-        sub-techniques are well formed. Entity mapping collections and
+        sub-techniques are well formed and, in MITRE ATT&CK, belong to that
+        tactic (Get-iSOCDefenderDetectionAttackMap). Entity mapping collections and
         automated action members must be ones Graph knows, and every
         automated action entry needs the columns its member requires. Every
         problem is reported, joined by '; '; deploy skips the rule.
@@ -61,6 +64,7 @@ function Test-iSOCDefenderDetection {
 
     $Rule = $Item.Rule
     $contract = Get-iSOCDefenderDetectionContract
+    $attack = Get-iSOCDefenderDetectionAttackMap
     $issues = [System.Collections.Generic.List[string]]::new()
 
     if ([string]::IsNullOrWhiteSpace([string]$Rule['displayName'])) { $issues.Add("missing required field 'displayName'") }
@@ -104,11 +108,32 @@ function Test-iSOCDefenderDetection {
             $issues.Add("unknown tactic '$name'")
             continue
         }
+        $tacticName = [string]$tactic['tactic']
         foreach ($technique in @($tactic['techniques'] | Where-Object { $null -ne $_ })) {
             $parent = [string]$technique['technique']
-            if ($parent -notmatch '^T\d{4}(\.\d{3})?$') { $issues.Add("invalid technique '$parent' under $($tactic['tactic'])") }
+            $wellFormed = $parent -match '^T\d{4}(\.\d{3})?$'
+            if (-not $wellFormed) { $issues.Add("invalid technique '$parent' under $tacticName") }
+            $subs = [System.Collections.Generic.List[string]]::new()
             foreach ($sub in @($technique['subTechniques'] | Where-Object { $null -ne $_ })) {
                 if ([string]$sub -notmatch "^$([regex]::Escape($parent))\.\d{3}$") { $issues.Add("sub-technique '$sub' does not belong to $parent") }
+                else { $subs.Add([string]$sub) }
+            }
+
+            # Graph rejects a technique under a tactic it is not in. The
+            # sub-techniques are checked once their technique passes, so
+            # one misplaced technique is one problem.
+            if (-not $attack -or -not $wellFormed) { continue }
+            $checks = @(@{ Kind = 'technique'; Id = $parent }) + @($subs | ForEach-Object { @{ Kind = 'sub-technique'; Id = $_ } })
+            foreach ($check in $checks) {
+                $belongs = $null
+                if (-not $attack.Techniques.TryGetValue($check.Id, [ref]$belongs)) {
+                    $issues.Add("$($check.Kind) '$($check.Id)' is not in MITRE ATT&CK $($attack.AttackVersion)")
+                    break
+                }
+                if ($tacticName -notin $belongs) {
+                    $issues.Add("$($check.Kind) '$($check.Id)' belongs to $($belongs -join ', '), not $tacticName, in MITRE ATT&CK $($attack.AttackVersion)")
+                    break
+                }
             }
         }
     }

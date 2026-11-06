@@ -29,6 +29,11 @@ detectionAction:
     tactics:
       - tactic: InitialAccess
         techniques:
+          - technique: T1078
+            subTechniques:
+              - T1078.004
+      - tactic: CommandAndControl
+        techniques:
           - technique: T1090
             subTechniques:
               - T1090.003

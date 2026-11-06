@@ -27,6 +27,8 @@ detectionAction:
           - technique: T1021
             subTechniques:
               - T1021.002
+      - tactic: Execution
+        techniques:
           - technique: T1569
             subTechniques:
               - T1569.002

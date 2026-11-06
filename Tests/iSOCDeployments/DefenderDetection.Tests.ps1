@@ -12,9 +12,13 @@
       tactic, entity mapping and automated action converters, the
       translation of a rule written with the retired fields, and the
       mapped columns.
+    - The MITRE ATT&CK map (Get-iSOCDefenderDetectionAttackMap): version
+      18.1, its tactics the ones Graph accepts, ids looked up without case.
     - The handlers on the fixture repository: reading one item per file
       (with the translation done once), validation (every problem on one
-      line, as the deployer logged them), and the request body.
+      line, as the deployer logged them, and each technique under a tactic
+      it is in, which the deployer did not check: MIGRATION.md E46), and
+      the request body.
     - The deploy handler with the REST client mocked: an existing rule
       updated by name, a new one created with its id, a new one without an
       id failed, -WhatIf reading the tenant's rules (MIGRATION.md edit
@@ -39,8 +43,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
-    Last Updated: 2026-11-05
+    Version:      0.3.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
@@ -128,7 +132,7 @@ BeforeAll {
                     title           = 'Legacy alert'
                     severity        = 'high'
                     category        = 'CredentialAccess'
-                    mitreTechniques = @('T1110.001', 'T1110.003', 'T1078')
+                    mitreTechniques = @('T1110.001', 'T1110.003', 'T1621')
                     impactedAssets  = @(@{ '@odata.type' = '#microsoft.graph.security.impactedUserAsset'; identifier = 'accountObjectId' })
                 }
                 responseActions = @(
@@ -180,6 +184,30 @@ Describe 'ConvertTo-iSOCDefenderDetectionTactic' {
         $tactics = Invoke-InModule { ConvertTo-iSOCDefenderDetectionTactic -Category 'Impact' -MitreTechniques @() }
         @($tactics).Count | Should -Be 1
         $tactics[0].Contains('techniques') | Should -BeFalse
+    }
+}
+
+Describe 'Get-iSOCDefenderDetectionAttackMap' {
+    BeforeAll {
+        $script:attack = Invoke-InModule { Get-iSOCDefenderDetectionAttackMap }
+    }
+
+    It 'is MITRE ATT&CK 18.1, whose tactics are the ones Graph accepts' {
+        $script:attack.AttackVersion | Should -BeExactly '18.1'
+        $tactics = @($script:attack.Techniques.Values | ForEach-Object { $_ } | Sort-Object -Unique)
+        $tactics | Should -Be @((Invoke-InModule { Get-iSOCDefenderDetectionContract }).ValidDetectionTactics | Sort-Object)
+    }
+
+    It 'holds techniques and sub-techniques, looked up without case' {
+        $script:attack.Techniques['t1047'] | Should -Be @('Execution')
+        $script:attack.Techniques['T1078.004'] | Should -Contain 'InitialAccess'
+        $script:attack.Techniques.ContainsKey('T1574.002') | Should -BeTrue -Because 'a revoked id a rule still names is kept'
+    }
+
+    It 'warns and returns nothing when the file is missing' {
+        Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+        Invoke-InModule { param($P) Get-iSOCDefenderDetectionAttackMap -Path $P } @{ P = (Join-Path $TestDrive 'none.json') } | Should -BeNullOrEmpty
+        Should -Invoke -ModuleName iSOCDeployments Write-iSOCLog -Times 1 -Exactly -ParameterFilter { $Level -eq 'Warning' }
     }
 }
 
@@ -412,6 +440,9 @@ Describe 'Defender detection handlers' {
         @{ Problem = 'an unknown tactic'; Change = { param($r) $r.detectionAction.alertTemplate.tactics = @(@{ tactic = 'Exploit' }) }; Expected = "unknown tactic 'Exploit'" }
         @{ Problem = 'a malformed technique'; Change = { param($r) $r.detectionAction.alertTemplate.tactics[0].techniques[0] = @{ technique = '1059' } }; Expected = "invalid technique '1059' under Execution" }
         @{ Problem = 'a foreign sub-technique'; Change = { param($r) $r.detectionAction.alertTemplate.tactics[0].techniques[0].subTechniques = @('T1078.004') }; Expected = "sub-technique 'T1078.004' does not belong to T1059" }
+        @{ Problem = 'a technique under a tactic it is not in'; Change = { param($r) $r.detectionAction.alertTemplate.tactics[0].techniques[0] = @{ technique = 'T1105' } }; Expected = "technique 'T1105' belongs to CommandAndControl, not Execution, in MITRE ATT&CK 18.1" }
+        @{ Problem = 'a technique MITRE ATT&CK does not have'; Change = { param($r) $r.detectionAction.alertTemplate.tactics[0].techniques[0] = @{ technique = 'T1999' } }; Expected = "technique 'T1999' is not in MITRE ATT&CK 18.1" }
+        @{ Problem = 'a sub-technique MITRE ATT&CK does not have'; Change = { param($r) $r.detectionAction.alertTemplate.tactics[0].techniques[0].subTechniques = @('T1059.999') }; Expected = "sub-technique 'T1059.999' is not in MITRE ATT&CK 18.1" }
         @{ Problem = 'an unknown entity collection'; Change = { param($r) $r.detectionAction.alertTemplate.entityMappings = @{ people = @() } }; Expected = "unknown entityMappings collection 'people'" }
         @{ Problem = 'an action missing its column'; Change = { param($r) $r.detectionAction.automatedActions = @{ isolateDevices = @(@{ deviceIdColumn = 'DeviceId' }) } }; Expected = "automatedActions.isolateDevices entry missing 'isolationType'" }
         @{ Problem = 'an unknown action member'; Change = { param($r) $r.detectionAction.automatedActions = @{ rebootDevices = @() } }; Expected = "unknown automatedActions member 'rebootDevices'" }
@@ -419,6 +450,41 @@ Describe 'Defender detection handlers' {
         $rule = New-CurrentRule
         & $Change $rule
         @(Test-Item (New-RuleItem $rule)) -join "`n" | Should -BeExactly $Expected
+    }
+
+    It 'accepts a technique under each tactic it is in, and a revoked one a rule may still name' {
+        $rule = New-CurrentRule
+        $rule.detectionAction.alertTemplate.tactics = @(
+            @{ tactic = 'InitialAccess'; techniques = @(@{ technique = 'T1078'; subTechniques = @('T1078.004') }) }
+            @{ tactic = 'Persistence'; techniques = @(@{ technique = 'T1078' }) }
+            @{ tactic = 'DefenseEvasion'; techniques = @(@{ technique = 'T1574'; subTechniques = @('T1574.002') }) }
+        )
+        Test-Item (New-RuleItem $rule) | Should -BeNullOrEmpty
+    }
+
+    It 'reports a misplaced technique once, not again for each of its sub-techniques' {
+        $rule = New-CurrentRule
+        $rule.detectionAction.alertTemplate.tactics = @(@{ tactic = 'InitialAccess'; techniques = @(@{ technique = 'T1090'; subTechniques = @('T1090.003') }) })
+        @(Test-Item (New-RuleItem $rule)) -join "`n" | Should -BeExactly "technique 'T1090' belongs to CommandAndControl, not InitialAccess, in MITRE ATT&CK 18.1"
+    }
+
+    It 'reports a sub-technique under a tactic it is not in, when its technique is in it' {
+        Mock -ModuleName iSOCDeployments Get-iSOCDefenderDetectionAttackMap {
+            $techniques = [System.Collections.Generic.Dictionary[string, string[]]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            $techniques['T1059'] = @('Execution', 'Persistence')
+            $techniques['T1059.001'] = @('Execution')
+            [pscustomobject]@{ AttackVersion = 'test'; Techniques = $techniques }
+        }
+        $rule = New-CurrentRule
+        $rule.detectionAction.alertTemplate.tactics[0].tactic = 'Persistence'
+        @(Test-Item (New-RuleItem $rule)) -join "`n" | Should -BeExactly "sub-technique 'T1059.001' belongs to Execution, not Persistence, in MITRE ATT&CK test"
+    }
+
+    It 'checks only the id patterns when the map is missing' {
+        Mock -ModuleName iSOCDeployments Get-iSOCDefenderDetectionAttackMap { }
+        $rule = New-CurrentRule
+        $rule.detectionAction.alertTemplate.tactics[0].techniques[0] = @{ technique = 'T1105' }
+        Test-Item (New-RuleItem $rule) | Should -BeNullOrEmpty
     }
 
     It 'builds the current Graph shape, without the id for an update' {

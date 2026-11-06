@@ -26,6 +26,12 @@ detectionAction:
     tactics:
       - tactic: LateralMovement
         techniques:
+          - technique: T1021
+            subTechniques:
+              - T1021.003
+              - T1021.006
+      - tactic: Execution
+        techniques:
           - technique: T1047
     recommendedActions: |
       1. Identify the source machine that initiated the WMI call.

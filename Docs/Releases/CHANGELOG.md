@@ -108,6 +108,22 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   next. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **Six Defender XDR custom detections deploy again** - the conversion to
+  the current Graph rule shape put each rule's techniques under its one old
+  category, and in six rules a technique sat under a tactic it does not
+  belong to in MITRE ATT&CK (Proxy under Initial Access, for example).
+  Those six failed to deploy. Each keeps its tactic, now with a technique
+  that belongs to it, and gains an entry for each tactic its other
+  techniques belong to: Sign-in from known TOR exit node IP, Mass file
+  download from SharePoint or OneDrive, Mailbox delegation or permission
+  added via Exchange, Lateral movement via PsExec or remote service
+  creation, Living-off-the-land binary execution chain detected, and
+  Suspicious WMI remote process execution. The iSOCDeployments validator
+  now checks every technique against its tactic in MITRE ATT&CK 18.1, the
+  last release whose tactics are the ones Graph accepts, and the content
+  suite fails a rule that does not. **For forks:** check any rule
+  you converted from `category` and `mitreTechniques`; see
+  [Tactics and techniques](../Content/Defender-Custom-Detections.md#tactics-and-techniques).
 - **A classic table fixture stream ends when its posts fail** -
   `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1 -Stream
   -BatchCount` counted only the batches that were accepted, so a stream

@@ -30,7 +30,15 @@ detectionAction:
     tactics:
       - tactic: Execution
         techniques:
+          - technique: T1059
+            subTechniques:
+              - T1059.001
+              - T1059.003
+      - tactic: DefenseEvasion
+        techniques:
           - technique: T1218
+      - tactic: CommandAndControl
+        techniques:
           - technique: T1105
     recommendedActions: |
       1. Review the full command line for remote URLs or encoded payloads.
