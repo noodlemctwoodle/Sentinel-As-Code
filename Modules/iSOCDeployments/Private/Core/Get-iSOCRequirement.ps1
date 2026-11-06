@@ -13,7 +13,10 @@
     Steps:
       Connect   Connect-iSOCWorkspace and every command that calls Azure
       Read      reading YAML content from the repository
-      Deploy    deploying ARM templates (playbooks)
+      Deploy    deploying ARM templates (playbooks), and the Bicep CLI for
+                playbooks written in Bicep (asserted by the playbook reader
+                only when it finds a .bicep file, so JSON playbooks need no
+                Bicep)
 
     A content type names the requirements it needs in its Prerequisites,
     and Deploy-iSOCContent checks those for the types it is asked to
@@ -25,8 +28,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.4.0
-    Last Updated: 2026-11-04
+    Version:      0.5.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -69,6 +72,7 @@ function Get-iSOCRequirement {
     & $new 'powershell-yaml' 'Module' 'Read' '0.4.12' 'Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser'
     & $new 'Az.Resources' 'Module' 'Deploy' '6.0.0' 'Install-Module Az.Resources -Scope CurrentUser; playbooks deploy as ARM templates through it.'
     & $new 'git' 'Command' 'Import' '2.0.0' 'Install git 2.x and put it on the PATH: https://git-scm.com/downloads'
+    & $new 'bicep' 'Command' 'Deploy' '0.30.0' 'Install the Bicep CLI and put it on the PATH: https://aka.ms/bicep/install (az bicep install puts it in ~/.azure/bin); Bicep playbooks are compiled with it.'
     & $new 'Az.OperationalInsights' 'Module' 'Migrate' '3.0.0' 'Install-Module Az.OperationalInsights -Scope CurrentUser; the classic table migration counts each table''s rows and volume through it.'
     & $new 'Microsoft.Graph.Authentication' 'Module' 'Setup' '2.0.0' 'Install-Module Microsoft.Graph.Authentication -Scope CurrentUser; the setup signs in to Microsoft Graph for the directory role and the Graph permission.'
 }

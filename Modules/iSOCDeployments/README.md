@@ -84,7 +84,7 @@ nothing:
 | --- | --- |
 | Connect | Az.Accounts 2.0.0 or later, signed in with `Connect-AzAccount` (in a pipeline, the AzurePowerShell task or `azure/login`) |
 | Read | powershell-yaml 0.4.12 or later, to read YAML content |
-| Deploy | Az.Resources 6.0.0 or later, only when there are playbooks to deploy: they deploy as ARM templates through it |
+| Deploy | Az.Resources 6.0.0 or later, only when there are playbooks to deploy: they deploy as ARM templates through it. The Bicep CLI 0.30.0 or later on the PATH, only when there are Bicep playbooks: they are compiled with it (`az bicep install` puts it in `~/.azure/bin`) |
 | Import | git 2.0 or later on the PATH, to clone a community rule source |
 | Setup | Microsoft.Graph.Authentication 2.0.0 or later, for the service principal's directory role and Graph permission |
 | Migrate | Az.OperationalInsights 3.0.0 or later, for the row counts and volume the classic table migration reads |

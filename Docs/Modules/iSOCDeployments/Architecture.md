@@ -22,7 +22,7 @@ type. The rules here are enforced by the suites under
 | Folder | Holds |
 | --- | --- |
 | `Public/` | One exported command per file. The manifest's `FunctionsToExport` is the list of these files (`Module.Tests.ps1`). |
-| `Private/Core/` | Logging, the API table, the context, repository paths, property access and the requirement table |
+| `Private/Core/` | Logging, the API table, the context, repository paths, property access, JSON reading that keeps dates as written, and the requirement table |
 | `Private/Az/` | The only files that call Az cmdlets, as thin wrappers the rest of the module mocks: the Az context, the resource group deployments playbooks and data collection rules need, and Log Analytics queries |
 | `Private/Rest/` | The only files that call REST: `Invoke-iSOCRestRequest` and its helpers |
 | `Private/Yaml/` | Loading powershell-yaml, reading files, writing scalars and nested blocks |
@@ -31,6 +31,7 @@ type. The rules here are enforced by the suites under
 | `Private/Permissions/` | Role assignments over REST (reading, finding one that applies at a scope or above, creating under a stable name, deleting), the playbook role analysis and the runbook's roles ([Permissions](Permissions.md)) |
 | `Private/Graph/` | The only files that run Microsoft Graph SDK commands: a sign-in with the delegated scopes the service principal setup needs, and requests through it (`Module.Tests.ps1`) |
 | `Private/Git/` | The only file that runs git: `Invoke-iSOCGit` (`Module.Tests.ps1`) |
+| `Private/Bicep/` | The module's own Bicep writer (ARM expressions parsed and written as Bicep, strings, identifiers, values and whole templates), the symbolic template comparison that proves a Bicep file deploys what its JSON did, and the only file that runs the Bicep CLI: `Invoke-iSOCBicep`, which builds many files in one run (`Module.Tests.ps1`) |
 | `Private/Http/` | The only file that calls endpoints outside ARM and Graph, which take other credentials: the Data Collector API (signed with the workspace key), the Entra token endpoint and the Logs Ingestion API; `Invoke-iSOCHttpRequest` logs nothing of the request (`Module.Tests.ps1`) |
 | `Private/Export/` | Reading, comparing and saving an item's files, the export result and summary, and making exported content portable: ARM expressions for a workspace's own values, and the plain-text secret scan ([Export](Export.md)) |
 | `Private/Drift/` | The comparers and the canonical forms they rest on, and the drift run: comparing a body field by field, the drift item, writing a repository file, the report and its Markdown ([Drift](Drift.md)) |
@@ -257,7 +258,8 @@ this, so they are the only commands in the output.
 -Step` stops a command before it starts when something is missing, naming
 it and how to install it; `Test-iSOCDeploymentPrerequisite` reports the
 list. A requirement is PowerShell itself, a module, or a command on the
-PATH (git, for the Import step, whose version is read from `--version`).
+PATH (git, for the Import step, and the Bicep CLI, for Bicep playbooks;
+the version is read from `--version`).
 powershell-yaml is loaded the first time YAML is read
 (`Import-iSOCYamlModule`), never installed. A content type's own
 `Prerequisites` are checked by name (`Assert-iSOCPrerequisite -Name`)

@@ -34,8 +34,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-04
+    Version:      0.3.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+, Pester 5+
 #>
 
@@ -216,6 +216,12 @@ Describe 'Code rules' {
         $gitCalls = @(Get-CommandCall -Pattern '^git(\.exe)?$')
         $gitCalls.Count | Should -BeGreaterThan 0
         foreach ($call in $gitCalls) { $call.Path | Should -Be 'Modules/iSOCDeployments/Private/Git/Invoke-iSOCGit.ps1' -Because "git at $($call.Path):$($call.Line)" }
+    }
+
+    It 'runs the Bicep CLI only from Private/Bicep/Invoke-iSOCBicep.ps1' {
+        $bicepCalls = @(Get-CommandCall -Pattern '^bicep(\.exe)?$')
+        $bicepCalls.Count | Should -BeGreaterThan 0
+        foreach ($call in $bicepCalls) { $call.Path | Should -Be 'Modules/iSOCDeployments/Private/Bicep/Invoke-iSOCBicep.ps1' -Because "bicep at $($call.Path):$($call.Line)" }
     }
 
     It 'makes a web request other than through Invoke-AzRestMethod only from Private/Http/' {
