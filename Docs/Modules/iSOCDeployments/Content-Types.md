@@ -128,10 +128,13 @@ E15).
 
 ### Playbook
 
-- **Read**: every `*.json` file under `Content/Playbooks/`, leaving out
-  parameter files (`*.parameters.json`) and anything in a folder named
-  `Template`. A playbook is named `<folder>/<file>`, or `<file>` alone in
-  `Content/Playbooks/` itself.
+- **Read**: every `*.bicep` and `*.json` file under `Content/Playbooks/`,
+  leaving out parameter files (`*.parameters.json`), `bicepconfig.json`
+  and anything in a folder named `Template`. Bicep files are compiled
+  together with the Bicep CLI (needed only when there is one), and each is
+  then treated as its compiled template; one that does not compile fails
+  with the compiler's errors (MIGRATION.md edit E47). A playbook is named
+  `<folder>/<file>`, or `<file>` alone in `Content/Playbooks/` itself.
 - **Validate**: the file parses and its `$schema` is an ARM deployment
   template.
 - **Order**: the templates in `Module` folders first, each after the
@@ -148,8 +151,9 @@ E15).
   `SentinelWorkspaceName` (and the common misspelling
   `SentinelWorkpaceName`), `SubscriptionId` and `WorkspaceId`. Under
   `-WhatIf` the template is validated against the resource group instead
-  (MIGRATION.md edit E14). Az.Resources is needed only when there are
-  playbooks to deploy. `Tests/iSOCDeployments/Playbook.Tests.ps1` holds
+  (MIGRATION.md edit E14). A Bicep playbook is deployed as its `.bicep`
+  file, which Az.Resources compiles with the Bicep CLI on the PATH.
+  Az.Resources is needed only when there are playbooks to deploy. `Tests/iSOCDeployments/Playbook.Tests.ps1` holds
   every playbook to the deployment the script runs.
 - **Export**: the Logic Apps in the playbook resource group, each written
   as a parameterised template to its trigger's folder, or over the

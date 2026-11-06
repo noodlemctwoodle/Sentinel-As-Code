@@ -19,7 +19,7 @@ folder per content type the module has ported so far.
 | `repo/Content/Watchlists/vipUsers/` | A complete watchlist (`watchlist.json` and `data.csv`) |
 | `repo/Content/Watchlists/noData/` | A watchlist without its `data.csv`, and without a description or provider |
 | `repo/Content/Watchlists/emptyFolder/` | A watchlist folder without a `watchlist.json` |
-| `repo/Content/Playbooks/Module/ZuluBase.json`, `AlphaCaller.json` | Two module playbooks, `AlphaCaller` calling `ZuluBase`, so the order puts the one called first |
+| `repo/Content/Playbooks/Module/ZuluBase.json`, `AlphaCaller.bicep` | Two module playbooks, `AlphaCaller` (Bicep) calling `ZuluBase` (JSON), so the order puts the one called first whichever format each is in |
 | `repo/Content/Playbooks/Incident/FixtureIncident.json` | A playbook with a parameters file beside it |
 | `repo/Content/Playbooks/NotArm.json` | A JSON file that is not an ARM template, which validation rejects |
 | `repo/Content/Playbooks/Template/FixtureTemplate.json` | A file under a `Template` folder, which the reader leaves out |

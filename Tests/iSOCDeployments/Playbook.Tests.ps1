@@ -7,8 +7,12 @@
     Az.Resources wrappers.
 
 .DESCRIPTION
-    The handlers are tested on the fixture repository: which files are
-    templates, names and identities, validation, the deployment parameters
+    The handlers are tested on the fixture repository, which holds both
+    formats (Module/AlphaCaller is Bicep, the rest JSON): which files are
+    templates, names and identities, Bicep files compiled once each and
+    read like JSON ones (a file that does not compile fails with the
+    compiler's errors, bicepconfig.json is not a playbook, and a repository
+    of JSON playbooks never needs the Bicep CLI), validation, the deployment parameters
     (only the template parameters the template declares are filled in),
     the order (modules first, each after the modules it calls, a cycle
     warned about) and the deploy handler, which deploys, or under -WhatIf
@@ -34,19 +38,20 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.3.0
+    Last Updated: 2026-11-06
+    Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 
     Az.Resources is not needed: the cmdlets are stood in for.
 #>
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    # Every template the module should read: each JSON file under
-    # Content/Playbooks/ but parameter files and the Template folder.
-    $script:playbookFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content/Playbooks') -Filter '*.json' -Recurse -File) |
-        Where-Object { $_.Name -notmatch '\.parameters\.json$' -and $_.Directory.Name -ne 'Template' } |
+    # Every template the module should read: each Bicep and JSON file under
+    # Content/Playbooks/ but parameter files, bicepconfig.json and the
+    # Template folder.
+    $script:playbookFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content/Playbooks') -Recurse -File) |
+        Where-Object { $_.Extension -in '.bicep', '.json' -and $_.Name -notmatch '\.parameters\.json$' -and $_.Name -ne 'bicepconfig.json' -and $_.Directory.Name -ne 'Template' } |
         ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
 }
 
@@ -120,10 +125,38 @@ Describe 'Playbook handlers' {
     It 'reads every template, leaving out parameter files and the Template folder' {
         @($script:items.RelativePath) | Should -Be @(
             'Content/Playbooks/Incident/FixtureIncident.json'
-            'Content/Playbooks/Module/AlphaCaller.json'
+            'Content/Playbooks/Module/AlphaCaller.bicep'
             'Content/Playbooks/Module/ZuluBase.json'
             'Content/Playbooks/NotArm.json'
         )
+        @($script:items.Format) | Should -Be @('Json', 'Bicep', 'Json', 'Json')
+    }
+
+    It 'reads a Bicep playbook as its compiled template' {
+        $alpha = $script:items | Where-Object { $_.Name -eq 'Module/AlphaCaller' }
+        $alpha.ParseError | Should -BeNullOrEmpty
+        $alpha.Data.'$schema' | Should -Match 'deploymentTemplate'
+        $alpha.Data.parameters.PlaybookName.defaultValue | Should -BeExactly 'Module-AlphaCaller'
+        $alpha.Data.resources[0].type | Should -BeExactly 'Microsoft.Logic/workflows'
+        Test-Item $alpha | Should -BeNullOrEmpty
+    }
+
+    It 'fails a Bicep file that does not compile, with the compiler''s errors' {
+        $repo = New-PlaybookRepo @{ 'Other/Broken.bicep' = 'resource x = {'; 'Other/Fine.json' = (New-Template) }
+        $items = @(Get-PlaybookItem -Repo $repo)
+        @($items.RelativePath) | Should -Be @('Content/Playbooks/Other/Broken.bicep', 'Content/Playbooks/Other/Fine.json')
+        $items[0].ParseError | Should -BeLike 'the Bicep does not compile: *Error BCP*'
+        @(Test-Item $items[0])[0] | Should -BeExactly $items[0].ParseError
+        $items[0].Identity | Should -BeExactly 'broken'
+    }
+
+    It 'leaves out bicepconfig.json, and needs the Bicep CLI only when there is a Bicep playbook' {
+        Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
+        $repo = New-PlaybookRepo @{ 'bicepconfig.json' = '{ "analyzers": {} }'; 'Other/Fine.json' = (New-Template) }
+        @(Get-PlaybookItem -Repo $repo).RelativePath | Should -Be @('Content/Playbooks/Other/Fine.json')
+        Should -Invoke -ModuleName iSOCDeployments Assert-iSOCPrerequisite -Times 0 -Exactly
+        @(Get-PlaybookItem).Count | Should -Be 4
+        Should -Invoke -ModuleName iSOCDeployments Assert-iSOCPrerequisite -Times 1 -Exactly -ParameterFilter { $Name -eq 'bicep' }
     }
 
     It 'names a playbook by its folder and file, and identifies it by its PlaybookName' {

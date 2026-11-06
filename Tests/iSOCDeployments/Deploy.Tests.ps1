@@ -29,9 +29,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.1
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
+    Version:      0.3.2
+    Last Updated: 2026-11-06
+    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml, the Bicep CLI
 #>
 
 BeforeAll {
@@ -343,7 +343,7 @@ Describe 'Deploy-iSOCContent' {
         Get-Outcome $run 'CommunityRule.yml' | Should -Be 'DeployedDisabled'
         Get-Outcome $run 'FixtureHunt.yaml' | Should -Be 'Deployed'
         Get-Outcome $run 'ZuluBase.json' | Should -Be 'Deployed'
-        Get-Outcome $run 'AlphaCaller.json' | Should -Be 'Deployed'
+        Get-Outcome $run 'AlphaCaller.bicep' | Should -Be 'Deployed'
         Get-Outcome $run 'FixtureIncident.json' | Should -Be 'Deployed'
         Get-Outcome $run 'NotArm.json' | Should -Be 'Skipped'
         Get-Outcome $run 'FixtureOverview' | Should -Be 'Deployed'
@@ -389,7 +389,7 @@ Describe 'Deploy-iSOCContent' {
 
     It 'deploys playbooks as resource group deployments, modules first in the order they call each other' {
         Deploy-iSOCContent -Context $script:context -RepoPath $script:copy | Out-Null
-        @($script:deployments | ForEach-Object { Split-Path -Leaf $_.Parameters.TemplateFile }) | Should -Be @('ZuluBase.json', 'AlphaCaller.json', 'FixtureIncident.json')
+        @($script:deployments | ForEach-Object { Split-Path -Leaf $_.Parameters.TemplateFile }) | Should -Be @('ZuluBase.json', 'AlphaCaller.bicep', 'FixtureIncident.json')
         @($script:deployments.Name) | Should -Match '^Playbook-(ZuluBase|AlphaCaller|FixtureIncident)-\d{14}$'
         @($script:deployments.Parameters.ResourceGroupName | Select-Object -Unique) | Should -Be @('rg')
         @($script:sent | Where-Object { $_.Path -like '*Microsoft.Logic*' }) | Should -BeNullOrEmpty

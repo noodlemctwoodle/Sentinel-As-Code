@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-03
+    Version:      0.2.1
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     Docs/Modules/iSOCDeployments/Architecture.md lists the keys, the values
@@ -61,7 +61,7 @@ function Test-iSOCContentTypeDefinition {
     $issues = [System.Collections.Generic.List[string]]::new()
     $choices = @{
         Layout            = 'File', 'Folder'
-        Format            = 'Yaml', 'Json'
+        Format            = 'Yaml', 'Json', 'Bicep'
         Endpoint          = 'Arm', 'Graph'
         Scope             = 'Workspace', 'ResourceGroup', 'PlaybookResourceGroup', 'Tenant'
         MissingDependency = 'DeployDisabled', 'Skip', 'Deploy'

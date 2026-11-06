@@ -94,7 +94,8 @@ workspace too, as every run does, and the service principal needs the
    skips anything else; then the item is sent. Community rules always go
    disabled, and a rule whose query the service will not validate yet (a
    watchlist column not indexed yet, say) is sent again disabled.
-   Playbooks deploy as ARM templates to the playbook resource group.
+   Playbooks deploy as ARM templates to the playbook resource group
+   (a Bicep playbook as its `.bicep` file, compiled on the way).
    Defender detections are read from the tenant first: a detection whose
    display name the tenant has is updated in place, and a new one is
    created with the `id` its file gives it (one without an `id` fails).

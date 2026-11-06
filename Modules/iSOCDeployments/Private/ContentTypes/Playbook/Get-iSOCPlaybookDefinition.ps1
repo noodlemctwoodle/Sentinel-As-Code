@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
-    Last Updated: 2026-11-03
+    Version:      0.3.0
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+
 
     Docs/Modules/iSOCDeployments/Architecture.md describes every key of a
@@ -26,8 +26,10 @@ function Get-iSOCPlaybookDefinition {
         Return the playbook definition.
 
     .DESCRIPTION
-        Playbooks are ARM templates anywhere under Content/Playbooks/, one
-        Logic App per file, grouped in folders by trigger. They deploy to the
+        Playbooks are Bicep files (or, for forks not converted yet, ARM
+        JSON templates) anywhere under Content/Playbooks/, one Logic App per
+        file, grouped in folders by trigger. A Bicep file is compiled with
+        the Bicep CLI when it is read. They deploy to the
         playbook resource group as resource group deployments through
         Az.Resources, not as REST requests, so the type has its own Deploy
         handler, and its own Order handler: the templates in Module folders
@@ -35,7 +37,7 @@ function Get-iSOCPlaybookDefinition {
         is named by its template's PlaybookName parameter. One whose
         dependencies are missing is skipped. Exporting reads the Logic Apps
         in the playbook resource group and writes each as a parameterised
-        template.
+        Bicep file (or JSON, with Export-iSOCContent -Format Json).
 
     .OUTPUTS
         [hashtable] The definition.
@@ -52,8 +54,8 @@ function Get-iSOCPlaybookDefinition {
         DisplayName       = 'Playbooks'
         RepoFolder        = 'Content/Playbooks'
         Layout            = 'File'
-        Format            = 'Json'
-        FilePattern       = @('*.json')
+        Format            = 'Bicep'
+        FilePattern       = @('*.bicep', '*.json')
         Recurse           = $true
         Endpoint          = 'Arm'
         Scope             = 'PlaybookResourceGroup'
