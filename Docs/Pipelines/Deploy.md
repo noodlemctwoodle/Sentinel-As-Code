@@ -340,21 +340,26 @@ or was skipped. Timeout: 60 minutes. Steps, in order:
    composite with `install-pester: 'false'` and the pinned
    `YAML_VERSION`; ADO installs the same version inline, pinned by its
    `yamlVersion` variable).
-4. **Verify dependency manifest is current** - runs
+4. **Put the Bicep CLI on the PATH** (ADO) - playbooks are Bicep, and
+   the module compiles them with the standalone Bicep CLI (as Az.Resources
+   does when it deploys them). Uses the CLI on the agent, or runs
+   `az bicep install` and prepends `~/.azure/bin` to the PATH. A step of
+   its own, so the deploy step's command restrictions stay as they are.
+5. **Verify dependency manifest is current** - runs
    `Tools/Build-DependencyManifest.ps1 -Mode Verify` and fails the stage
    if `dependencies.json` is out of sync with current content. This is the
    same drift gate the PR-validation workflow enforces on every PR to main,
    repeated here so a scheduled deploy from `main` cannot race a
    non-deploy commit that bypassed the PR gate. See
    [Dependency Manifest](../Tools/Dependency-Manifest.md).
-5. **Azure login (OIDC)**.
-6. **Deploy custom content** - invokes
+6. **Azure login (OIDC)**.
+7. **Deploy custom content** - invokes
    `Deploy/content/Deploy-CustomContent.ps1` with the base parameters
    plus the resolved `-Skip*`, `-SmartDeployment`, and `-WhatIf` switches
    (GitHub derives the skips by parsing `skip_custom_content_types`; ADO
    reads its compile-time `flag*` variables). The optional playbook RG is
    passed as `-PlaybookResourceGroup` when set.
-7. **Save deployment state** - always runs (`if: always()` /
+8. **Save deployment state** - always runs (`if: always()` /
    `condition: always()`, both `continue-on-error`). GitHub caches
    `deployment-state.json`; ADO publishes the same file as a pipeline
    artefact named `deployment-state`.

@@ -264,20 +264,24 @@ Steps, in order:
    same pins the GitHub composite action enforces. PnP.PowerShell is
    installed at exactly the `pnpVersion` read from
    `Pipelines/Sentinel-Blueprint.yml`, for the SharePoint PnP call check.
-3. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
+3. **Put the Bicep CLI on the PATH**: playbooks are Bicep, and the
+   module and its suites compile them with the standalone Bicep CLI. Uses
+   the CLI on the agent, or runs `az bicep install` and prepends
+   `~/.azure/bin` to the PATH.
+4. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
    `-RepoPath`, `-TestResultsPath "$(testResultsFile)"` and
    `-InstallModules:$false` - the same entrypoint the GitHub `validate` job
    uses.
-4. **Verify dependency manifest**: `Test-iSOCDependencyManifest` from the
+5. **Verify dependency manifest**: `Test-iSOCDependencyManifest` from the
    iSOCDeployments module; logs two errors naming the fix and exits
    non-zero on drift. This is the ADO equivalent of the GitHub
    `dependency-manifest` job; see
    [the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md).
-5. **Publish Pester results** (`condition: always()`): `PublishTestResults@2`
+6. **Publish Pester results** (`condition: always()`): `PublishTestResults@2`
    with `testResultsFormat: NUnit` against `$(testResultsFile)`.
    `failTaskOnFailedTests: false` because the Pester step has already exited
    non-zero on failure.
-6. **Upload Pester report** (`condition: always()`): `PublishPipelineArtifact@1`
+7. **Upload Pester report** (`condition: always()`): `PublishPipelineArtifact@1`
    uploads `test-results/` as `pester-results-$(Build.BuildId)`.
 
 ### Wiring as a required gate

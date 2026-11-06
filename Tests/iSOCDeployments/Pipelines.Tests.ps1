@@ -39,8 +39,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-05
-    Version:      0.3.0
-    Last Updated: 2026-11-05
+    Version:      0.3.1
+    Last Updated: 2026-11-06
     Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
 #>
 
@@ -322,6 +322,15 @@ Describe 'Pipelines/Sentinel-PR-Validation.yml' {
         & $script:moduleStepRule $manifestSteps[0] | Should -BeTrue
     }
 
+    It 'puts the Bicep CLI on the PATH before the Pester suites, and runs for playbook changes' {
+        $names = @($script:gateSteps | Where-Object { $_.displayName } | ForEach-Object { $_.displayName })
+        $names.IndexOf('Put the Bicep CLI on the PATH') | Should -BeGreaterThan -1
+        $names.IndexOf('Put the Bicep CLI on the PATH') | Should -BeLessThan $names.IndexOf('Run PR validation')
+        $yaml = Read-PipelineYaml -Path $script:gatePipeline
+        @($yaml.pr.paths.include) | Should -Contain 'Content/Playbooks'
+        @($yaml.trigger.paths.include) | Should -Contain 'Content/Playbooks'
+    }
+
     It 'passes a current manifest' {
         $checkout = Build-PipelineCheckout
         (Invoke-PipelineStep -Script $script:updateStep -Checkout $checkout).ExitCode | Should -Be 0
@@ -437,9 +446,18 @@ Describe 'Pipelines/Sentinel-Deploy.yml' {
                 'DeployInfrastructure/Register Required Resource Providers', 'DeployInfrastructure/Deploy Sentinel Infrastructure with Bicep', 'DeployInfrastructure/Wait for Workspace Indexing'
                 'DeployWorkspaceSettings/Install powershell-yaml Module', 'DeployWorkspaceSettings/Deploy Workspace Settings'
                 'DeployContentHub/Deploy Content Hub Solutions'
-                'DeployCustomContent/Restore Deployment State', 'DeployCustomContent/Install powershell-yaml Module', 'DeployCustomContent/Deploy Custom Content', 'DeployCustomContent/Save Deployment State'
+                'DeployCustomContent/Restore Deployment State', 'DeployCustomContent/Install powershell-yaml Module', 'DeployCustomContent/Put the Bicep CLI on the PATH', 'DeployCustomContent/Deploy Custom Content', 'DeployCustomContent/Save Deployment State'
                 'DeployDefenderDetections/Install powershell-yaml Module', 'DeployDefenderDetections/Deploy Defender Custom Detections')
             (@($script:deploySteps | Where-Object { $_.displayName } | ForEach-Object { "$($_.PipelineStage)/$($_.displayName)" }) -join '|') | Should -BeExactly ($expected -join '|')
+        }
+
+        It 'puts the Bicep CLI on the PATH for the custom content, in a step of its own' {
+            $bicep = @($script:deploySteps | Where-Object { $_.displayName -eq 'Put the Bicep CLI on the PATH' })
+            $bicep.Count | Should -Be 1
+            $bicep[0].PipelineStage | Should -Be 'DeployCustomContent'
+            (Get-StepText $bicep[0]) | Should -Match 'az bicep install'
+            (Get-StepText $bicep[0]) | Should -Match ([regex]::Escape('##vso[task.prependpath]$HOME/.azure/bin'))
+            $bicep[0].Contains('target') | Should -BeFalse -Because 'it must be able to change PATH'
         }
 
         It 'checks out the repository for the check' {

@@ -548,6 +548,21 @@ stages:
                     Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
                     Format-Table Name, Version
 
+          # Bicep playbooks are compiled with the standalone Bicep CLI, which
+          # the iSOCDeployments module (and Az.Resources, deploying them)
+          # needs on the PATH. A separate step, so the module step's command
+          # restrictions stay as they are.
+          - bash: |
+              set -euo pipefail
+              if command -v bicep > /dev/null 2>&1; then
+                  bicep --version
+              else
+                  az bicep install
+                  echo "##vso[task.prependpath]$HOME/.azure/bin"
+                  "$HOME/.azure/bin/bicep" --version
+              fi
+            displayName: "Put the Bicep CLI on the PATH"
+
           # Deploy-iSOCWorkspace checks dependencies.json against what
           # discovery produces from current content before it deploys. The
           # PR-validation gate already checks this on every PR to main, but a

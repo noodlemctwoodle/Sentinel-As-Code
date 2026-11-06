@@ -94,6 +94,7 @@ is a standalone helper (not part of the deploy path) that needs:
 | LibreOffice + `python3-uno` (optional) | [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1): page numbers in the contents |
 | Node.js + `@mermaid-js/mermaid-cli` | [`ConvertTo-iSOCBlueprintChartImage`](../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprintChartImage.ps1) |
 | Azure CLI + Bicep (`az bicep build`) | PR-validation `bicep-build` job |
+| Bicep CLI (standalone `bicep` 0.30+ on PATH) | iSOCDeployments, for Bicep playbooks: reading and deploying them (`Deploy-iSOCContent`, Az.Resources), `Convert-iSOCPlaybook`, and its Pester suites. `az bicep install` puts it in `~/.azure/bin` |
 | Azure CLI (`az`) | [`Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1) (`az automation account show`, `az role assignment create` / `delete` / `list`) |
 
 ## Quick install

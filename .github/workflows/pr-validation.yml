@@ -8,8 +8,8 @@
 #                         Tools/Invoke-PRValidation.ps1 (same entry-
 #                         point ADO uses); publishes JUnit XML to the
 #                         PR check UI and uploads it as an artefact
-#   bicep-build           Bicep syntax + parameter type check (offline)
-#   arm-validate          ARM template What-If for every Content/Playbooks/**.json (OIDC)
+#   bicep-build           Bicep syntax + parameter type check for Infra/ and Content/Playbooks/ (offline)
+#   arm-validate          ARM template What-If for every playbook under Content/Playbooks/ (OIDC)
 #   kql-validate          KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
 #   dependency-manifest   dependencies.json drift check vs auto-discovery (offline)
 #
@@ -110,6 +110,20 @@ jobs:
           yaml-version:   ${{ env.YAML_VERSION }}
           pnp-version:    ${{ steps.pnp.outputs.version }}
 
+      # Bicep playbooks are compiled with the standalone Bicep CLI, which
+      # the iSOCDeployments module (and Az.Resources) need on the PATH.
+      - name: Put the Bicep CLI on the PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
+
       # Calls the cross-platform PR-validation entrypoint that the ADO
       # pipeline also calls. Single source of truth for test discovery,
       # NUnit-XML emission, and exit-code logic. Any change to test-
@@ -151,7 +165,9 @@ jobs:
   # ---------------------------------------------------------------------------
   # C1: Bicep build
   # ---------------------------------------------------------------------------
-  # Compiles every .bicep file under Infra/ to ARM JSON. Catches syntax
+  # Compiles every .bicep file under Infra/ and Content/Playbooks/ to ARM
+  # JSON. Playbook warnings fail too: Content/Playbooks/bicepconfig.json
+  # and the module's writer keep a playbook warning-free. Catches syntax
   # errors, undefined parameter references, type mismatches, and lint
   # violations before they reach the deploy pipeline. No Azure auth needed
   # — `az bicep build` is fully offline.
@@ -180,6 +196,20 @@ jobs:
           shopt -s globstar nullglob
 
           failed=0
+          # The playbooks in one run of the CLI az bicep install put in
+          # ~/.azure/bin: starting it costs more than building a playbook.
+          out_dir="$(mktemp -d)"
+          echo "::group::bicep build Content/Playbooks/**/*.bicep"
+          if ! output=$("$HOME/.azure/bin/bicep" build --pattern "$PWD/Content/Playbooks/**/*.bicep" --outdir "$out_dir" 2>&1); then
+              echo "$output"
+              echo "::error::One or more playbooks failed to build."
+              failed=1
+          elif echo "$output" | grep -q ' : Warning '; then
+              echo "$output"
+              echo "::error::One or more playbooks built with warnings; playbooks build without warnings."
+              failed=1
+          fi
+          echo "::endgroup::"
           for f in Infra/**/*.bicep; do
               echo "::group::az bicep build $f"
               if ! az bicep build --file "$f" --stdout > /dev/null; then
@@ -198,7 +228,8 @@ jobs:
   # ---------------------------------------------------------------------------
   # C2: ARM What-If for every playbook template
   # ---------------------------------------------------------------------------
-  # Runs Test-AzResourceGroupDeployment -WhatIf against every Content/Playbooks/**/*.json
+  # Runs Test-AzResourceGroupDeployment -WhatIf against every playbook under
+  # Content/Playbooks/ (each .bicep and ARM .json template)
   # to catch malformed ARM templates, missing required parameters, and
   # schema-version mismatches before they reach the deploy pipeline.
   #
@@ -254,6 +285,21 @@ jobs:
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # Bicep playbooks are compiled with the standalone Bicep CLI, which
+      # the iSOCDeployments module (and Az.Resources) need on the PATH.
+      - name: Put the Bicep CLI on the PATH
+        if: steps.fork_check.outputs.should_skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
+
       - name: Validate every playbook ARM template
         if: steps.fork_check.outputs.should_skip != 'true'
         shell: pwsh
@@ -280,7 +326,8 @@ jobs:
               Recipients                 = 'pr-validation@example.com'
           }
 
-          $playbooks = Get-ChildItem -Path 'Content/Playbooks' -Recurse -Filter '*.json' -File
+          $playbooks = @(Get-ChildItem -Path 'Content/Playbooks' -Recurse -File -Include '*.bicep', '*.json' |
+              Where-Object { $_.Name -ne 'bicepconfig.json' -and $_.Name -notlike '*.parameters.json' })
           if (-not $playbooks) {
               Write-Host '##[warning]No playbook ARM templates found under Content/Playbooks/.'
               exit 0
@@ -293,7 +340,12 @@ jobs:
               try {
                   # Build a parameter object with only the params this template declares,
                   # otherwise New-AzResourceGroupDeployment rejects extras.
-                  $arm = Get-Content $pb.FullName -Raw | ConvertFrom-Json -Depth 64
+                  $arm = if ($pb.Extension -eq '.bicep') {
+                      (& bicep build $pb.FullName --stdout) -join "`n" | ConvertFrom-Json -Depth 64
+                  }
+                  else {
+                      Get-Content $pb.FullName -Raw | ConvertFrom-Json -Depth 64
+                  }
                   $declaredParams = @{}
                   if ($arm.PSObject.Properties.Name -contains 'parameters' -and $arm.parameters) {
                       foreach ($paramName in $arm.parameters.PSObject.Properties.Name) {
