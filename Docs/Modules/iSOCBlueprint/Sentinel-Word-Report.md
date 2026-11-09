@@ -82,7 +82,7 @@ rather than a report.
 
 ### Why pandoc, not Word COM automation
 
-The converter is pure PowerShell 7 plus the pandoc binary. There is no
+The converter is pure PowerShell 7.6 plus the pandoc binary. There is no
 `New-Object -ComObject Word.Application`, so the toolchain runs on macOS, Linux and
 Windows alike (the COM route is Windows-only). It does not touch Azure, so it is
 safe to run anywhere.

@@ -145,8 +145,7 @@ retired, so this move is mandatory regardless.
 
 ## Prerequisites and RBAC
 
-- PowerShell 7.2 or later. `Invoke-TableMigrationReview.ps1` declares `#Requires -Version 7.0`;
-  everything else declares 7.2, so 7.2 is the floor for the kit as a whole.
+- PowerShell 7.6 or later, the floor for every script in the repository.
 - Modules: `Az.Accounts` (all scripts), plus `Az.OperationalInsights` and `Az.Resources`
   depending on the script. `Invoke-TableMigrationReview.ps1` needs only `Az.Accounts`, because it
   is REST-only over `Invoke-RestMethod` with a token from `Get-AzAccessToken`.

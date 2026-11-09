@@ -138,6 +138,9 @@ apart in.
 `#Requires -Version 7.6` is not optional and not negotiable down: the
 repo floor is 7.6, matching `iSOCDeployments.psd1`, so every file
 declares it even when it needs no modules at all.
+[`Tests/Test-PowerShellVersion.Tests.ps1`](../../Tests/Test-PowerShellVersion.Tests.ps1)
+fails the PR gate for a file that does not, and for any file that
+states a lower PowerShell version.
 
 Both statements belong at the top of the file and nowhere else. A
 second `#Requires` after the `param()` block is redundant, since the

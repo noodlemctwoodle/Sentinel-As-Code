@@ -453,7 +453,7 @@ Logs Ingestion samples and the ClassicToDcr toolkit both use; the published enum
 
 ## Prerequisites and RBAC
 
-- PowerShell 7.2+
+- PowerShell 7.6+
 - `Az.Accounts`, `Az.OperationalInsights`, `Az.Resources`
 - `Connect-AzAccount`
 

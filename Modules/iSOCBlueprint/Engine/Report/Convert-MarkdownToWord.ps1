@@ -36,7 +36,7 @@
     Blueprint emits) is ignored, because raw JSON makes a useless
     code-block dump rather than a report.
 
-    Cross-platform: pure PowerShell 7 plus the pandoc binary. No Word,
+    Cross-platform: pure PowerShell 7.6 plus the pandoc binary. No Word,
     no COM. Install pandoc with `brew install pandoc` (macOS),
     `winget install --id JohnMacFarlane.Pandoc` (Windows), or your
     distro's package manager (Linux).
@@ -123,7 +123,7 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-25
-    Version:        1.0.5
+    Version:        1.0.6
     Last Updated:   2026-11-09
     Requires:       PowerShell 7.6+, pandoc on PATH
 #>

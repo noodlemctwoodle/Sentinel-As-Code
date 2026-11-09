@@ -1337,7 +1337,7 @@ function renderMigrationSection(t) {
   }).join('');
 
   return '<div class="detail-section">' + heading +
-    '<div class="cmd-note cmd-intro">Run in a signed-in PowerShell 7 session with the iSOCDeployments module imported. Nothing on this page executes; the commands are here to copy.</div>' +
+    '<div class="cmd-note cmd-intro">Run in a signed-in PowerShell 7.6 session with the iSOCDeployments module imported. Nothing on this page executes; the commands are here to copy.</div>' +
     steps +
     '<div class="callout attention" style="margin-top:16px;">' +
       '' +

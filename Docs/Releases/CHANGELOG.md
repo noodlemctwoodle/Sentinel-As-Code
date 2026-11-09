@@ -139,11 +139,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   on 10 November 2026. `Test-iSOCDeploymentPrerequisite` and
   `Test-iSOCBlueprintPrerequisite` check for 7.6, and `iSOCBlueprint` is
   26.11.0. The Microsoft-hosted agents on Azure DevOps and GitHub have run
-  PowerShell 7.6 since June 2026, so the pipelines run as they are. The
-  DCR watchlist runbook moves from Azure Automation's PowerShell 7.2
-  runtime, retired on 30 September 2026, to a PowerShell 7.6 runtime
-  environment, `PowerShell-76`, whose Az 15.1.0 package replaces the
-  pinned Az.Accounts 3.0.5. **For forks:** run the modules and tools in
+  PowerShell 7.6 since June 2026, so the pipelines run as they are, and
+  Azure Cloud Shell has shipped 7.6 since March 2026. A new suite,
+  `Tests/Test-PowerShellVersion.Tests.ps1`, fails the PR gate for any
+  script, manifest, pipeline step, Automation runtime environment or
+  document that names an older version. The DCR watchlist runbook moves
+  from Azure Automation's PowerShell 7.2 runtime, retired on 30 September
+  2026, to a PowerShell 7.6 runtime environment, `PowerShell-76`, whose Az
+  15.1.0 package replaces the pinned Az.Accounts 3.0.5. **For forks:** run the modules and tools in
   PowerShell 7.6 or later, and on a self-hosted agent install 7.6 before
   running the pipelines. If the DCR inventory pipeline's infrastructure
   stage then fails with `Update runbook with definition of different

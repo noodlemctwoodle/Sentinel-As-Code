@@ -150,6 +150,7 @@ workbook-export suites.
 | PR gate | [`Tests/Test-InvokePRValidation.Tests.ps1`](../../Tests/Test-InvokePRValidation.Tests.ps1) | `Tools/Invoke-PRValidation.ps1` run against throwaway repositories: it passes when every suite passes, and fails, naming what broke, for a failed test, a suite whose discovery throws, a suite that does not parse and a failed `AfterAll` |
 | PR template validator | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | `Remove-MarkdownComment`, `Get-PullRequestSection`, `Test-PullRequestTemplateBody` (required-section + tick-box rules for the PR description) |
 | Copilot customisations | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses, required keys present, display-name prefix, `applyTo` glob hygiene, and a cross-reference link checker across `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, and `AGENTS.md` |
+| PowerShell 7.6 floor | [`Tests/Test-PowerShellVersion.Tests.ps1`](../../Tests/Test-PowerShellVersion.Tests.ps1) | Every tracked `.ps1` and `.psm1` opens with `#Requires -Version 7.6`, reads as 7.6 to the PowerShell parser and has one `Requires: PowerShell 7.6+` key in `.NOTES`; both module manifests declare `PowerShellVersion = '7.6'`; no workflow, composite action or ADO pipeline runs a step in Windows PowerShell; every Azure Automation runtime environment is PowerShell 7.6, every PowerShell runbook runs on one and the DCR inventory pipelines link the runbook to it; no file other than `CHANGELOG.md` and `MIGRATION.md` states a PowerShell requirement below 7.6 |
 | Blueprint renderer | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Blueprint Markdown from the `Tests/iSOCBlueprint/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
 | Blueprint gap engine | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
 | Blueprint REST wrapper | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
@@ -619,8 +620,8 @@ it on every PR via `pr: { branches: { include: [ main ] } }`.
 
 ## Test inventory
 
-The table lists 31 of the 77 suites: 13 of the 14 root-level
-`Tests/*.Tests.ps1` and 18 of the 28 under `Tests/iSOCBlueprint/`. The 35
+The table lists 32 of the 79 suites: 14 of the 15 root-level
+`Tests/*.Tests.ps1` and 18 of the 28 under `Tests/iSOCBlueprint/`. The 36
 under `Tests/iSOCDeployments/` are described in the suite table above; the
 eleven others added since this table was last brought up to date are not
 listed yet. The suites for the scripts the iSOCDeployments module replaced
@@ -643,6 +644,7 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WatchlistJson.Tests.ps1`](../../Tests/Test-WatchlistJson.Tests.ps1) | JSON schema + sibling CSV header invariants; alias uniqueness | 9 |
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
+| [`Tests/Test-PowerShellVersion.Tests.ps1`](../../Tests/Test-PowerShellVersion.Tests.ps1) | PowerShell 7.6 everywhere: `#Requires`, `Requires:` and manifest versions, no Windows PowerShell pipeline steps, the Automation runtime environment and the runbook's link to it, no stated requirement below 7.6 | 13 |
 | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Blueprint Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections, the sections added for health-check build 38, full lists with no emoji, the connector catalogue, other saved searches and Sentinel pricing, the pages split out for health-check granularity (02, 16, 21, 22, 89), findings linked to the maturity criteria they decide, and empty-state safety | ~250 |
 | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour, the rules ported from health-check build 38, evidence that names every item, SAC-PLT-10 against the connector catalogue | 97 |
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |

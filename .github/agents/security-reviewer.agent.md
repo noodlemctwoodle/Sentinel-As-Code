@@ -72,7 +72,7 @@ the user can act on (typically via hand-off to `content-editor`,
 - [ ] **No `Write-Host $token` / `Write-Pipeline... $token`.**
       Tokens, secrets, connection strings should never log.
 - [ ] **`SecureString` used for any cmdlet that supports it.**
-      `Get-AzAccessToken` returns `SecureString` on PS 7.4+;
+      `Get-AzAccessToken` returns `SecureString` from Az.Accounts 5.0.0;
       `ConvertFrom-SecureString -AsPlainText` should only happen
       at the immediate call site that needs the plain text.
 - [ ] **Errors don't leak secrets in the message.** Catch blocks

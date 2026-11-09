@@ -35,7 +35,7 @@ either. There is no separate `#`-comment banner; the path, author and
 dates live in `.NOTES`.
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
 <#
@@ -78,7 +78,7 @@ declaration order), `.OUTPUTS`, `.EXAMPLE`, `.NOTES`, `.LINK`.
     Created:      2026-03-20
     Version:      2.1.1
     Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Az.Accounts
+    Requires:     PowerShell 7.6+, Az.Accounts
 
     API versions:
       - Sentinel  : 2025-09-01 (GA)
@@ -1014,7 +1014,7 @@ adjust an inline query), the daily workflow opens a chore PR within
 
 ### Prerequisites
 
-- PowerShell 7.2+
+- PowerShell 7.6+
 - `powershell-yaml` module (auto-installed by the script if missing)
 - `Modules/Sentinel.Common` (auto-imported from the script — provides
   `Get-ContentDependencies` and the KQL extractors)
@@ -1232,7 +1232,7 @@ resource rather than spawning duplicates.
 
 ### Prerequisites
 
-- PowerShell 7.2+
+- PowerShell 7.6+
 - `Az.Accounts` (auto-imported by `Sentinel.Common`)
 - Authenticated Azure context (`Connect-AzAccount` or service-principal context)
 - The deploy SP needs at least **Microsoft Sentinel Reader** on the workspace to list workbooks. The standard `Setup-ServicePrincipal.ps1` Contributor grant covers this.

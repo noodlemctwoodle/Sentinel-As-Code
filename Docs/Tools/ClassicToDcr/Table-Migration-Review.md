@@ -417,7 +417,7 @@ filled in, and a copy button on each.
 `-SubscriptionId` is appended only when the captured subscription value really is a GUID.
 Anything else would bind successfully and then fail at `Set-AzContext` after the paste.
 
-Run the commands from `Tools/ClassicToDcr` in a signed-in PowerShell 7 session.
+Run the commands from `Tools/ClassicToDcr` in a signed-in PowerShell 7.6 session.
 
 Two cases produce an explanatory note instead of a command:
 

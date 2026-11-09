@@ -6,6 +6,12 @@ deployer scripts and tooling reuse. This doc enumerates its public API, explains
 the key functions in depth, and covers the manifest discipline that keeps its
 version, release notes, and tests in lockstep.
 
+The iSOCDeployments module carries these helpers as private functions, which
+replace this module at the 26.11.0 cut-over; its
+[migration map](../../Modules/iSOCDeployments/MIGRATION.md) names the
+replacement for each one. iSOCDeployments needs PowerShell 7.6 or later, where
+this module declared 7.2.
+
 ## What it is and why it exists
 
 Before extraction, the same `Write-PipelineMessage` logger and near-identical

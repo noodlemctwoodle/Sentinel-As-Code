@@ -116,7 +116,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-18
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-09
     Requires:     PowerShell 7.6+, Az.Accounts, Az.OperationalInsights, ImportExcel
 
@@ -210,8 +210,9 @@ $script:Now = Get-Date
 
 #region Prerequisites ──────────────────────────────────────────────────────────
 
-if ($PSVersionTable.PSVersion.Major -lt 7) {
-    throw "This script requires PowerShell 7+. Current: $($PSVersionTable.PSVersion). Install from https://aka.ms/powershell"
+$psVersion = $PSVersionTable.PSVersion
+if ([version]('{0}.{1}' -f $psVersion.Major, $psVersion.Minor) -lt [version]'7.6') {
+    throw "This script requires PowerShell 7.6 or later. Current: $psVersion. Install from https://aka.ms/powershell"
 }
 
 foreach ($mod in @('Az.Accounts', 'Az.OperationalInsights', 'ImportExcel')) {

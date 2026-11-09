@@ -59,6 +59,7 @@ the repo uses for script-level testing.
 ## Reference: AST-extraction pattern (script under test)
 
 ```powershell
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#

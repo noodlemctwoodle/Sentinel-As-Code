@@ -69,7 +69,7 @@
 
 Your organisation needs to build, test and deploy the Sentinel-As-Code
 solution, which requires full end-to-end testing of every configuration item
-locally in PowerShell before it is promoted. Because PowerShell 7, the Az
+locally in PowerShell before it is promoted. Because PowerShell 7.6, the Az
 modules and related tooling often cannot be installed on managed end-user
 devices, this guide sets out sanctioned methods that provide that same local
 PowerShell testing in a controlled Azure or cloud-hosted environment.
@@ -77,13 +77,13 @@ PowerShell testing in a controlled Azure or cloud-hosted environment.
 The work divides into two activities. **End-to-end testing** runs the full
 Pester test suite, the PR-validation gate and a deployment dry-run that
 exercises every analytics rule, playbook, workbook and automation rule. It must
-be carried out locally in PowerShell 7 against a test workspace so that all
+be carried out locally in PowerShell 7.6 against a test workspace so that all
 configuration is validated before promotion. **Deployment** authenticates to
 Azure and is normally carried out by the CI/CD pipeline rather than by a person,
 so it does not depend on any individual workstation.
 
 The recommended primary method is **a Windows 365 Cloud PC**: a persistent,
-Intune-managed desktop on which IT installs PowerShell 7, the required modules
+Intune-managed desktop on which IT installs PowerShell 7.6, the required modules
 and the full developer toolchain once. It gives engineers a governed environment
 in which to run the complete end-to-end tests locally in PowerShell, with
 nothing installed on their own device. Four alternatives are documented - Azure
@@ -97,7 +97,7 @@ CI configuration, which remains the single source of truth.
 - Constraint: no local install of PowerShell, the Az modules or related tooling
   on managed devices.
 - Test (validate): full end-to-end testing of every configuration item, run
-  locally in PowerShell 7 - the Pester suite, the PR-validation gate and a
+  locally in PowerShell 7.6 - the Pester suite, the PR-validation gate and a
   deployment dry-run against a test workspace.
 - Use (deploy): PowerShell 7.6 or later, the Az and Microsoft.Graph modules and
   the right Azure permissions; normally pipeline-driven.
@@ -121,7 +121,7 @@ Sentinel, but not with the specifics of this repository.
 
 ### 1.1 The constraint
 
-Local installation of PowerShell 7, the Az PowerShell modules and supporting
+Local installation of PowerShell 7.6, the Az PowerShell modules and supporting
 binaries is often not permitted on managed end-user devices. Rather than treat
 this as a blocker, this guide positions a set of **sanctioned,
 zero-local-install execution methods** that run the same tooling in a controlled
@@ -154,8 +154,8 @@ There are two distinct activities, and they have very different requirements:
 
 | Activity | What it means | Where it runs |
 | --- | --- | --- |
-| **Validate (test)** | Run the Pester test suite and the PR-validation gate to prove content and scripts are correct, before anything touches a live tenant. | Any host with PowerShell 7 - no Azure access required for the core suite. |
-| **Use (deploy)** | Authenticate to Azure and deploy infrastructure and content to a real Sentinel workspace and Defender XDR tenant. | A host with PowerShell 7, the Az/Graph modules, and the right Azure permissions. |
+| **Validate (test)** | Run the Pester test suite and the PR-validation gate to prove content and scripts are correct, before anything touches a live tenant. | Any host with PowerShell 7.6 - no Azure access required for the core suite. |
+| **Use (deploy)** | Authenticate to Azure and deploy infrastructure and content to a real Sentinel workspace and Defender XDR tenant. | A host with PowerShell 7.6, the Az/Graph modules, and the right Azure permissions. |
 
 The good news for a no-local-install scenario: **validation needs almost
 nothing**, and **deployment is normally done by the pipeline, not by a person**.
@@ -297,7 +297,7 @@ Access Administrator on the subscription (the pipeline SPN lacks
 
 ## 4 Choosing a no-local-install execution method
 
-Every option below runs PowerShell 7 and the required modules **somewhere other
+Every option below runs PowerShell 7.6 and the required modules **somewhere other
 than the user's managed device**. They differ in where the compute lives, how
 much setup they need, and what they are best suited for. None require any
 software to be installed on the user's machine beyond a web browser (or, for
@@ -306,8 +306,8 @@ already uses).
 
 | Option | How it runs | Best suited for | Key trade-offs |
 | --- | --- | --- | --- |
-| **Windows 365 Cloud PC** (recommended) | A persistent, per-user cloud desktop managed through Intune, with PowerShell 7, the modules and developer tooling in the image. | The recommended default: a governed, persistent desktop with everything pre-installed. | Per-user licensing and run-cost; managed by IT like any endpoint. |
-| **Azure Cloud Shell** | Browser-based shell in the Azure Portal, pre-loaded with PowerShell 7 and Az. | Validation, ad-hoc deploys, quick onboarding - zero setup. | Ephemeral; pandoc / Node not present; idle timeout. |
+| **Windows 365 Cloud PC** (recommended) | A persistent, per-user cloud desktop managed through Intune, with PowerShell 7.6, the modules and developer tooling in the image. | The recommended default: a governed, persistent desktop with everything pre-installed. | Per-user licensing and run-cost; managed by IT like any endpoint. |
+| **Azure Cloud Shell** | Browser-based shell in the Azure Portal, pre-loaded with PowerShell 7.6 and Az. | Validation, ad-hoc deploys, quick onboarding - zero setup. | Ephemeral; pandoc / Node not present; idle timeout. |
 | **GitHub Codespaces / dev container** | Cloud dev container opened in the browser or VS Code, tooling baked into the image. | Active development and full local-like testing. | Needs a devcontainer definition; consumes Codespaces quota. |
 | **CI/CD only** (GitHub Actions / Azure DevOps) | Hosted runners execute every stage; no human runs PowerShell at all. | Production deployment and gated validation. | Not interactive; slower feedback loop for experiments. |
 | **Container image** (Docker / MCR PowerShell base) | A pre-built image with PowerShell, Az and the repo dependencies, run on any container host. | Reproducible, portable execution and self-hosted runners. | Requires a container host and image maintenance. |
@@ -315,7 +315,7 @@ already uses).
 ### 4.1 Recommendation
 
 Lead with **a Windows 365 Cloud PC** as the primary method: IT installs
-PowerShell 7, the modules and the full developer toolchain once on the image, so
+PowerShell 7.6, the modules and the full developer toolchain once on the image, so
 engineers get a governed, persistent desktop with nothing to install on their
 own device. Use **Azure Cloud Shell** as a lightweight browser alternative for
 quick validation, **CI/CD** as the path to production so people rarely deploy by
@@ -325,7 +325,7 @@ image** where a fully self-hosted environment is required.
 ## 5 Recommended primary: Windows 365 Cloud PC
 
 A Windows 365 Cloud PC is a persistent, per-user cloud desktop managed through
-Microsoft Intune. IT builds the image once with PowerShell 7, the validate and
+Microsoft Intune. IT builds the image once with PowerShell 7.6, the validate and
 deploy modules and the full developer toolchain, then assigns a Cloud PC to each
 engineer. Users connect from a browser or the Windows App, so the machine and
 everything on it stays in Azure and nothing is installed on the user's own
@@ -343,7 +343,7 @@ clone and run the project directly on the Cloud PC. On the image, install:
 
 - [PowerShell 7.6 or later](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) -
   the baseline runtime for every script (see 3.1). Windows PowerShell 5.1 is not
-  sufficient; install PowerShell 7 side-by-side as `pwsh`.
+  sufficient; install PowerShell 7.6 side-by-side as `pwsh`.
 - [Git for Windows](https://git-scm.com/download/win) - provides git 2.x on PATH
   (required to clone the repository and by `Import-CommunityRules` and
   `Migrate-ForkLayout`), plus Git Bash and Git Credential Manager for
@@ -418,7 +418,7 @@ alternatives below:
 
 | Workstation option | What it is | Good fit when |
 | --- | --- | --- |
-| **Azure VM (jump box)** | A locked-down Windows or Linux VM with PowerShell 7 and the modules pre-installed, reached over Bastion or RDP. | You want a single shared, auditable admin host. |
+| **Azure VM (jump box)** | A locked-down Windows or Linux VM with PowerShell 7.6 and the modules pre-installed, reached over Bastion or RDP. | You want a single shared, auditable admin host. |
 | **Azure Virtual Desktop (AVD)** | A pooled or personal virtual desktop delivered from Azure, with the tooling in the image. | Several engineers need a consistent managed desktop. |
 | **Windows 365 Cloud PC** | A persistent, per-user Cloud PC managed through Intune. | You prefer a per-user device managed like any other endpoint. |
 | **Remote Desktop Services (RDS)** | Session-host based remote desktops or published apps on Windows Server. | You already operate an RDS estate and want to extend it. |
@@ -426,7 +426,7 @@ alternatives below:
 ## 6 Alternative: Azure Cloud Shell
 
 Azure Cloud Shell is a browser-based shell, launched from the Azure Portal or
-`shell.azure.com`, that already includes PowerShell 7, the Az modules, git and
+`shell.azure.com`, that already includes PowerShell 7.6, the Az modules, git and
 the Azure CLI. Nothing is installed on the user's device. It is a fast,
 zero-setup way to validate the project or run an interactive deployment when a
 full Cloud PC is not needed.
@@ -441,7 +441,7 @@ full Cloud PC is not needed.
 3. Confirm the environment:
 
 ```powershell
-$PSVersionTable.PSVersion   # expect 7.x
+$PSVersionTable.PSVersion   # expect 7.6 or later
 Get-Module Az.Accounts -ListAvailable | Select-Object -First 1
 ```
 
@@ -631,7 +631,7 @@ including the API schemas the tooling depends on.
 
 ### 11.1 Runtime, modules and testing
 
-- [Install PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) -
+- [Install PowerShell 7.6](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) -
   the baseline runtime for every script.
 - [Az PowerShell overview](https://learn.microsoft.com/powershell/azure/) and
   [Microsoft Graph PowerShell overview](https://learn.microsoft.com/powershell/microsoftgraph/) -
@@ -644,7 +644,7 @@ including the API schemas the tooling depends on.
 ### 11.2 Local developer tooling
 
 - [Install PowerShell on Windows](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) -
-  installs the PowerShell 7 runtime on the Cloud PC image (Section 5.1).
+  installs the PowerShell 7.6 runtime on the Cloud PC image (Section 5.1).
 - [Git for Windows](https://git-scm.com/download/win) - git on PATH for cloning
   and the community-import tooling.
 - [Visual Studio Code](https://code.visualstudio.com/) and the

@@ -26,6 +26,7 @@ new test file.
 ## File header
 
 ```powershell
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
