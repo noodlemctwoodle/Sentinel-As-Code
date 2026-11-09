@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -13,12 +13,12 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.1.2
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
-    The publisher itself requires PowerShell 7.4 and PnP.PowerShell 3.4.1;
-    see Test-iSOCBlueprintPrerequisite -Step Publish.
+    The publisher itself also requires PnP.PowerShell 3.4.1; see
+    Test-iSOCBlueprintPrerequisite -Step Publish.
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.

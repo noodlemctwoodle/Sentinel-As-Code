@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -15,9 +15,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.4.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.4.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     The collector itself requires Az.Accounts, Az.OperationalInsights,
     Az.Resources, Az.Monitor, Az.SecurityInsights and Az.LogicApp; see

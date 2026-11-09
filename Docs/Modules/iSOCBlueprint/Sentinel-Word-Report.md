@@ -139,7 +139,7 @@ Ubuntu   sudo apt-get install -y libreoffice-writer python3-uno
 macOS    brew install --cask libreoffice   (the app bundle carries its own python)
 ```
 
-The module requires **PowerShell 7.2+**. `Update-WordToc.py` requires a `python3`
+The module requires **PowerShell 7.6+**. `Update-WordToc.py` requires a `python3`
 that carries the `uno` module (`python3 -c 'import uno'` should succeed); on Ubuntu
 that is the `python3-uno` package. `Test-iSOCBlueprintPrerequisite -Step Word`
 reports which of these a machine has.

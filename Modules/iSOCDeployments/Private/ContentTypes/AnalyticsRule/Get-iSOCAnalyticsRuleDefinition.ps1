@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -11,9 +11,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-03
-    Requires:     PowerShell 7.2+
+    Version:      0.2.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     Docs/Modules/iSOCDeployments/Architecture.md describes every key of a
     content type definition.

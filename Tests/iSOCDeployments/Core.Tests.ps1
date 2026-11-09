@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -23,9 +23,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.2.0
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.2.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
@@ -517,7 +517,7 @@ Describe 'Requirements' {
     It 'finds this PowerShell' {
         $result = InModuleScope iSOCDeployments { Test-iSOCRequirement -Requirement (Get-iSOCRequirement | Where-Object Kind -eq 'PowerShell' | Select-Object -First 1) }
         $result.Found | Should -BeTrue
-        $result.Name | Should -Be 'PowerShell 7.2+'
+        $result.Name | Should -Be 'PowerShell 7.6+'
     }
 
     It 'reports a missing module with its install hint' {

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -36,9 +36,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-11-09
-    Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
+    Requires:     PowerShell 7.6+, Pester 5+, the Bicep CLI
 #>
 
 BeforeAll {

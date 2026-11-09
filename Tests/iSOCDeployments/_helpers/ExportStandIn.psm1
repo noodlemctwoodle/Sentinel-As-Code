@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -21,9 +21,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+
+    Version:      0.2.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
     lives on each function's own help block.

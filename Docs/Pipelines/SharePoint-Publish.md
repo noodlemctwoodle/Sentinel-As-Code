@@ -98,8 +98,8 @@ manual run.
    is keyed on it. Nothing else is rendered: charts reach the site as data
    in the [section model](../Modules/iSOCBlueprint/Section-Model.md), drawn by the
    dashboard and the chart web part.
-5. **Install PnP.PowerShell 3.4.1** (needs PowerShell 7.4, which the image
-   has).
+5. **Install PnP.PowerShell 3.4.1** (the module needs PowerShell 7.6,
+   which the image has).
 6. **Build the site bundle** with
    [`New-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1) from the
    iSOCBlueprint module.

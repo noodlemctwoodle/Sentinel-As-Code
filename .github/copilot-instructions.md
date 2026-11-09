@@ -73,7 +73,7 @@ separate `#`-comment banner - the path, author and dates live in
 `.NOTES`:
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts
 
 <#
@@ -88,7 +88,7 @@ separate `#`-comment banner - the path, author and dates live in
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
-    Requires:     PowerShell 7.2+, Az.Accounts
+    Requires:     PowerShell 7.6+, Az.Accounts
 #>
 ```
 

@@ -6,7 +6,7 @@
     CompanyName       = 'Sentinel-As-Code'
     Copyright         = '(c) noodlemctwoodle. Released under the Apache License 2.0.'
     Description       = 'iSOC Deployments: deploy, export, compare and sync security operations content kept in a Sentinel-As-Code repository. One command per verb, each taking -ContentType, over a registry of content types. Today it works with Microsoft Sentinel workspaces and Defender XDR custom detections.'
-    PowerShellVersion = '7.2'
+    PowerShellVersion = '7.6'
     # No RequiredModules: each command checks what it needs when it runs
     # (Test-iSOCDeploymentPrerequisite), so reading repository content offline
     # never needs Az.Accounts.

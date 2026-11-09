@@ -166,7 +166,7 @@ These are illustrative list prices baked into the workbook; supply
 
 ## Prerequisites
 
-- **PowerShell 7+.** The script throws on Windows PowerShell 5.1 or earlier.
+- **PowerShell 7.6 or later.** The script does not start on an earlier version.
 - **Az modules:** `Az.Accounts` and `Az.OperationalInsights`.
 - **ImportExcel:** required to write the `.xlsx`. Install with
   `Install-Module ImportExcel -Scope CurrentUser`. The script fails fast at

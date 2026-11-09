@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules powershell-yaml
 
 <#
@@ -79,10 +79,10 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.8.1
-    Last Updated:   2026-11-05
+    Version:        0.8.2
+    Last Updated:   2026-11-09
     Component:      iSOC Blueprint, Renderer
-    Requires:       PowerShell 7.2+, powershell-yaml
+    Requires:       PowerShell 7.6+, powershell-yaml
 
     Credit and thanks: the estate flow, the detection opportunities
     page, the automation opportunities title-to-action map, the rule

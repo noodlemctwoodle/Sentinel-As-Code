@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.Resources
 
 <#
@@ -120,15 +120,15 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-10-12
-    Version:        0.3.0
-    Last Updated:   2026-10-13
+    Version:        0.3.1
+    Last Updated:   2026-11-09
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
                     Administrator, or Global Administrator). Azure: User
                     Access Administrator or Owner on the resource group.
                     ADO: project administrator, or Service Connections
                     "Creator" plus variable group and pipeline rights.
-    Requires:       PowerShell 7.2+, Az.Accounts, Az.Resources,
+    Requires:       PowerShell 7.6+, Az.Accounts, Az.Resources,
                     Microsoft.Graph.Applications (auto-installed if
                     missing, pulling in Microsoft.Graph.Authentication).
 #>

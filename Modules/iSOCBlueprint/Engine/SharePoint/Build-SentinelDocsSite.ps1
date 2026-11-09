@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -112,9 +112,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.18.0
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+
+    Version:      0.18.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     Credit and thanks: the data behind the dashboard's estate flow,
     maturity and insight panels is based on the Sentinel health-check

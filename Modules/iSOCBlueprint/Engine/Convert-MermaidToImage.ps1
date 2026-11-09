@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -74,9 +74,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-14
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Node.js, @mermaid-js/mermaid-cli
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Node.js, @mermaid-js/mermaid-cli
 
     Install the renderer globally with:
         npm install -g @mermaid-js/mermaid-cli

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -29,9 +29,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-04-29
-    Version:      1.0.1
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+
+    Version:      1.0.2
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     Used by every Tests/Test-{Script}.Tests.ps1 file. A regression in
     Import-ScriptFunctions affects all of them at once, so the helper

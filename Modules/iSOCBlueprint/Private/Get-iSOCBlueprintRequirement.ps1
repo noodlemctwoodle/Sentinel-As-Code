@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -28,9 +28,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
     lives on each function's own help block.
@@ -67,8 +67,7 @@ function Get-iSOCBlueprintRequirement {
         }
     }
 
-    & $req 'PowerShell' 'PowerShell' $all $true '7.2' $null 'Install PowerShell 7.2 or later: https://aka.ms/powershell'
-    & $req 'PowerShell' 'PowerShell' 'Publish' $true '7.4' $null 'Publishing and setting up the SharePoint site need PowerShell 7.4 or later (PnP.PowerShell 3).'
+    & $req 'PowerShell' 'PowerShell' $all $true '7.6' $null 'Install PowerShell 7.6 or later: https://aka.ms/powershell'
     foreach ($m in 'Az.Accounts', 'Az.OperationalInsights', 'Az.Resources', 'Az.Monitor', 'Az.SecurityInsights', 'Az.LogicApp') {
         & $req $m 'Module' 'Collect' $true $null $null "Install-Module $m -Scope CurrentUser, then sign in with Connect-AzAccount."
     }

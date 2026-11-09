@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -28,9 +28,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.5.0
-    Last Updated: 2026-11-06
-    Requires:     PowerShell 7.2+
+    Version:      0.5.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
     lives on the function's own help block.
@@ -67,7 +67,7 @@ function Get-iSOCRequirement {
         }
     }
 
-    & $new 'PowerShell' 'PowerShell' $all '7.2' 'Install PowerShell 7.2 or later: https://aka.ms/powershell'
+    & $new 'PowerShell' 'PowerShell' $all '7.6' 'Install PowerShell 7.6 or later: https://aka.ms/powershell'
     & $new 'Az.Accounts' 'Module' 'Connect' '2.0.0' 'Install-Module Az.Accounts -Scope CurrentUser, then sign in with Connect-AzAccount.'
     & $new 'powershell-yaml' 'Module' 'Read' '0.4.12' 'Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser'
     & $new 'Az.Resources' 'Module' 'Deploy' '6.0.0' 'Install-Module Az.Resources -Scope CurrentUser; playbooks deploy as ARM templates through it.'

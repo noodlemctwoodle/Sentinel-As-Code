@@ -1,4 +1,4 @@
-#Requires -Version 7.4
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'PnP.PowerShell'; ModuleVersion = '3.4.1' }
 
 <#
@@ -84,10 +84,10 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.1.2
-    Last Updated: 2026-10-13
+    Version:      0.1.3
+    Last Updated: 2026-11-09
     Permissions:  SharePoint administrator; delegated Sites.FullControl.All on the sign-in app
-    Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
+    Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1
 
 .LINK
     https://learn.microsoft.com/sharepoint/dev/solution-guidance/security-apponly-azuread

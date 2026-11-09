@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -96,9 +96,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.5
-    Last Updated: 2026-11-06
-    Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
+    Version:      0.2.6
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
 
     Offline: reads the repository and writes files, and calls no Azure
     API. Prices are the public UK South list prices in GBP as published on

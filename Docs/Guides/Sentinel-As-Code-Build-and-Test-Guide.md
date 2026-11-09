@@ -99,13 +99,13 @@ CI configuration, which remains the single source of truth.
 - Test (validate): full end-to-end testing of every configuration item, run
   locally in PowerShell 7 - the Pester suite, the PR-validation gate and a
   deployment dry-run against a test workspace.
-- Use (deploy): PowerShell 7.2 or later, the Az and Microsoft.Graph modules and
+- Use (deploy): PowerShell 7.6 or later, the Az and Microsoft.Graph modules and
   the right Azure permissions; normally pipeline-driven.
 - Recommended method: a Windows 365 Cloud PC with all tools pre-installed,
   giving a governed place to run the local PowerShell end-to-end tests; Azure
   Cloud Shell, GitHub Codespaces, CI/CD-only and a container image are
   alternatives.
-- Baseline runtime: PowerShell 7.2 or later; Windows PowerShell 5.1 is not
+- Baseline runtime: PowerShell 7.6 or later; Windows PowerShell 5.1 is not
   supported.
 
 ## 1 Purpose and audience
@@ -165,9 +165,9 @@ The execution methods in Section 4 cover both cases.
 
 ### 3.1 Baseline runtime
 
-- **PowerShell 7.2 or later** - required by every script and declared in the
-  `Sentinel.Common` module manifest (`PowerShellVersion = '7.2'`). Windows
-  PowerShell 5.1 is not supported.
+- **PowerShell 7.6 or later** - required by every script and declared in the
+  `iSOCDeployments` and `iSOCBlueprint` module manifests
+  (`PowerShellVersion = '7.6'`). Windows PowerShell 5.1 is not supported.
 
 ### 3.2 Modules required to validate the project
 
@@ -341,7 +341,7 @@ image, not on the user's device. Alongside the runtime and modules from Section
 3, bake in the standard Windows developer toolchain so engineers can author,
 clone and run the project directly on the Cloud PC. On the image, install:
 
-- [PowerShell 7.2 or later](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) -
+- [PowerShell 7.6 or later](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) -
   the baseline runtime for every script (see 3.1). Windows PowerShell 5.1 is not
   sufficient; install PowerShell 7 side-by-side as `pwsh`.
 - [Git for Windows](https://git-scm.com/download/win) - provides git 2.x on PATH

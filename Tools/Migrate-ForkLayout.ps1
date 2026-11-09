@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -56,9 +56,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.4
-    Last Updated:   2026-10-23
-    Requires:       PowerShell 7.2+, git
+    Version:        0.1.5
+    Last Updated:   2026-11-09
+    Requires:       PowerShell 7.6+, git
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

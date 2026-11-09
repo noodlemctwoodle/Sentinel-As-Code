@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -34,9 +34,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.3.0
-    Last Updated: 2026-11-06
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.3.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
@@ -153,7 +153,7 @@ Describe 'File <Path>' -ForEach $functionFiles {
     }
 
     It 'opens with the PowerShell floor and names its own path' {
-        $script:text | Should -Match '^#Requires -Version 7\.2\r?\n'
+        $script:text | Should -Match '^#Requires -Version 7\.6\r?\n'
         $script:text | Should -Match ("(?m)^\s*File:\s+" + [regex]::Escape($Path) + '\s*$')
     }
 

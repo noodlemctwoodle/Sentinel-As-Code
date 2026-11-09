@@ -12,7 +12,7 @@ the existing repo style. Reference doc:
 
 ## Style and structure
 
-- **PowerShell 7.2+** is the minimum (declared in
+- **PowerShell 7.6+** is the minimum (declared in
   `iSOCDeployments.psd1`). Use `pwsh`-only features freely; don't
   worry about Windows PowerShell 5.1 compatibility.
 - **`Set-StrictMode -Version Latest`** is set in shared modules.
@@ -32,7 +32,7 @@ and may not be enforced there.
 Keywords always appear in this order, one blank line between each:
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -64,7 +64,7 @@ Keywords always appear in this order, one blank line between each:
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
-    Requires:     PowerShell 7.2+, Az.Accounts
+    Requires:     PowerShell 7.6+, Az.Accounts
 
     API versions:
       - Sentinel : 2025-09-01 (GA)
@@ -109,7 +109,7 @@ dependencies as `#Requires` statements, above the help block and with
 nothing else before them:
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
 <#
@@ -135,8 +135,8 @@ Repeated `#Requires -Modules` lines are legal, and PowerShell unions
 them, but they give the same declaration two places to live and drift
 apart in.
 
-`#Requires -Version 7.2` is not optional and not negotiable down: the
-repo floor is 7.2, matching `iSOCDeployments.psd1`, so every file
+`#Requires -Version 7.6` is not optional and not negotiable down: the
+repo floor is 7.6, matching `iSOCDeployments.psd1`, so every file
 declares it even when it needs no modules at all.
 
 Both statements belong at the top of the file and nowhere else. A

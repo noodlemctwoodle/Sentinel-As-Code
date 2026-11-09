@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts
 
 <#
@@ -51,10 +51,10 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.1
-    Last Updated:   2026-10-13
+    Version:        0.1.2
+    Last Updated:   2026-11-09
     Component:      iSOC Blueprint
-    Requires:       PowerShell 7.2+, Az.Accounts
+    Requires:       PowerShell 7.6+, Az.Accounts
 
     API versions:
       - None pinned here. Each caller supplies its own via -ApiVersion, which

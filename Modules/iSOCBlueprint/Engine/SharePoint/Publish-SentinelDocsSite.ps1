@@ -1,4 +1,4 @@
-#Requires -Version 7.4
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'PnP.PowerShell'; ModuleVersion = '3.4.1' }
 
 <#
@@ -119,10 +119,10 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-07
-    Version:      0.7.0
-    Last Updated: 2026-10-15
+    Version:      0.7.1
+    Last Updated: 2026-11-09
     Permissions:  Sites.Selected (SharePoint, application) with FullControl on the target site
-    Requires:     PowerShell 7.4+, PnP.PowerShell 3.4.1
+    Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1
 #>
 
 [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Token')]

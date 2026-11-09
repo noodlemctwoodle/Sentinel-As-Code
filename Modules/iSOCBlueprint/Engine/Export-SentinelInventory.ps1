@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources, Az.Monitor, Az.SecurityInsights, Az.LogicApp
 
 <#
@@ -95,10 +95,10 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.11.1
-    Last Updated:   2026-10-15
+    Version:        0.11.2
+    Last Updated:   2026-11-09
     Component:      iSOC Blueprint
-    Requires:       PowerShell 7.2+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
+    Requires:       PowerShell 7.6+, Az.Accounts, Az.SecurityInsights, Az.OperationalInsights, Az.Monitor, Az.Resources, Az.LogicApp
 
     API versions:
       - Azure Resource Graph : 2022-10-01

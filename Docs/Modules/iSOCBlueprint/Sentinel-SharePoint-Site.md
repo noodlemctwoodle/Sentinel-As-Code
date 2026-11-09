@@ -954,7 +954,7 @@ the whole report and dashboard for a synthetic 2 TB a day workspace made
 from this repository's content, safe to show and screenshot; see
 [Blueprint-Demo-Workspace.md](../../Tools/Blueprint-Demo-Workspace.md).
 
-The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
+The publisher needs PowerShell 7.6 and PnP.PowerShell 3.4.1. To build the
 web part package yourself, see its
 [README](../../../Modules/iSOCBlueprint/WebParts/README.md).
 

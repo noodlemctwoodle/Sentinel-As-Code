@@ -18,7 +18,7 @@ conventions, the foot-gun list, and the module-manifest discipline.
   functions, applying the AST extraction pattern when a
   not-yet-tested function needs coverage.
 - **Modernising legacy patterns** — converting Windows PowerShell
-  5.1 idioms to PS 7.2+, replacing `[void]$x.Add()` clutter with
+  5.1 idioms to PS 7.6+, replacing `[void]$x.Add()` clutter with
   proper return-value handling, eliminating `$global:` mutation.
 - **Performance work** — replacing repeated `Invoke-RestMethod` with
   bulk endpoints, using `[System.Collections.Generic.HashSet]`

@@ -132,6 +132,16 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `subscriptionResourceId()`, and the Logic Apps are at api-version
   `2019-05-01`, which Bicep has types for. See
   [Playbooks](../Content/Playbooks.md).
+- **PowerShell 7.6 or later** - both modules, every script and every test
+  now declare PowerShell 7.6, the LTS release supported until 14 November
+  2028. They declared 7.2, which went out of support in November 2024
+  (the SharePoint publisher declared 7.4); 7.4 and 7.5 go out of support
+  on 10 November 2026. `Test-iSOCDeploymentPrerequisite` and
+  `Test-iSOCBlueprintPrerequisite` check for 7.6, and `iSOCBlueprint` is
+  26.11.0. The Microsoft-hosted agents on Azure DevOps and GitHub have run
+  PowerShell 7.6 since June 2026, so the pipelines are unchanged. **For
+  forks:** run the modules and tools in PowerShell 7.6 or later, and on a
+  self-hosted agent install 7.6 before running the pipelines.
 - **Six Defender XDR custom detections deploy again** - the conversion to
   the current Graph rule shape put each rule's techniques under its one old
   category, and in six rules a technique sat under a tactic it does not

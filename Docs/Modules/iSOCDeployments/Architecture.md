@@ -49,7 +49,7 @@ type. The rules here are enforced by the suites under
 Every `.ps1` file defines exactly one function named after the file and
 nothing else, so the loader can dot-source everything in any order. No file
 calls `exit` or installs a module, and no file carries `#Requires
--Modules`: the module imports with nothing beyond PowerShell 7.2 and checks
+-Modules`: the module imports with nothing beyond PowerShell 7.6 and checks
 each step's needs when it runs.
 
 The module runs in strict mode, which shapes two habits. A value that may

@@ -44,8 +44,8 @@ itself.
 | `ConvertTo-iSOCBlueprintChartImage` | Replaces the Markdown's Mermaid charts with PNG or SVG images | mmdc |
 | `Export-iSOCBlueprintWord` | Combines the Markdown report into one `.docx` | pandoc; LibreOffice for page numbers |
 | `New-iSOCBlueprintSite` | Builds the SharePoint bundle (dashboard, pages, findings) offline | Nothing extra |
-| `Publish-iSOCBlueprintSite` | Makes a SharePoint site match a bundle | PowerShell 7.4, PnP.PowerShell 3.4.1 |
-| `Initialize-iSOCBlueprintSite` | One-time set-up of the SharePoint site, by an administrator | PowerShell 7.4, PnP.PowerShell 3.4.1 |
+| `Publish-iSOCBlueprintSite` | Makes a SharePoint site match a bundle | PnP.PowerShell 3.4.1 |
+| `Initialize-iSOCBlueprintSite` | One-time set-up of the SharePoint site, by an administrator | PnP.PowerShell 3.4.1 |
 | `Get-iSOCBlueprintFinding` | The gap-analysis findings for an inventory, as objects | Nothing extra |
 | `Get-iSOCBlueprintMaturity` | The maturity assessment for an inventory, as an object | Nothing extra |
 | `Get-iSOCBlueprintWhatsNew` | What is new, in preview and retiring in Sentinel and Defender XDR, from Microsoft Learn; `-Path` saves it into an inventory for the report | Network (learn.microsoft.com) |

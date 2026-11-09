@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -32,9 +32,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.3.0
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+, powershell-yaml
+    Version:      0.3.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, powershell-yaml
 #>
 
 Set-StrictMode -Version Latest

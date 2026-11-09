@@ -39,7 +39,7 @@ or JSON against the schemas described under [Docs/README.md](README.md) (see the
 
 ## Development environment
 
-- **PowerShell 7.2 or later** is required by every script (Windows PowerShell 5.1
+- **PowerShell 7.6 or later** is required by every script (Windows PowerShell 5.1
   is not supported).
 - **To validate locally you need very little**: Pester, powershell-yaml, and
   Az.Accounts. Everything else the deploy scripts use is mocked in the test suite.

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -16,9 +16,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+
+    Version:      0.2.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     Version 0.1.0 also computed the text each engine copy had to have while
     Tools/Blueprint and the engine existed side by side; that went with the

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -51,9 +51,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-08-20
-    Version:      0.1.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Azure CLI (az) signed in with rights to create tables, DCRs and Sentinel resources
+    Version:      0.1.2
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Azure CLI (az) signed in with rights to create tables, DCRs and Sentinel resources
 
     API versions:
       - Log Analytics tables : 2023-09-01 (custom table create)

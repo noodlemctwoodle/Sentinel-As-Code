@@ -12,8 +12,8 @@ dependencies or permissions, update this doc in the same PR.
 
 ## Baseline runtime
 
-- **PowerShell 7.2 or later** - required by every script and declared in the
-  `Sentinel.Common` manifest (`PowerShellVersion = '7.2'`).
+- **PowerShell 7.6 or later** - required by every script and declared in the
+  `iSOCDeployments` and `iSOCBlueprint` manifests (`PowerShellVersion = '7.6'`).
 
 ## Modules required to validate the project
 
@@ -64,7 +64,7 @@ module set in
 [`Blueprint.psd1`](../../Modules/iSOCBlueprint/Engine/Blueprint.psd1). The
 collector (`Export-iSOCBlueprintInventory`) imports the Az modules; the
 renderer (`ConvertTo-iSOCBlueprint`) only needs `powershell-yaml`; publishing
-and setting up the SharePoint site need PowerShell 7.4 and PnP.PowerShell
+and setting up the SharePoint site need PnP.PowerShell
 3.4.1. The module declares no required modules: each command needs only what
 its step uses, and `Test-iSOCBlueprintPrerequisite` lists what a machine has
 and is missing.

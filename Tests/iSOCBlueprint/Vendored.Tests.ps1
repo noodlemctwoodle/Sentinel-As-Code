@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -29,9 +29,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.0
-    Last Updated: 2026-11-05
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.3.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+
 
     Version 0.1.0 was Engine-Copy.Tests.ps1, which also held the engine
     byte-identical to Tools/Blueprint until that folder was removed.

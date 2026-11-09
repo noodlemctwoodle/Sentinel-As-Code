@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.OperationalInsights, ImportExcel
 
 <#
@@ -116,9 +116,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-18
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, ImportExcel
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Az.Accounts, Az.OperationalInsights, ImportExcel
 
     Authentication uses the current Az context, so run Connect-AzAccount
     first.

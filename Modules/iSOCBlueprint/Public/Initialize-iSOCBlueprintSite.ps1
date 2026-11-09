@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -14,13 +14,13 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
+    Version:      0.1.1
+    Last Updated: 2026-11-09
     Permissions:  SharePoint administrator; delegated Sites.FullControl.All on the sign-in app
-    Requires:     PowerShell 7.2+
+    Requires:     PowerShell 7.6+
 
-    The set-up script itself requires PowerShell 7.4 and PnP.PowerShell
-    3.4.1; see Test-iSOCBlueprintPrerequisite -Step Publish.
+    The set-up script itself also requires PnP.PowerShell 3.4.1; see
+    Test-iSOCBlueprintPrerequisite -Step Publish.
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.

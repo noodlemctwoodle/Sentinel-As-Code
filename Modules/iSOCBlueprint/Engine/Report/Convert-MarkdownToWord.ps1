@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -123,9 +123,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-25
-    Version:        1.0.4
-    Last Updated:   2026-10-13
-    Requires:       PowerShell 7.2+, pandoc on PATH
+    Version:        1.0.5
+    Last Updated:   2026-11-09
+    Requires:       PowerShell 7.6+, pandoc on PATH
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

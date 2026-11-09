@@ -89,7 +89,7 @@ api-version from the tables above.
 | `Az.Monitor` | `5.2.1` | Pinned, not called: data collection and diagnostic settings are read over REST |
 | `Az.LogicApp` | `1.7.0` | Pinned, not called: playbooks are read over REST (see REST-only gaps) |
 | `powershell-yaml` | `0.4.12` | Reading YAML content when rendering |
-| `PnP.PowerShell` | `3.4.1` | The SharePoint commands, on PowerShell 7.4 |
+| `PnP.PowerShell` | `3.4.1` | The SharePoint commands |
 | `Microsoft.Graph.Authentication` | Any | The Defender custom detection capture, when a Graph session is open |
 
 The first seven are pinned in the `Modules` block of `Engine/Blueprint.psd1`.

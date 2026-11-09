@@ -19,7 +19,7 @@ the repo working tree.
 
 | Component | Minimum | Install |
 | --- | --- | --- |
-| PowerShell | 7.2+ | [pwsh download](https://github.com/PowerShell/PowerShell/releases) |
+| PowerShell | 7.6+ | [pwsh download](https://github.com/PowerShell/PowerShell/releases) |
 | Pester | 5.0+ | `Install-Module -Name Pester -Force -SkipPublisherCheck` |
 | `powershell-yaml` | any | Auto-installed by tests when needed |
 
@@ -266,7 +266,7 @@ for a real example; the module suites under `Tests/iSOCDeployments/` import
 the module instead):
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -295,7 +295,7 @@ the module instead):
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
-    Requires:     PowerShell 7.2+, Pester 5+
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
