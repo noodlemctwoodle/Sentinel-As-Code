@@ -59,8 +59,7 @@ param location string = resourceGroup().location
 
 var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
 
-#disable-next-line BCP081
-resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
+resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   name: PlaybookName
   location: location
   tags: {
@@ -101,9 +100,10 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
    on the connection). Avoid user-credential connections in repo-managed
    playbooks.
 7. **Keep the `#disable-next-line` lines.** They mark where Bicep's type
-   data for these resource types is missing or wrong (`BCP081`,
-   `BCP187`, `BCP037`), so the file builds without warnings. The PR
-   checks fail a playbook that builds with a warning.
+   data for API connections `2016-06-01` is missing (`BCP187` for `kind`,
+   `BCP037` for `parameterValueType`), so the file builds without
+   warnings. The PR checks fail a playbook that builds with a warning.
+   Keep the Logic App at `Microsoft.Logic/workflows@2019-05-01`.
 8. **Never embed secrets.** Use Key Vault references for runtime
    secrets. The connector identity needs `Key Vault Secrets User`;
    `Grant-iSOCPlaybookPermission` grants it when the playbook uses the

@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -36,10 +36,12 @@ function ConvertTo-iSOCPlaybookTemplate {
           categories AutomationResourceGroup and SentinelWorkpaceName, as
           the existing templates have; and every other parameter an
           expression references.
-        - The workflow: its definition made portable, its live state, the
-          Source: Sentinel-As-Code tag Set-PlaybookPermissions.ps1 keys
-          off, a system-assigned identity, its connections, and for a
-          module an empty access control block.
+        - The workflow, at Logic Apps 2019-05-01 (the newest api-version,
+          and the one Bicep has types for): its definition made portable,
+          its live state, the Source: Sentinel-As-Code tag
+          Grant-iSOCPlaybookPermission keys off, a system-assigned
+          identity, its connections, and for a module an empty access
+          control block (only other Logic Apps may call it).
         - One Microsoft.Web/connections resource per connection, named
           after the playbook.
         - The metadata block the docs describe: title, description,
@@ -125,7 +127,7 @@ function ConvertTo-iSOCPlaybookTemplate {
             location   = '[resourceGroup().location]'
             tags       = [ordered]@{ Source = 'Sentinel-As-Code' }
             identity   = [ordered]@{ type = 'SystemAssigned' }
-            apiVersion = '2017-07-01'
+            apiVersion = '2019-05-01'
             dependsOn  = $dependsOn
         })
     foreach ($connectionResource in @(Get-iSOCPlaybookConnectionResource -ConnectionMap $connectionMap)) { $resources.Add($connectionResource) }

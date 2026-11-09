@@ -29,8 +29,7 @@ var azureKeyVaultConnectionName = 'AzureKeyVault0-${PlaybookName}'
 var microsoftSentinelConnectionName = 'Azuresentinel0-${PlaybookName}'
 var microsoftSentinel2ConnectionName = 'Azuresentinel1-${PlaybookName}'
 
-#disable-next-line BCP081
-resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
+resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   name: PlaybookName
   location: location
   tags: {

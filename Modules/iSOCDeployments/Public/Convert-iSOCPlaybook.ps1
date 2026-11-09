@@ -36,14 +36,19 @@ function Convert-iSOCPlaybook {
         For each JSON playbook the Playbook content type reads (so not
         parameter files, bicepconfig.json or the Template folder):
 
-        1. The template is written as Bicep by the module's own writer
+        1. A Logic App at api-version 2017-07-01 is moved to 2019-05-01,
+           which deploys the same workflow (identity and access control
+           are applied under both) and which Bicep has types for; the
+           export writes 2019-05-01 too. The template is then written as
+           Bicep by the module's own writer
            (ConvertTo-iSOCPlaybookBicep, as the export writes it), into a
            temporary copy of its folder, with the repository's
            bicepconfig.json beside it.
         2. Every candidate is compiled with the Bicep CLI in one run, and
-           each compiled template is compared with its JSON
-           (Compare-iSOCArmTemplate: every expression evaluated, key and
-           dependsOn order and descriptions ignored). The location
+           each compiled template is compared with its JSON, as moved
+           to 2019-05-01 (Compare-iSOCArmTemplate: every expression
+           evaluated, key and dependsOn order and descriptions
+           ignored). The location
            parameter the writer adds is read as its default,
            resourceGroup().location, which is what the JSON reads; the
            deploy never sets it.
@@ -145,6 +150,17 @@ function Convert-iSOCPlaybook {
 
             try {
                 $template = ConvertFrom-iSOCJsonText -Text ([System.IO.File]::ReadAllText($item.Path))
+                # Logic Apps 2017-07-01 is not in the published ARM reference,
+                # so Bicep has no types for it. 2019-05-01 deploys the same
+                # workflow: a deploy at 2017-07-01 already applies the
+                # identity and accessControl it declares (checked on a test
+                # resource group, 2026-11-09). The comparison below is with
+                # this template, so the version is the one change it allows.
+                foreach ($resource in (Get-iSOCPropertyValue -InputObject $template -Path 'resources')) {
+                    if ([string](Get-iSOCPropertyValue -InputObject $resource -Path 'type') -ine 'Microsoft.Logic/workflows') { continue }
+                    $versionKey = @(Get-iSOCPropertyEntry -InputObject $resource | Where-Object { $_.Name -ieq 'apiVersion' } | ForEach-Object { $_.Name })
+                    if ($versionKey.Count -eq 1 -and [string]$resource[$versionKey[0]] -eq '2017-07-01') { $resource[$versionKey[0]] = '2019-05-01' }
+                }
                 $text = ConvertTo-iSOCPlaybookBicep -Template $template
             }
             catch {

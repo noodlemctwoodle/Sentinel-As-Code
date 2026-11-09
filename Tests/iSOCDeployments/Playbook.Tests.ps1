@@ -511,6 +511,18 @@ Describe 'Convert-iSOCPlaybook' {
         (Convert-iSOCPlaybook -RepoPath $copy).ExitCode | Should -Be 1
     }
 
+    It 'moves a Logic App at 2017-07-01 to 2019-05-01, the one change the comparison allows' {
+        $copy = New-FixtureCopy
+        $path = Join-Path $copy 'Content/Playbooks/Module/ZuluBase.json'
+        Set-Content -LiteralPath $path -Value ((Get-Content -LiteralPath $path -Raw).Replace('"apiVersion": "2019-05-01"', '"apiVersion": "2017-07-01"'))
+        (Get-Content -LiteralPath $path -Raw) | Should -Match '"apiVersion": "2017-07-01"'
+        $run = Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/ZuluBase'
+        $run.Converted | Should -Be 1
+        $text = Get-Content -LiteralPath (Join-Path $copy 'Content/Playbooks/Module/ZuluBase.bicep') -Raw
+        $text | Should -Match "(?m)^resource workflow 'Microsoft\.Logic/workflows@2019-05-01' = \{$"
+        $text | Should -Not -Match 'BCP081'
+    }
+
     It 'writes the export''s style, and reads the location parameter it adds as the resource group''s' {
         $copy = New-FixtureCopy
         (Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/ZuluBase').Converted | Should -Be 1

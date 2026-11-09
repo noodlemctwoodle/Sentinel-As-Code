@@ -863,7 +863,8 @@ Describe 'Export handlers' {
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }
             $json = Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'Content/Playbooks/Incident/StandInIsolate.json' }
             $bicep = Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'Content/Playbooks/Incident/StandInIsolate.bicep' }
-            $bicep | Should -Match "(?m)^resource workflow 'Microsoft\.Logic/workflows@2017-07-01' = \{$"
+            $bicep | Should -Match "(?m)^resource workflow 'Microsoft\.Logic/workflows@2019-05-01' = \{$"
+            $bicep | Should -Not -Match 'BCP081'
             $bicep | Should -Match '(?m)^  name: PlaybookName$'
             $bicep | Should -Not -Match "`r"
             $bicep.EndsWith("`n") | Should -BeTrue

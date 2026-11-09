@@ -45,8 +45,7 @@ param location string = resourceGroup().location
 
 var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
 
-#disable-next-line BCP081
-resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
+resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   name: PlaybookName
   location: location
   tags: {
@@ -81,7 +80,7 @@ resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = { 
 - `location` is the region for the Logic App and its connections. It defaults to the resource group's and the deploy never sets it; use it rather than `resourceGroup().location`, which the linter allows only as that default.
 - Variables and resources are in lower camel case. An API connection is named after the managed API it connects to (`microsoftSentinelConnection`, `office365Connection`), with a number for a second connection to the same API (`microsoftSentinel2Connection`), and is referred to by that symbolic name (`microsoftSentinelConnection.id`), so Bicep orders the deployment itself.
 - A managed API is named with `subscriptionResourceId('Microsoft.Web/locations/managedApis', location, '<api>')`. References to other workflows, such as the modules a playbook calls, stay literal paths: the deploy reads them to order the modules.
-- `#disable-next-line` lines sit where Bicep's own type data for these resource types is missing or wrong: there is none for Logic Apps `2017-07-01` (`BCP081`), and API connections `2016-06-01` lack `kind` (`BCP187`) and `parameterValueType` (`BCP037`), though both are valid. Keep them, so the file builds without warnings.
+- The Logic App is at api-version `2019-05-01`, the newest, which Bicep has types for. API connections are at `2016-06-01`, the current version, whose type data lacks `kind` (`BCP187`) and `parameterValueType` (`BCP037`), though both are valid: a `#disable-next-line` sits before each. Keep them, so the file builds without warnings.
 - A playbook whose Logic App needs a value per environment can keep a `<Name>.parameters.json` beside it; the deploy passes it with the template.
 
 Forks that have not converted yet can keep JSON playbooks (ARM templates in the same folders): the module reads, deploys and exports both. See [Converting JSON playbooks](#converting-json-playbooks).

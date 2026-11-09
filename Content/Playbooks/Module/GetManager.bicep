@@ -19,8 +19,7 @@ param PlaybookName string = 'Module-GetManager'
 @description('The region for the resources; the resource group\'s by default.')
 param location string = resourceGroup().location
 
-#disable-next-line BCP081
-resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
+resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   name: PlaybookName
   location: location
   tags: {

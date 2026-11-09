@@ -128,8 +128,9 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   it in `~/.azure/bin`). The Bicep follows Bicep's own conventions: every
   parameter is described, a `location` parameter holds the region, names
   are in camel case with each API connection named after its API
-  (`microsoftSentinelConnection`), and managed API ids use
-  `subscriptionResourceId()`. See
+  (`microsoftSentinelConnection`), managed API ids use
+  `subscriptionResourceId()`, and the Logic Apps are at api-version
+  `2019-05-01`, which Bicep has types for. See
   [Playbooks](../Content/Playbooks.md).
 - **Six Defender XDR custom detections deploy again** - the conversion to
   the current Graph rule shape put each rule's techniques under its one old

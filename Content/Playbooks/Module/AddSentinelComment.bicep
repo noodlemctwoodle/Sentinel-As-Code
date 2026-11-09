@@ -21,8 +21,7 @@ param location string = resourceGroup().location
 
 var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
 
-#disable-next-line BCP081
-resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
+resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   name: PlaybookName
   location: location
   tags: {

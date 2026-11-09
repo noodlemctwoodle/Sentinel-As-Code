@@ -153,10 +153,11 @@ with `-Format Json`. Both describe the same deployment:
     group id such as a module reference stays a literal path, as the
     deploy order reads it;
   - ARM `concat()` becomes string interpolation;
-  - where Bicep's own type data is wrong or missing for these resource
-    types (Logic Apps `2017-07-01`; `kind` and `parameterValueType` on API
-    connections) a `#disable-next-line` for that warning sits on the line
-    before, so the file builds clean.
+  - the Logic App is at api-version `2019-05-01`, which Bicep has types
+    for (the JSON export writes it too); where the type data for API
+    connections `2016-06-01` is missing (`kind`, `parameterValueType`) a
+    `#disable-next-line` for that warning sits on the line before, so the
+    file builds clean.
 
 The export does not remove secrets. A value that looks like one held in
 plain text (an API key header, an authentication secret, a key in a URI)
