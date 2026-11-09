@@ -15,18 +15,26 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'GetDeviceTags'
+
+@description('The playbook resource group; the deploy fills it in.')
 param AutomationResourceGroup string = ''
+
+@description('The Sentinel workspace\'s name; the deploy fills it in.')
 param SentinelWorkpaceName string = ''
 
-var AzureMonitorLogs0ConnectionName = 'AzureMonitorLogs0-${PlaybookName}'
-var Azuresentinel0ConnectionName = 'Azuresentinel0-${PlaybookName}'
-var Azuresentinel1ConnectionName = 'Azuresentinel1-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var azureMonitorLogsConnectionName = 'AzureMonitorLogs0-${PlaybookName}'
+var microsoftSentinelConnectionName = 'Azuresentinel0-${PlaybookName}'
+var microsoftSentinel2ConnectionName = 'Azuresentinel1-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -253,14 +261,14 @@ DeviceInfo
       '$connections': {
         value: {
           azuremonitorlogs: {
-            connectionId: AzureMonitorLogs0Connection.id
-            connectionName: AzureMonitorLogs0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuremonitorlogs'
+            connectionId: azureMonitorLogsConnection.id
+            connectionName: azureMonitorLogsConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuremonitorlogs')
           }
           'azuresentinel-1': {
-            connectionId: Azuresentinel0Connection.id
-            connectionName: Azuresentinel0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionId: microsoftSentinelConnection.id
+            connectionName: microsoftSentinelConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -268,9 +276,9 @@ DeviceInfo
             }
           }
           azuresentinel: {
-            connectionId: Azuresentinel1Connection.id
-            connectionName: Azuresentinel1ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionId: microsoftSentinel2Connection.id
+            connectionName: microsoftSentinel2ConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -283,48 +291,48 @@ DeviceInfo
   }
 }
 
-resource AzureMonitorLogs0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: AzureMonitorLogs0ConnectionName
-  location: resourceGroup().location
+resource azureMonitorLogsConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: azureMonitorLogsConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: AzureMonitorLogs0ConnectionName
+    displayName: azureMonitorLogsConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuremonitorlogs'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuremonitorlogs')
     }
   }
 }
 
-resource Azuresentinel0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Azuresentinel0ConnectionName
-  location: resourceGroup().location
+resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftSentinelConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Azuresentinel0ConnectionName
+    displayName: microsoftSentinelConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
     }
   }
 }
 
-resource Azuresentinel1Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Azuresentinel1ConnectionName
-  location: resourceGroup().location
+resource microsoftSentinel2Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftSentinel2ConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Azuresentinel1ConnectionName
+    displayName: microsoftSentinel2ConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
     }
   }
 }

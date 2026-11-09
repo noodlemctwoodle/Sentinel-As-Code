@@ -43,14 +43,26 @@ metadata author = {
   name: '<author>'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = '<Name>'
-param AutomationResourceGroup string = ''
-param SentinelWorkpaceName string = ''
-// Add playbook-specific parameters below
 
+@description('The playbook resource group; the deploy fills it in.')
+param AutomationResourceGroup string = ''
+
+@description('The Sentinel workspace\'s name; the deploy fills it in.')
+param SentinelWorkpaceName string = ''
+
+// Add playbook-specific parameters here, each with a @description
+
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
+
+#disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -96,6 +108,13 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
    secrets. The connector identity needs `Key Vault Secrets User`;
    `Grant-iSOCPlaybookPermission` grants it when the playbook uses the
    Key Vault connector.
+9. **Follow the repository's Bicep style**, as `Export-iSOCContent` and
+   `Convert-iSOCPlaybook` write it: a `@description` on every parameter;
+   `location` for the region, never `resourceGroup().location` outside
+   its default (the linter warns); variables and resources in lower camel
+   case, each API connection named after its managed API
+   (`microsoftSentinelConnection`, `office365Connection`); and managed API
+   ids as `subscriptionResourceId('Microsoft.Web/locations/managedApis', location, '<api>')`.
 
 ## After editing
 

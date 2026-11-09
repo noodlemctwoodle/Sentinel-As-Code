@@ -13,16 +13,24 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'DefenderRestrictDomain'
+
+@description('The playbook resource group; the deploy fills it in.')
 param AutomationResourceGroup string = ''
+
+@description('The Sentinel workspace\'s name; the deploy fills it in.')
 param SentinelWorkpaceName string = ''
 
-var MicrosoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -168,9 +176,9 @@ The response from the API was:
       '$connections': {
         value: {
           'azuresentinel-1': {
-            connectionId: MicrosoftSentinelConnection.id
-            connectionName: MicrosoftSentinelConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionId: microsoftSentinelConnection.id
+            connectionName: microsoftSentinelConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -183,18 +191,18 @@ The response from the API was:
   }
 }
 
-resource MicrosoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
-  name: MicrosoftSentinelConnectionName
-  location: resourceGroup().location
+resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftSentinelConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: MicrosoftSentinelConnectionName
+    displayName: microsoftSentinelConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
     }
   }
 }

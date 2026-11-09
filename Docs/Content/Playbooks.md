@@ -34,15 +34,21 @@ Each playbook is one `.bicep` file holding the Logic App and its API connections
 metadata title = 'AddSentinelComment'
 metadata description = 'Reusable automation module: AddSentinelComment.'
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Module-AddSentinelComment'
+
+@description('The playbook resource group; the deploy fills it in.')
 param AutomationResourceGroup string = ''
 
-var MicrosoftSentinelConnectionName = 'azuresentinel-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -56,7 +62,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           azuresentinel: {
-            connectionId: MicrosoftSentinelConnection.id
+            connectionId: microsoftSentinelConnection.id
+            connectionName: microsoftSentinelConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
             ...
           }
         }
@@ -65,11 +73,14 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource MicrosoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = { ... }
+resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = { ... }
 ```
 
 - The workflow definition is the Logic Apps definition, as the designer's code view shows it; its `@{...}` expressions are ordinary Bicep strings.
-- A connection is referred to by its symbolic name (`MicrosoftSentinelConnection.id`), so Bicep orders the deployment itself.
+- Every parameter has a `@description`. The parameters the deploy fills in keep their names (see below): renaming one stops it being filled.
+- `location` is the region for the Logic App and its connections. It defaults to the resource group's and the deploy never sets it; use it rather than `resourceGroup().location`, which the linter allows only as that default.
+- Variables and resources are in lower camel case. An API connection is named after the managed API it connects to (`microsoftSentinelConnection`, `office365Connection`), with a number for a second connection to the same API (`microsoftSentinel2Connection`), and is referred to by that symbolic name (`microsoftSentinelConnection.id`), so Bicep orders the deployment itself.
+- A managed API is named with `subscriptionResourceId('Microsoft.Web/locations/managedApis', location, '<api>')`. References to other workflows, such as the modules a playbook calls, stay literal paths: the deploy reads them to order the modules.
 - `#disable-next-line` lines sit where Bicep's own type data for these resource types is missing or wrong: there is none for Logic Apps `2017-07-01` (`BCP081`), and API connections `2016-06-01` lack `kind` (`BCP187`) and `parameterValueType` (`BCP037`), though both are valid. Keep them, so the file builds without warnings.
 - A playbook whose Logic App needs a value per environment can keep a `<Name>.parameters.json` beside it; the deploy passes it with the template.
 
@@ -193,7 +204,7 @@ Each JSON playbook is written as Bicep, compiled, and compared with the JSON it 
 
 ## Building and checking
 
-- [`bicepconfig.json`](../../Content/Playbooks/bicepconfig.json) turns off one Bicep linter rule for playbooks, `no-unused-params`: the deploy fills parameters by name, and the exporter declares the Sentinel parameters on every Sentinel-triggered playbook whether or not its workflow uses them. Every other warning stays on.
+- [`bicepconfig.json`](../../Content/Playbooks/bicepconfig.json) turns off one Bicep linter rule for playbooks, `no-unused-params`: the deploy fills parameters by name, and the exporter declares the Sentinel parameters on every Sentinel-triggered playbook whether or not its workflow uses them. It turns `no-loc-expr-outside-params` on, so `resourceGroup().location` stays in the `location` parameter's default. Every other warning stays on.
 - `bicep build Content/Playbooks/Incident/IsolateMachine.bicep --stdout` shows the ARM template a playbook deploys.
 - The PR checks build every playbook and fail on an error or a warning (`bicep-build`), validate each against a resource group (`arm-validate`), and hold each compiled template to the playbook invariants in [`Tests/Test-PlaybookArm.Tests.ps1`](../../Tests/Test-PlaybookArm.Tests.ps1).
 

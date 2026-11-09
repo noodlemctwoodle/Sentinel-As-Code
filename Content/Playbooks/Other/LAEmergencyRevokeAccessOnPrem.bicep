@@ -13,14 +13,18 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'LAEmergencyRevokeAccessOnPrem'
 
-var SharePointOnlineConnectionName = 'SharePointOnline-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var sharePointOnlineConnectionName = 'SharePointOnline-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -2042,9 +2046,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           sharepointonline: {
-            connectionId: SharePointOnlineConnection.id
-            connectionName: SharePointOnlineConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/sharepointonline'
+            connectionId: sharePointOnlineConnection.id
+            connectionName: sharePointOnlineConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'sharepointonline')
           }
         }
       }
@@ -2052,16 +2056,16 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource SharePointOnlineConnection 'Microsoft.Web/connections@2016-06-01' = {
-  name: SharePointOnlineConnectionName
-  location: resourceGroup().location
+resource sharePointOnlineConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: sharePointOnlineConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: SharePointOnlineConnectionName
+    displayName: sharePointOnlineConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/sharepointonline'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'sharepointonline')
     }
   }
 }

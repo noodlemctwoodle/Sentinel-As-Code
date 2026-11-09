@@ -13,14 +13,18 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Module-KQLGetIntelligence'
 
-var AzureMonitorLogsConnectionName = 'AzureMonitorLogs-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var azureMonitorLogsConnectionName = 'AzureMonitorLogs-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -326,9 +330,9 @@ union isfuzzy=true BehaviorAnalytics, AADNonInteractiveUserSignInLogs, ThreatInt
       '$connections': {
         value: {
           'azuremonitorlogs-1': {
-            connectionId: AzureMonitorLogsConnection.id
-            connectionName: AzureMonitorLogsConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuremonitorlogs'
+            connectionId: azureMonitorLogsConnection.id
+            connectionName: azureMonitorLogsConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuremonitorlogs')
           }
         }
       }
@@ -344,16 +348,16 @@ union isfuzzy=true BehaviorAnalytics, AADNonInteractiveUserSignInLogs, ThreatInt
   }
 }
 
-resource AzureMonitorLogsConnection 'Microsoft.Web/connections@2016-06-01' = {
-  name: AzureMonitorLogsConnectionName
-  location: resourceGroup().location
+resource azureMonitorLogsConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: azureMonitorLogsConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: AzureMonitorLogsConnectionName
+    displayName: azureMonitorLogsConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuremonitorlogs'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuremonitorlogs')
     }
   }
 }

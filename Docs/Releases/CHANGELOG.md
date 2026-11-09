@@ -125,7 +125,11 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Content/Playbooks/bicepconfig.json` into yours and run
   `Convert-iSOCPlaybook -WhatIf`, then `Convert-iSOCPlaybook`. Deploying a
   Bicep playbook needs the Bicep CLI on the PATH (`az bicep install` puts
-  it in `~/.azure/bin`). See
+  it in `~/.azure/bin`). The Bicep follows Bicep's own conventions: every
+  parameter is described, a `location` parameter holds the region, names
+  are in camel case with each API connection named after its API
+  (`microsoftSentinelConnection`), and managed API ids use
+  `subscriptionResourceId()`. See
   [Playbooks](../Content/Playbooks.md).
 - **Six Defender XDR custom detections deploy again** - the conversion to
   the current Graph rule shape put each rule's techniques under its one old

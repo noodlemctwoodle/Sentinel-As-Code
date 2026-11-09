@@ -13,15 +13,19 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Module-IsolateMachine'
 
-var Wdatp0ConnectionName = 'Wdatp0-${PlaybookName}'
-var Wdatp1ConnectionName = 'Wdatp1-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftDefenderXDRConnectionName = 'Wdatp0-${PlaybookName}'
+var microsoftDefenderXDR2ConnectionName = 'Wdatp1-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -199,9 +203,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           wdatp: {
-            connectionId: Wdatp0Connection.id
-            connectionName: Wdatp0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/Wdatp'
+            connectionId: microsoftDefenderXDRConnection.id
+            connectionName: microsoftDefenderXDRConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'Wdatp')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -209,9 +213,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
             }
           }
           'wdatp-1': {
-            connectionId: Wdatp1Connection.id
-            connectionName: Wdatp1ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/Wdatp'
+            connectionId: microsoftDefenderXDR2Connection.id
+            connectionName: microsoftDefenderXDR2ConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'Wdatp')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -232,34 +236,34 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource Wdatp0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Wdatp0ConnectionName
-  location: resourceGroup().location
+resource microsoftDefenderXDRConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftDefenderXDRConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Wdatp0ConnectionName
+    displayName: microsoftDefenderXDRConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/Wdatp'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'Wdatp')
     }
   }
 }
 
-resource Wdatp1Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Wdatp1ConnectionName
-  location: resourceGroup().location
+resource microsoftDefenderXDR2Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftDefenderXDR2ConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Wdatp1ConnectionName
+    displayName: microsoftDefenderXDR2ConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/Wdatp'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'Wdatp')
     }
   }
 }

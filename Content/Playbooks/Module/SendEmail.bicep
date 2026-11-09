@@ -13,14 +13,18 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Module-SendEmail'
 
-var Office365ConnectionName = 'Office365-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var office365ConnectionName = 'Office365-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -100,9 +104,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           office365: {
-            connectionId: Office365Connection.id
-            connectionName: Office365ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+            connectionId: office365Connection.id
+            connectionName: office365ConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
           }
         }
       }
@@ -118,16 +122,16 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource Office365Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Office365ConnectionName
-  location: resourceGroup().location
+resource office365Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: office365ConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Office365ConnectionName
+    displayName: office365ConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
     }
   }
 }

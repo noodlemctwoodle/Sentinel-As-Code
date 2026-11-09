@@ -15,17 +15,25 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'RevokeSessions'
+
+@description('The playbook resource group; the deploy fills it in.')
 param AutomationResourceGroup string = ''
+
+@description('The Sentinel workspace\'s name; the deploy fills it in.')
 param SentinelWorkpaceName string = ''
 
-var MicrosoftSentinel0ConnectionName = 'MicrosoftSentinel-${PlaybookName}'
-var Office3650ConnectionName = 'Office365-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
+var office365ConnectionName = 'Office365-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -521,9 +529,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           azuresentinel: {
-            connectionId: MicrosoftSentinel0Connection.id
-            connectionName: MicrosoftSentinel0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionId: microsoftSentinelConnection.id
+            connectionName: microsoftSentinelConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -531,9 +539,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
             }
           }
           office365: {
-            connectionId: Office3650Connection.id
-            connectionName: Office3650ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+            connectionId: office365Connection.id
+            connectionName: office365ConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
           }
         }
       }
@@ -541,32 +549,32 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource MicrosoftSentinel0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: MicrosoftSentinel0ConnectionName
-  location: resourceGroup().location
+resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftSentinelConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: MicrosoftSentinel0ConnectionName
+    displayName: microsoftSentinelConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
     }
   }
 }
 
-resource Office3650Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Office3650ConnectionName
-  location: resourceGroup().location
+resource office365Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: office365ConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Office3650ConnectionName
+    displayName: office365ConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
     }
   }
 }

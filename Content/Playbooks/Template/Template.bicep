@@ -12,24 +12,27 @@
 metadata title = 'Playbook template'
 metadata description = 'A Logic App triggered when a Microsoft Sentinel incident is created, with a Microsoft Sentinel API connection that uses the Logic App\'s managed identity.'
 
-@description('The Logic App\'s name; the deploy updates the workflow of this name.')
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Incident-REPLACEWITHNAME'
 
-@description('The Sentinel workspace, filled in by the deploy.')
+@description('The Sentinel workspace\'s name; the deploy fills it in.')
 param SentinelWorkspaceName string = ''
 
-@description('The Sentinel workspace\'s resource group, filled in by the deploy.')
+@description('The Sentinel workspace\'s resource group; the deploy fills it in.')
 param SentinelResourceGroupName string = resourceGroup().name
 
-var MicrosoftSentinelConnectionName = 'azuresentinel-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
 
 // The start of an incident's ARM id, for actions that call the incident API.
 #disable-next-line no-unused-vars
-var ArmIncidentPrefix = '/subscriptions/${subscription().subscriptionId}/resourceGroups/${SentinelResourceGroupName}/providers/Microsoft.OperationalInsights/workspaces/${SentinelWorkspaceName}/providers/Microsoft.SecurityInsights/Incidents/'
+var armIncidentPrefix = '/subscriptions/${subscription().subscriptionId}/resourceGroups/${SentinelResourceGroupName}/providers/Microsoft.OperationalInsights/workspaces/${SentinelWorkspaceName}/providers/Microsoft.SecurityInsights/Incidents/'
 
 resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -70,14 +73,14 @@ resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
       '$connections': {
         value: {
           azuresentinel: {
-            connectionId: MicrosoftSentinelConnection.id
-            connectionName: MicrosoftSentinelConnectionName
+            connectionId: microsoftSentinelConnection.id
+            connectionName: microsoftSentinelConnectionName
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
               }
             }
-            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', resourceGroup().location, 'azuresentinel')
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
           }
         }
       }
@@ -85,18 +88,18 @@ resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
   }
 }
 
-resource MicrosoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
-  name: MicrosoftSentinelConnectionName
-  location: resourceGroup().location
+resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftSentinelConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: MicrosoftSentinelConnectionName
+    displayName: microsoftSentinelConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', resourceGroup().location, 'azuresentinel')
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
     }
   }
 }

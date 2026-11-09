@@ -13,16 +13,22 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Module-Request-TeamsApproval'
+
+@description('The playbook resource group; the deploy fills it in.')
 param AutomationResourceGroup string = ''
 
-var MicrosoftSentinel0ConnectionName = 'MicrosoftSentinel-${PlaybookName}'
-var MicrosoftTeams0ConnectionName = 'MicrosoftTeams-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var microsoftSentinelConnectionName = 'MicrosoftSentinel-${PlaybookName}'
+var microsoftTeamsConnectionName = 'MicrosoftTeams-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -538,9 +544,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           'azuresentinel-1': {
-            connectionId: MicrosoftSentinel0Connection.id
-            connectionName: MicrosoftSentinel0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+            connectionId: microsoftSentinelConnection.id
+            connectionName: microsoftSentinelConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -548,9 +554,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
             }
           }
           'teams-1': {
-            connectionId: MicrosoftTeams0Connection.id
-            connectionName: MicrosoftTeams0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/teams'
+            connectionId: microsoftTeamsConnection.id
+            connectionName: microsoftTeamsConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'teams')
           }
         }
       }
@@ -566,32 +572,32 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource MicrosoftSentinel0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: MicrosoftSentinel0ConnectionName
-  location: resourceGroup().location
+resource microsoftSentinelConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftSentinelConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: MicrosoftSentinel0ConnectionName
+    displayName: microsoftSentinelConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuresentinel'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuresentinel')
     }
   }
 }
 
-resource MicrosoftTeams0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: MicrosoftTeams0ConnectionName
-  location: resourceGroup().location
+resource microsoftTeamsConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: microsoftTeamsConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: MicrosoftTeams0ConnectionName
+    displayName: microsoftTeamsConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/teams'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'teams')
     }
   }
 }

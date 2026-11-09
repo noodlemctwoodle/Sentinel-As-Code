@@ -13,15 +13,19 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'ExcelPlaybook'
 
-var AzureMonitorLogs0ConnectionName = 'AzureMonitorLogs-${PlaybookName}'
-var Office3650ConnectionName = 'Office365-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var azureMonitorLogsConnectionName = 'AzureMonitorLogs-${PlaybookName}'
+var office365ConnectionName = 'Office365-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -459,14 +463,14 @@ SecurityAlert<br>
       '$connections': {
         value: {
           'azuremonitorlogs-1': {
-            connectionId: AzureMonitorLogs0Connection.id
-            connectionName: AzureMonitorLogs0ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuremonitorlogs'
+            connectionId: azureMonitorLogsConnection.id
+            connectionName: azureMonitorLogsConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuremonitorlogs')
           }
           office365: {
-            connectionId: Office3650Connection.id
-            connectionName: Office3650ConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+            connectionId: office365Connection.id
+            connectionName: office365ConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
           }
         }
       }
@@ -474,30 +478,30 @@ SecurityAlert<br>
   }
 }
 
-resource AzureMonitorLogs0Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: AzureMonitorLogs0ConnectionName
-  location: resourceGroup().location
+resource azureMonitorLogsConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: azureMonitorLogsConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: AzureMonitorLogs0ConnectionName
+    displayName: azureMonitorLogsConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/azuremonitorlogs'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'azuremonitorlogs')
     }
   }
 }
 
-resource Office3650Connection 'Microsoft.Web/connections@2016-06-01' = {
-  name: Office3650ConnectionName
-  location: resourceGroup().location
+resource office365Connection 'Microsoft.Web/connections@2016-06-01' = {
+  name: office365ConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: Office3650ConnectionName
+    displayName: office365ConnectionName
     customParameterValues: {}
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
     }
   }
 }

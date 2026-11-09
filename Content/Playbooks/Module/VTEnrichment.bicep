@@ -13,14 +13,18 @@ metadata author = {
   name: 'noodlemctwoodle'
 }
 
+@description('The Logic App\'s name.')
 param PlaybookName string = 'Module-VTEnrichment'
 
-var AzureKeyVaultConnectionName = 'AzureKeyVault-${PlaybookName}'
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
+
+var azureKeyVaultConnectionName = 'AzureKeyVault-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   tags: {
     Source: 'Sentinel-As-Code'
   }
@@ -6915,9 +6919,9 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
       '$connections': {
         value: {
           'keyvault-1': {
-            connectionId: AzureKeyVaultConnection.id
-            connectionName: AzureKeyVaultConnectionName
-            id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/keyvault'
+            connectionId: azureKeyVaultConnection.id
+            connectionName: azureKeyVaultConnectionName
+            id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'keyvault')
             connectionProperties: {
               authentication: {
                 type: 'ManagedServiceIdentity'
@@ -6938,18 +6942,18 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   }
 }
 
-resource AzureKeyVaultConnection 'Microsoft.Web/connections@2016-06-01' = {
-  name: AzureKeyVaultConnectionName
-  location: resourceGroup().location
+resource azureKeyVaultConnection 'Microsoft.Web/connections@2016-06-01' = {
+  name: azureKeyVaultConnectionName
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
-    displayName: AzureKeyVaultConnectionName
+    displayName: azureKeyVaultConnectionName
     customParameterValues: {}
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/keyvault'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'keyvault')
     }
   }
 }
