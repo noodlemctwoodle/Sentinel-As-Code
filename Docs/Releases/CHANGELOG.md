@@ -139,9 +139,17 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   on 10 November 2026. `Test-iSOCDeploymentPrerequisite` and
   `Test-iSOCBlueprintPrerequisite` check for 7.6, and `iSOCBlueprint` is
   26.11.0. The Microsoft-hosted agents on Azure DevOps and GitHub have run
-  PowerShell 7.6 since June 2026, so the pipelines are unchanged. **For
-  forks:** run the modules and tools in PowerShell 7.6 or later, and on a
-  self-hosted agent install 7.6 before running the pipelines.
+  PowerShell 7.6 since June 2026, so the pipelines run as they are. The
+  DCR watchlist runbook moves from Azure Automation's PowerShell 7.2
+  runtime, retired on 30 September 2026, to a PowerShell 7.6 runtime
+  environment, `PowerShell-76`, whose Az 15.1.0 package replaces the
+  pinned Az.Accounts 3.0.5. **For forks:** run the modules and tools in
+  PowerShell 7.6 or later, and on a self-hosted agent install 7.6 before
+  running the pipelines. If the DCR inventory pipeline's infrastructure
+  stage then fails with `Update runbook with definition of different
+  runbook kind`, delete the `Invoke-DCRWatchlistSync` runbook once and
+  run it again (see [DCR Watchlist](../Tools/DCR-Watchlist.md)); the old
+  Az.Accounts module stays in the account, unused.
 - **Six Defender XDR custom detections deploy again** - the conversion to
   the current Graph rule shape put each rule's techniques under its one old
   category, and in six rules a technique sat under a tactic it does not

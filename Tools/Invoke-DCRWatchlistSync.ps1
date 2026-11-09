@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts
 
 <#
@@ -61,9 +61,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-03-23
-    Version:        1.0.1
-    Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Az.Accounts
+    Version:        1.0.2
+    Last Updated:   2026-11-09
+    Requires:       PowerShell 7.6+, Az.Accounts
 
     Required RBAC on managed identity:
       - Monitoring Reader on subscription (to list DCRs and associations via ARM)

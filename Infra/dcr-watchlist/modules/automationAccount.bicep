@@ -1,6 +1,7 @@
 /*
   Module: Automation Account
-  Deploys the account, runbook (draft), schedule, and Az.Accounts module.
+  Deploys the account, a PowerShell 7.6 runtime environment, the runbook
+  (draft) linked to it, and the schedule.
   The job schedule linkage is created by the pipeline UpdateRunbook stage
   after the runbook is published.
 */
@@ -26,36 +27,43 @@ resource automationAccount 'Microsoft.Automation/automationAccounts@2024-10-23' 
   }
 }
 
+// ── Runtime environment: PowerShell 7.6 ───────────────────────────────────────
+// The runbook runs on PowerShell 7.6, which Azure Automation offers only
+// through a runtime environment. The Az package it carries (15.1.0, the 7.6
+// default) brings Az.Accounts, the one module the runbook needs: DCR
+// enumeration uses Invoke-AzRestMethod against the ARM REST API directly.
+
+resource runtimeEnvironment 'Microsoft.Automation/automationAccounts/runtimeEnvironments@2024-10-23' = {
+  parent: automationAccount
+  name:   'PowerShell-76'
+  location: location
+  properties: {
+    description: 'PowerShell 7.6 with the Az package, for Invoke-DCRWatchlistSync.'
+    runtime: {
+      language: 'PowerShell'
+      version:  '7.6'
+    }
+    defaultPackages: {
+      Az: '15.1.0'
+    }
+  }
+}
+
 // ── Runbook ───────────────────────────────────────────────────────────────────
 
-// Runbook shell — content is uploaded by the pipeline UpdateRunbook stage
-// via Import-AzAutomationRunbook + Publish-AzAutomationRunbook.
+// Runbook shell, linked to the runtime environment. The content is uploaded
+// by the pipeline UpdateRunbook stage, which links the runbook again after
+// the import and publishes it.
 resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2024-10-23' = {
   parent: automationAccount
   name:   'Invoke-DCRWatchlistSync'
   location: location
   properties: {
-    runbookType:  'PowerShell72'
-    logProgress:  true
-    logVerbose:   false
-    description:  'Queries DCR associations via ARM REST API and replaces the Sentinel CustomerResources watchlist.'
-  }
-}
-
-// ── Modules: Az.Accounts (PowerShell 7.2 runtime) ───────────────────────────
-// PowerShell 7.2 modules use the powershell72Modules resource type.
-// Only Az.Accounts is required — DCR enumeration uses Invoke-AzRestMethod
-// directly against the ARM REST API, so Az.ResourceGraph is not needed.
-// Pinned to 3.0.5 — latest pulls Azure.Identity 1.13+ which has unimplemented
-// methods in the Automation sandbox (GetTokenAsync on ManagedIdentityCredential).
-
-resource moduleAzAccounts 'Microsoft.Automation/automationAccounts/powershell72Modules@2024-10-23' = {
-  parent: automationAccount
-  name:   'Az.Accounts'
-  properties: {
-    contentLink: {
-      uri: 'https://www.powershellgallery.com/api/v2/package/Az.Accounts/3.0.5'
-    }
+    runbookType:        'PowerShell'
+    runtimeEnvironment: runtimeEnvironment.name
+    logProgress:        true
+    logVerbose:         false
+    description:        'Queries DCR associations via ARM REST API and replaces the Sentinel CustomerResources watchlist.'
   }
 }
 

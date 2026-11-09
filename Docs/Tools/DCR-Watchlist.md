@@ -21,7 +21,7 @@ Deployment is driven by CI from either side of the mirror: the GitHub Actions wo
 ## Architecture
 
 ```
-Azure Automation Account (PowerShell 7.2)
+Azure Automation Account (PowerShell 7.6 runtime environment)
   ├── System-assigned managed identity
   ├── Invoke-DCRWatchlistSync.ps1 (runbook)
   └── Daily schedule (03:00 UTC)
@@ -233,8 +233,8 @@ Pipelines/Sentinel-DCR-Inventory.yml               # Azure DevOps pipeline (mirr
 | Error | Cause | Fix |
 |---|---|---|
 | `The runbook does not have a published version` | Runbook exists as draft only | Pipeline Stage 2 publishes it — ensure both stages run |
-| `Update runbook with definition of different runbook kind` | Existing runbook was PS 5.1, new is PS 7.2 | Delete the runbook manually then re-deploy: `az automation runbook delete --automation-account-name aa-dcr-watchlist-sync --resource-group rg-dcr-watchlist-sync --name Invoke-DCRWatchlistSync --yes` |
+| `Update runbook with definition of different runbook kind` | The existing runbook is a PowerShell 7.2 (or 5.1) runbook; it is now a PowerShell runbook on the `PowerShell-76` runtime environment | Delete the runbook manually then re-deploy: `az automation runbook delete --automation-account-name aa-dcr-watchlist-sync --resource-group rg-dcr-watchlist-sync --name Invoke-DCRWatchlistSync --yes` |
 | `Schedule start time must be at least 5 minutes after` | Schedule start is in the past | Pipeline computes tomorrow 03:00 UTC automatically — re-run |
 | `Authorization failed for roleAssignments` | Pipeline SPN lacks `roleAssignments/write` | Expected — run `Set-RunbookPermissions.ps1` manually instead |
-| `GetTokenAsync method not implemented` | Az.Accounts too new for Automation sandbox | Az.Accounts is pinned to 3.0.5 in the Bicep module |
+| `The runbook is on runtime environment '...', not PowerShell-76` | The `PowerShell-76` runtime environment has not been deployed | Run the pipeline with `deployInfrastructure` so the Bicep creates it |
 | `No associations found across any DCR` | DCRs exist but have no resource associations | Verify agents are installed and DCR associations are configured in the portal |
