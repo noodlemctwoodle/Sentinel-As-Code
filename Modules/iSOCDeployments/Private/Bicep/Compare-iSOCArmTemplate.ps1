@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.0
-    Last Updated: 2026-11-06
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -38,6 +38,10 @@ function Compare-iSOCArmTemplate {
     .PARAMETER Actual
         The second template (the compiled Bicep).
 
+    .PARAMETER InlineParameter
+        Parameters both templates read as their default, passed to
+        Resolve-iSOCArmTemplate: location, when the Bicep writer added it.
+
     .OUTPUTS
         [string] The difference; nothing when there is none.
 
@@ -51,7 +55,9 @@ function Compare-iSOCArmTemplate {
         [object] $Expected,
 
         [Parameter(Mandatory)]
-        [object] $Actual
+        [object] $Actual,
+
+        [string[]] $InlineParameter = @()
     )
 
     $show = {
@@ -94,5 +100,5 @@ function Compare-iSOCArmTemplate {
         $null
     }
 
-    & $walk '' (Resolve-iSOCArmTemplate -Template $Expected) (Resolve-iSOCArmTemplate -Template $Actual)
+    & $walk '' (Resolve-iSOCArmTemplate -Template $Expected -InlineParameter $InlineParameter) (Resolve-iSOCArmTemplate -Template $Actual -InlineParameter $InlineParameter)
 }

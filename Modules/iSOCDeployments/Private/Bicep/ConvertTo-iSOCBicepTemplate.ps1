@@ -16,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.0
-    Last Updated: 2026-11-06
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -38,11 +38,20 @@ function ConvertTo-iSOCBicepTemplate {
         - a param for each parameter, under its ARM name (the deploy fills
           parameters by name), with its type, default and @allowed,
           @description, @minLength, @maxLength, @minValue and @maxValue
-          decorators, and @secure() for securestring and secureObject;
-        - a var for each variable;
+          decorators, and @secure() for securestring and secureObject. A
+          parameter without a description of its own gets the one
+          -ParameterDescription gives it, if any. Parameters with
+          decorators are set apart by blank lines;
+        - a location parameter, defaulting to resourceGroup().location,
+          when an expression reads resourceGroup().location and the
+          template has no location parameter; every such read then uses
+          the parameter. The deploy never sets it, so the deployment is the
+          same;
+        - a var for each variable, named in lower camel case
+          (ConvertTo-iSOCBicepCamelCase) unless -VariableName gives the name;
         - a resource for each resource, with a symbolic name (workflow for
           a Logic App; a connection's from its name variable, so
-          MicrosoftSentinelConnectionName gives MicrosoftSentinelConnection).
+          microsoftSentinelConnectionName gives microsoftSentinelConnection).
           The resource keeps name, location, kind, sku, plan, tags,
           identity, zones and properties, in that order. A dependsOn entry is
           written only when the resource does not already refer to the
@@ -67,6 +76,15 @@ function ConvertTo-iSOCBicepTemplate {
         The template: dictionaries (or [pscustomobject]) as ConvertFrom-Json,
         ConvertFrom-iSOCJsonText or ConvertTo-iSOCPlaybookTemplate give it.
 
+    .PARAMETER VariableName
+        Bicep names for variables, keyed by their ARM names. A variable not
+        named here is written in lower camel case. Clashes and keywords
+        still get a number.
+
+    .PARAMETER ParameterDescription
+        Descriptions for parameters that have none of their own, keyed by
+        parameter name.
+
     .OUTPUTS
         [string] The Bicep file's text.
 
@@ -77,7 +95,11 @@ function ConvertTo-iSOCBicepTemplate {
     [OutputType([string])]
     param(
         [Parameter(Mandatory)]
-        [object] $Template
+        [object] $Template,
+
+        [hashtable] $VariableName = @{},
+
+        [hashtable] $ParameterDescription = @{}
     )
 
     $entriesOf = {
@@ -121,6 +143,7 @@ function ConvertTo-iSOCBicepTemplate {
         VariableValues = @{}
         Resources      = [System.Collections.Generic.List[object]]::new()
         Current        = $null
+        Location       = $null
     }
 
     $parameters = @(& $entriesOf (& $get $Template 'parameters'))
@@ -130,10 +153,36 @@ function ConvertTo-iSOCBicepTemplate {
         $symbols.Parameters[$parameter.Key] = $parameter.Key
         $symbols.ParameterTypes[$parameter.Key] = ([string](& $get $parameter.Value 'type')).ToLowerInvariant()
     }
+
+    # Whether an expression in the variables or resources reads
+    # resourceGroup().location. If one does and the template has no location
+    # parameter, the file gets one, defaulting to it, and every use reads the
+    # parameter instead, as Bicep's linter asks.
+    $readsLocation = $null
+    $readsLocation = {
+        param($Value)
+        if ($Value -is [string]) { return ((& $isExpression $Value) -and $Value -match '(?i)\bresourceGroup\(\s*\)\.location\b') }
+        if ($Value -is [System.Collections.IDictionary] -or $Value -is [System.Management.Automation.PSCustomObject]) {
+            foreach ($entry in & $entriesOf $Value) { if (& $readsLocation $entry.Value) { return $true } }
+            return $false
+        }
+        if ($Value -is [System.Collections.IEnumerable]) {
+            foreach ($item in $Value) { if (& $readsLocation $item) { return $true } }
+        }
+        $false
+    }
+    $locationParameter = $null
+    if (-not @($parameters | Where-Object { $_.Key -ieq 'location' }).Count -and
+        ((& $readsLocation (& $get $Template 'variables')) -or (& $readsLocation @(& $get $Template 'resources')))) {
+        $locationParameter = 'location'
+        [void]$taken.Add($locationParameter)
+    }
+
     $variables = @(& $entriesOf (& $get $Template 'variables'))
     foreach ($variable in $variables) {
         if ($variable.Key -ieq 'copy') { throw 'Variable copy loops are not written as Bicep.' }
-        $symbols.Variables[$variable.Key] = Get-iSOCBicepIdentifier -Name $variable.Key -Taken $taken
+        $preferred = if ($VariableName.ContainsKey($variable.Key)) { [string]$VariableName[$variable.Key] } else { ConvertTo-iSOCBicepCamelCase -Name $variable.Key }
+        $symbols.Variables[$variable.Key] = Get-iSOCBicepIdentifier -Name $preferred -Taken $taken
         $symbols.VariableValues[$variable.Key] = $variable.Value
     }
 
@@ -150,7 +199,12 @@ function ConvertTo-iSOCBicepTemplate {
         $base = switch -Regex ($type) {
             '^Microsoft\.Logic/workflows$' { 'workflow'; break }
             '^Microsoft\.Web/connections$' {
-                if ((& $isExpression $name) -and $name -match "^\[variables\('([^']+)'\)\]$") { $Matches[1] -replace 'Name$', '' } else { 'connection' }
+                if ((& $isExpression $name) -and $name -match "^\[variables\('([^']+)'\)\]$") {
+                    $nameVariable = $Matches[1]
+                    $stem = if ($symbols.Variables.ContainsKey($nameVariable)) { $symbols.Variables[$nameVariable] } else { ConvertTo-iSOCBicepCamelCase -Name $nameVariable }
+                    $stem -replace 'Name$', ''
+                }
+                else { 'connection' }
                 break
             }
             default { $segment = ($type -split '/')[-1]; $segment.Substring(0, 1).ToLowerInvariant() + $segment.Substring(1) -replace 's$', '' }
@@ -178,6 +232,7 @@ function ConvertTo-iSOCBicepTemplate {
         $armType = $symbols.ParameterTypes[$parameter.Key]
         if (-not $typeNames.ContainsKey($armType)) { throw "Parameter '$($parameter.Key)' has type '$armType', which is not written as Bicep." }
         $decorators = [System.Collections.Generic.List[string]]::new()
+        $described = $false
         foreach ($entry in & $entriesOf $definition) {
             switch ($entry.Key) {
                 'type' { }
@@ -189,7 +244,10 @@ function ConvertTo-iSOCBicepTemplate {
                 'maxValue' { $decorators.Add("@maxValue($($entry.Value))") }
                 'metadata' {
                     foreach ($meta in & $entriesOf $entry.Value) {
-                        if ($meta.Key -ieq 'description') { $decorators.Add("@description($(ConvertTo-iSOCBicepString -Value ([string]$meta.Value)))") }
+                        if ($meta.Key -ieq 'description') {
+                            $decorators.Add("@description($(ConvertTo-iSOCBicepString -Value ([string]$meta.Value)))")
+                            $described = $true
+                        }
                         else { throw "Parameter '$($parameter.Key)' has metadata '$($meta.Key)', which is not written as Bicep." }
                     }
                 }
@@ -197,12 +255,26 @@ function ConvertTo-iSOCBicepTemplate {
             }
         }
         if ($armType -in 'securestring', 'secureobject') { $decorators.Insert(0, '@secure()') }
+        if (-not $described -and $ParameterDescription.ContainsKey($parameter.Key)) {
+            $decorators.Insert(0, "@description($(ConvertTo-iSOCBicepString -Value ([string]$ParameterDescription[$parameter.Key])))")
+        }
         $line = "param $($parameter.Key) $($typeNames[$armType])"
         $default = @(& $entriesOf $definition | Where-Object { $_.Key -ieq 'defaultValue' })
         if ($default.Count -gt 0) { $line += " = $(ConvertTo-iSOCBicepValue -Value $default[0].Value -Symbols $symbols)" }
         (@($decorators) + $line) -join "`n"
     }
-    if (@($parameterLines).Count -gt 0) { $blocks.Add(($parameterLines -join "`n")) }
+    if ($locationParameter) {
+        $parameterLines = @($parameterLines | Where-Object { $_ }) + (
+            "@description($(ConvertTo-iSOCBicepString -Value "The region for the resources; the resource group's by default."))`n" +
+            "param $locationParameter string = resourceGroup().location")
+    }
+    # Parameters with decorators are set apart by a blank line, so each
+    # decorator reads with its own parameter.
+    $parameterSeparator = if (@($parameterLines | Where-Object { $_.Contains("`n") }).Count -gt 0) { "`n`n" } else { "`n" }
+    if (@($parameterLines).Count -gt 0) { $blocks.Add(($parameterLines -join $parameterSeparator)) }
+    # Defaults are written first, with resourceGroup().location as it is;
+    # from here on it is the location parameter.
+    $symbols.Location = $locationParameter
 
     $variableLines = foreach ($variable in $variables) {
         "var $($symbols.Variables[$variable.Key]) = $(ConvertTo-iSOCBicepValue -Value $variable.Value -Symbols $symbols)"

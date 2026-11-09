@@ -47,8 +47,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.0
-    Last Updated: 2026-11-06
+    Version:      0.3.1
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 #>
 
@@ -872,7 +872,20 @@ Describe 'Export handlers' {
             $build = @(Invoke-Private Invoke-iSOCBicep @{ Path = @($file) })[0]
             $build.Errors | Should -BeNullOrEmpty
             $build.Succeeded | Should -BeTrue
-            Invoke-Private Compare-iSOCArmTemplate @{ Expected = (Invoke-Private ConvertFrom-iSOCJsonText @{ Text = $json }); Actual = $build.Template } | Should -BeNullOrEmpty
+            Invoke-Private Compare-iSOCArmTemplate @{ Expected = (Invoke-Private ConvertFrom-iSOCJsonText @{ Text = $json }); Actual = $build.Template; InlineParameter = @('location') } | Should -BeNullOrEmpty
+        }
+
+        It 'writes a Bicep playbook in the repository''s style: described parameters, a location parameter, connections named after their API' {
+            Mock -ModuleName iSOCDeployments Write-iSOCLog { }
+            $bicep = Invoke-Private ConvertTo-iSOCPlaybookFile @{ WorkspaceItem = (Get-FixtureLogicApp); Context = $script:context; RelativePath = 'Content/Playbooks/Incident/StandInIsolate.bicep' }
+            $bicep | Should -Match "(?m)^@description\('The Logic App\\'s name\.'\)\nparam PlaybookName string = "
+            $bicep | Should -Match "(?m)^@description\('The Sentinel workspace\\'s name; the deploy fills it in\.'\)\nparam SentinelWorkpaceName string = ''$"
+            $bicep | Should -Match '(?m)^param location string = resourceGroup\(\)\.location$'
+            @([regex]::Matches($bicep, 'resourceGroup\(\)\.location')).Count | Should -Be 1
+            $bicep | Should -Match '(?m)^var microsoftSentinelConnectionName = '
+            $bicep | Should -Match "(?m)^resource microsoftSentinelConnection 'Microsoft\.Web/connections@2016-06-01' = \{$"
+            $bicep | Should -Match "subscriptionResourceId\('Microsoft\.Web/locations/managedApis', location, 'azuresentinel'\)"
+            $bicep | Should -Not -Match '/managedApis/'
         }
 
         It 'warns about plain-text secrets in a Bicep playbook too' {

@@ -18,8 +18,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.0
-    Last Updated: 2026-11-06
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -53,9 +53,21 @@ function Resolve-iSOCArmTemplate {
           them).
         - Object keys are sorted, so key order does not matter; array order
           does, except dependsOn.
+        - A parameter's metadata (its description) is dropped: it documents
+          the parameter and deploys nothing.
+        - A parameter named in -InlineParameter is replaced by its resolved
+          default wherever it is read, and left out of the parameters.
 
     .PARAMETER Template
         The template: dictionaries (or [pscustomobject]) and arrays.
+
+    .PARAMETER InlineParameter
+        Parameters to read as their default value, for a parameter the
+        deploy never sets: the Bicep writer's location parameter, which
+        defaults to resourceGroup().location, then compares equal to a
+        template that reads resourceGroup().location itself. A parameter
+        named here that the template does not declare, or that has no
+        default, is ignored.
 
     .OUTPUTS
         [System.Collections.Specialized.OrderedDictionary] parameters,
@@ -68,7 +80,9 @@ function Resolve-iSOCArmTemplate {
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param(
         [Parameter(Mandatory)]
-        [object] $Template
+        [object] $Template,
+
+        [string[]] $InlineParameter = @()
     )
 
     $entryOf = {
@@ -79,7 +93,15 @@ function Resolve-iSOCArmTemplate {
     $isObject = { param($Value) $Value -is [System.Collections.IDictionary] -or $Value -is [System.Management.Automation.PSCustomObject] }
 
     $parameterNames = @{}
-    foreach ($entry in Get-iSOCPropertyEntry -InputObject (& $entryOf $Template 'parameters')) { $parameterNames[$entry.Name] = $entry.Name }
+    # The parameters read as their default: name -> the default's raw value.
+    $inlined = @{}
+    foreach ($entry in Get-iSOCPropertyEntry -InputObject (& $entryOf $Template 'parameters')) {
+        $parameterNames[$entry.Name] = $entry.Name
+        if (@($InlineParameter | Where-Object { $_ -ieq $entry.Name }).Count -gt 0) {
+            $defaultEntry = @(Get-iSOCPropertyEntry -InputObject $entry.Value | Where-Object { $_.Name -ieq 'defaultValue' })
+            if ($defaultEntry.Count -gt 0) { $inlined[$entry.Name] = $defaultEntry[0].Value }
+        }
+    }
     $variableValues = @{}
     foreach ($entry in Get-iSOCPropertyEntry -InputObject (& $entryOf $Template 'variables')) { $variableValues[$entry.Name] = $entry.Value }
     $variableCache = @{}
@@ -138,6 +160,7 @@ function Resolve-iSOCArmTemplate {
             'parameters' {
                 $key = [string]$arguments[0]
                 $declared = if ($parameterNames.ContainsKey($key)) { $parameterNames[$key] } else { $key }
+                if ($inlined.ContainsKey($declared)) { return , (& $resolveValue $inlined[$declared]) }
                 return "{param:$declared}"
             }
             'variables' {
@@ -218,7 +241,9 @@ function Resolve-iSOCArmTemplate {
 
     $parameters = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
     foreach ($entry in @(Get-iSOCPropertyEntry -InputObject (& $entryOf $Template 'parameters') | Sort-Object Name -CaseSensitive)) {
+        if ($inlined.ContainsKey($entry.Name)) { continue }
         $definition = & $resolveValue $entry.Value
+        foreach ($key in @($definition.Keys | Where-Object { $_ -ieq 'metadata' })) { $definition.Remove($key) }
         $type = & $entryOf $definition 'type'
         if ($type) { $definition['type'] = ([string]$type).ToLowerInvariant() }
         $parameters[$entry.Name] = $definition

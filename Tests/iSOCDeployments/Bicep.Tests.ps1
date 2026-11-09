@@ -9,12 +9,16 @@
 .DESCRIPTION
     - ConvertFrom-iSOCJsonText: dates stay text, order and case kept.
     - The ARM expression parser and its canonical text.
-    - Bicep strings (every escape, ''' blocks), identifiers, expressions
-      (parameters, variables, interpolation, symbolic references,
-      operators, function spelling) and whole templates, against exact
-      expected text, and what the writer refuses.
+    - Bicep strings (every escape, ''' blocks), identifiers, camel case,
+      expressions (parameters, variables, interpolation, symbolic
+      references, subscriptionResourceId, the location parameter,
+      operators, function spelling) and whole templates (names chosen by
+      the caller, descriptions), against exact expected text, and what the
+      writer refuses.
     - Resolve-iSOCArmTemplate and Compare-iSOCArmTemplate: what counts as
-      the same deployment and how a difference is reported.
+      the same deployment (descriptions do not count; an inlined location
+      parameter reads as resourceGroup().location) and how a difference is
+      reported.
     - Invoke-iSOCBicep and round trips through the real Bicep CLI: the
       fixture playbooks and a template with every awkward value are
       written as Bicep, compiled, and must deploy the same thing as the
@@ -32,8 +36,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.1
-    Last Updated: 2026-11-06
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 #>
 
@@ -47,8 +51,8 @@ BeforeAll {
         InModuleScope iSOCDeployments -ScriptBlock $ScriptBlock -Parameters $Parameters
     }
     function Get-SymbolTable {
-        param([hashtable] $Parameters = @{}, [hashtable] $Variables = @{}, [object[]] $Resources = @(), [string] $Current)
-        $symbols = [pscustomobject]@{ Parameters = @{}; ParameterTypes = @{}; Variables = @{}; VariableValues = @{}; Resources = [System.Collections.Generic.List[object]]::new(); Current = $Current }
+        param([hashtable] $Parameters = @{}, [hashtable] $Variables = @{}, [object[]] $Resources = @(), [string] $Current, [string] $Location)
+        $symbols = [pscustomobject]@{ Parameters = @{}; ParameterTypes = @{}; Variables = @{}; VariableValues = @{}; Resources = [System.Collections.Generic.List[object]]::new(); Current = $Current; Location = $(if ($Location) { $Location } else { $null }) }
         foreach ($name in $Parameters.Keys) { $symbols.Parameters[$name] = $name; $symbols.ParameterTypes[$name] = $Parameters[$name] }
         foreach ($name in $Variables.Keys) { $symbols.Variables[$name] = $Variables[$name].Identifier; $symbols.VariableValues[$name] = $Variables[$name].Value }
         foreach ($resource in $Resources) { $symbols.Resources.Add($resource) }
@@ -59,16 +63,17 @@ BeforeAll {
         Invoke-InModule { param($E, $S) ConvertTo-iSOCBicepExpression -Node (ConvertFrom-iSOCArmExpression -Expression $E) -Symbols $S } @{ E = $Expression; S = $Symbols }
     }
     function ConvertTo-BicepFile {
-        param([string] $Json)
-        Invoke-InModule { param($J) ConvertTo-iSOCBicepTemplate -Template (ConvertFrom-iSOCJsonText -Text $J) } @{ J = $Json }
+        param([string] $Json, [hashtable] $VariableName = @{}, [hashtable] $ParameterDescription = @{})
+        Invoke-InModule { param($J, $V, $D) ConvertTo-iSOCBicepTemplate -Template (ConvertFrom-iSOCJsonText -Text $J) -VariableName $V -ParameterDescription $D } @{ J = $Json; V = $VariableName; D = $ParameterDescription }
     }
     function Compare-Json {
-        param([string] $Expected, [string] $Actual)
-        Invoke-InModule { param($A, $B) Compare-iSOCArmTemplate -Expected (ConvertFrom-iSOCJsonText -Text $A) -Actual (ConvertFrom-iSOCJsonText -Text $B) } @{ A = $Expected; B = $Actual }
+        param([string] $Expected, [string] $Actual, [string[]] $InlineParameter = @())
+        Invoke-InModule { param($A, $B, $I) Compare-iSOCArmTemplate -Expected (ConvertFrom-iSOCJsonText -Text $A) -Actual (ConvertFrom-iSOCJsonText -Text $B) -InlineParameter $I } @{ A = $Expected; B = $Actual; I = $InlineParameter }
     }
 
     # A JSON template written as Bicep beside it in TestDrive, compiled, and
-    # compared with the JSON: nothing when they deploy the same thing.
+    # compared with the JSON: nothing when they deploy the same thing. The
+    # location parameter the writer adds reads as resourceGroup().location.
     function Test-RoundTrip {
         param([string[]] $JsonPath)
         $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
@@ -81,7 +86,10 @@ BeforeAll {
         $builds = @(Invoke-InModule { param($P) Invoke-iSOCBicep -Path $P } @{ P = @($pairs | ForEach-Object { $_.Bicep }) })
         for ($i = 0; $i -lt $builds.Count; $i++) {
             if (-not $builds[$i].Succeeded) { "$($pairs[$i].Json): $($builds[$i].Errors -join ' ')"; continue }
-            $difference = Compare-Json -Expected (Get-Content -LiteralPath $pairs[$i].Json -Raw) -Actual $builds[$i].Json
+            $json = Get-Content -LiteralPath $pairs[$i].Json -Raw
+            $declared = @((ConvertFrom-Json -InputObject $json).parameters.PSObject.Properties.Name)
+            $inline = if ($declared -notcontains 'location') { @('location') } else { @() }
+            $difference = Compare-Json -Expected $json -Actual $builds[$i].Json -InlineParameter $inline
             if ($difference) { "$($pairs[$i].Json): $difference" }
         }
     }
@@ -167,6 +175,20 @@ Describe 'Get-iSOCBicepIdentifier' {
     }
 }
 
+Describe 'ConvertTo-iSOCBicepCamelCase' {
+    It 'writes <Name> as <Expected>' -ForEach @(
+        @{ Name = 'MicrosoftSentinelConnectionName'; Expected = 'microsoftSentinelConnectionName' }
+        @{ Name = 'VTEnrichment'; Expected = 'vtEnrichment' }
+        @{ Name = 'ARMId'; Expected = 'armId' }
+        @{ Name = 'URL'; Expected = 'url' }
+        @{ Name = 'VT2Report'; Expected = 'vt2Report' }
+        @{ Name = 'office365-ConnectionName'; Expected = 'office365-ConnectionName' }
+        @{ Name = '_x'; Expected = '_x' }
+    ) {
+        Invoke-InModule { param($N) ConvertTo-iSOCBicepCamelCase -Name $N } @{ N = $Name } | Should -BeExactly $Expected
+    }
+}
+
 Describe 'ConvertTo-iSOCBicepExpression' {
     BeforeAll {
         $script:symbols = Get-SymbolTable -Parameters @{ PlaybookName = 'string'; Count = 'int' } -Variables @{
@@ -189,8 +211,23 @@ Describe 'ConvertTo-iSOCBicepExpression' {
         @{ Case = 'literals'; Expression = "createObject('a', createArray(1, 2), 'b-c', null())"; Expected = "{ a: [1, 2], 'b-c': null }" }
         @{ Case = 'function spelling'; Expression = "uniquestring(resourcegroup().id)"; Expected = 'uniqueString(resourceGroup().id)' }
         @{ Case = 'an index'; Expression = "variables('settings')['a']"; Expected = "settings['a']" }
+        @{ Case = 'a subscription-level id'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')"; Expected = "subscriptionResourceId('Microsoft.Web/locations/managedApis', resourceGroup().location, 'office365')" }
+        @{ Case = 'a subscription-level id split over literals'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/providers/', 'Microsoft.Web/locations/westus/managedApis/', parameters('PlaybookName'))"; Expected = "subscriptionResourceId('Microsoft.Web/locations/managedApis', 'westus', PlaybookName)" }
+        @{ Case = 'a resource group id as a string'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/rg/providers/Microsoft.Logic/workflows/Module-A')"; Expected = "'/subscriptions/`${subscription().subscriptionId}/resourceGroups/rg/providers/Microsoft.Logic/workflows/Module-A'" }
+        @{ Case = 'an id with a trailing slash as a string'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/x/')"; Expected = "'/subscriptions/`${subscription().subscriptionId}/providers/Microsoft.Web/locations/x/'" }
+        @{ Case = 'resourceGroup().location without a location parameter'; Expression = 'resourceGroup().location'; Expected = 'resourceGroup().location' }
     ) {
         ConvertTo-Bicep -Expression $Expression -Symbols $script:symbols | Should -BeExactly $Expected
+    }
+
+    It 'reads resourceGroup().location as the location parameter, in <Case>' -ForEach @(
+        @{ Case = 'a value'; Expression = 'resourceGroup().location'; Expected = 'location' }
+        @{ Case = 'interpolation'; Expression = "concat('at-', resourceGroup().location)"; Expected = "'at-`${location}'" }
+        @{ Case = 'an id'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/teams')"; Expected = "subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'teams')" }
+        @{ Case = 'another property'; Expression = 'resourceGroup().name'; Expected = 'resourceGroup().name' }
+    ) {
+        $located = Get-SymbolTable -Parameters @{ PlaybookName = 'string' } -Location 'location'
+        ConvertTo-Bicep -Expression $Expression -Symbols $located | Should -BeExactly $Expected
     }
 
     It 'keeps resourceId inside the resource it names' {
@@ -248,16 +285,20 @@ metadata tags = [
 ]
 
 param PlaybookName string = 'Module-T'
+
 @secure()
 @description('A key')
 param Secret string
+
+@description('The region for the resources; the resource group\'s by default.')
+param location string = resourceGroup().location
 
 var office365_ConnectionName = 'office365-${PlaybookName}'
 
 #disable-next-line BCP081
 resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
   name: PlaybookName
-  location: resourceGroup().location
+  location: location
   properties: {
     state: 'Enabled'
     definition: {
@@ -279,7 +320,7 @@ resource workflow 'Microsoft.Logic/workflows@2017-07-01' = {
 
 resource office365_Connection 'Microsoft.Web/connections@2016-06-01' = {
   name: office365_ConnectionName
-  location: resourceGroup().location
+  location: location
   #disable-next-line BCP187
   kind: 'V1'
   properties: {
@@ -287,13 +328,45 @@ resource office365_Connection 'Microsoft.Web/connections@2016-06-01' = {
     #disable-next-line BCP037
     parameterValueType: 'Alternative'
     api: {
-      id: '/subscriptions/${subscription().subscriptionId}/providers/Microsoft.Web/locations/${resourceGroup().location}/managedApis/office365'
+      id: subscriptionResourceId('Microsoft.Web/locations/managedApis', location, 'office365')
     }
   }
 }
 
 '@
         ConvertTo-BicepFile -Json $script:template | Should -BeExactly $expected.Replace("`r`n", "`n")
+    }
+
+    It 'names variables in camel case, or as the caller says, and the connection after its variable' {
+        $pascal = ConvertTo-BicepFile -Json $script:template.Replace('office365-ConnectionName', 'Office365ConnectionName')
+        $pascal | Should -Match "(?m)^var office365ConnectionName = "
+        $pascal | Should -Match "(?m)^resource office365Connection 'Microsoft\.Web/connections@2016-06-01' = \{$"
+        $chosen = ConvertTo-BicepFile -Json $script:template -VariableName @{ 'office365-ConnectionName' = 'mailConnectionName' }
+        $chosen | Should -Match "(?m)^var mailConnectionName = "
+        $chosen | Should -Match "(?m)^  name: mailConnectionName$"
+        $chosen | Should -Match "(?m)^            connectionId: mailConnection\.id$"
+    }
+
+    It 'describes a parameter that has no description of its own' {
+        $text = ConvertTo-BicepFile -Json $script:template -ParameterDescription @{ PlaybookName = 'The name.'; Secret = 'Not used' }
+        $text | Should -Match "(?m)^@description\('The name\.'\)\nparam PlaybookName string = 'Module-T'$"
+        $text | Should -Match "(?m)^@secure\(\)\n@description\('A key'\)\nparam Secret string$"
+        $text | Should -Not -Match 'Not used'
+    }
+
+    It 'leaves a template that has its own location parameter as it is' {
+        $own = $script:template.Replace('"PlaybookName": {', '"location": { "type": "string", "defaultValue": "[resourceGroup().location]" }, "PlaybookName": {')
+        $text = ConvertTo-BicepFile -Json $own
+        @([regex]::Matches($text, '(?m)^param location ')).Count | Should -Be 1
+        $text | Should -Match "(?m)^param location string = resourceGroup\(\)\.location$"
+        $text | Should -Match "(?m)^  location: resourceGroup\(\)\.location$"
+    }
+
+    It 'adds no location parameter when nothing reads the location' {
+        $json = ($script:template -replace '"location": "\[resourceGroup\(\)\.location\]",\s*', '').Replace("resourceGroup().location, '/managedApis/office365'", "'westus', '/managedApis/office365'")
+        $text = ConvertTo-BicepFile -Json $json
+        $text | Should -Not -Match 'param location'
+        $text | Should -Match "subscriptionResourceId\('Microsoft\.Web/locations/managedApis', 'westus', 'office365'\)"
     }
 
     It 'keeps a dependsOn the body does not imply' {
@@ -322,10 +395,20 @@ Describe 'Compare-iSOCArmTemplate' {
     It 'treats <Case> as the same deployment' -ForEach @(
         @{ Case = 'format() for concat(), another key order and dependsOn order'; Other = '{"metadata":{"_generator":{"name":"bicep"},"t":"x"},"parameters":{"N":{"defaultValue":"n","type":"string"}},"variables":{"renamed":"[format(''a-{0}'', parameters(''N''))]"},"resources":[{"name":"[variables(''renamed'')]","apiVersion":"1","type":"T.P/x","dependsOn":["[resourceId(''T.P/y'', ''two'')]","[resourceId(''T.P/y'', ''one'')]"],"properties":{"a":"[format(''/{0}'', resourceGroup().location)]","b":1}}]}' }
         @{ Case = 'a Logic App without provisioningState'; Other = $null }
+        @{ Case = 'a parameter description'; Other = '{"parameters":{"N":{"type":"String","defaultValue":"n","metadata":{"description":"The name."}}},"variables":{"v":"[concat(''a-'', parameters(''N''))]"},"resources":[{"type":"T.P/x","apiVersion":"1","name":"[variables(''v'')]","properties":{"b":1,"a":"[concat(''/'', resourceGroup().location)]"},"dependsOn":["[resourceId(''T.P/y'', ''one'')]","[resourceId(''T.P/y'', ''two'')]"]}],"metadata":{"t":"x"}}' }
     ) {
         if (-not $Other) { $Other = $script:base.Replace('"type":"T.P/x"', '"type":"Microsoft.Logic/workflows"') ; $first = $script:base.Replace('"type":"T.P/x"', '"type":"Microsoft.Logic/workflows"').Replace(',"provisioningState":"Succeeded"', '') }
         else { $first = $script:base.Replace(',"provisioningState":"Succeeded"', '') }
         Compare-Json -Expected $first -Actual $Other | Should -BeNullOrEmpty
+    }
+
+    It 'reads an inlined location parameter as resourceGroup().location' {
+        $first = $script:base.Replace(',"provisioningState":"Succeeded"', '')
+        $located = $first.Replace('"parameters":{', '"parameters":{"location":{"type":"string","defaultValue":"[resourceGroup().location]"},').Replace('resourceGroup().location', 'parameters(''location'')').Replace('"defaultValue":"[parameters(''location'')]"', '"defaultValue":"[resourceGroup().location]"')
+        Compare-Json -Expected $first -Actual $located | Should -BeExactly 'parameters.location: missing in the first, {"defaultValue":"{rg.location}","type":"string"} in the second'
+        Compare-Json -Expected $first -Actual $located -InlineParameter location | Should -BeNullOrEmpty
+        Compare-Json -Expected $first -Actual $located.Replace('"defaultValue":"[resourceGroup().location]"', '"defaultValue":"westus"') -InlineParameter location |
+            Should -BeExactly 'resources[0].properties.a: "/{rg.location}" in the first, "/westus" in the second'
     }
 
     It 'names the first difference: <Case>' -ForEach @(

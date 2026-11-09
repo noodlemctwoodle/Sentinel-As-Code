@@ -16,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.0
-    Last Updated: 2026-11-06
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+, the Bicep CLI
 
     This file defines functions rather than running. Per-parameter and
@@ -37,12 +37,16 @@ function Convert-iSOCPlaybook {
         parameter files, bicepconfig.json or the Template folder):
 
         1. The template is written as Bicep by the module's own writer
-           (ConvertTo-iSOCBicepTemplate), into a temporary copy of its
-           folder, with the repository's bicepconfig.json beside it.
+           (ConvertTo-iSOCPlaybookBicep, as the export writes it), into a
+           temporary copy of its folder, with the repository's
+           bicepconfig.json beside it.
         2. Every candidate is compiled with the Bicep CLI in one run, and
            each compiled template is compared with its JSON
            (Compare-iSOCArmTemplate: every expression evaluated, key and
-           dependsOn order ignored).
+           dependsOn order and descriptions ignored). The location
+           parameter the writer adds is read as its default,
+           resourceGroup().location, which is what the JSON reads; the
+           deploy never sets it.
         3. Only when the Bicep compiles and deploys the same thing is
            <Name>.bicep written beside the JSON file and the JSON file
            removed. A parameters file beside it stays: it serves the Bicep
@@ -141,7 +145,7 @@ function Convert-iSOCPlaybook {
 
             try {
                 $template = ConvertFrom-iSOCJsonText -Text ([System.IO.File]::ReadAllText($item.Path))
-                $text = ConvertTo-iSOCBicepTemplate -Template $template
+                $text = ConvertTo-iSOCPlaybookBicep -Template $template
             }
             catch {
                 & $newResult $item 'Failed' "cannot be written as Bicep: $($_.Exception.Message)"
@@ -177,7 +181,13 @@ function Convert-iSOCPlaybook {
                     & $newResult $candidate.Item 'Failed' "the Bicep does not compile: $(@($build.Errors | ForEach-Object { $_ -replace '^.*?\(\d+,\d+\) : ', '' }) -join ' ')" $warnings
                     continue
                 }
-                $difference = Compare-iSOCArmTemplate -Expected $candidate.Template -Actual $build.Template
+                # The writer's own location parameter reads as the
+                # resourceGroup().location the JSON reads, and only that one:
+                # any other parameter the JSON does not declare is a difference.
+                $sourceParameters = @(Get-iSOCPropertyEntry -InputObject (Get-iSOCPropertyValue -InputObject $candidate.Template -Path 'parameters') | ForEach-Object { $_.Name })
+                $addedLocation = Get-iSOCPropertyValue -InputObject $build.Template -Path 'parameters.location.defaultValue'
+                $inline = if (-not @($sourceParameters | Where-Object { $_ -ieq 'location' }).Count -and $addedLocation -eq '[resourceGroup().location]') { @('location') } else { @() }
+                $difference = Compare-iSOCArmTemplate -Expected $candidate.Template -Actual $build.Template -InlineParameter $inline
                 if ($difference) {
                     & $newResult $candidate.Item 'Failed' "the Bicep would deploy something else: $difference" $warnings
                     continue

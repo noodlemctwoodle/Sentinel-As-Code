@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.2.0
-    Last Updated: 2026-11-06
+    Version:      0.3.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -36,7 +36,7 @@ function ConvertTo-iSOCPlaybookFile {
         The template from ConvertTo-iSOCPlaybookTemplate, with the
         workspace's subscription, resource groups, name and id made
         parameters, with LF line endings and one final newline: as Bicep
-        (ConvertTo-iSOCBicepTemplate) for a .bicep path, otherwise as JSON
+        (ConvertTo-iSOCPlaybookBicep) for a .bicep path, otherwise as JSON
         (MIGRATION.md edit E48). When the repository's file is the same
         apart from its lastUpdateTime, that file's text is returned, so
         nothing changes.
@@ -106,10 +106,10 @@ function ConvertTo-iSOCPlaybookFile {
     }
 
     if ($RelativePath -like '*.bicep') {
-        $text = ConvertTo-iSOCBicepTemplate -Template $template
+        $text = ConvertTo-iSOCPlaybookBicep -Template $template
         if ($Existing -and [string]$Existing -match "(?m)^metadata lastUpdateTime = '([^']*)'$" -and $Matches[1] -ne $template.metadata.lastUpdateTime) {
             $template.metadata.lastUpdateTime = $Matches[1]
-            if ((ConvertTo-iSOCBicepTemplate -Template $template) -ceq [string]$Existing) { return [string]$Existing }
+            if ((ConvertTo-iSOCPlaybookBicep -Template $template) -ceq [string]$Existing) { return [string]$Existing }
         }
         return $text
     }

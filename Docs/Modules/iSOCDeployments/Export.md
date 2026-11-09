@@ -134,16 +134,29 @@ with `-Format Json`. Both describe the same deployment:
   identity keeps it; an OAuth or API key connection needs authorising
   once after deployment;
 - the workflow keeps its live state, has the `Source: Sentinel-As-Code`
-  tag `Set-PlaybookPermissions.ps1` looks for, and a metadata block
+  tag `Grant-iSOCPlaybookPermission` looks for, and a metadata block
   (title, description, the date, entities, tags, support, author);
 - a template that would differ from the repository's only in that date
   is left as it is;
-- in Bicep, the connections are referred to by their symbolic names
-  (`MicrosoftSentinelConnection.id`), ARM `concat()` becomes string
-  interpolation, and where Bicep's own type data is wrong or missing for
-  these resource types (Logic Apps `2017-07-01`; `kind` and
-  `parameterValueType` on API connections) a `#disable-next-line` for that
-  warning sits on the line before, so the file builds clean.
+- in Bicep (`ConvertTo-iSOCPlaybookBicep`, which `Convert-iSOCPlaybook`
+  uses too, so exported and converted playbooks read alike):
+  - every parameter has a `@description`: PlaybookName and the parameters
+    the deploy fills in get the module's own, and a parameter keeps a
+    description the template gives it;
+  - a `location` parameter, defaulting to `resourceGroup().location`, is
+    the region every resource and managed API id reads;
+  - variables and resources are in lower camel case, and each API
+    connection is named after its managed API (`microsoftSentinelConnection`,
+    `microsoftSentinel2Connection` for a second one) and referred to by
+    that symbolic name (`microsoftSentinelConnection.id`);
+  - a managed API id is `subscriptionResourceId(...)`, while a resource
+    group id such as a module reference stays a literal path, as the
+    deploy order reads it;
+  - ARM `concat()` becomes string interpolation;
+  - where Bicep's own type data is wrong or missing for these resource
+    types (Logic Apps `2017-07-01`; `kind` and `parameterValueType` on API
+    connections) a `#disable-next-line` for that warning sits on the line
+    before, so the file builds clean.
 
 The export does not remove secrets. A value that looks like one held in
 plain text (an API key header, an authentication secret, a key in a URI)

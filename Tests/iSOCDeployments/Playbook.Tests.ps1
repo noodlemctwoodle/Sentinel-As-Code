@@ -27,9 +27,13 @@
     Convert-iSOCPlaybook is tested on copies of the fixture repository:
     -WhatIf checks everything and changes nothing, a real run leaves Bicep
     files that read with the same identities (parameters files kept) and
-    has nothing to do a second time, -Name limits it, and a playbook the
+    has nothing to do a second time, -Name limits it, a playbook the
     writer refuses, whose Bicep would deploy something else, or that
-    already has a Bicep file is left as JSON. Parity with
+    already has a Bicep file is left as JSON, and the Bicep is in the
+    export's style (a location parameter, read as the resource group's
+    when compared). ConvertTo-iSOCPlaybookBicep names each API connection
+    after its API and describes the parameters the deploy fills in, the
+    list ConvertTo-iSOCPlaybookRequest fills them from. Parity with
     Deploy-CustomContent.ps1 was proven on release/26.11.0 before the
     script was removed.
 
@@ -44,8 +48,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.0
-    Last Updated: 2026-11-06
+    Version:      0.4.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+, Pester 5+, the Bicep CLI
 
     Az.Resources is not needed: the cmdlets are stood in for.
@@ -212,6 +216,21 @@ Describe 'Playbook handlers' {
 
     It 'leaves out WorkspaceId when the context has none' {
         (Get-Request $script:incident (New-TestContext -WorkspaceId '')).Body.ContainsKey('WorkspaceId') | Should -BeFalse
+    }
+
+    It 'fills in every parameter Get-iSOCPlaybookInjectedParameter lists, each with a description, and nothing else' {
+        $known = @(InModuleScope iSOCDeployments { Get-iSOCPlaybookInjectedParameter })
+        $known.Count | Should -Be 8
+        @($known | Where-Object { -not $_.Description }).Count | Should -Be 0
+        $parameters = [ordered]@{ Other = @{ type = 'string' } }
+        foreach ($entry in $known) { $parameters[$entry.Name] = @{ type = 'string' } }
+        $item = [pscustomobject]@{ ContentType = 'Playbook'; Identity = 'x'; BaseName = 'x'; Path = 'x.bicep'; ParametersPath = (Join-Path $TestDrive 'none.parameters.json'); Data = [pscustomobject]@{ parameters = [pscustomobject]$parameters } }
+        $request = Get-Request $item
+        @($request.Injected) | Should -Be @($known.Name)
+        $request.Body.AutomationResourceGroup | Should -BeExactly 'rg-playbooks'
+        $request.Body.SentinelResourceGroupName | Should -BeExactly 'rg'
+        $request.Body.SentinelWorkspaceName | Should -BeExactly 'ws'
+        $request.Body.ContainsKey('Other') | Should -BeFalse
     }
 
     It 'passes no parameters file when there is none' {
@@ -490,5 +509,55 @@ Describe 'Convert-iSOCPlaybook' {
         $copy = New-FixtureCopy
         Mock -ModuleName iSOCDeployments Compare-iSOCArmTemplate { 'different' }
         (Convert-iSOCPlaybook -RepoPath $copy).ExitCode | Should -Be 1
+    }
+
+    It 'writes the export''s style, and reads the location parameter it adds as the resource group''s' {
+        $copy = New-FixtureCopy
+        (Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/ZuluBase').Converted | Should -Be 1
+        $text = Get-Content -LiteralPath (Join-Path $copy 'Content/Playbooks/Module/ZuluBase.bicep') -Raw
+        $text | Should -Match "(?m)^@description\('The Logic App\\'s name\.'\)\nparam PlaybookName string = "
+        $text | Should -Match '(?m)^param location string = resourceGroup\(\)\.location$'
+        @([regex]::Matches($text, 'resourceGroup\(\)\.location')).Count | Should -Be 1
+    }
+}
+
+Describe 'ConvertTo-iSOCPlaybookBicep' {
+    BeforeAll {
+        function New-Connection {
+            param([string] $Variable, [string] $Api, [string] $Name)
+            [ordered]@{
+                type       = 'Microsoft.Web/connections'
+                apiVersion = '2016-06-01'
+                name       = $(if ($Name) { $Name } else { "[variables('$Variable')]" })
+                location   = '[resourceGroup().location]'
+                properties = [ordered]@{ displayName = 'x'; api = [ordered]@{ id = "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/$Api')]" } }
+            }
+        }
+        $script:connectionTemplate = [ordered]@{
+            '$schema'  = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
+            parameters = [ordered]@{ PlaybookName = [ordered]@{ type = 'string'; defaultValue = 'P' }; SentinelWorkpaceName = [ordered]@{ type = 'string'; defaultValue = '' }; Own = [ordered]@{ type = 'string'; metadata = [ordered]@{ description = 'Its own.' } } }
+            variables  = [ordered]@{ Azuresentinel0ConnectionName = 'a'; Azuresentinel1ConnectionName = 'b'; Virustotal0ConnectionName = 'c'; Wdatp0ConnectionName = 'd' }
+            resources  = @(
+                (New-Connection -Variable 'Azuresentinel0ConnectionName' -Api 'azuresentinel')
+                (New-Connection -Variable 'Azuresentinel1ConnectionName' -Api 'Azuresentinel')
+                (New-Connection -Variable 'Virustotal0ConnectionName' -Api 'virustotal')
+                (New-Connection -Variable 'Wdatp0ConnectionName' -Api 'wdatp')
+                (New-Connection -Name 'fixed-name' -Api 'office365')
+            )
+        }
+        $script:connectionBicep = InModuleScope iSOCDeployments -Parameters @{ T = $script:connectionTemplate } { param($T) ConvertTo-iSOCPlaybookBicep -Template $T }
+    }
+
+    It 'names each connection after its API, numbering a second one to the same API' {
+        @([regex]::Matches($script:connectionBicep, '(?m)^var (\w+) =') | ForEach-Object { $_.Groups[1].Value }) |
+            Should -Be @('microsoftSentinelConnectionName', 'microsoftSentinel2ConnectionName', 'virustotalConnectionName', 'microsoftDefenderXDRConnectionName')
+        @([regex]::Matches($script:connectionBicep, "(?m)^resource (\w+) 'Microsoft\.Web/connections") | ForEach-Object { $_.Groups[1].Value }) |
+            Should -Be @('microsoftSentinelConnection', 'microsoftSentinel2Connection', 'virustotalConnection', 'microsoftDefenderXDRConnection', 'connection')
+    }
+
+    It 'describes PlaybookName and the parameters the deploy fills in, and keeps a description of its own' {
+        $script:connectionBicep | Should -Match "(?m)^@description\('The Logic App\\'s name\.'\)\nparam PlaybookName string = 'P'$"
+        $script:connectionBicep | Should -Match "(?m)^@description\('The Sentinel workspace\\'s name; the deploy fills it in\.'\)\nparam SentinelWorkpaceName string = ''$"
+        $script:connectionBicep | Should -Match "(?m)^@description\('Its own\.'\)\nparam Own string$"
     }
 }

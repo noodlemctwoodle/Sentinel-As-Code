@@ -5,12 +5,10 @@
     ToRequest handler for playbooks: the deployment deploy runs.
 
 .DESCRIPTION
-    Copied from the parameter builder inside Deploy-CustomPlaybooks
-    (Deploy/content/Deploy-CustomContent.ps1), unchanged in what it passes
-    to New-AzResourceGroupDeployment apart from the deployment name, which
-    Invoke-iSOCPlaybookDeploy adds. Tests/iSOCDeployments/DeployParity.Tests.ps1
-    holds every playbook in Content/Playbooks/ to the parameters the script
-    builds.
+    Built as Deploy-CustomPlaybooks built it, apart from the deployment
+    name, which Invoke-iSOCPlaybookDeploy adds. The parameters it fills in
+    come from Get-iSOCPlaybookInjectedParameter, the list the Bicep
+    playbooks' descriptions come from too.
 
 .NOTES
     File:         Modules/iSOCDeployments/Private/ContentTypes/Playbook/ConvertTo-iSOCPlaybookRequest.ps1
@@ -18,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.1.0
-    Last Updated: 2026-11-03
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -70,16 +68,12 @@ function ConvertTo-iSOCPlaybookRequest {
         [psobject] $Context
     )
 
-    $knownParams = @{
-        'AutomationResourceGroup'   = $Context.PlaybookResourceGroup
-        'SentinelResourceGroup'     = $Context.ResourceGroup
-        'SentinelResourceGroupName' = $Context.ResourceGroup
-        'PlaybookResourceGroup'     = $Context.PlaybookResourceGroup
-        'SentinelWorkpaceName'      = $Context.WorkspaceName
-        'SentinelWorkspaceName'     = $Context.WorkspaceName
-        'SubscriptionId'            = $Context.SubscriptionId
+    $knownParams = @{}
+    foreach ($known in Get-iSOCPlaybookInjectedParameter) {
+        $value = $Context.($known.ContextProperty)
+        if ($known.Optional -and -not $value) { continue }
+        $knownParams[$known.Name] = $value
     }
-    if ($Context.WorkspaceId) { $knownParams['WorkspaceId'] = $Context.WorkspaceId }
 
     $deployParams = @{
         ResourceGroupName = $Context.PlaybookResourceGroup

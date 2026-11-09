@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-06
-    Version:      0.1.0
-    Last Updated: 2026-11-06
+    Version:      0.2.0
+    Last Updated: 2026-11-09
     Requires:     PowerShell 7.2+
 
     This file defines functions rather than running. Per-parameter detail
@@ -33,6 +33,13 @@ function ConvertTo-iSOCBicepExpression {
           to be a string (a string parameter or variable, a resource group
           or subscription property, resourceId, guid and the like). Any
           other concat() stays concat().
+          A string that is exactly a subscription-level resource id
+          ('/subscriptions/', subscription().subscriptionId,
+          '/providers/<namespace>/<type>/' and a name, with any further
+          type and name pairs) becomes subscriptionResourceId(); a resource
+          group id stays a string, as the playbook order reads those.
+        - resourceGroup().location becomes the template's location
+          parameter when the symbol table names one (Location).
         - resourceId(type, name) naming a resource in the same template
           (names compared without case, as ARM does) becomes that
           resource's symbolic reference (symbol.id), except inside that
@@ -50,8 +57,9 @@ function ConvertTo-iSOCBicepExpression {
         The symbol table from ConvertTo-iSOCBicepTemplate: Parameters,
         ParameterTypes, Variables and VariableValues (hashtables keyed by
         the ARM name, which compare without case as ARM does), Resources
-        (Type, NameText, Symbol) and Current (the symbol of the resource
-        being written, or null).
+        (Type, NameText, Symbol), Current (the symbol of the resource
+        being written, or null) and, optionally, Location (the identifier
+        resourceGroup().location is written as, or null).
 
     .OUTPUTS
         [string] The Bicep expression.
@@ -121,10 +129,58 @@ function ConvertTo-iSOCBicepExpression {
         }
     }
 
+    # A string that is exactly a subscription-level resource id, as
+    # '/subscriptions/', subscription().subscriptionId, '/providers/<ns>/<type>/'
+    # and a name, with more type and name pairs after it: the items of a
+    # concat, flattened. Returns subscriptionResourceId(...), or nothing
+    # when the string is anything else. A resource group id is left alone.
+    $subscriptionResourceIdOf = {
+        param($Items)
+        $segments = [System.Collections.Generic.List[object]]::new()
+        $current = [System.Collections.Generic.List[object]]::new()
+        foreach ($item in $Items) {
+            if ($item.Kind -ne 'String') { $current.Add($item); continue }
+            $pieces = $item.Value.Split('/')
+            for ($i = 0; $i -lt $pieces.Count; $i++) {
+                if ($i -gt 0) {
+                    $segments.Add($current)
+                    $current = [System.Collections.Generic.List[object]]::new()
+                }
+                if ($pieces[$i]) { $current.Add([pscustomobject]@{ Kind = 'String'; Value = $pieces[$i] }) }
+            }
+        }
+        $segments.Add($current)
+        $text = { param($Segment) if ($Segment.Count -eq 1 -and $Segment[0].Kind -eq 'String') { $Segment[0].Value } else { $null } }
+        if ($segments.Count -lt 7 -or ($segments.Count - 5) % 2 -ne 0 -or $segments[0].Count -ne 0) { return $null }
+        if ((& $text $segments[1]) -ine 'subscriptions' -or (& $text $segments[3]) -ine 'providers') { return $null }
+        $subscription = $segments[2]
+        if ($subscription.Count -ne 1 -or $subscription[0].Kind -ne 'Member' -or $subscription[0].Name -ine 'subscriptionId' -or
+            $subscription[0].Target.Kind -ne 'Call' -or $subscription[0].Target.Name -ine 'subscription' -or @($subscription[0].Target.Arguments).Count -ne 0) { return $null }
+        $namespace = & $text $segments[4]
+        if ($namespace -notmatch '^[A-Za-z0-9]+(\.[A-Za-z0-9]+)+$') { return $null }
+        $types = [System.Collections.Generic.List[string]]::new()
+        $names = [System.Collections.Generic.List[string]]::new()
+        for ($i = 5; $i -lt $segments.Count; $i += 2) {
+            $type = & $text $segments[$i]
+            if ($type -notmatch '^[A-Za-z0-9]+$' -or $segments[$i + 1].Count -ne 1) { return $null }
+            $name = $segments[$i + 1][0]
+            if ($name.Kind -ne 'String' -and -not (& $isString $name)) { return $null }
+            $types.Add($type)
+            $names.Add((& $write $name))
+        }
+        "subscriptionResourceId($(ConvertTo-iSOCBicepString -Value "$namespace/$($types -join '/')"), $($names -join ', '))"
+    }
+
     switch ($Node.Kind) {
         'String' { return (ConvertTo-iSOCBicepString -Value $Node.Value) }
         'Number' { return [string]$Node.Value }
-        'Member' { return (& $write $Node.Target) + '.' + $Node.Name }
+        'Member' {
+            $location = if ($Symbols.PSObject.Properties['Location']) { $Symbols.Location } else { $null }
+            if ($location -and $Node.Name -ieq 'location' -and $Node.Target.Kind -eq 'Call' -and $Node.Target.Name -ieq 'resourceGroup' -and @($Node.Target.Arguments).Count -eq 0) {
+                return $location
+            }
+            return (& $write $Node.Target) + '.' + $Node.Name
+        }
         'Index' { return (& $write $Node.Target) + '[' + (& $write $Node.Index) + ']' }
     }
 
@@ -162,17 +218,29 @@ function ConvertTo-iSOCBicepExpression {
         'concat' {
             $literalArgument = @($arguments | Where-Object { $_.Kind -eq 'String' }).Count -gt 0
             if ($literalArgument -or (& $isString $Node)) {
-                $parts = [System.Text.StringBuilder]::new()
+                # Nested string concats flattened, and neighbouring literals
+                # joined, so the string is a run of literals and expressions.
+                $flat = [System.Collections.Generic.List[object]]::new()
                 $flatten = $null
                 $flatten = {
                     param($Items)
                     foreach ($item in $Items) {
-                        if ($item.Kind -eq 'String') { [void]$parts.Append((ConvertTo-iSOCBicepString -Value $item.Value -Fragment)) }
-                        elseif ($item.Kind -eq 'Call' -and $item.Name -ieq 'concat' -and (& $isString $item)) { & $flatten @($item.Arguments) }
-                        else { [void]$parts.Append('${' + (& $write $item) + '}') }
+                        if ($item.Kind -eq 'Call' -and $item.Name -ieq 'concat' -and (& $isString $item)) { & $flatten @($item.Arguments); continue }
+                        if ($item.Kind -eq 'String' -and $flat.Count -gt 0 -and $flat[$flat.Count - 1].Kind -eq 'String') {
+                            $flat[$flat.Count - 1] = [pscustomobject]@{ Kind = 'String'; Value = $flat[$flat.Count - 1].Value + $item.Value }
+                            continue
+                        }
+                        $flat.Add($item)
                     }
                 }
                 & $flatten $arguments
+                $resourceId = & $subscriptionResourceIdOf $flat
+                if ($resourceId) { return $resourceId }
+                $parts = [System.Text.StringBuilder]::new()
+                foreach ($item in $flat) {
+                    if ($item.Kind -eq 'String') { [void]$parts.Append((ConvertTo-iSOCBicepString -Value $item.Value -Fragment)) }
+                    else { [void]$parts.Append('${' + (& $write $item) + '}') }
+                }
                 return "'" + $parts.ToString() + "'"
             }
         }
