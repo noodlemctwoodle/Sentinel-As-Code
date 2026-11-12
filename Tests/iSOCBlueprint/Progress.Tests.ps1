@@ -31,7 +31,7 @@ BeforeAll {
     . (Join-Path $sp 'Private/Get-SacProgress.ps1')
     $script:html = Get-Content (Join-Path $sp 'templates/sharepoint-dashboard.html') -Raw
     $script:publisher = Get-Content (Join-Path $sp 'Publish-SentinelDocsSite.ps1') -Raw
-    $script:sacSharePoint = Get-Content (Join-Path $sp 'Private/SacSharePoint.ps1') -Raw
+    $script:sacSharePoint = (Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
 
     # A model with just the parts the record reads.
     $script:model = [ordered]@{

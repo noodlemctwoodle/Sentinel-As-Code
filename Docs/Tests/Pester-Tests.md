@@ -448,7 +448,7 @@ are described in the validate table above.
   formats and with `-OutputFormat Json` and validates every `sections/*.json`
   against [`Modules/iSOCBlueprint/Engine/Schemas/`](../../Modules/iSOCBlueprint/Engine/Schemas).
 - [`SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1)
-  dot-sources the helpers under [`Modules/iSOCBlueprint/Engine/SharePoint/Private/`](../../Modules/iSOCBlueprint/Engine/SharePoint/Private)
+  dot-sources the helpers under [`Modules/iSOCBlueprint/Engine/SharePoint/Private/`](../../Modules/iSOCBlueprint/Engine/SharePoint/Private) (the publisher's SharePoint functions are one per file under [`Modules/iSOCBlueprint/Private/SharePoint`](../../Modules/iSOCBlueprint/Private/SharePoint), loaded by `SacSharePoint.ps1`)
   and runs [`Build-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)
   (which loads the functions under [`Modules/iSOCBlueprint/Private/Site`](../../Modules/iSOCBlueprint/Private/Site))
   offline against the rendered fixture. The publisher's decisions live in pure

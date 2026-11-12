@@ -107,6 +107,8 @@ Private/             the engine runner, path defaults, prerequisite checks
     Invoke-iSOCBlueprintCollect.ps1  entry point
     Captures/<Area>/                 one Invoke-*Capture function per capture
     Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Try-Capture, capture order
+  SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)
+    Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
   Site/              the SharePoint site build, one function per file (loaded by Engine/SharePoint/Build-SentinelDocsSite.ps1)
     Invoke-iSOCBlueprintSiteBuild.ps1  entry point
     Steps/  Helpers/  Data/            one step per part of the model, then the bundle writer
