@@ -227,7 +227,7 @@ External helpers used by the renderer:
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
 - `Get-SentinelCostEstimate`, used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
-- `Get-SentinelGap` + `GapChecks.ps1`, also exporter-side; produces
+- `Get-SentinelGap` + the gap checks (`Private/Gap`, loaded by `GapChecks.ps1`), also exporter-side; produces
   `_raw/gap-analysis.json`.
 - The `Format-Blueprint*` helpers,
   [`Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1),
@@ -548,7 +548,7 @@ assets root).
 | [`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
+| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) (loads the one-per-file checks under [`Private/Gap`](../../../Modules/iSOCBlueprint/Private/Gap)) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | The Microsoft 365 E5 and Defender for Servers Plan 2 data grants, their allowances and the tables each covers |
@@ -647,8 +647,8 @@ assets root).
 
 ### Adding a new gap rule
 Out of scope for this renderer spec, see the [`best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json)
-schema and [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
-pattern. The renderer consumes the gap output via `_raw/gap-analysis.json`
+schema and the checks under [`Private/Gap/Checks`](../../../Modules/iSOCBlueprint/Private/Gap/Checks)
+(one file per rule) for the pattern. The renderer consumes the gap output via `_raw/gap-analysis.json`
 and writes the 90-gap-analysis.md page; new rules surface automatically.
 
 ## Verification

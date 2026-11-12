@@ -223,7 +223,7 @@ recommendation.
 This block uses an ingest-volume heuristic. A second, independent
 Lake-candidate signal exists in the gap checker: `Test-DataLakeMirroringCandidate`
 (`SAC-LOG-14`, "Data Lake mirroring candidate") in
-[`Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
+[`Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1)
 flags Analytics-plan tables with `totalRetentionInDays > 365`, a retention
 heuristic, and surfaces via the report's Findings/Gaps section rather than
 Section 88. The two lists can disagree (a table can be high-volume but
@@ -366,7 +366,7 @@ retention chart.
 | [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json) | Lake meter → category mapping |
-| [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
+| [`Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
 | [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |
 
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`

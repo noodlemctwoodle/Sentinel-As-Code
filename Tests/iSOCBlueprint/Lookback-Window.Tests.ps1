@@ -89,15 +89,15 @@ Describe 'The gap engine judges the window it was given' {
     }
 
     It 'reads 30 days and 7 from a run that carries no window' {
-        $w = _Window $null
+        $w = Get-GapWindow $null
         $w.Days | Should -Be 30
         $w.RecentDays | Should -Be 7
     }
 
     It 'compares a per-30-day threshold as a 30-day rate' {
         $inv = [pscustomobject]@{ Window = [pscustomobject]@{ Days = 14; RecentDays = 7 } }
-        _Per30 14 $inv | Should -Be 30
-        _Days 1 | Should -Be '1 day'
+        ConvertTo-GapPer30Days 14 $inv | Should -Be 30
+        Format-GapDays 1 | Should -Be '1 day'
     }
 
     It 'names the window in a finding''s evidence' {

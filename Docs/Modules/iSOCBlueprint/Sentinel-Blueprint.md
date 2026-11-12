@@ -487,9 +487,12 @@ Learn pages the tool depends on.
 
 ## How the gap engine works
 
-The findings on `90-gap-analysis.md` are produced by small `Test-*` functions
-in [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1),
-dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
+The findings on `90-gap-analysis.md` are produced by small `Test-*` functions,
+one per file under [`Modules/iSOCBlueprint/Private/Gap/Checks`](../../../Modules/iSOCBlueprint/Private/Gap/Checks)
+(a folder per rule-id prefix: `Logging` for `SAC-LOG-nn`, `Detection` for
+`SAC-DET-nn`, and so on) with their shared helpers in `Private/Gap/Helpers`.
+[`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
+loads them all. The checks are dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
 The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
 a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
 reads `(ConvertFrom-Json).rules`. Each entry looks like:
@@ -665,11 +668,13 @@ reference files among them). `Inventory.RawFiles` lists the JSON files
 that exist, and the checks that need it use it to stay quiet when a
 capture did not run rather than report "none" on a failed call. KQL
 result cells arrive as strings, so the checks read numbers through small
-`_ToInt` / `_ToDouble` helpers rather than casting.
+`ConvertTo-GapInt` / `ConvertTo-GapDouble` helpers rather than casting.
 
 ### Adding a new rule
 
-1. Write `Test-MyNewRule` in `GapChecks.ps1`.
+1. Write `Test-MyNewRule` as its own file under
+   `Modules/iSOCBlueprint/Private/Gap/Checks/<Area>/`, the area named for the
+   rule id prefix. `GapChecks.ps1` picks it up; nothing else needs registering.
 2. Add a row to `best-practices.json` referencing it by name.
 3. Add a fixture-driven Pester test under
    `Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`.

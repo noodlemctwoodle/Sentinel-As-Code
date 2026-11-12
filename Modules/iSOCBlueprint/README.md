@@ -103,12 +103,16 @@ Private/             the engine runner, path defaults, prerequisite checks
     Helpers/                         generic helpers (formatting, dates, output)
     Sections/                        one folder per report page
     Data/                            lookup tables
+  Gap/               the gap checks, one function per file (loaded by Engine/Private/GapChecks.ps1)
+    Checks/<Area>/                   one Test-* check per rule, by rule-id prefix
+    Helpers/                         finding shape, property reads, window, converters
+    Data/                            values the checks share
 Engine/              the Blueprint itself, as scripts
   Export-SentinelInventory.ps1            collector
   Convert-SentinelInventoryToMarkdown.ps1 renderer command line (loads Private/Render)
   Convert-MermaidToImage.ps1              chart images
   Update-ConnectorCatalogue.ps1           catalogue refresh
-  Private/                                gap analysis, maturity, helpers
+  Private/                                gap analysis loader, maturity, helpers
   Private/Resources/                      rules, criteria, catalogues, page 99
   Private/Vendor/                         KQL helpers copied from Sentinel.Common
   Report/                                 Word conversion

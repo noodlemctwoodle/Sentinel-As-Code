@@ -35,7 +35,6 @@ BeforeDiscovery {
     $limit = 300
     $legacy = @(
         'Engine/Export-SentinelInventory.ps1'
-        'Engine/Private/GapChecks.ps1'
         'Engine/SharePoint/Build-SentinelDocsSite.ps1'
         'Engine/SharePoint/Private/SacSharePoint.ps1'
         'Engine/Private/Get-SentinelMaturity.ps1'

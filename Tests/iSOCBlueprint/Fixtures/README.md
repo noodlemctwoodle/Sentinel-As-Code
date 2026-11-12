@@ -16,8 +16,8 @@ test suite on credentials and make every PR untestable in CI.
 ## Why this fixture is deliberately broken
 
 `sample/_raw/` encodes a workspace that violates many best-practice rules
-on purpose, so each `Test-*` function in
-[`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
+on purpose, so each `Test-*` function under
+[`Modules/iSOCBlueprint/Private/Gap/Checks`](../../../Modules/iSOCBlueprint/Private/Gap/Checks)
 has at least one positive case to prove against. Each rule's expected
 firing condition is documented in the comment block at the top of
 [`Get-SentinelGap.Tests.ps1`](../Get-SentinelGap.Tests.ps1).

@@ -1103,6 +1103,7 @@ Describe 'Gap evidence writes counts, GB, dates and plurals as the dashboard doe
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         $script:gapChecksPath = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
+        $script:gapSourceRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Gap'
         . $script:gapChecksPath
         $customTable = { param($name) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'CustomLog' } } } }
         $script:orphanInv = { param([string[]]$Names) [pscustomobject]@{ WorkspaceTables = @($Names | ForEach-Object { & $customTable $_ }); TablesWithData = @([pscustomobject]@{ DataType = 'Other' }) } }
@@ -1113,7 +1114,10 @@ Describe 'Gap evidence writes counts, GB, dates and plurals as the dashboard doe
     }
 
     It 'never writes a plural as (s) in the gap check source' {
-        (Get-Content $script:gapChecksPath -Raw) | Should -Not -Match '[A-Za-z]\((s|es|ies)\)'
+        $gapSource = Get-ChildItem $script:gapSourceRoot -Filter '*.ps1' -File -Recurse |
+            ForEach-Object { Get-Content $_.FullName -Raw }
+        $gapSource | Should -Not -BeNullOrEmpty
+        ($gapSource -join "`n") | Should -Not -Match '[A-Za-z]\((s|es|ies)\)'
     }
 
     It 'separates thousands in the playbook counts and writes the last failure as a date and time' {
