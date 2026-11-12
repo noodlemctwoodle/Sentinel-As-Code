@@ -29,7 +29,7 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $engine = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine'
     . (Join-Path $engine 'Private/Write-CaptureSummary.ps1')
-    $script:collector = Get-Content (Join-Path $engine 'Export-SentinelInventory.ps1') -Raw
+    $script:collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
     $script:renderer = (Get-ChildItem (Join-Path $engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     $script:siteBuild = Get-Content (Join-Path $engine 'SharePoint/Build-SentinelDocsSite.ps1') -Raw
     $script:fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'

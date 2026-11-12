@@ -156,8 +156,8 @@ Describe 'whats-new-topics.json' {
     }
 
     It 'is captured by the collector as a single-object file' {
-        $collector = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1') -Raw
-        $collector | Should -Match "Try-Capture 'whats-new' \{"
+        $collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine') 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
+        $collector | Should -Match 'function Invoke-WhatsNewCapture \{'
         $collector | Should -Match "Save-Json -FileName 'whats-new\.json' -Data \(Get-WhatsNew -Months 12\)"
         $collector | Should -Match "'whats-new\.json'\s*\)"
     }

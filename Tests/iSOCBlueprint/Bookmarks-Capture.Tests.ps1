@@ -26,13 +26,12 @@
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $collectorPath = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1'
-    $collector = Get-Content $collectorPath -Raw
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($collectorPath, [ref]$null, [ref]$null)
+    $collectorRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector'
+    $helperPath = Join-Path $collectorRoot 'Helpers/ConvertFrom-HuntingBookmarkRow.ps1'
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($helperPath, [ref]$null, [ref]$null)
     . ([scriptblock]::Create($ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertFrom-HuntingBookmarkRow' }, $true).Extent.Text))
-    # The bookmarks capture's own text, up to the next capture.
-    $start = $collector.IndexOf("Try-Capture 'bookmarks'")
-    $script:capture = $collector.Substring($start, $collector.IndexOf("Try-Capture 'hunts'") - $start)
+    # The bookmarks capture's own text.
+    $script:capture = Get-Content (Join-Path $collectorRoot 'Captures/Sentinel/Invoke-BookmarksCapture.ps1') -Raw
 
     function New-BookmarkRow([string]$Tags) {
         [pscustomobject]@{

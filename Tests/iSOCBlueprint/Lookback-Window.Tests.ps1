@@ -29,7 +29,7 @@ BeforeAll {
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:resourcesDir = Join-Path $script:engine 'Private/Resources'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
     $script:renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     $script:repoRoot = $repoRoot
 
@@ -69,7 +69,7 @@ Describe 'The collector reads one lookback' {
     }
 
     It 'declares lookback, recent and daily ahead of the query text' {
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Export-SentinelInventory.ps1') 'Add-BpWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
         $script:LookbackDays = 14; $script:RecentDays = 7; $script:DailyDays = 14
         Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 14d;`nlet recent = 7d;`nlet daily = 14d;`nUsage | take 1"
     }

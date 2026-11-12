@@ -103,6 +103,10 @@ Private/             the engine runner, path defaults, prerequisite checks
     Helpers/                         generic helpers (formatting, dates, output)
     Sections/                        one folder per report page
     Data/                            lookup tables
+  Collector/         the collector, one function per file (loaded by Engine/Export-SentinelInventory.ps1)
+    Invoke-iSOCBlueprintCollect.ps1  entry point
+    Captures/<Area>/                 one Invoke-*Capture function per capture
+    Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Try-Capture, capture order
   Maturity/          the maturity assessment, one function per file (loaded by Engine/Private/Get-SentinelMaturity.ps1)
     Get-SentinelMaturity.ps1         entry point
     Metrics/  Criteria/  Reporting/  Helpers/  Data/
@@ -111,7 +115,7 @@ Private/             the engine runner, path defaults, prerequisite checks
     Helpers/                         finding shape, property reads, window, converters
     Data/                            values the checks share
 Engine/              the Blueprint itself, as scripts
-  Export-SentinelInventory.ps1            collector
+  Export-SentinelInventory.ps1            collector command line (loads Private/Collector)
   Convert-SentinelInventoryToMarkdown.ps1 renderer command line (loads Private/Render)
   Convert-MermaidToImage.ps1              chart images
   Update-ConnectorCatalogue.ps1           catalogue refresh

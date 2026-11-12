@@ -3,15 +3,15 @@
 A durable record of the API versions, services, modules and KQL queries the Blueprint
 depends on. When something in Microsoft's surface area changes, this page is
 the first thing to update; the change then ripples through `Blueprint.psd1`, the inline
-api-version table in `Export-SentinelInventory.ps1`, `Private/Invoke-SentinelRest.ps1`,
+api-version table in `Get-CollectorApiVersion` (`Private/Collector/Setup`), `Private/Invoke-SentinelRest.ps1`,
 and the gap-rule resources.
 
 <!-- bp:tone warning -->
 
 > **Where the api-versions actually live** The `ApiVersions` block in `Blueprint.psd1`
-> is a reference copy only, it is **not** read at runtime. `Export-SentinelInventory.ps1`
-> hardcodes its own copy of the same five versions in the `$apiVersions` hashtable near
-> the top of the script. Reading the manifest at script start was failing silently on the
+> is a reference copy only, it is **not** read at runtime. `Get-CollectorApiVersion`
+> (`Private/Collector/Setup/Get-CollectorApiVersion.ps1`) hardcodes its own copy of the
+> same five versions in the hashtable it returns. Reading the manifest at script start was failing silently on the
 > ADO Linux agent (the collector's child scopes received an empty `$apiVersions`, so every
 > REST call fired without an api-version and Azure returned `400 MissingApiVersionParameter`).
 > The two copies must be kept in sync by hand; updating only `Blueprint.psd1` has no effect
@@ -44,7 +44,7 @@ literal string.
 
 Beyond the five keyed versions above, the collector hardcodes several literal api-versions
 inline where a resource provider is published on its own cadence. These are **not** in the
-`$apiVersions` table, so grep `Export-SentinelInventory.ps1` for the literal string when one
+`$apiVersions` table, so grep `Private/Collector` for the literal string when one
 needs bumping.
 
 | Surface | Version | Capture |

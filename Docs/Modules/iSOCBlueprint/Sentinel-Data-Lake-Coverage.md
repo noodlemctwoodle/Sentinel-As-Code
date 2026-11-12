@@ -34,8 +34,8 @@ for first, but it does not exist. Workspace-level `/settings`,
 
 ### Blueprint capture method
 
-The exporter ([`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1),
-`Try-Capture 'sentinel-data-lake'`) does a single Resource Graph query
+The exporter ([`Invoke-SentinelDataLakeCapture`](../../../Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1),
+the `sentinel-data-lake` capture) does a single Resource Graph query
 across every subscription the executing identity can read:
 
 ```kql
@@ -362,7 +362,7 @@ retention chart.
 
 | File | Role |
 |---|---|
-| [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) | `Try-Capture 'sentinel-data-lake'` (Resource Graph query) |
+| [`Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1`](../../../Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1) | The `sentinel-data-lake` capture (Resource Graph query) |
 | [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json) | Lake meter → category mapping |

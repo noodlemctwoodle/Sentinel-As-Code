@@ -205,7 +205,7 @@ Describe 'The currency it prices in' {
     }
 
     It 'takes -Currency Auto by default, everywhere it is set, and records it' {
-        $collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
+        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
         $collector | Should -Match "\[ValidateSet\('Auto', 'USD'.*'TWD'\)\]\s+\[string\]\`$Currency = 'Auto'"
         $collector | Should -Match 'Currency\s+= \$Currency'
         $collector | Should -Match "\`$currencyCode = if \(\`$Currency -eq 'Auto'\) \{ Resolve-AzureRetailCurrency -Region \`$region \}"

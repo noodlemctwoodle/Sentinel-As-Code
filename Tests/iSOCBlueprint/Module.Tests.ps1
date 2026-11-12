@@ -188,8 +188,7 @@ Describe 'Prerequisites' {
 
 Describe 'Collector API versions' {
     It 'reads alert rules with the preview API, which carries subTechniques, and falls back to GA' {
-        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
-        $block = [regex]::Match($collector, "(?s)Try-Capture 'alert-rules' \{.*?\n\}").Value
+        $block = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/Collector/Captures/Sentinel/Invoke-AlertRulesCapture.ps1') -Raw
         $block | Should -Match '/alertRules" -ApiVersion \$apiVersions\.SentinelPreview'
         $block | Should -Match '(?s)catch \{.*/alertRules" -ApiVersion \$apiVersions\.Sentinel\s'
     }
@@ -197,8 +196,7 @@ Describe 'Collector API versions' {
 
 Describe 'Alert volume capture' {
     It 'counts each alert once, not each record a status change writes' {
-        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
-        $block = [regex]::Match($collector, "(?s)Try-Capture 'analytics-rule-volumes' \{.*?\n\}").Value
+        $block = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/Collector/Captures/Detection/Invoke-AnalyticsRuleVolumesCapture.ps1') -Raw
         $block | Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName\) by SystemAlertId'
         $block | Should -Match 'by AlertName, ProductName, AlertSeverity'
     }
@@ -206,8 +204,7 @@ Describe 'Alert volume capture' {
 
 Describe 'Incident closure capture' {
     It 'counts closed incidents by who closed them, exporting the category and never the name' {
-        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
-        $block = [regex]::Match($collector, "(?s)Try-Capture 'incidents-summary' \{.*?\n\}").Value
+        $block = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/Collector/Captures/Incidents/Invoke-IncidentsSummaryCapture.ps1') -Raw
         $block | Should -Match 'ModifiedBy contains "Automation", "AutomationRule"'
         $block | Should -Match '"DefenderXdr"'
         $block | Should -Match '"Analyst"'

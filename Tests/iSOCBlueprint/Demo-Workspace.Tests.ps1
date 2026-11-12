@@ -47,7 +47,7 @@ AfterAll {
 
 Describe 'The demo workspace generator' {
     It 'writes every capture the collector writes' {
-        $collector = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1') -Raw
+        $collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine') 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
         # Three are written only in a case the demo does not have: a
         # dedicated cluster, and a bookmark list too large to fetch (its count,
         # and the list read from the HuntingBookmark table instead).

@@ -30,7 +30,7 @@ BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
     $script:html = Get-Content (Join-Path $script:engine 'SharePoint/templates/sharepoint-dashboard.html') -Raw
     $script:buildScript = Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1'
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
@@ -70,7 +70,7 @@ Describe 'The collector counts the daily series' {
     }
 
     It 'declares daily with lookback and recent, falling back to the lookback capped at 90' {
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Export-SentinelInventory.ps1') 'Add-BpWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
         $script:LookbackDays = 120; $script:RecentDays = 7; $script:DailyDays = 0
         Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 120d;`nlet recent = 7d;`nlet daily = 90d;`nUsage | take 1"
         $script:DailyDays = 14
@@ -79,7 +79,8 @@ Describe 'The collector counts the daily series' {
 
     It 'reads each of the five series over the daily window, per day ago' {
         foreach ($name in 'daily-table-usage', 'daily-alerts', 'daily-incidents', 'daily-rule-incidents', 'daily-health') {
-            $m = [regex]::Match($script:collector, "Try-Capture '$name' \{(.*?)\n\}\n", 'Singleline')
+            $captureFunction = 'Invoke-' + (($name -split '-' | ForEach-Object { $_.Substring(0, 1).ToUpper() + $_.Substring(1) }) -join '') + 'Capture'
+            $m = [regex]::Match($script:collector, "function $captureFunction \{(.*?)\n\}\n", 'Singleline')
             $m.Success | Should -BeTrue -Because $name
             $m.Groups[1].Value | Should -Match 'ago\(daily\)' -Because $name
             $m.Groups[1].Value | Should -Match 'DaysAgo = toint\(\(now\(\) - TimeGenerated\) / 1d\)' -Because $name
