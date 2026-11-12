@@ -1,0 +1,37 @@
+#Requires -Version 7.6
+
+<#
+.SYNOPSIS
+    True when an object carries the named member, even with a null value.
+
+.NOTES
+    File:         Modules/iSOCBlueprint/Private/Maturity/Helpers/Test-MaturityProperty.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-11-12
+    Version:      0.1.0
+    Last Updated: 2026-11-12
+    Component:    iSOC Blueprint, Maturity Engine
+    Requires:     PowerShell 7.6+
+
+    This file defines a function rather than running. Per-parameter detail
+    lives on the function's own help block.
+#>
+
+function Test-MaturityProperty {
+    <#
+    .SYNOPSIS
+        True when the object carries the named member, even with a null
+        value. Safe under StrictMode on empty objects and primitives.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $false)] [AllowNull()] $Object,
+        [Parameter(Mandatory = $true)] [string] $Name
+    )
+    if ($null -eq $Object) { return $false }
+    if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($Name) }
+    return ($null -ne $Object.PSObject.Properties[$Name])
+}

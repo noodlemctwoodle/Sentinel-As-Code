@@ -37,7 +37,6 @@ BeforeDiscovery {
         'Engine/Export-SentinelInventory.ps1'
         'Engine/SharePoint/Build-SentinelDocsSite.ps1'
         'Engine/SharePoint/Private/SacSharePoint.ps1'
-        'Engine/Private/Get-SentinelMaturity.ps1'
         'Engine/Report/Convert-MarkdownToWord.ps1'
         'Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1'
         'Engine/Private/ConvertFrom-BlueprintMermaid.ps1'

@@ -44,7 +44,7 @@ function Write-BlueprintMaturityAssessmentSection {
     $n = $Context.n
 
     # Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
-    # Private/Get-SentinelMaturity.ps1; methodology and criteria:
+    # Private/Maturity/Get-SentinelMaturity.ps1; methodology and criteria:
     # Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md.
     $maturityBody = if (-not $maturityOk) {
     @"

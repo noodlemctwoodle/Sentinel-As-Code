@@ -41,7 +41,8 @@ areas, the criteria, the scale and the scoring are this project's own,
 adapted to what a Sentinel workspace can show, and are defined in
 [`Private/Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json)
 and computed by
-[`Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1).
+[`Private/Maturity/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Private/Maturity/Get-SentinelMaturity.ps1)
+and the functions beside it.
 The score is not an official SOC-CMM rating or certification, and this
 project is not affiliated with or endorsed by the SOC-CMM project; SOC-CMM
 is a trademark of its owner. The criterion set, the estate-flow view and
@@ -170,7 +171,7 @@ United States.
 
 ## Metrics catalogue
 
-`New-MaturityMetrics` computes every metric the criteria can reference. A
+[`New-MaturityMetrics`](../../../Modules/iSOCBlueprint/Private/Maturity/Metrics/New-MaturityMetrics.ps1) computes every metric the criteria can reference. A
 metric is `null` when its source file is absent (the criterion is then
 Unknown), and `0` or `false` when the file exists but holds nothing.
 

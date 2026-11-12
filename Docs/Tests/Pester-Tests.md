@@ -418,7 +418,9 @@ are described in the validate table above.
   [`Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1).
 - [`Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
   dot-sources the gap engine and
-  [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1),
+  [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
+  (which loads the functions under
+  [`Modules/iSOCBlueprint/Private/Maturity`](../../Modules/iSOCBlueprint/Private/Maturity)),
   runs both over the fixture, and writes synthetic criteria files to
   `TestDrive:` for the arithmetic cases.
 - [`Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1)

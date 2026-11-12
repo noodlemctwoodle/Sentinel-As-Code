@@ -103,6 +103,9 @@ Private/             the engine runner, path defaults, prerequisite checks
     Helpers/                         generic helpers (formatting, dates, output)
     Sections/                        one folder per report page
     Data/                            lookup tables
+  Maturity/          the maturity assessment, one function per file (loaded by Engine/Private/Get-SentinelMaturity.ps1)
+    Get-SentinelMaturity.ps1         entry point
+    Metrics/  Criteria/  Reporting/  Helpers/  Data/
   Gap/               the gap checks, one function per file (loaded by Engine/Private/GapChecks.ps1)
     Checks/<Area>/                   one Test-* check per rule, by rule-id prefix
     Helpers/                         finding shape, property reads, window, converters

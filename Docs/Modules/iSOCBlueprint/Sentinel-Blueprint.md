@@ -688,7 +688,9 @@ absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
 ## How the maturity assessment works
 
 After the gap engine, the collector runs
-[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
+[`Get-SentinelMaturity`](../../../Modules/iSOCBlueprint/Private/Maturity/Get-SentinelMaturity.ps1)
+(one function per file under `Modules/iSOCBlueprint/Private/Maturity`, loaded by
+[`Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1))
 over the same `_raw/` folder and the per-rule outcomes, and writes
 `maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
 resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
