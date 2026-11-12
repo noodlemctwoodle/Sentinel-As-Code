@@ -44,7 +44,7 @@ BeforeDiscovery {
     $commands = @($manifest.FunctionsToExport | ForEach-Object { @{ Name = $_ } })
     $ownFiles = @(
         Get-Item -LiteralPath (Join-Path $moduleRoot 'iSOCBlueprint.psm1')
-        Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private'), (Join-Path $moduleRoot 'Engine/Private/Vendor') -Filter '*.ps1' -File
+        Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private'), (Join-Path $moduleRoot 'Engine/Private/Vendor') -Filter '*.ps1' -File -Recurse
     ) | ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
     # Every script the module ships, engine included: one that does not
     # parse fails only when a run reaches it.

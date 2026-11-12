@@ -1,6 +1,6 @@
 # iSOC Blueprint, renderer design spec
 
-> Maintainer-facing reference for [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1).
+> Maintainer-facing reference for the renderer, `Invoke-iSOCBlueprintRender` and the files beside it under [`Modules/iSOCBlueprint/Private/Render`](../../../Modules/iSOCBlueprint/Private/Render), run from the command line by [`Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1).
 > The user-facing operating guide is the sibling [`Sentinel-Blueprint.md`](Sentinel-Blueprint.md).
 
 This doc captures the design of the renderer, what each chart is driven
@@ -8,10 +8,10 @@ by, where every helper lives, the Mermaid-safety conventions that govern
 chart emission, and how to extend any of it without regressing.
 
 If you've never touched the renderer before, read this once before
-opening the PowerShell file. The renderer is ~4,240 lines; this doc is
-the map. It has grown substantially over successive waves, so this spec
-cites **function and variable names** rather than hard line numbers,
-which rot on every edit.
+opening the PowerShell files. The renderer is about 11,700 lines in 116
+files, none over 300 lines; this doc is the map. This spec cites
+**function and variable names** rather than hard line numbers, which rot
+on every edit.
 
 ## Architecture overview
 
@@ -32,55 +32,85 @@ README.
 
 Stage 2 (this spec's subject) emits **36 output files**: 35 numbered
 section files (`00-overview.md` through `99-references.md`) plus
-`index.md`. Of the 35 numbered files, 34 are written by `Write-Section`
+`index.md`. Of the 35 numbered files, 34 are written by `Write-BlueprintSection`
 blocks; `99-references.md` is copied verbatim from the resource
 catalogue (`Copy-Item`) rather than generated. Stage 3
 (`Convert-MermaidToImage.ps1`) is described in
 [Mermaid PNG pre-render (ADO only)](#mermaid-png-pre-render-ado-only)
 below.
 
-The renderer is a single PowerShell script organised as:
+The renderer is a set of functions, one file each, under
+`Modules/iSOCBlueprint/Private/Render`:
 
-1. **Param block + module bootstrap**: the `param()` block declares
-   `-WorkspaceName` (mandatory), `-InputRoot`, `-OutputRoot`,
-   `-ResourcesRoot` (defaults to `Private/Resources`); it then dot-sources
-   `Private/Get-EffectiveConnectors.ps1` and `Private/Get-TableFamily.ps1`.
-2. **Helpers**: the toolbox. Documented in detail below. Note these are
-   **not** collected in one block, they are interleaved with the section
-   code (from `Read-Raw` near the top down to `Format-MinutesScalar` well
-   past the two-thirds mark).
-3. **Inventory loading + cross-section hoisting**: every `_raw/*.json` is
-   read once into a typed PSObject via `Read-Raw` / `Read-RawArray`; the
-   few globals that multiple sections share (`$gapBySeverity`,
-   `$gapByCategory`, `$populatedTableNames`, `$estate`, `$maturity` and
-   the health-check captures) are computed here, and `$mitreRowsRich` is
-   built later inside the section-25 block.
-4. **Section emit blocks**: one block per `.md` file. Each block builds
-   its data, optionally builds a Mermaid chart, then calls
-   `Write-Section <filename> <body>` which puts the page's description
-   from `$script:SectionDescriptions` (for the pages whose opening does not
-   already say what they cover) under the title and workspace line, writes to disk + applies the
-   finding-id auto-link pass.
-5. **Index page**: the final `Write-Section 'index.md'` call emits the
-   navigation TOC.
+```
+Render/
+  Invoke-iSOCBlueprintRender.ps1   entry point: setup, the ordered step list, index.json
+  Inventory/Read-BlueprintInventory.ps1   reads _raw/ and works out the shared figures
+  Data/                            lookup tables ($script:SectionDescriptions, ColumnLabels, ShortMonth)
+  Helpers/<Area>/                  generic helpers: Inventory, Output, Dates, Formatting, Window
+  Sections/<Area>/                 one folder per report page: its Write-Blueprint*Section steps
+                                   and the helpers only that page uses
+```
 
-Every section emit block follows the same shape:
+1. **Entry point**: `Invoke-iSOCBlueprintRender` takes `-WorkspaceName`
+   (mandatory), `-InputRoot`, `-OutputRoot`, `-ResourcesRoot` and
+   `-OutputFormat`, turns strict mode off (the inventory's JSON shapes
+   vary between API versions), sets the per-run state and calls each step
+   in order. The command-line script
+   `Engine/Convert-SentinelInventoryToMarkdown.ps1` keeps its parameters,
+   loads these files and the shared helpers under `Engine/Private/`, and
+   calls it.
+2. **Render context**: the steps share their figures through a hashtable,
+   `$Context`. A step opens by taking what it reads from the context
+   (`$rules = $Context.rules`) and ends by leaving what a later step reads
+   (`$Context.mitreRowsRich = $mitreRowsRich`), so what crosses between
+   pages is visible at the top and bottom of each file. Nothing else is
+   shared apart from the per-run `$script:` state the entry point sets
+   (`WriteMarkdown`, `WriteJson`, `SectionIndex` and the paths).
+3. **Inventory loading**: `Read-BlueprintInventory` reads every `_raw/*.json`
+   once into a typed PSObject via `Read-BlueprintRaw` /
+   `Read-BlueprintRawArray`. The few figures that several pages share
+   (`$gapBySeverity`, `$populatedTableNames`, `$maturity` and the health
+   check captures) are worked out here; `$mitreRowsRich` is built later in
+   the section-25 step.
+4. **Section steps**: one or more `Write-Blueprint<Name>Section` functions
+   per `.md` file, in the order the pages are written. Each builds its
+   data, optionally builds a Mermaid chart, then calls
+   `Write-BlueprintSection <filename> <body>`, which puts the page's
+   description from `$script:SectionDescriptions` (for the pages whose
+   opening does not already say what they cover) under the title and
+   workspace line, writes to disk and applies the finding-id auto-link
+   pass. A step is named for the page it ends by writing, and may prepare
+   figures a later page uses; a page too long for one file continues in
+   `...SectionPart2`.
+5. **Index page**: the final step, `Write-BlueprintIndexSection`, emits the
+   navigation TOC; the entry point then writes `sections/index.json`.
+
+Every section step follows the same shape:
 
 ```powershell
-# Optional pre-computation specific to this section.
-# Optional chart-block string ($chartBlock = if (data) { @"..."@ } else { '' }).
+function Write-BlueprintExampleSection {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [hashtable] $Context)
 
-Write-Section '<NN>-<slug>.md' (@"
+    $rules = $Context.rules               # what this step reads
+
+    # Optional pre-computation specific to this section.
+    # Optional chart-block string ($chartBlock = if (data) { @"..."@ } else { '' }).
+
+    Write-BlueprintSection '<NN>-<slug>.md' (@"
 $(Format-Banner -Title "Friendly title")
 $chartBlock                                # injected if non-empty
 ## Subsection
-$(Format-Table -Items $rows -Columns ...)
+$(Format-BlueprintTable -Items $rows -Columns ...)
 "@)
+
+    $Context.exampleRows = $rows          # what a later step reads
+}
 ```
 
-The pattern keeps each section local and grep-able. Helpers compose;
-no section reaches into another section's variables (except via the
-hoisted globals).
+The pattern keeps each section local and grep-able. Helpers compose; a
+page reaches another page's figures only through the context.
 
 ## Chart system
 
@@ -100,7 +130,7 @@ table only.
 | `00-overview.md` | finding cards on a `bp:visual` comment (the top findings, what was found and how to fix it); the Markdown list after it is marked `bp:shown-in-graphic` | `$top5Findings` | findings `-gt 0` |
 | `00-overview.md` | sankey-beta, with a `%% visual estate` line (every family's GB and the part a detection reads; the four stages as in use of a whole); the stage table after it is marked `bp:shown-in-graphic` | `$estate` (source families to Ingestion / Not monitored, then Detection, Alerts, Incidents, Closed / Open) | `$estate.TotalGb -gt 0` (else a sentence) |
 | `03-whats-new.md` | pie, with a `%% visual meters` line (each product's items by status, retiring and gap figures) | `_raw/whats-new.json` by status | items `-gt 0` (else a sentence) |
-| `02-deprecated-legacy-features.md` | gantt, with a `%% visual runway` line (each deadline and whether this workspace still uses what it retires) | static deadlines + `_DaysUntilFromToday` + the legacy-feature captures | none |
+| `02-deprecated-legacy-features.md` | gantt, with a `%% visual runway` line (each deadline and whether this workspace still uses what it retires) | static deadlines + `Get-BlueprintDaysUntil` + the legacy-feature captures | none |
 | `10-data-connectors.md` | pie | `$connectors` grouped by `kind` | none |
 | `11-sentinel-health.md` | pie | `$healthSummary` grouped by Status | `$healthSummary.Count -gt 0` |
 | `12-soc-optimization.md` | pie | recommendation-category counts | `$socTotal -gt 0` |
@@ -163,28 +193,28 @@ The rule: **chart only when data shape justifies it; never as decoration.**
 
 ## Helper toolbox
 
-Line numbers are deliberately omitted (they rot on every edit); grep the
-function name to locate each definition. The helpers appear in the file
-in roughly the order below, interleaved with the section code rather than
-grouped in one block.
+Each helper is one file named for its function. The generic ones are under
+`Private/Render/Helpers/<Area>/`; the ones only one page uses sit in that
+page's folder under `Private/Render/Sections/<Area>/`. Search for the
+function name to find its file.
 
 | Helper | Purpose | Called from |
 |---|---|---|
-| `Read-Raw` | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
-| `Read-RawArray` | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing, prevents phantom rows. | Every section that consumes an array |
-| `Write-Section` | Writes a body to `<OutputRoot>/<FileName>` AND runs the fence-aware, two-pass finding-id (`SAC-<AREA>-NN`) auto-link regex on the body before writing. | Every section block |
+| `Read-BlueprintRaw` | Reads a single object from `_raw/<file>.json`. Returns `$null` when missing. | Inventory loading; section blocks |
+| `Read-BlueprintRawArray` | Reads an array from `_raw/<file>.json`. Returns `@()` (NOT `@($null)`) when missing, prevents phantom rows. | Every section that consumes an array |
+| `Write-BlueprintSection` | Writes a body to `<OutputRoot>/<FileName>` AND runs the fence-aware, two-pass finding-id (`SAC-<AREA>-NN`) auto-link regex on the body before writing. | Every section block |
 | `Format-DateUtc` | Accepts `[datetime]` or ISO/culture string; returns `yyyy-MM-dd HH:mm` (invariant culture, UTC, no seconds). Empty/unparseable → `''`. | LastIngested, LastEvent, LastSeen, banner timestamp, AsOfUtc, lastModifiedUtc |
 | `Format-Gb` | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
 | `Format-Banner` | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
-| `Format-Table` | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
+| `Format-BlueprintTable` | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
 | `Format-PieSlices` | Label to count map → Mermaid pie lines, largest first; past a limit the rest fold into one `Other (N)` slice so the pie still sums to the total. A page that folds a tail also carries a table listing every item. | Hunting, parser, CEF vendor and TI source pies |
 | `Format-XyFullLabels` | Full x-axis labels as a `%% x-labels [...]` comment. Mermaid ignores it; `ConvertFrom-BlueprintMermaid` reads it, so the SharePoint chart shows whole names where the Markdown axis uses short ones. | MITRE, cost, XDR, alert volume and lake retention bar charts |
 | `Format-FeatureFlag` | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
 | `Format-MinutesScalar` | MTTA/MTTR scalar → "X.X min" or "n/a". Handles KQL `NaN` string. | MTTR headline in 15 |
 | `Format-MitreTechniqueCell` | Technique ID → `[T1078, Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
-| `_SocOptRow` | Internal, builds a SOC Optimization row PSObject. | SOC Optimization Coverage + DataValue tables (12) |
-| `_CostSourceFor` | Inline (within the 84 emit block). Table name regex → cost source category for Sankey aggregation. | Cost Sankey (84) |
-| `_DaysUntilFromToday` | ISO date → integer days until. Drives gantt bar widths. | Live-snapshot deprecation gantt (01) |
+| `Format-BlueprintSocOptRow` | Internal, builds a SOC Optimization row PSObject. | SOC Optimization Coverage + DataValue tables (12) |
+| `Get-BlueprintCostSource` | Inline (within the 84 emit block). Table name regex → cost source category for Sankey aggregation. | Cost Sankey (84) |
+| `Get-BlueprintDaysUntil` | ISO date → integer days until. Drives gantt bar widths. | Live-snapshot deprecation gantt (01) |
 | `Get-ConnectorFriendlyTitle` | Connector `kind` → user-readable name (e.g. "MicrosoftThreatProtection" → "Microsoft Defender XDR"). Knows the CCF lookup via `$ccfTitleByName`. | 10-data-connectors classic + CCF tables |
 | `Get-ConnectorAggregateState` | Per-data-type state → single aggregate (enabled / partial / disabled). | 10-data-connectors State column |
 | `Get-ConnectorDataTypes` | Connector → data-type list (classic) or single dataType string (RestApiPoller/Push). | 10-data-connectors DataTypes column |
@@ -196,7 +226,7 @@ External helpers used by the renderer:
 - `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
 - `Get-SentinelCostEstimate`, used by the **exporter** (not the renderer) to
-  produce `_raw/cost-estimate.json` which the renderer consumes via `Read-Raw`.
+  produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
 - `Get-SentinelGap` + `GapChecks.ps1`, also exporter-side; produces
   `_raw/gap-analysis.json`.
 - The `Format-Blueprint*` helpers,
@@ -243,7 +273,7 @@ block and read back by the section-01 headline.
   capture writes `{}`), `$incSummary` and `$incMttr`. All read once at
   the top so 00 and 01 can draw the estate flow before sections 15, 21,
   28, 60, 80, 81 and 91 render their detail.
-- **`$estate`**, from `New-EstateModel`: source families (`Get-TableFamily`)
+- **`$estate`**, from `New-BlueprintEstateModel`: source families (`Get-TableFamily`)
   with GB and covered GB, table counts, enabled and fired rules, alerts,
   incidents and closures. Consumed by `Format-EstateSankey` and
   `Format-EstateRingsTable`, whose output is `$estateBlock`, pasted into
@@ -330,7 +360,7 @@ must respect these:
   "Other (N)" bucket.
 
 ### Sankey
-- Sources are aggregated into named buckets via `_CostSourceFor` so the
+- Sources are aggregated into named buckets via `Get-BlueprintCostSource` so the
   diagram has ~8 lanes on the left, not 10 individual tables.
 - Config: `showValues: true`, `nodeAlignment: justify`, `nodePadding: 28`,
   `width: 1200`, `useMaxWidth: true`, `linkColor: gradient`. Earlier
@@ -358,7 +388,7 @@ must respect these:
 
 ### General
 - **Mermaid blocks live inside fenced `mermaid` code blocks.** The
-  auto-link regex in `Write-Section` skips fenced code blocks
+  auto-link regex in `Write-BlueprintSection` skips fenced code blocks
   automatically.
 - **Always guard charts behind a data-present test.** Empty fixtures or
   quiet workspaces must produce a table-only render, not a featureless
@@ -366,7 +396,7 @@ must respect these:
 
 ## Auto-link rewriting
 
-`Write-Section` runs every section's body through two regex passes
+`Write-BlueprintSection` runs every section's body through two regex passes
 before writing to disk. It walks the body line-by-line tracking
 fenced-code state (any line matching `^\s*```` toggles the fence flag),
 and rewrites **only outside fences**, so finding ids inside
@@ -395,7 +425,7 @@ when titles change.
 
 ## Reference links at the foot of a page
 
-After the auto-link passes, `Write-Section` runs `Move-ReferenceLinks`
+After the auto-link passes, `Write-BlueprintSection` runs `Move-BlueprintReferenceLinks`
 over every page but the contents. A paragraph or list that holds only
 external links (the Microsoft Learn pointers under a section, a finding's
 `**Reference:**` line, "See A and B.") moves out of the page into one
@@ -414,10 +444,10 @@ Every KQL capture reads the run's lookback (`-LookbackDays`, recorded in
 `run-context.json` as `LookbackDays` and `RecentDays`; 30 and 7 for a run
 collected before the setting existed). A page never writes a number of days
 for a window: it writes `{lookback}` ("30 days"), `{lookback-d}` ("30d"),
-`{recent}` or `{recent-d}`, and `Write-Section` fills them through
-`Resolve-BpWindowText` before anything else, so a heading, a label, a table
+`{recent}` or `{recent-d}`, and `Write-BlueprintSection` fills them through
+`Resolve-BlueprintWindowText` before anything else, so a heading, a label, a table
 header, a chart title and the section model all follow the run. Window
-arithmetic reads `Get-BpWindow`: the estate's active tables are those with
+arithmetic reads `Get-BlueprintWindow`: the estate's active tables are those with
 data in the recent window (of those with data in the lookback), and the
 Lake candidates' 0.5 GB threshold is per 30 days. Retention policy figures
 (the free 90 days), the last 24 hours and the one-hour duplicate sample are
@@ -425,7 +455,7 @@ not windows and stay as written.
 
 ## Table headers
 
-`Format-Table` takes property names as columns and writes each header
+`Format-BlueprintTable` takes property names as columns and writes each header
 through `Format-ColumnLabel`: the names in `$script:ColumnLabels` as
 written (`Gb30d` reads GB (30d), `FPRate` FP rate, `LastFailureUtc` Last
 failure (UTC)), any other CamelCase name split into words (`MonthlyCost`
@@ -506,7 +536,9 @@ assets root).
 
 | Path | Role |
 |---|---|
-| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | The renderer this spec describes |
+| [`Modules/iSOCBlueprint/Private/Render/`](../../../Modules/iSOCBlueprint/Private/Render) | The renderer this spec describes: `Invoke-iSOCBlueprintRender`, the inventory reader, the helpers and one folder per page |
+| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Command-line entry point to the renderer: loads the files above and calls `Invoke-iSOCBlueprintRender` |
+| [`Tests/iSOCBlueprint/Structure.Tests.ps1`](../../../Tests/iSOCBlueprint/Structure.Tests.ps1) | Holds every module file to 300 lines, with a shrinking list of engine scripts not yet split |
 | [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) | Stage 1, produces `_raw/*.json` |
 | [`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
@@ -544,10 +576,12 @@ assets root).
 ## How to extend the renderer
 
 ### Adding a new chart to an existing section
-1. Locate the section's `Write-Section '<NN>-...'` block.
+1. Find the section's step: the `Write-Blueprint<Name>Section` function in
+   `Private/Render/Sections/<Name>/` that calls
+   `Write-BlueprintSection '<NN>-...'`.
 2. **Before** the `@" ... "@` body, compute the chart inputs from
-   already-loaded inventory variables. Don't add a new `Read-RawArray`
-   call unless the data isn't already available.
+   already-loaded inventory variables. Don't add a new
+   `Read-BlueprintRawArray` call unless the data isn't already available.
 3. Build a `$chartBlock` variable conditionally:
    ```powershell
    $chartBlock = if (<data-present-test>) { @"
@@ -564,38 +598,49 @@ assets root).
 4. Inject `$chartBlock` at the desired position inside the section body.
 5. Verify rules from "Conventions and gotchas" above, especially
    quote-flowchart-labels and skip-on-empty.
+6. Keep the file within 300 lines (`Structure.Tests.ps1` enforces it). If
+   the step grows past that, move a self-contained piece into a helper
+   file or continue the page in a `...SectionPart2` step.
 
 ### Adding a new section
-1. Add a `Read-RawArray '<file>.json'` for the data source (if not
-   already loaded).
-2. Add a `Write-Section '<NN>-<slug>.md' (@"...")` block in section-id
-   order so the renderer's output enumeration stays sorted.
-3. Update the `index.md` TOC table at the bottom of the renderer to
+1. Add a `Read-BlueprintRawArray '<file>.json'` in `Read-BlueprintInventory`
+   for the data source (if not already loaded), and leave it in the
+   context with the other loaded figures.
+2. Add a folder `Private/Render/Sections/<Name>/` with a
+   `Write-Blueprint<Name>Section.ps1` that takes `-Context`, reads what it
+   needs from it and calls `Write-BlueprintSection '<NN>-<slug>.md' (@"...")`.
+3. Add the step to the `$steps` list in `Invoke-iSOCBlueprintRender`, in
+   section-id order so the renderer's output enumeration stays sorted.
+4. Update the `index.md` TOC table in `Write-BlueprintIndexSection` to
    reference the new section.
-4. Add a fixture file in `Tests/iSOCBlueprint/Fixtures/sample/_raw/` so
+5. Add a fixture file in `Tests/iSOCBlueprint/Fixtures/sample/_raw/` so
    the new section renders during tests.
-5. Add a Pester case in
+6. Add a Pester case in
    `Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`
    asserting the section renders (at least its title) cleanly.
-6. Map the section number to a family in `Get-SectionFamily` in
+7. Map the section number to a family in `Get-SectionFamily` in
    `Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1`, and give
    it a headline in `$headlineByNum` if the dashboard should summarise
    it; see [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
 
 ### Adding a new helper
-1. Place the function ahead of its first caller. Helpers are not gathered
-   in one block, nor kept in alphabetical order, they sit next to (or
-   just above) the section code that uses them. Generic formatters
-   (`Format-*`) live near the top with the inventory loaders; section-
-   specific helpers (`_CostSourceFor`, `_SocOptRow`) sit inline with
-   their section. Keep new generic helpers with the other `Format-*`
-   functions.
-2. Add a row to the "Helper toolbox" table in this spec when the next
+1. Give the function its own file, named for it. A generic helper goes in
+   `Private/Render/Helpers/<Area>/` (`Formatting` for the `Format-*`
+   functions); a helper only one page uses goes in that page's folder under
+   `Sections/`. The module and the command-line script both load every
+   file under `Private/Render`, so no list needs updating.
+2. A helper that needs a figure from the page calling it takes it as a
+   parameter. The older helpers read their caller's variables by dynamic
+   scope (`New-BlueprintEstateModel`, `Get-ConnectorData7d`,
+   `Format-MitreTechniqueCell`, `Get-BlueprintTopologyBucket`,
+   `Format-BlueprintFindingMaturity`, `Get-WhatsNewRelations`); do not add
+   more of those.
+3. Add a row to the "Helper toolbox" table in this spec when the next
    maintainer updates the doc.
-3. Helpers must be **single-purpose, side-effect-free, and accept any
+4. Helpers must be **single-purpose, side-effect-free, and accept any
    reasonable input shape** (`[datetime]` OR string OR null). Return
    `''` for unparseable / empty input rather than throwing.
-4. Reserved PowerShell auto-variable names to avoid: `$PID`, `$HOME`,
+5. Reserved PowerShell auto-variable names to avoid: `$PID`, `$HOME`,
    `$PSHOME`, `$Error`, `$Args`, etc. The renderer treats variable
    names case-insensitively, so `$pId` collides with `$PID` and
    triggers a read-only-variable write error.

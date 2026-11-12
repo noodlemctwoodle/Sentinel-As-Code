@@ -143,7 +143,7 @@ Describe 'whats-new-topics.json' {
     BeforeAll {
         $script:topics = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/whats-new-topics.json') -Raw | ConvertFrom-Json).topics)
         $script:criteria = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id)
-        $script:renderer = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -Raw
+        $script:renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     }
 
     It 'gives every topic a pattern that compiles, a report page the renderer writes and real criteria' {

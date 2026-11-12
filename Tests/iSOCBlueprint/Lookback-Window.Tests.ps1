@@ -30,7 +30,7 @@ BeforeAll {
     $script:resourcesDir = Join-Path $script:engine 'Private/Resources'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
-    $script:renderer = Get-Content (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') -Raw
+    $script:renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     $script:repoRoot = $repoRoot
 
     # A copy of the fixture's _raw with the run's lookback set.
@@ -159,11 +159,11 @@ Describe 'The maturity assessment and the cost estimate follow the window' {
 
 Describe 'The renderer names the window it read' {
     It 'fills the window tokens from run-context.json' {
-        function Read-Raw { param($Name) [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 } }
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') 'Get-BpWindow')))
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') 'Resolve-BpWindowText')))
+        function Read-BlueprintRaw { param($Name) [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 } }
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Render/Helpers/Window/Get-BlueprintWindow.ps1') 'Get-BlueprintWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Render/Helpers/Window/Resolve-BlueprintWindowText.ps1') 'Resolve-BlueprintWindowText')))
         $script:BpWindow = $null
-        Resolve-BpWindowText 'last {lookback} ({lookback-d}), recent {recent} ({recent-d})' | Should -Be 'last 1 day (1d), recent 1 day (1d)'
+        Resolve-BlueprintWindowText 'last {lookback} ({lookback-d}), recent {recent} ({recent-d})' | Should -Be 'last 1 day (1d), recent 1 day (1d)'
     }
 
     It 'writes headings, labels and chart titles as window tokens' {
@@ -171,7 +171,7 @@ Describe 'The renderer names the window it read' {
         $script:renderer | Should -Match '## Incident metrics \(last \{recent-d\}\)'
         $script:renderer | Should -Match 'title "Top tables by billable GB \(\{lookback-d\}\)"'
         $script:renderer | Should -Match "Gb30d = 'GB \(\{lookback-d\}\)'"
-        $script:renderer | Should -Match '\$body = Resolve-BpWindowText \$body'
+        $script:renderer | Should -Match '\$body = Resolve-BlueprintWindowText \$body'
         $script:renderer | Should -Not -Match '\(last (7|30)d\)'
     }
 }

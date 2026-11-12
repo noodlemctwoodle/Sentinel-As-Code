@@ -69,7 +69,7 @@ BeforeAll {
 Describe 'Get-SectionFamily' {
 
     It 'maps every section the renderer writes to a named family' {
-        $renderer = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -Raw
+        $renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $numbers = [regex]::Matches($renderer, "'(\d{2})-[a-z0-9-]+\.md'") | ForEach-Object { [int]$_.Groups[1].Value } | Sort-Object -Unique
         $numbers.Count | Should -BeGreaterThan 20
         foreach ($n in $numbers) {

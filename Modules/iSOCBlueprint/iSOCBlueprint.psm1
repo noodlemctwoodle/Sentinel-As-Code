@@ -33,7 +33,7 @@ $script:iSOCBlueprintRoot = $PSScriptRoot
 $script:iSOCBlueprintEngineRoot = Join-Path $PSScriptRoot 'Engine'
 
 foreach ($folder in 'Private', 'Public') {
-    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $folder) -Filter '*.ps1' -File | Sort-Object Name) {
+    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $folder) -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
         . $file.FullName
     }
 }

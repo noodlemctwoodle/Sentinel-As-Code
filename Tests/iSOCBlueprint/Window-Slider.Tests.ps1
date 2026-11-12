@@ -204,7 +204,7 @@ Describe 'The build carries the daily series' {
         $m.estate.rulesFired | Should -Be 1
         $m.estate.rings.alerts.max | Should -Be 1
         $m.estate.rings.alerts.pct | Should -Be 100
-        $renderer = Get-Content (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') -Raw
+        $renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $renderer | Should -Match 'RulesFired\s+= \$firedEnabled'
     }
 }

@@ -715,7 +715,7 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'names a Sentinel rule in Rule effectiveness by its rule id, not its alert name' {
-            $src = Get-Content (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -Raw
+            $src = (Get-ChildItem (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
             $src.Contains('if ($rid -and $rdn) { $ruleNameById[$rid] = $rdn }') | Should -BeTrue
             $src.Contains('Rule         = $(if ($rk -and $ruleNameById.ContainsKey($rk)) { $ruleNameById[$rk] } else { $_.RuleName })') | Should -BeTrue
             $script:perfMd | Should -Match '\| Failed logons across multiple accounts \| Analytics rule \|'
@@ -978,9 +978,9 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'compares versions as numbers, not text' {
-            . ([scriptblock]::Create(([System.Management.Automation.Language.Parser]::ParseFile($script:renderer, [ref]$null, [ref]$null)).Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq '_CompareVersion' }, $true).Extent.Text))
-            _CompareVersion '3.0.10' '3.0.9' | Should -BeGreaterThan 0
-            _CompareVersion '3.0.3' '3.0.3' | Should -Be 0
+            . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Render/Sections/ContentHub/Compare-BlueprintVersion.ps1')
+            Compare-BlueprintVersion '3.0.10' '3.0.9' | Should -BeGreaterThan 0
+            Compare-BlueprintVersion '3.0.3' '3.0.3' | Should -Be 0
         }
     }
 
@@ -1989,35 +1989,33 @@ Describe '37-search-restore.md lists the search job and restored tables' {
 
 Describe 'Gap evidence lists keep a name that starts with a Markdown marker as text' {
     BeforeAll {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:renderer, [ref]$null, [ref]$null)
-        foreach ($name in '_EscapeMdListItem', '_FormatGapEvidence') {
-            $fn = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true)
-            . ([scriptblock]::Create($fn.Extent.Text))
+        foreach ($name in 'ConvertTo-BlueprintListItem', 'Format-BlueprintGapEvidence') {
+            . (Join-Path $script:repoRoot "Modules/iSOCBlueprint/Private/Render/Sections/GapAnalysis/$name.ps1")
         }
     }
 
     It 'words an older snapshot''s "?" for an unnamed principal, and leaves a real question mark alone' {
         $ev = '28 service principal(s) hold Owner or Contributor at workspace scope: ?; App one; App two; ?; App three; ?.'
-        $md = _FormatGapEvidence $ev
+        $md = Format-BlueprintGapEvidence $ev
         $md | Should -Not -Match '(?m)^  - \?\.?$'
         ([regex]::Matches($md, 'Unnamed \(no name in this snapshot\)')).Count | Should -Be 3
         $md | Should -Match '(?m)^  - App one$'
-        _FormatGapEvidence 'Is the cap set? No.' | Should -Be 'Is the cap set? No.'
+        Format-BlueprintGapEvidence 'Is the cap set? No.' | Should -Be 'Is the cap set? No.'
     }
 
     It 'escapes a leading bullet, heading, quote or number marker' {
-        _EscapeMdListItem '* Deteccion trafico SMB 1.0' | Should -Be '\* Deteccion trafico SMB 1.0'
-        _EscapeMdListItem '- dash' | Should -Be '\- dash'
-        _EscapeMdListItem '# hash' | Should -Be '\# hash'
-        _EscapeMdListItem '> quote' | Should -Be '\> quote'
-        _EscapeMdListItem '1. Test' | Should -Be '1\. Test'
-        _EscapeMdListItem 'SAP - Login' | Should -Be 'SAP - Login'
-        _EscapeMdListItem '*bold*' | Should -Be '*bold*'
+        ConvertTo-BlueprintListItem '* Deteccion trafico SMB 1.0' | Should -Be '\* Deteccion trafico SMB 1.0'
+        ConvertTo-BlueprintListItem '- dash' | Should -Be '\- dash'
+        ConvertTo-BlueprintListItem '# hash' | Should -Be '\# hash'
+        ConvertTo-BlueprintListItem '> quote' | Should -Be '\> quote'
+        ConvertTo-BlueprintListItem '1. Test' | Should -Be '1\. Test'
+        ConvertTo-BlueprintListItem 'SAP - Login' | Should -Be 'SAP - Login'
+        ConvertTo-BlueprintListItem '*bold*' | Should -Be '*bold*'
     }
 
     It 'writes such a name as one bullet, not an empty bullet and a nested one' {
         $ev = '146 rule(s) disabled: ' + ((1..20 | ForEach-Object { "Rule number $_" }) + '* Deteccion trafico SMB 1.0' -join '; ')
-        $md = _FormatGapEvidence $ev
+        $md = Format-BlueprintGapEvidence $ev
         $md | Should -Match '(?m)^  - \\\* Deteccion trafico SMB 1\.0$'
         $md | Should -Not -Match '(?m)^  - \* '
     }

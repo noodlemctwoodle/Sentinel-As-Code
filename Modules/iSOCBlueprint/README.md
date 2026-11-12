@@ -94,12 +94,18 @@ The guides for what the Blueprint produces and how it works are in
 
 ```
 iSOCBlueprint.psd1   manifest; ModuleVersion follows the repository release
-iSOCBlueprint.psm1   loads Private/ then Public/
+iSOCBlueprint.psm1   loads Private/ (every folder) then Public/
 Public/              one file per command
 Private/             the engine runner, path defaults, prerequisite checks
+  Render/            the renderer as functions, one file each, none over 300 lines
+    Invoke-iSOCBlueprintRender.ps1   entry point and ordered step list
+    Inventory/                       reads _raw/ into the render context
+    Helpers/                         generic helpers (formatting, dates, output)
+    Sections/                        one folder per report page
+    Data/                            lookup tables
 Engine/              the Blueprint itself, as scripts
   Export-SentinelInventory.ps1            collector
-  Convert-SentinelInventoryToMarkdown.ps1 renderer
+  Convert-SentinelInventoryToMarkdown.ps1 renderer command line (loads Private/Render)
   Convert-MermaidToImage.ps1              chart images
   Update-ConnectorCatalogue.ps1           catalogue refresh
   Private/                                gap analysis, maturity, helpers
