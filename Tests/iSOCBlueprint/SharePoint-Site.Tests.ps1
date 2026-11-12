@@ -1473,7 +1473,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
         ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
         # A template only a deprecated Content Hub solution ships is left out, as on the report page.
-        $build = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
         $build.Contains("-not (Test-TemplateRetired -Map `$tplSolutions -TemplateId ([string]`$_.TemplateId))") | Should -BeTrue
         @($model.effectiveness).Count | Should -Be 2
         # Lists are carried in full; the dashboard shows the first few with a
@@ -2076,7 +2076,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'gives a flowchart node an in-dashboard link to its section or finding' {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1'), [ref]$null, [ref]$null)
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Sections/ConvertTo-DashboardChartData.ps1'), [ref]$null, [ref]$null)
         . ([scriptblock]::Create($ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertTo-DashboardChartData' }, $true).Extent.Text))
         $chart = @{ kind = 'flowchart'; data = @{ nodes = @(
                     @{ id = 'a'; label = 'Gap'; href = '90-gap-analysis.md'; target = @{ kind = 'section'; section = '90-gap-analysis' } }
@@ -2092,7 +2092,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match 'M\.whatsNew'
         $html | Should -Not -Match 'class="wnitem"'
         $html.Contains("'Generally available':'Met','Preview':'Info','Retiring':'Gap','Action needed':'Warn'") | Should -BeTrue
-        $build = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
         $build | Should -Not -Match 'Invoke-RestMethod|Invoke-WebRequest'
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         $wn = @($model.sections | Where-Object { $_.num -eq 3 })

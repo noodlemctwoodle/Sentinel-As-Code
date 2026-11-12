@@ -450,6 +450,7 @@ are described in the validate table above.
 - [`SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1)
   dot-sources the helpers under [`Modules/iSOCBlueprint/Engine/SharePoint/Private/`](../../Modules/iSOCBlueprint/Engine/SharePoint/Private)
   and runs [`Build-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)
+  (which loads the functions under [`Modules/iSOCBlueprint/Private/Site`](../../Modules/iSOCBlueprint/Private/Site))
   offline against the rendered fixture. The publisher's decisions live in pure
   planning functions, and the functions that call PnP run against stand-in
   functions (`Install-PnPStub`), so nothing needs SharePoint or PnP.PowerShell.

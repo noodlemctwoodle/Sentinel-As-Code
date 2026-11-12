@@ -233,7 +233,7 @@ Describe 'The currency it prices in' {
 
 Describe 'The dashboard''s billed split' {
     It 'splits billed in full from grant eligible, keyed on the grant' {
-        $build = Get-Content (Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
         $build | Should -Match "\`$bucketAgg = @\{ 'Billed' = 0\.0; 'Grant eligible' = 0\.0 \}"
         $build | Should -Match "if \(\`$Row\.PSObject\.Properties\['Benefit'\]\) \{ return \`$\(if \(\[string\]\`$Row\.Benefit\) \{ 0\.0 \} else \{ \`$Gb \}\) \}"
         $html = Get-Content (Join-Path $script:engine 'SharePoint/templates/sharepoint-dashboard.html') -Raw

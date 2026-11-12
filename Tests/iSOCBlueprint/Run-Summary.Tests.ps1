@@ -31,7 +31,7 @@ BeforeAll {
     . (Join-Path $engine 'Private/Write-CaptureSummary.ps1')
     $script:collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
     $script:renderer = (Get-ChildItem (Join-Path $engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
-    $script:siteBuild = Get-Content (Join-Path $engine 'SharePoint/Build-SentinelDocsSite.ps1') -Raw
+    $script:siteBuild = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
     $script:fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:graph403 = "Microsoft Graph refused Defender custom detections to the Graph SDK session (Forbidden). To include them, Connect-MgGraph -Scopes 'CustomDetection.Read.All' with an account allowed to read custom detections, or grant CustomDetection.Read.All (application) to the pipeline identity."
     $script:http401 = 'Response status code does not indicate success: 401 (Unauthorized).'

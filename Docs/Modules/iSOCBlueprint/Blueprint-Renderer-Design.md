@@ -618,10 +618,11 @@ assets root).
 6. Add a Pester case in
    `Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`
    asserting the section renders (at least its title) cleanly.
-7. Map the section number to a family in `Get-SectionFamily` in
-   `Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1`, and give
-   it a headline in `$headlineByNum` if the dashboard should summarise
-   it; see [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
+7. Map the section number to a family in `Get-SectionFamily`
+   (`Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SectionFamily.ps1`), and give
+   it a headline in `$headlineByNum` (in
+   `Modules/iSOCBlueprint/Private/Site/Steps/Build-SiteMaturity.ps1`) if the dashboard
+   should summarise it; see [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
 
 ### Adding a new helper
 1. Give the function its own file, named for it. A generic helper goes in

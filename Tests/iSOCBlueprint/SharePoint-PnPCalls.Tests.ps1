@@ -208,6 +208,16 @@ Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(
                     Get-SacLoadedFile -Path (Join-Path (Split-Path $full) $Matches[1]) -Seen $Seen
                 }
             }
+            # A folder loaded in a loop: `$xRoot = Join-Path $PSScriptRoot '..' 'Private' 'Site'`
+            # followed by Get-ChildItem over it, one dot-source per file.
+            $text = Get-Content -LiteralPath $full -Raw
+            foreach ($m in [regex]::Matches($text, "(?m)^\`$(\w+) = Join-Path \`$PSScriptRoot ((?:'[^']+' ?)+)\s*$")) {
+                if ($text -notmatch ('Get-ChildItem -LiteralPath \$' + $m.Groups[1].Value + ' ')) { continue }
+                $folder = Join-Path (Split-Path $full) (([regex]::Matches($m.Groups[2].Value, "'([^']+)'") | ForEach-Object { $_.Groups[1].Value }) -join [System.IO.Path]::DirectorySeparatorChar)
+                foreach ($f in Get-ChildItem -LiteralPath $folder -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
+                    Get-SacLoadedFile -Path $f.FullName -Seen $Seen
+                }
+            }
         }
     }
 

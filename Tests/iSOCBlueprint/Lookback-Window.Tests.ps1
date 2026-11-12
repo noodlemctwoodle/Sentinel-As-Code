@@ -193,7 +193,7 @@ Describe 'The pipelines set the lookback' {
 
 Describe 'The site names the window on every card' {
     It 'the build carries the window into the model and the estate' {
-        $build = Get-Content (Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
         $build | Should -Match '\$window = \[ordered\]@\{ days = \$lookbackDays; recentDays = \$recentDays \}'
         $build | Should -Match 'window\s+= \$window'
         $build | Should -Match 'window\s+= "\$\(\$lookbackDays\)d"'
