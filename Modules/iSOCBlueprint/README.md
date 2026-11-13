@@ -109,6 +109,8 @@ Private/             the engine runner, path defaults, prerequisite checks
     Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Try-Capture, capture order
   Word/              the Word report conversion, one function per file (loaded by Engine/Report/Convert-MarkdownToWord.ps1)
     Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
+  Mermaid/           the Mermaid chart parser, one function per file (loaded by Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
+    Parsers/  Helpers/
   PageSegments/      a section as SharePoint page segments, one function per file (loaded by Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1)
     Names/  Html/  Tables/  Charts/  Data/
   SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)

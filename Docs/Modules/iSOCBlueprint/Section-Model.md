@@ -160,7 +160,7 @@ composes each section, then
 [`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1)
 parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
 and runs, and
-[`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
+[`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Private/Mermaid/ConvertFrom-BlueprintMermaid.ps1)
 turns each Mermaid chart into data. Consumers only ever see the model, so a
 section can later build its blocks directly without changing this contract.
 
