@@ -11,8 +11,9 @@
     cannot bind (an unknown parameter, or two parameters that sit in
     different parameter sets) used to surface one run at a time. This suite
     parses Modules/iSOCBlueprint/Engine/SharePoint/*.ps1, Private/*.ps1 and the publisher
-    functions under Modules/iSOCBlueprint/Private/SharePoint and the page
-    conversion under Private/PageSegments, and, for each
+    functions under Modules/iSOCBlueprint/Private/SharePoint the page
+    conversion under Private/PageSegments and the publish steps under
+    Private/Publish, and, for each
     call to a PnP.PowerShell cmdlet or to one of the scripts' own functions,
     checks that:
 
@@ -65,6 +66,7 @@ BeforeDiscovery {
         Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
     ) | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } }
 }
 
@@ -87,6 +89,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
             Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private') -Filter '*.ps1' -File
         )
         $definitions = foreach ($file in $sources) {

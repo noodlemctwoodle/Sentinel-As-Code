@@ -111,6 +111,8 @@ Private/             the engine runner, path defaults, prerequisite checks
     Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
   Mermaid/           the Mermaid chart parser, one function per file (loaded by Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
     Parsers/  Helpers/
+  Publish/           the site publish, one function per file (loaded by Engine/SharePoint/Publish-SentinelDocsSite.ps1)
+    Steps/  Helpers/                 load, connect, the eight stages, then the state record
   PageSegments/      a section as SharePoint page segments, one function per file (loaded by Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1)
     Names/  Html/  Tables/  Charts/  Data/
   SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)

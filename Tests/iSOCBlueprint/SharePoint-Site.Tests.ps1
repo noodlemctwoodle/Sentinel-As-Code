@@ -320,7 +320,7 @@ Describe 'Cut tables as CSV files' {
     }
 
     It 'has the publisher upload every CSV the bundle lists, and prune the rest' {
-        $publisher = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw
+        $publisher = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
         $publisher | Should -Match 'Send-SacFile -Path \$csvPath -Folder ''tables'''
         $publisher | Should -Match 'Get-AssetPrunePlan -DesiredFiles \$siteTables -ExistingFiles \(Get-SacFolderFileNames -Folder ''tables''\)'
         $publisher | Should -Match 'Remove-PnPFile -SiteRelativeUrl "\$script:SacAssetsLibraryUrl/tables/\$file" -Force -Recycle'
@@ -2158,7 +2158,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $wp.IndexOf('.sacSnapshot = snapshot') | Should -BeLessThan $wp.IndexOf('.eval(extracted.script)')
         $wp | Should -Match 'read: \(file: string\): Promise<string> => this\._fetchHtml\(folder \+'
         # The publisher keeps the day's copy and prunes past -HistoryDays.
-        $pub = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw
+        $pub = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
         $pub | Should -Match '\[int\]\$HistoryDays = 90'
         $pub | Should -Match 'Send-SacSnapshot -Path \(Join-Path \$Bundle ''index\.html''\) -FileName \$snapFile'
         $pub | Should -Match '\$siteIndex = Read-SacSnapshotIndex'
