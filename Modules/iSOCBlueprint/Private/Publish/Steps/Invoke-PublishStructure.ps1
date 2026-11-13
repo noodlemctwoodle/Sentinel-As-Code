@@ -39,7 +39,6 @@ function Invoke-PublishStructure {
     # Taken from the publish context.
     $AppPackagePath = $Context.AppPackagePath
     $state = $Context.state
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
 
     # 1. Structure ---------------------------------------------------------------
     Write-PublishStep '1/8 Site structure'

@@ -41,7 +41,6 @@ function Invoke-PublishPrune {
     $pagePlan = $Context.pagePlan
     $site = $Context.site
     $siteTables = $Context.siteTables
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
 
     # 8. Prune -------------------------------------------------------------------
     Write-PublishStep '8/8 Prune'

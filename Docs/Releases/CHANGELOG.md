@@ -318,6 +318,14 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   `Tests/Test-InvokePRValidation.Tests.ps1`, runs the gate against
   throwaway repositories with each kind of failure.
 
+- **The site publisher stops when its access token runs out** - the
+  publisher has always documented that a run using `-AccessToken` stops with
+  a clear error once the token has been in use for `-TokenLifetimeMinutes`
+  (50 by default), because an access token cannot be refreshed. The check
+  never fired, so a long run went on until the token expired. It now stops before the next stage and says how long the
+  token had been in use. An interactive sign-in is not checked, as it
+  refreshes itself.
+
 ## 26.10.0
 
 The iSOC Blueprint release. The Documenter becomes `iSOCBlueprint`, a

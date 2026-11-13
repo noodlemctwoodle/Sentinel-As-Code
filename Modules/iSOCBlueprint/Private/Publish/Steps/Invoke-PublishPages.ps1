@@ -42,7 +42,6 @@ function Invoke-PublishPages {
     $pageDocs = $Context.pageDocs
     $site = $Context.site
     $state = $Context.state
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
     $webRel = $Context.webRel
 
     # 4. Pages -------------------------------------------------------------------

@@ -41,7 +41,6 @@ function Invoke-PublishAssets {
     $HistoryDays = $Context.HistoryDays
     $site = $Context.site
     $siteTables = $Context.siteTables
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
 
     # 3. Assets ------------------------------------------------------------------
     Write-PublishStep '3/8 Dashboard, diagrams and tables'

@@ -39,7 +39,6 @@ function Invoke-PublishNavigation {
     # Taken from the publish context.
     $pagePlan = $Context.pagePlan
     $site = $Context.site
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
     $webRel = $Context.webRel
 
     # 7. Navigation --------------------------------------------------------------

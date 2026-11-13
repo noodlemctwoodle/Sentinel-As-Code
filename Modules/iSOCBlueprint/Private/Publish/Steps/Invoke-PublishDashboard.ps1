@@ -38,7 +38,6 @@ function Invoke-PublishDashboard {
 
     # Taken from the publish context.
     $site = $Context.site
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
 
     # 5. Dashboard ---------------------------------------------------------------
     Write-PublishStep '5/8 Dashboard home page'

@@ -59,7 +59,8 @@ function Invoke-iSOCBlueprintSitePublish {
         The web part package to deploy.
 
     .PARAMETER TokenLifetimeMinutes
-        How long a token may be in use before a stage refuses to start.
+        How long an -AccessToken may be in use before a stage refuses to start
+        (Assert-TokenFresh).
 
     .PARAMETER HistoryDays
         Days of dashboard copies and progress records to keep.
@@ -100,6 +101,8 @@ function Invoke-iSOCBlueprintSitePublish {
     $ErrorActionPreference = 'Stop'
 
     $script:ConnectedAt = $null
+    $script:PublishParameterSet = $PSCmdlet.ParameterSetName
+    $script:PublishTokenLifetimeMinutes = $TokenLifetimeMinutes
 
     $context = @{
         SiteUrl              = $SiteUrl
@@ -109,7 +112,6 @@ function Invoke-iSOCBlueprintSitePublish {
         ClientId             = $ClientId
         Tenant               = $Tenant
         AppPackagePath       = $AppPackagePath
-        TokenLifetimeMinutes = $TokenLifetimeMinutes
         HistoryDays          = $HistoryDays
         parameterSetName     = $PSCmdlet.ParameterSetName
     }

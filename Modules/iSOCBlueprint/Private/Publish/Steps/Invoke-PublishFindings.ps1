@@ -38,7 +38,6 @@ function Invoke-PublishFindings {
 
     # Taken from the publish context.
     $findingsDoc = $Context.findingsDoc
-    $TokenLifetimeMinutes = $Context.TokenLifetimeMinutes
 
     # 6. Findings ----------------------------------------------------------------
     Write-PublishStep '6/8 Findings list'
