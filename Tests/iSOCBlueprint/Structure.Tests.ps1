@@ -34,7 +34,6 @@ BeforeDiscovery {
     $moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $limit = 300
     $legacy = @(
-        'Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1'
         'Engine/Private/ConvertFrom-BlueprintMermaid.ps1'
         'Engine/SharePoint/Publish-SentinelDocsSite.ps1'
         'Engine/Private/ConvertTo-BlueprintSection.ps1'
