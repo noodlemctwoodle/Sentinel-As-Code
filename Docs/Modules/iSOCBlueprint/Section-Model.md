@@ -157,8 +157,9 @@ list of sections.
 The renderer
 ([`Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1))
 composes each section, then
-[`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1)
-parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
+[`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Private/Section/ConvertTo-BlueprintSection.ps1)
+(loaded through `Engine/Private/ConvertTo-BlueprintSection.ps1`, with its helpers under
+`Modules/iSOCBlueprint/Private/Section`) parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
 and runs, and
 [`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Private/Mermaid/ConvertFrom-BlueprintMermaid.ps1)
 turns each Mermaid chart into data. Consumers only ever see the model, so a
