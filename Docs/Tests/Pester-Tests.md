@@ -424,9 +424,11 @@ are described in the validate table above.
   runs both over the fixture, and writes synthetic criteria files to
   `TestDrive:` for the arithmetic cases.
 - [`Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1)
-  loads only the functions of
-  [`Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1`](../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1)
-  through the PowerShell parser (the script itself runs pandoc) and drives
+  loads only the two Markdown helpers of
+  [`Modules/iSOCBlueprint/Private/Word`](../../Modules/iSOCBlueprint/Private/Word/Helpers/Markdown)
+  (`Convert-StatusWords` and `Convert-FindingBullets`, which
+  [`Convert-MarkdownToWord.ps1`](../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1)
+  loads; the script itself runs pandoc) through the PowerShell parser and drives
   them on small Markdown strings; no pandoc, no fixture.
 - [`Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1)
   dot-sources

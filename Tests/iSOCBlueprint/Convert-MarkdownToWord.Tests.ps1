@@ -25,10 +25,12 @@
 #>
 
 BeforeAll {
-    $path = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1'
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$null)
-    foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -in 'Convert-StatusWords', 'Convert-FindingBullets' }, $true)) {
-        . ([scriptblock]::Create($fn.Extent.Text))
+    $helpers = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Word/Helpers/Markdown'
+    foreach ($name in 'Convert-StatusWords', 'Convert-FindingBullets') {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $helpers "$name.ps1"), [ref]$null, [ref]$null)
+        foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq $name }, $true)) {
+            . ([scriptblock]::Create($fn.Extent.Text))
+        }
     }
     function Invoke-Status([string]$Text) {
         $count = [ref]0

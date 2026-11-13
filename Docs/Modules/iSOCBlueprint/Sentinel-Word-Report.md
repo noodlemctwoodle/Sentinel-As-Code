@@ -52,7 +52,7 @@ from the iSOCBlueprint module. What it runs lives under
 
 | File | Role |
 |---|---|
-| [`Convert-MarkdownToWord.ps1`](../../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1) | The main converter. Collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
+| [`Convert-MarkdownToWord.ps1`](../../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1) | The main converter's command line. It loads [`Private/Word`](../../../Modules/iSOCBlueprint/Private/Word), one function per file, which collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
 | [`Update-WordToc.py`](../../../Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by `Convert-MarkdownToWord.ps1` in its default `Baked` mode. |
 | [`templates/sentinel-report-reference.docx`](../../../Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
 
@@ -74,7 +74,7 @@ SecurityDocs/<workspace>/            (from Sentinel-Blueprint.yml, on the ADO mi
                               └──> <workspace>.docx   (single, paginated report)
 ```
 
-`Convert-MarkdownToWord.ps1` does the ordering, cleaning and pandoc call; it then
+`Convert-MarkdownToWord.ps1` (through the steps under `Private/Word/Steps`) does the ordering, cleaning and pandoc call; it then
 delegates the pagination to `Update-WordToc.py` through the `Invoke-LibreOfficeBake`
 function. Only the `.md` files and their images are used; a sibling `_raw/` folder
 of JSON is deliberately ignored, because raw JSON makes a useless code-block dump
