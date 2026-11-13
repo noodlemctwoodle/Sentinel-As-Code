@@ -53,4 +53,4 @@ $sacRoot = Join-Path $PSScriptRoot '..' '..' '..' 'Private' 'SharePoint'
 foreach ($sacFile in Get-ChildItem -LiteralPath $sacRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
     . $sacFile.FullName
 }
-Remove-Variable -Name sacFile, sacRoot
+Remove-Variable -Name sacFile, sacRoot -WhatIf:$false

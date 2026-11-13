@@ -58,4 +58,4 @@ $maturityRoot = Join-Path $PSScriptRoot '..' '..' 'Private' 'Maturity'
 foreach ($maturityFile in Get-ChildItem -LiteralPath $maturityRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
     . $maturityFile.FullName
 }
-Remove-Variable -Name maturityFile, maturityRoot
+Remove-Variable -Name maturityFile, maturityRoot -WhatIf:$false

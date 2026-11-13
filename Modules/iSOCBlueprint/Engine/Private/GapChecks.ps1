@@ -62,4 +62,4 @@ $gapCheckRoot = Join-Path $PSScriptRoot '..' '..' 'Private' 'Gap'
 foreach ($gapCheckFile in Get-ChildItem -LiteralPath $gapCheckRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
     . $gapCheckFile.FullName
 }
-Remove-Variable -Name gapCheckFile, gapCheckRoot
+Remove-Variable -Name gapCheckFile, gapCheckRoot -WhatIf:$false

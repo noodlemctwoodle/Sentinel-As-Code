@@ -181,6 +181,6 @@ $siteBuildRoot = Join-Path $PSScriptRoot '..' '..' 'Private' 'Site'
 foreach ($siteBuildFile in Get-ChildItem -LiteralPath $siteBuildRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
     . $siteBuildFile.FullName
 }
-Remove-Variable -Name siteBuildFile, siteBuildRoot
+Remove-Variable -Name siteBuildFile, siteBuildRoot -WhatIf:$false
 
 Invoke-iSOCBlueprintSiteBuild @PSBoundParameters -EngineRoot (Join-Path $PSScriptRoot '..') -SiteRoot $PSScriptRoot

@@ -195,6 +195,6 @@ $collectorRoot = Join-Path $PSScriptRoot '..' 'Private' 'Collector'
 foreach ($collectorFile in Get-ChildItem -LiteralPath $collectorRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
     . $collectorFile.FullName
 }
-Remove-Variable -Name collectorFile, collectorRoot
+Remove-Variable -Name collectorFile, collectorRoot -WhatIf:$false
 
 Invoke-iSOCBlueprintCollect @PSBoundParameters -EngineRoot $PSScriptRoot
