@@ -21,19 +21,19 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    Import-Module (Join-Path $repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
     . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:engine 'SharePoint/templates/dashboard')
-    $script:buildScript = Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1'
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
 
     # The fixture's _raw in a workspace folder, changed by $Edit, built.
@@ -42,7 +42,7 @@ BeforeAll {
         New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
         Copy-Item -Path (Join-Path $script:fixtureRaw '*.json') -Destination (Join-Path $ws '_raw')
         if ($Edit) { & $Edit (Join-Path $ws '_raw') }
-        $bundle = & $script:buildScript -Source $ws -SkipWhatsNew 6> $null 3> $null
+        $bundle = (New-iSOCBlueprintSite -Path $ws -SkipWhatsNew 6> $null 3> $null).Path
         return Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
     }
     # A day entry's value at index $I, summed over the whole series.

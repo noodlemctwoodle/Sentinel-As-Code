@@ -15,7 +15,7 @@
     page conversion in ConvertTo-SharePointPageSegments.ps1, so both are
     exercised directly. The build test renders the deliberately-broken
     fixture (the section model, and Markdown alone for an older snapshot)
-    and runs Build-SentinelDocsSite.ps1 offline (-SkipWhatsNew) into a temp
+    and runs New-iSOCBlueprintSite offline (-SkipWhatsNew) into a temp
     folder.
 
 .EXAMPLE
@@ -29,13 +29,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.13.2
-    Last Updated: 2026-11-09
+    Version:      0.13.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
     . (Join-Path $sp '../../Private/SiteShared/Get-SectionFamily.ps1')
     . (Join-Path $sp 'Private/ConvertTo-SharePointPageSegments.ps1')
@@ -320,7 +321,7 @@ Describe 'Cut tables as CSV files' {
     }
 
     It 'has the publisher upload every CSV the bundle lists, and prune the rest' {
-        $publisher = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
+        $publisher = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $publisher | Should -Match 'Send-SacFile -Path \$csvPath -Folder ''tables'''
         $publisher | Should -Match 'Get-AssetPrunePlan -DesiredFiles \$siteTables -ExistingFiles \(Get-SacFolderFileNames -Folder ''tables''\)'
         $publisher | Should -Match 'Remove-PnPFile -SiteRelativeUrl "\$script:SacAssetsLibraryUrl/tables/\$file" -Force -Recycle'
@@ -335,10 +336,10 @@ Describe 'Build-SentinelDocsSite with tables cut on their pages' {
         $script:cutWs = Join-Path $script:cutDir 'law-sentinel-test'
         New-Item -ItemType Directory -Path (Join-Path $script:cutWs '_raw') -Force | Out-Null
         Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $script:cutWs '_raw')
-        & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') `
-            -WorkspaceName 'law-sentinel-test' -InputRoot $script:cutWs -OutputRoot $script:cutWs -OutputFormat Json `
-            -ResourcesRoot (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
-        $script:cutLog = (& (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $script:cutWs -MaxTableRows 3 -HistoryDays 0 6>&1 | Out-String)
+        ConvertTo-iSOCBlueprint `
+            -WorkspaceName 'law-sentinel-test' -Path $script:cutWs -OutputPath $script:cutWs -Format Json `
+            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+        $script:cutLog = (New-iSOCBlueprintSite -Path $script:cutWs -MaxTableRows 3 -HistoryDays 0 6>&1 | Out-String)
         $script:cutBundle = Join-Path $script:cutWs 'sharepoint'
         $script:cutSite = Get-Content (Join-Path $script:cutBundle 'site.json') -Raw | ConvertFrom-Json
     }
@@ -1197,9 +1198,9 @@ Describe 'Detection outcomes and template solutions in the site build' {
         $g[0].Evidence = '3 service principal(s) hold Owner or Contributor at workspace scope: ?; App one; ?.'
         ConvertTo-Json -InputObject $g -Depth 10 | Set-Content $gp
         $script:doGapId = $g[0].Id
-        & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName 'law-do' -InputRoot $wsd -OutputRoot $wsd `
-            -ResourcesRoot (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -OutputFormat Json -InformationAction SilentlyContinue *> $null
-        $b = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $wsd -SkipWhatsNew 6> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-do' -Path $wsd -OutputPath $wsd `
+            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -Format Json -InformationAction SilentlyContinue *> $null
+        $b = (New-iSOCBlueprintSite -Path $wsd -SkipWhatsNew 6> $null).Path
         $script:doModel = Get-Content (Join-Path $b 'model.json') -Raw | ConvertFrom-Json
         $script:doHtml = Get-Content (Join-Path $b 'index.html') -Raw
         $script:doFindings = Get-Content (Join-Path $b 'findings.json') -Raw | ConvertFrom-Json
@@ -1295,12 +1296,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # Per-check outcomes, as the current collector writes them.
         @(@{ Id = $gap[0].Id; Check = 'x'; Outcome = 'Fired'; Message = $null }) | ConvertTo-Json -AsArray | Set-Content (Join-Path $ws '_raw/gap-checks.json')
 
-        & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') `
-            -WorkspaceName 'law-sentinel-test' -InputRoot $ws -OutputRoot $ws `
-            -ResourcesRoot (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint `
+            -WorkspaceName 'law-sentinel-test' -Path $ws -OutputPath $ws `
+            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
 
         $script:mdFiles = @(Get-ChildItem $ws -Filter '*.md' | Where-Object { $_.Name -ne 'index.md' -and $_.BaseName -match '^\d+-' })
-        $script:bundle = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws -SkipWhatsNew 6> $null
+        $script:bundle = (New-iSOCBlueprintSite -Path $ws -SkipWhatsNew 6> $null).Path
         $script:site = Get-Content (Join-Path $bundle 'site.json') -Raw | ConvertFrom-Json
         $script:findingsDoc = Get-Content (Join-Path $bundle 'findings.json') -Raw | ConvertFrom-Json
         $script:html = Get-Content (Join-Path $bundle 'index.html') -Raw
@@ -1367,11 +1368,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $again = Join-Path $outDir 'again/law-sentinel-test'
         New-Item -ItemType Directory -Path $again -Force | Out-Null
         Copy-Item -Path (Join-Path $ws '_raw') -Destination $again -Recurse
-        $render = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
-        $build = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1'
-        $resources = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
-        $command = "& '$render' -WorkspaceName 'law-sentinel-test' -InputRoot '$again' -OutputRoot '$again' -ResourcesRoot '$resources' *> `$null; " +
-            "& '$build' -Source '$again' -SkipWhatsNew *> `$null"
+        $manifest = Join-Path $repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1'
+        $command = "Import-Module '$manifest'; " +
+            "ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-test' -Path '$again' -OutputPath '$again' *> `$null; " +
+            "New-iSOCBlueprintSite -Path '$again' -SkipWhatsNew *> `$null"
         & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -Command $command
         $other = Get-Content (Join-Path $again 'sharepoint/site.json') -Raw | ConvertFrom-Json
         @($other.sections).Count | Should -Be @($site.sections).Count
@@ -1411,13 +1411,13 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $jsonOnly = Join-Path $outDir 'json-only/law-sentinel-test'
         New-Item -ItemType Directory -Path $jsonOnly -Force | Out-Null
         Copy-Item -Path (Join-Path $ws '_raw'), (Join-Path $ws 'sections') -Destination $jsonOnly -Recurse
-        $b1 = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $jsonOnly -SkipWhatsNew 6> $null
+        $b1 = (New-iSOCBlueprintSite -Path $jsonOnly -SkipWhatsNew 6> $null).Path
         # Markdown only: an artefact rendered before the section model.
         $mdOnly = Join-Path $outDir 'md-only/law-sentinel-test'
         New-Item -ItemType Directory -Path $mdOnly -Force | Out-Null
         Copy-Item -Path (Join-Path $ws '_raw') -Destination $mdOnly -Recurse
         Copy-Item -Path (Join-Path $ws '*.md') -Destination $mdOnly
-        $b2 = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $mdOnly -SkipWhatsNew 6> $null
+        $b2 = (New-iSOCBlueprintSite -Path $mdOnly -SkipWhatsNew 6> $null).Path
 
         $hashes = { param($b) (Get-Content (Join-Path $b 'site.json') -Raw | ConvertFrom-Json).sections | ForEach-Object { "$($_.page)=$($_.hash)" } }
         $h0 = @(& $hashes $bundle); $h1 = @(& $hashes $b1); $h2 = @(& $hashes $b2)
@@ -1473,7 +1473,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
         ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
         # A template only a deprecated Content Hub solution ships is left out, as on the report page.
-        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
+        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $build.Contains("-not (Test-TemplateRetired -Map `$tplSolutions -TemplateId ([string]`$_.TemplateId))") | Should -BeTrue
         @($model.effectiveness).Count | Should -Be 2
         # Lists are carried in full; the dashboard shows the first few with a
@@ -2092,7 +2092,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match 'M\.whatsNew'
         $html | Should -Not -Match 'class="wnitem"'
         $html.Contains("'Generally available':'Met','Preview':'Info','Retiring':'Gap','Action needed':'Warn'") | Should -BeTrue
-        $build = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
+        $build = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $build | Should -Not -Match 'Invoke-RestMethod|Invoke-WebRequest'
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         $wn = @($model.sections | Where-Object { $_.num -eq 3 })
@@ -2130,7 +2130,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
             "<html><!-- $d --></html>" | Set-Content (Join-Path $b 'index.html')
             @{ generatedUtc = "$d 06:00 UTC"; summary = @{ findings = 4; critical = 1; score = 2.5 } } | ConvertTo-Json | Set-Content (Join-Path $b 'site.json')
         }
-        $built = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $today -HistoryDays 30 6> $null
+        $built = (New-iSOCBlueprintSite -Path $today -HistoryDays 30 6> $null).Path
         $ix = Get-Content (Join-Path $built 'history/index.json') -Raw | ConvertFrom-Json
         @($ix.entries.date) | Should -Be @('2026-10-02', '2026-10-01')
         Test-Path (Join-Path $built 'history/2026-10-02.html') | Should -BeTrue
@@ -2158,7 +2158,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $wp.IndexOf('.sacSnapshot = snapshot') | Should -BeLessThan $wp.IndexOf('.eval(extracted.script)')
         $wp | Should -Match 'read: \(file: string\): Promise<string> => this\._fetchHtml\(folder \+'
         # The publisher keeps the day's copy and prunes past -HistoryDays.
-        $pub = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
+        $pub = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $pub | Should -Match '\[int\]\$HistoryDays = 90'
         $pub | Should -Match 'Send-SacSnapshot -Path \(Join-Path \$Bundle ''index\.html''\) -FileName \$snapFile'
         $pub | Should -Match '\$siteIndex = Read-SacSnapshotIndex'
@@ -2296,7 +2296,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $inc[0].PSObject.Properties.Remove('ClosedBy')
         $inc[0].PSObject.Properties.Remove('OpenBySeverity')
         ConvertTo-Json -InputObject $inc -Depth 10 | Set-Content (Join-Path $ws5 '_raw/incidents-summary.json')
-        $b5 = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws5 -SkipWhatsNew 6> $null
+        $b5 = (New-iSOCBlueprintSite -Path $ws5 -SkipWhatsNew 6> $null).Path
         $model = Get-Content (Join-Path $b5 'model.json') -Raw | ConvertFrom-Json
         $model.alertLifecycle.closedBy | Should -BeNullOrEmpty
         $model.alertLifecycle.openBySeverity | Should -BeNullOrEmpty
@@ -2314,7 +2314,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $ws2 = Join-Path $outDir 'law-sparse'
         New-Item -ItemType Directory -Path (Join-Path $ws2 '_raw') -Force | Out-Null
         Copy-Item (Join-Path $ws '_raw/run-context.json') (Join-Path $ws2 '_raw')
-        $b2 = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws2 -SkipWhatsNew 6> $null
+        $b2 = (New-iSOCBlueprintSite -Path $ws2 -SkipWhatsNew 6> $null).Path
         $model = Get-Content (Join-Path $b2 'model.json') -Raw | ConvertFrom-Json
         $model.counts.rulesTotal | Should -Be 0
         $model.counts.connectors | Should -Be 0
@@ -2347,7 +2347,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
             [pscustomobject]@{ Table = 'ColdStore_CL';    Plan = 'DataLake';  Gb30d = 120.0;  MonthlyCost = 6.0 }
         ) -Force
         $costDoc | ConvertTo-Json -Depth 16 | Set-Content -Path $costPath
-        $b4 = & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws4 -SkipWhatsNew 6> $null
+        $b4 = (New-iSOCBlueprintSite -Path $ws4 -SkipWhatsNew 6> $null).Path
         $model = Get-Content (Join-Path $b4 'model.json') -Raw | ConvertFrom-Json
         $model.dataLake.enrolled | Should -BeTrue
         $plans = @($model.flow.nodes | Where-Object col -eq 2)
@@ -2379,7 +2379,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $ws3 = Join-Path $outDir 'law-whatif'
         New-Item -ItemType Directory -Path (Join-Path $ws3 '_raw') -Force | Out-Null
         Copy-Item (Join-Path $ws '_raw/run-context.json') (Join-Path $ws3 '_raw')
-        & (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $ws3 -SkipWhatsNew -WhatIf 6> $null | Out-Null
+        New-iSOCBlueprintSite -Path $ws3 -SkipWhatsNew -WhatIf 6> $null | Out-Null
         Join-Path $ws3 'sharepoint' | Should -Not -Exist
     }
 }

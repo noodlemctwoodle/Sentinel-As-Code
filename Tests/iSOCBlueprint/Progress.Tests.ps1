@@ -20,18 +20,19 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.2.1
-    Last Updated: 2026-11-09
+    Version:      0.2.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
     . (Join-Path $sp '../../Private/SiteShared/Get-SacProgress.ps1')
     . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
-    $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
+    $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
     $script:sacSharePoint = (Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
 
     # A model with just the parts the record reads.
@@ -140,9 +141,9 @@ Describe 'The site build''s progress files' {
         Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $day '_raw')
         # An earlier day's build left its record in its bundle.
         New-Rec '2026-10-08' 9 | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $earlier 'progress.json')
-        & (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName 'law-sentinel-test' -InputRoot $day -OutputRoot $day -OutputFormat Json `
-            -ResourcesRoot (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
-        & (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Source $day -HistoryDays 30 6> $null | Out-Null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-test' -Path $day -OutputPath $day -Format Json `
+            -ResourcesPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+        New-iSOCBlueprintSite -Path $day -HistoryDays 30 6> $null | Out-Null
         $script:bundle = Join-Path $day 'sharepoint'
     }
 
@@ -169,7 +170,7 @@ Describe 'The site build''s progress files' {
 
 Describe 'The publisher keeps the history on the site' {
     It 'merges the bundle''s records with the site''s and saves them beside the dashboard' {
-        $script:publisher | Should -Match '\. \(Join-Path \$PSScriptRoot ''\.\.'' ''\.\.'' ''Private'' ''SiteShared'' ''Get-SacProgress\.ps1''\)'
+        & (Get-Module iSOCBlueprint) { Get-Command Merge-SacProgressHistory, Read-SacProgressHistory, Save-SacProgressHistory -ErrorAction SilentlyContinue } | Should -HaveCount 3
         $script:publisher | Should -Match 'Merge-SacProgressHistory -History \(Read-SacProgressHistory\) -Records \$progressRecords'
         $script:publisher | Should -Match 'Save-SacProgressHistory -History \$progress'
         $script:sacSharePoint | Should -Match '\$script:SacProgressHistoryFile = ''progress-history\.json'''

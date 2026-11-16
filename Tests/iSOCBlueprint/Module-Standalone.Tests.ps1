@@ -26,8 +26,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (the renderer)
 #>
 
@@ -102,18 +102,17 @@ Describe 'iSOCBlueprint outside the repository' {
         }
     }
 
-    It 'finds every file the engine loads by a path relative to its own folder' {
-        $engine = Join-Path $script:copy 'Engine'
+    It 'finds every file the module loads by a path relative to its own folder' {
         $rx = [regex]'Join-Path\s+(?:-Path\s+)?\$PSScriptRoot\s+(?:-ChildPath\s+)?[''"]([^''"$]+)[''"]'
         $checked = 0
-        foreach ($file in Get-ChildItem -LiteralPath $engine -Recurse -Filter '*.ps1' -File) {
+        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Include '*.ps1', '*.psm1' -File | Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
             foreach ($m in $rx.Matches((Get-Content -LiteralPath $file.FullName -Raw))) {
                 $relative = $m.Groups[1].Value
                 Test-Path -LiteralPath (Join-Path $file.DirectoryName $relative) | Should -BeTrue -Because "$($file.Name) loads $relative"
                 $checked++
             }
         }
-        $checked | Should -BeGreaterThan 20
+        $checked | Should -BeGreaterThan 0
     }
 
     It 'never climbs from the engine to the repository root' {

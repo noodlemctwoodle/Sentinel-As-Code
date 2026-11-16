@@ -19,8 +19,8 @@ The Blueprint is a two-stage renderer, with an optional third
 ADO-only image pre-render pass:
 
 ```
-Live workspace → Export-SentinelInventory.ps1            → _raw/*.json
-_raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 36 .md files
+Live workspace → Export-iSOCBlueprintInventory            → _raw/*.json
+_raw/*.json    → ConvertTo-iSOCBlueprint                  → 36 .md files
 *.md (ADO only)→ Invoke-iSOCBlueprintChartImage           → assets/*.png + rewritten fences
 ```
 
@@ -56,10 +56,9 @@ Render/
    (mandatory), `-InputRoot`, `-OutputRoot`, `-ResourcesRoot` and
    `-OutputFormat`, turns strict mode off (the inventory's JSON shapes
    vary between API versions), sets the per-run state and calls each step
-   in order. The command-line script
-   `Engine/Convert-SentinelInventoryToMarkdown.ps1` keeps its parameters,
-   loads these files and the shared helpers under `Engine/Private/`, and
-   calls it.
+   in order. `ConvertTo-iSOCBlueprint` checks the YAML module, resolves the
+   folders and calls it; the module loads these files and the shared helpers
+   under `Private/`.
 2. **Render context**: the steps share their figures through a hashtable,
    `$Context`. A step opens by taking what it reads from the context
    (`$rules = $Context.rules`) and ends by leaving what a later step reads
@@ -538,9 +537,9 @@ assets root).
 | Path | Role |
 |---|---|
 | [`Modules/iSOCBlueprint/Private/Render/`](../../../Modules/iSOCBlueprint/Private/Render) | The renderer this spec describes: `Invoke-iSOCBlueprintRender`, the inventory reader, the helpers and one folder per page |
-| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Command-line entry point to the renderer: loads the files above and calls `Invoke-iSOCBlueprintRender` |
+| [`Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprint.ps1`](../../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprint.ps1) | The command that runs the renderer: resolves the folders and calls `Invoke-iSOCBlueprintRender` |
 | [`Tests/iSOCBlueprint/Structure.Tests.ps1`](../../../Tests/iSOCBlueprint/Structure.Tests.ps1) | Holds every module file to 300 lines |
-| [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) (loads [`Private/Collector`](../../../Modules/iSOCBlueprint/Private/Collector), one function per capture) | Stage 1, produces `_raw/*.json` |
+| [`Modules/iSOCBlueprint/Private/Collector`](../../../Modules/iSOCBlueprint/Private/Collector) (`Invoke-iSOCBlueprintCollect`, one function per capture) | Stage 1, produces `_raw/*.json` |
 | [`Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1`](../../../Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |

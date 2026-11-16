@@ -10,7 +10,7 @@ site. One package, two web parts:
 
 You do not normally build or deploy this by hand. The SharePoint publish
 pipelines build the `.sppkg` on every run and
-`Publish-SentinelDocsSite.ps1` deploys it to the site's own app catalog
+`Publish-iSOCBlueprintSite` deploys it to the site's own app catalog
 whenever its version changes. See
 [iSOC Blueprint SharePoint Site](../../../Docs/Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md).
 

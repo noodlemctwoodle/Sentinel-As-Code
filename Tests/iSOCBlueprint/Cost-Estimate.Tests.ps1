@@ -20,8 +20,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -206,7 +206,7 @@ Describe 'The currency it prices in' {
     }
 
     It 'takes -Currency Auto by default, everywhere it is set, and records it' {
-        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
+        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $collector | Should -Match "\[ValidateSet\('Auto', 'USD'.*'TWD'\)\]\s+\[string\]\`$Currency = 'Auto'"
         $collector | Should -Match 'Currency\s+= \$Currency'
         $collector | Should -Match "\`$currencyCode = if \(\`$Currency -eq 'Auto'\) \{ Resolve-AzureRetailCurrency -Region \`$region \}"
@@ -234,7 +234,7 @@ Describe 'The currency it prices in' {
 
 Describe 'The dashboard''s billed split' {
     It 'splits billed in full from grant eligible, keyed on the grant' {
-        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
+        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $build | Should -Match "\`$bucketAgg = @\{ 'Billed' = 0\.0; 'Grant eligible' = 0\.0 \}"
         $build | Should -Match "if \(\`$Row\.PSObject\.Properties\['Benefit'\]\) \{ return \`$\(if \(\[string\]\`$Row\.Benefit\) \{ 0\.0 \} else \{ \`$Gb \}\) \}"
         . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')

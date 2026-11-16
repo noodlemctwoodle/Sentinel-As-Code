@@ -60,8 +60,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.6.0
-    Last Updated: 2026-11-12
+    Version:      0.6.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -81,7 +81,7 @@ function Get-SentinelMaturity {
         Run the maturity assessment over a _raw folder.
 
     .PARAMETER InputRoot
-        The _raw folder written by Export-SentinelInventory.ps1.
+        The _raw folder written by Export-iSOCBlueprintInventory.
 
     .PARAMETER ResourcesRoot
         Modules/iSOCBlueprint/Engine/Private/Resources.

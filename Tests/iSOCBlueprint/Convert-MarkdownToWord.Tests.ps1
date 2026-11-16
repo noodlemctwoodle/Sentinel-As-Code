@@ -6,8 +6,8 @@
     Pester tests for the Word report's Markdown rewrites.
 
 .DESCRIPTION
-    Convert-MarkdownToWord.ps1 runs pandoc when it is invoked, so these
-    tests load only its functions, through the parser, and drive them on
+    Export-iSOCBlueprintWord runs pandoc when it is invoked, so these
+    tests load only the Word helper functions, through the parser, and drive them on
     small Markdown strings. They pin how status words are coloured now that
     the Blueprint pages carry plain words instead of coloured emoji: a cell
     is coloured only under a status column, and the severity on a finding
@@ -19,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 

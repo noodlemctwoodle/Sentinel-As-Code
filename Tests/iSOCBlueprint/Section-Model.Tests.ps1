@@ -23,13 +23,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.1
-    Last Updated: 2026-11-09
+    Version:      0.2.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (renderer)
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $private = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private'
     . (Join-Path $private 'ConvertFrom-BlueprintMermaid.ps1')
     . (Join-Path $private 'ConvertTo-BlueprintSection.ps1')
@@ -366,7 +367,6 @@ Describe 'Renderer section model output' {
 
     BeforeAll {
         $fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-        $renderer = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
         $resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
         $script:root = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-model-test-$(New-Guid)"
         $script:dirs = @{}
@@ -375,7 +375,7 @@ Describe 'Renderer section model output' {
             New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
             Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $ws '_raw')
             $formats = if ($mode -eq 'Json') { @('Json') } else { @('Markdown', 'Json') }
-            & $renderer -WorkspaceName 'law-sentinel-model' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $resources -OutputFormat $formats -InformationAction SilentlyContinue
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-model' -Path $ws -OutputPath $ws -ResourcesPath $resources -Format $formats -InformationAction SilentlyContinue | Out-Null
             $script:dirs[$mode] = $ws
         }
     }

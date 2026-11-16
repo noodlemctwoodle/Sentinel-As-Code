@@ -9,8 +9,9 @@
     check pandoc and resolve the paths, collect and order the Markdown, write
     cleaned copies, run pandoc (and LibreOffice for the table of contents page
     numbers), then report. The steps share their values through a context
-    hashtable. A step that cannot go on logs why and exits, as the script
-    always did; a -WhatIf run stops after listing what it would write.
+    hashtable. A step that cannot go on throws, saying why; a folder with no
+    Markdown stops with a warning; a -WhatIf run stops after listing what it
+    would write.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1
@@ -18,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+, pandoc on PATH
 
@@ -35,9 +36,10 @@ function Invoke-iSOCBlueprintWordConversion {
         document with pandoc.
 
     .DESCRIPTION
-        The parameters are those of Engine/Report/Convert-MarkdownToWord.ps1,
-        whose help describes the ordering, the cleaning and the table of
-        contents modes.
+        The parameters are those of Export-iSOCBlueprintWord, whose help
+        describes the ordering, the cleaning and the table of contents modes.
+        Strict mode is turned off for the call, as the script this replaces
+        always ran without it.
 
     .PARAMETER Source
         The folder of Markdown files.
@@ -73,48 +75,50 @@ function Invoke-iSOCBlueprintWordConversion {
         Leave finding bullets and status words as they are.
 
     .PARAMETER ReportRoot
-        The Engine/Report folder, which holds the templates and the LibreOffice helper.
+        The Engine/Report folder, which holds the templates and the LibreOffice
+        helper. Defaults to the module's own.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-    [Parameter(Mandatory = $true)]
-    [string]$Source,
-
-    [Parameter(Mandatory = $false)]
-    [string]$OutputPath,
-
-    [Parameter(Mandatory = $false)]
-    [string]$Title,
-
-    [Parameter(Mandatory = $false)]
-    [string]$ReferenceDoc,
-
-    [Parameter(Mandatory = $false)]
-    [switch]$NoReferenceDoc,
-
-    [Parameter(Mandatory = $false)]
-    [ValidateSet('Baked', 'Field', 'Styled')]
-    [string]$Toc = 'Baked',
-
-    [Parameter(Mandatory = $false)]
-    [int]$TocDepth = 2,
-
-    [Parameter(Mandatory = $false)]
-    [string[]]$FrontFile = @('README.md'),
-
-    [Parameter(Mandatory = $false)]
-    [string[]]$ExcludeFile = @('index.md'),
-
-    [Parameter(Mandatory = $false)]
-    [string]$StripLinePattern = '(?m)^[ \t]*>.*\bWorkspace\b.*\bBlueprint\b.*\r?\n?',
-
-    [Parameter(Mandatory = $false)]
-    [switch]$NoReformatFindings,
-
         [Parameter(Mandatory = $true)]
-        [string]$ReportRoot
+        [string]$Source,
+
+        [Parameter(Mandatory = $false)]
+        [string]$OutputPath,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Title,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ReferenceDoc,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoReferenceDoc,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Baked', 'Field', 'Styled')]
+        [string]$Toc = 'Baked',
+
+        [Parameter(Mandatory = $false)]
+        [int]$TocDepth = 2,
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$FrontFile = @('README.md'),
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$ExcludeFile = @('index.md'),
+
+        [Parameter(Mandatory = $false)]
+        [string]$StripLinePattern = '(?m)^[ \t]*>.*\bWorkspace\b.*\bBlueprint\b.*\r?\n?',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoReformatFindings,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ReportRoot = (Join-Path $script:iSOCBlueprintEngineRoot 'Report')
     )
 
+    Set-StrictMode -Off
     $ErrorActionPreference = 'Stop'
 
     $script:WordReportRoot = $ReportRoot

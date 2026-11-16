@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -83,8 +83,7 @@ function Invoke-WordPandoc {
     if ($LASTEXITCODE -ne 0) {
         foreach ($line in $passAOut) { Write-WordLog "  $line" -Level Error }
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
-        Write-WordLog "pandoc contents pass failed." -Level Error
-        exit 1
+        throw 'pandoc contents pass failed.'
     }
 
     # The contents list is every line before the first top-level heading.

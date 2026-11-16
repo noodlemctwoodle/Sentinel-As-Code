@@ -225,7 +225,7 @@ validate-or-deploy path. Note that some are **not present in Azure Cloud Shell**
 | Dependency | Required by |
 | --- | --- |
 | [git](https://learn.microsoft.com/devops/develop/git/what-is-git) (2.x+ on PATH) | `Import-CommunityRules`; `Migrate-ForkLayout` (and cloning the repo) |
-| [pandoc](https://pandoc.org/) (on PATH) | `Convert-MarkdownToWord`; `Convert-FolderToWordReport` |
+| [pandoc](https://pandoc.org/) (on PATH) | `Export-iSOCBlueprintWord` |
 | Node.js + [@mermaid-js/mermaid-cli](https://github.com/mermaid-js/mermaid-cli) | `ConvertTo-iSOCBlueprintChartImage` (Blueprint diagrams) |
 | [Azure CLI + Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/install) (`az bicep build`) | PR-validation bicep-build job |
 | [ImportExcel](https://www.powershellgallery.com/packages/ImportExcel) (module) | Standalone SDL migration workbook export only |

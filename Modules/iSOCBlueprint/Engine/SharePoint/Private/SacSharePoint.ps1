@@ -24,7 +24,7 @@
     exists, publish one page, rebuild the navigation, ...) and nothing
     else. Decisions about what to do live in Get-SacSyncPlan.ps1. Every
     function that changes the site supports -WhatIf / -Confirm and inherits
-    the caller's preference, so Publish-SentinelDocsSite.ps1 -WhatIf reads
+    the caller's preference, so Publish-iSOCBlueprintSite -WhatIf reads
     the site but writes nothing.
 
     The functions assume an open PnP connection (Connect-PnPOnline) and are
@@ -39,8 +39,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.7.0
-    Last Updated: 2026-11-12
+    Version:      0.7.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
     This file loads functions rather than running. Per-parameter detail

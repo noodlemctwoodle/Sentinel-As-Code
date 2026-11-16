@@ -31,12 +31,12 @@ Edits made in the copy:
 | Id | File | Change |
 | --- | --- | --- |
 | G1 | every `.ps1` | The `File:` key in the help block names the new path |
-| E1 | `Export-SentinelInventory.ps1` | Dot-sources the vendored KQL helpers instead of importing `Modules/Sentinel.Common` from the repository |
-| E2 | `Export-SentinelInventory.ps1` | `-OutputRoot` defaults to `./SecurityDocs` under the current directory, not two folders above the script |
-| E3 | `Export-SentinelInventory.ps1` | `BlueprintVersion` is the module manifest version (it was `0.2.0`); `ScriptCommit` is recorded only when git is installed |
-| E4 | `Convert-SentinelInventoryToMarkdown.ps1` | `-InputRoot` defaults to `./SecurityDocs/<workspace>` under the current directory |
-| E5 | `Convert-SentinelInventoryToMarkdown.ps1` | Page 99 is read from the copy the module ships, not from the repository docs |
-| E6 | `Convert-SentinelInventoryToMarkdown.ps1` | The four links into the repository (pages 20, 90 and 91) point at GitHub |
+| E1 | `Export-SentinelInventory.ps1` (now `Invoke-iSOCBlueprintCollect`) | Uses the vendored KQL helpers instead of importing `Modules/Sentinel.Common` from the repository |
+| E2 | `Export-SentinelInventory.ps1` (now `Invoke-iSOCBlueprintCollect`) | `-OutputRoot` defaults to `./SecurityDocs` under the current directory, not two folders above the script |
+| E3 | `Export-SentinelInventory.ps1` (now `Invoke-iSOCBlueprintCollect`) | `BlueprintVersion` is the module manifest version (it was `0.2.0`); `ScriptCommit` is recorded only when git is installed |
+| E4 | `Convert-SentinelInventoryToMarkdown.ps1` (now `Invoke-iSOCBlueprintRender`) | `-InputRoot` defaults to `./SecurityDocs/<workspace>` under the current directory |
+| E5 | `Convert-SentinelInventoryToMarkdown.ps1` (now `Invoke-iSOCBlueprintRender`) | Page 99 is read from the copy the module ships, not from the repository docs |
+| E6 | `Convert-SentinelInventoryToMarkdown.ps1` (now `Invoke-iSOCBlueprintRender`) | The four links into the repository (pages 20, 90 and 91) point at GitHub |
 | E7 | `Blueprint.psd1` | Its own `Version` (`0.1.0`) removed; the manifest is the only version |
 
 Paths are repository-relative. A source ending in `/**` covers every file
@@ -46,8 +46,8 @@ beneath it.
 | --- | --- | --- | --- | --- |
 | `Tools/Blueprint/Blueprint.psd1` | Copy | `Modules/iSOCBlueprint/Engine/Blueprint.psd1` | E7 | Settings data; nothing reads it at run time |
 | `Tools/Blueprint/Convert-MermaidToImage.ps1` | Move | `Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1` | | Now a function, with its hash helper in `Get-MermaidHash.ps1`; `ConvertTo-iSOCBlueprintChartImage` |
-| `Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1` | E4, E5, E6 | `ConvertTo-iSOCBlueprint` |
-| `Tools/Blueprint/Export-SentinelInventory.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1` | E1, E2, E3 | `Export-iSOCBlueprintInventory` |
+| `Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1` | Move | `Modules/iSOCBlueprint/Private/Render/Invoke-iSOCBlueprintRender.ps1` | E4, E5, E6 | Now a function, with the helpers it loaded in `Private/Render`; checks the YAML module in `ConvertTo-iSOCBlueprint` in place of `#Requires -Modules`; `ConvertTo-iSOCBlueprint` |
+| `Tools/Blueprint/Export-SentinelInventory.ps1` | Move | `Modules/iSOCBlueprint/Private/Collector/Invoke-iSOCBlueprintCollect.ps1` | E1, E2, E3 | Now a function that runs strict, with the captures beside it in `Private/Collector`; the Az module check moved to `Export-iSOCBlueprintInventory` in place of `#Requires -Modules`; `Export-iSOCBlueprintInventory` |
 | `Tools/Blueprint/Update-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/ConnectorCatalogue/Invoke-iSOCBlueprintConnectorCatalogueUpdate.ps1` | | Now a function; `Update-iSOCBlueprintConnectorCatalogue` |
 | `Tools/Blueprint/Private/ConvertFrom-BlueprintMermaid.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1` | | |
 | `Tools/Blueprint/Private/ConvertTo-BlueprintSection.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1` | | |
@@ -72,14 +72,14 @@ beneath it.
 | `Tools/Blueprint/Private/Resources/mitre-attack.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json` | | |
 | `Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json` | | |
 | `Tools/Blueprint/Report/Convert-FolderToWordReport.ps1` | Retire | | | Generic folder-to-Word dump, not called anywhere and untested |
-| `Tools/Blueprint/Report/Convert-MarkdownToWord.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1` | | `Export-iSOCBlueprintWord` |
+| `Tools/Blueprint/Report/Convert-MarkdownToWord.ps1` | Move | `Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1` | | Now a function; a step that cannot go on throws where the script called `exit`; `Export-iSOCBlueprintWord` |
 | `Tools/Blueprint/Report/Update-WordToc.py` | Copy | `Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py` | | |
 | `Tools/Blueprint/Report/templates/sentinel-report-reference.docx` | Copy | `Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx` | | Binary, compared by hash |
 | `Tools/Blueprint/Schemas/section-index.schema.json` | Copy | `Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json` | | |
 | `Tools/Blueprint/Schemas/section.schema.json` | Copy | `Modules/iSOCBlueprint/Engine/Schemas/section.schema.json` | | |
-| `Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1` | | `New-iSOCBlueprintSite` |
+| `Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/Site/Invoke-iSOCBlueprintSiteBuild.ps1` | | Now a function; `New-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1` | | Now a function that checks the PnP module itself in place of `#Requires -Modules`; `Initialize-iSOCBlueprintSite` |
-| `Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1` | | `Publish-iSOCBlueprintSite` |
+| `Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/Publish/Invoke-iSOCBlueprintSitePublish.ps1` | | Now a function; the PnP module check moved to `Publish-iSOCBlueprintSite` in place of `#Requires -Modules`; `Publish-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/Get-SacSyncPlan.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SacSyncPlan.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/Get-SectionFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1` | | |

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, cost estimate
     Requires:     PowerShell 7.6+
@@ -31,7 +31,7 @@ function Get-SentinelCostEstimate {
         Pure data-in / data-out so the calculator can be exercised by Pester fixtures with
         no Azure dependency.
 
-        Inputs (all written by Export-SentinelInventory.ps1):
+        Inputs (all written by Export-iSOCBlueprintInventory):
           - tables-with-data.json    per-table BillableGB / IngestedGB over the lookback (BillableLast30d)
           - workspace-tables.json    per-table plan + retention
           - workspace.json           workspace SKU + commitment level

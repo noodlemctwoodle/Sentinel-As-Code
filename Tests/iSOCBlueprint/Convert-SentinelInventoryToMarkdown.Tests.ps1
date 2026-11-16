@@ -6,7 +6,7 @@
     Tests for the iSOC Blueprint renderer.
 
 .DESCRIPTION
-    Drives Convert-SentinelInventoryToMarkdown.ps1 against the fixture under
+    Drives ConvertTo-iSOCBlueprint against the fixture under
     Tests/iSOCBlueprint/Fixtures/sample/_raw and asserts that the expected Markdown
     section files are produced and contain the headings + signal phrases the
     template promises.
@@ -31,16 +31,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.5.1
-    Last Updated: 2026-11-09
+    Version:      0.5.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
     $script:fixtureRaw = Join-Path $script:fixtureWs '_raw'
-    $script:renderer   = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
     $script:resources  = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
 
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-test-$(New-Guid)"
@@ -55,12 +55,12 @@ BeforeAll {
     $script:tempWsRoot = $tempWsRoot
 
     # Run the renderer.
-    & $script:renderer `
+    ConvertTo-iSOCBlueprint `
         -WorkspaceName 'law-sentinel-test' `
-        -InputRoot     $tempWsRoot `
-        -OutputRoot    $tempWsRoot `
-        -ResourcesRoot $script:resources `
-        -InformationAction SilentlyContinue
+        -Path          $tempWsRoot `
+        -OutputPath    $tempWsRoot `
+        -ResourcesPath $script:resources `
+        -InformationAction SilentlyContinue | Out-Null
 }
 
 AfterAll {
@@ -775,12 +775,12 @@ Describe 'iSOC Blueprint renderer' {
             $cost | Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue $busyTables -Force
             $cost | ConvertTo-Json -Depth 32 | Set-Content -Path $costPath
 
-            & $script:renderer `
+            ConvertTo-iSOCBlueprint `
                 -WorkspaceName 'law-sentinel-busy' `
-                -InputRoot     $busyWs `
-                -OutputRoot    $busyWs `
-                -ResourcesRoot $script:resources `
-                -InformationAction SilentlyContinue
+                -Path          $busyWs `
+                -OutputPath    $busyWs `
+                -ResourcesPath $script:resources `
+                -InformationAction SilentlyContinue | Out-Null
 
             $script:busyOut    = $busyOut
             $script:busyCostMd = Get-Content (Join-Path $busyWs '84-cost-estimate.md') -Raw
@@ -1429,12 +1429,12 @@ Describe 'iSOC Blueprint renderer — empty-state safety' {
         }
         $script:emptyWsRoot = $emptyWsRoot
 
-        & $script:renderer `
+        ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-empty' `
-            -InputRoot     $emptyWsRoot `
-            -OutputRoot    $emptyWsRoot `
-            -ResourcesRoot $script:resources `
-            -InformationAction SilentlyContinue
+            -Path          $emptyWsRoot `
+            -OutputPath    $emptyWsRoot `
+            -ResourcesPath $script:resources `
+            -InformationAction SilentlyContinue | Out-Null
     }
 
     AfterAll {
@@ -1527,12 +1527,12 @@ Describe 'iSOC Blueprint renderer - snapshots from before the rename' {
         $ctx.Remove('BlueprintVersion')
         $ctx | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $ctxPath -Encoding utf8
 
-        & $script:renderer `
+        ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-legacy' `
-            -InputRoot     $legacyWsRoot `
-            -OutputRoot    $legacyWsRoot `
-            -ResourcesRoot $script:resources `
-            -InformationAction SilentlyContinue
+            -Path          $legacyWsRoot `
+            -OutputPath    $legacyWsRoot `
+            -ResourcesPath $script:resources `
+            -InformationAction SilentlyContinue | Out-Null
         $script:legacyOverview = Get-Content -LiteralPath (Join-Path $legacyWsRoot '00-overview.md') -Raw
     }
 
@@ -1589,7 +1589,7 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         $tablesDoc = @(Get-Content $quietTables -Raw | ConvertFrom-Json) + [pscustomobject]@{ name = 'HuntingBookmark'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 90; totalRetentionInDays = 90 } }
         ConvertTo-Json -InputObject $tablesDoc -Depth 10 | Set-Content $quietTables -Encoding UTF8
         foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'), @($quietRoot, 'law-sentinel-quiet'))) {
-            & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -InformationAction SilentlyContinue
+            ConvertTo-iSOCBlueprint -WorkspaceName $pair[1] -Path $pair[0] -OutputPath $pair[0] -ResourcesPath $script:resources -InformationAction SilentlyContinue | Out-Null
         }
         $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
         $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
@@ -1659,7 +1659,7 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
         ConvertTo-Json -InputObject @($tables) -Depth 16 | Set-Content (Join-Path $lake '_raw/workspace-tables.json')
 
         foreach ($pair in @(@($full, 'law-hc-full'), @($old, 'law-hc-old'), @($lake, 'law-hc-lake'))) {
-            & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName $pair[1] -Path $pair[0] -OutputPath $pair[0] -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
         }
         $script:hc = @{}
         foreach ($n in '01-live-snapshot', '02-deprecated-legacy-features', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene', '14-coverage-breakdowns', '15-incidents', '16-alerts', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention', '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '89-retention', '91-maturity-assessment') {
@@ -1796,7 +1796,7 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
         $tables += @(1..25 | ForEach-Object { [pscustomobject]@{ name = ('CatalogueOnly{0:D2}' -f $_); properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'Microsoft' } } } })
         & $raw 'workspace-tables.json' $tables
 
-        & $script:renderer -WorkspaceName 'law-wide' -InputRoot $wide -OutputRoot $wide -ResourcesRoot $script:resources -OutputFormat Markdown, Json -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-wide' -Path $wide -OutputPath $wide -ResourcesPath $script:resources -Format Markdown, Json -InformationAction SilentlyContinue *> $null
         $script:wide = $wide
         $script:widePage = { param($Name) Get-Content (Join-Path $script:wide "$Name.md") -Raw }
     }
@@ -1873,7 +1873,7 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
         )
         & $raw 'solutions-installed.json' @([pscustomobject]@{ name = 'SecurityInsights(law-cat)'; plan = [pscustomobject]@{ product = 'OMSGallery/SecurityInsights' }; properties = [pscustomobject]@{ sku = [pscustomobject]@{ name = 'Unified' } } })
 
-        & $script:renderer -WorkspaceName 'law-cat' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-cat' -Path $ws -OutputPath $ws -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
         $script:catPage = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
     }
 
@@ -1965,7 +1965,7 @@ Describe '37-search-restore.md lists the search job and restored tables' {
                 schema = [pscustomobject]@{ tableType = 'RestoredLogs' }
                 restoredLogs = [pscustomobject]@{ sourceTable = 'Syslog'; startRestoreTime = '2025-02-01T00:00:00Z'; endRestoreTime = '2025-02-02T00:00:00Z' } } }
         ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $root '_raw/workspace-tables.json')
-        & $script:renderer -WorkspaceName 'law-sr' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-sr' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
         $script:sr37 = Get-Content (Join-Path $root '37-search-restore.md') -Raw
         $script:fx37 = Get-Content (Join-Path $script:tempWsRoot '37-search-restore.md') -Raw
     }
@@ -2032,7 +2032,7 @@ Describe 'Sentinel health statuses read as a plain list' {
             $h = @(Get-Content (Join-Path $root '_raw/sentinel-health.json') -Raw | ConvertFrom-Json)
             foreach ($r in $h) { $r.Statuses = ($r.Statuses | ConvertTo-Json -Compress -AsArray) }
             $h | ConvertTo-Json -Depth 5 -AsArray | Set-Content (Join-Path $root '_raw/sentinel-health.json')
-            & $script:renderer -WorkspaceName 'law-hs' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-hs' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $root '11-sentinel-health.md') -Raw
             $md | Should -Match '\| Success, Failure \|'
             $md | Should -Not -Match '\["Success'
@@ -2057,7 +2057,7 @@ Describe 'Every report page opens with what it covers' {
             New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw')
             '{}' | Set-Content (Join-Path $root '_raw/dedicated-cluster.json')
-            & $script:renderer -WorkspaceName 'law-cl' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-cl' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $root '82-dedicated-cluster.md') -Raw
             $md | Should -Match 'No dedicated cluster linked to this workspace'
             $md | Should -Not -Match '\| Property \| Value \|'
@@ -2124,7 +2124,7 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
                 @{ properties = @{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = $d } }
                 @{ properties = @{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = 'false' } }
             ) | ConvertTo-Json -Depth 10 -AsArray | Set-Content (Join-Path $root '_raw/content-product-packages.json')
-            & $script:renderer -WorkspaceName 'law-dep' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-dep' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $root '28-detection-opportunities.md') -Raw
             $ready = ($md -split '## Undeployed templates ready to enable')[1] -split '## Templates from deprecated solutions' | Select-Object -First 1
             $ready | Should -Not -Match 'Low-severity noise'
@@ -2169,7 +2169,7 @@ Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
         $rules = @(Get-Content (Join-Path $script:fixtureRaw 'alert-rules.json') -Raw | ConvertFrom-Json)
         $rules += [pscustomobject]@{ name = 'vip-rule'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'VIP sign-in'; enabled = $true; severity = 'High'; query = '_GetWatchlist("vips") | join SigninLogs on UPN'; tactics = @(); techniques = @() } }
         ConvertTo-Json -InputObject $rules -Depth 10 | Set-Content (Join-Path $script:wlRoot '_raw/alert-rules.json')
-        & $script:renderer -WorkspaceName 'law-wl' -InputRoot $script:wlRoot -OutputRoot $script:wlRoot -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-wl' -Path $script:wlRoot -OutputPath $script:wlRoot -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
         $script:wl = Get-Content (Join-Path $script:wlRoot '50-watchlists.md') -Raw
     }
 
@@ -2258,7 +2258,7 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         $gaps[0].Evidence = 'Playbook failed, last 2026-10-14T23:16:38Z; retirement 2026-09-14.'
         & $raw 'gap-analysis.json' $gaps
 
-        & $script:renderer -WorkspaceName 'law-style' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-style' -Path $ws -OutputPath $ws -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
         $script:page = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
         $script:pages = @(Get-ChildItem $ws -Filter '*.md' | ForEach-Object { [pscustomobject]@{ Name = $_.BaseName; Text = Get-Content $_.FullName -Raw } })
     }
@@ -2316,7 +2316,7 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
             New-Item -ItemType Directory -Path (Join-Path $alt '_raw') -Force | Out-Null
             Get-ChildItem -Path (Join-Path $ws '_raw') -File | Copy-Item -Destination (Join-Path $alt '_raw')
             ConvertTo-Json -InputObject $volumes -Depth 8 | Set-Content (Join-Path $alt '_raw/analytics-rule-volumes.json')
-            & $script:renderer -WorkspaceName 'law-style' -InputRoot $alt -OutputRoot $alt -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-style' -Path $alt -OutputPath $alt -ResourcesPath $script:resources -Format Markdown -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $alt '16-alerts.md') -Raw
             $md | Should -Match '\| Provider \| Product \| Alert \| Severity \| Alerts \|\r?\n'
             $md | Should -Not -Match 'fired in the last 7 days'

@@ -19,8 +19,10 @@
       Site        New-iSOCBlueprintSite
       Publish     Publish-iSOCBlueprintSite and Initialize-iSOCBlueprintSite
 
-    The module and version lists match the engine scripts' #Requires
-    statements; Tests/iSOCBlueprint/Module.Tests.ps1 holds them together.
+    Each public command that needs a module checks the steps it serves
+    through Assert-iSOCBlueprintPrerequisite;
+    Tests/iSOCBlueprint/Module.Tests.ps1 holds the commands and this list
+    together.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Get-iSOCBlueprintRequirement.ps1
@@ -28,8 +30,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail

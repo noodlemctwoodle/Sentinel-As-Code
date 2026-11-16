@@ -17,13 +17,19 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
     This file defines a function rather than running. Per-parameter detail
     lives on the function's own help block.
+
+    Credit and thanks: the data behind the dashboard's estate flow,
+    maturity and insight panels is based on the Sentinel health-check
+    script by thinkndle, kindly given to the Sentinel-As-Code project.
+    Thank you, thinkndle, for sharing your work so generously; it shaped
+    much of the Blueprint's health, coverage and maturity reporting.
 #>
 
 
@@ -34,9 +40,47 @@ function Invoke-iSOCBlueprintSiteBuild {
         Blueprint workspace snapshot.
 
     .DESCRIPTION
-        The parameters are those of Engine/SharePoint/Build-SentinelDocsSite.ps1,
-        whose help describes the bundle (index.html, model.json, site.json,
-        pages, progress records).
+        Reads one Blueprint workspace folder (the _raw/*.json snapshot that
+        Export-iSOCBlueprintInventory writes and the section model,
+        sections/*.json, that ConvertTo-iSOCBlueprint renders next to it) and
+        writes everything the publisher needs into one folder. No Markdown is
+        read: a run rendered with -Format Json is enough. A snapshot rendered
+        before the section model existed has only the NN-name.md files; those
+        are converted on the fly instead.
+
+          index.html          the interactive dashboard: a single self-contained
+                              HTML file (inline CSS and JS, data embedded as
+                              JSON) that the site's home page hosts
+          model.json          the dashboard's data model
+          site.json           site descriptor: product name, workspace, the
+                              section list with page names, families and hashes
+          pages/<page>.json   one file per section: title and the ordered
+                              segments (HTML for Text web parts, chart data for
+                              the isoc-blueprint chart web part)
+          progress.json       this run's progress record: the headline numbers
+                              and the lists the dashboard's Progress tab compares
+          progress-history.json  every kept day's record, oldest first, from the
+                              earlier day folders' bundles (the publisher keeps
+                              the site's own)
+          tables/<name>.csv   each table cut at -MaxTableRows on its page, whole,
+                              as CSV (UTF-8); the page's note links to it and
+                              the publisher puts it in the assets library
+          findings.json       gap-analysis findings plus per-check outcomes,
+                              for the findings list
+          history/            when the source is a day's folder (yyyy-MM-dd)
+                              beside earlier days: each kept day's dashboard as
+                              <date>.html and index.json listing them, for the
+                              dashboard's date picker
+
+        Nothing here talks to SharePoint, Azure or anything else on the
+        network, so the bundle can be built from a downloaded pipeline
+        artefact and inspected before publishing. What's new in Sentinel and
+        Defender is a report page (03-whats-new.md), read by the collector.
+        Charts come from the section model as data; nothing is pre-rendered.
+
+        Strict mode is turned off for the call, as the script this replaces
+        always ran without it. Supports -WhatIf, which shows what would be
+        written without writing anything.
 
     .PARAMETER Source
         The workspace folder that contains _raw/.
@@ -69,16 +113,18 @@ function Invoke-iSOCBlueprintSiteBuild {
         Days of earlier dashboard copies to keep.
 
     .PARAMETER EngineRoot
-        The Engine folder (Private/Resources and the engine helpers live under it).
+        The Engine folder (Private/Resources and the report templates live
+        under it). Defaults to the module's own.
 
     .PARAMETER SiteRoot
         The Engine/SharePoint folder (the dashboard templates live under it).
+        Defaults to the module's own.
 
     .OUTPUTS
         The bundle folder.
 
     .EXAMPLE
-        Invoke-iSOCBlueprintSiteBuild -Source ./SecurityDocs/law-sentinel-prod/2026-11-12 -EngineRoot $engine -SiteRoot $site
+        Invoke-iSOCBlueprintSiteBuild -Source ./SecurityDocs/law-sentinel-prod/2026-11-12
 
         Builds the bundle into ./SecurityDocs/law-sentinel-prod/2026-11-12/sharepoint.
     #>
@@ -114,13 +160,14 @@ function Invoke-iSOCBlueprintSiteBuild {
         [ValidateRange(0, 3650)]
         [int]$HistoryDays = 90,
 
-        [Parameter(Mandatory = $true)]
-        [string]$EngineRoot,
+        [Parameter(Mandatory = $false)]
+        [string]$EngineRoot = $script:iSOCBlueprintEngineRoot,
 
-        [Parameter(Mandatory = $true)]
-        [string]$SiteRoot
+        [Parameter(Mandatory = $false)]
+        [string]$SiteRoot = (Join-Path $script:iSOCBlueprintEngineRoot 'SharePoint')
     )
 
+    Set-StrictMode -Off
     $ErrorActionPreference = 'Stop'
 
     $script:RawRoot = $null

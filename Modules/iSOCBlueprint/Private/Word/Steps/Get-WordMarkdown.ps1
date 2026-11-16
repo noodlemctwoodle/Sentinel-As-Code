@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -51,7 +51,8 @@ function Get-WordMarkdown {
     $allMd = @(Get-ChildItem -LiteralPath $sourceFull -Recurse -File -Filter *.md | Sort-Object FullName)
     if ($allMd.Count -eq 0) {
         Write-WordLog "No .md files found under: $sourceFull" -Level Warning
-        exit 0
+        $Context.stop = $true
+        return
     }
 
     # Drop excluded files (matched by name at the source root) - e.g. the

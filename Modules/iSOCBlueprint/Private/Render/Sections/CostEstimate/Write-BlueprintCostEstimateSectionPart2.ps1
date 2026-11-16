@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -55,7 +55,7 @@ function Write-BlueprintCostEstimateSectionPart2 {
     $costBody = if (-not $cost) { @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
-_Cost estimate not available. Confirm Export-SentinelInventory.ps1 ran with retail-prices fetch and tables-with-data KQL._
+_Cost estimate not available. Confirm Export-iSOCBlueprintInventory ran with retail-prices fetch and tables-with-data KQL._
 "@ } else {
     @"
 $(Format-Banner -Title "Estimated Monthly Cost")

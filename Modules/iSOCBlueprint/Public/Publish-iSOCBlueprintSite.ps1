@@ -5,7 +5,7 @@
     Publish-iSOCBlueprintSite: make a SharePoint site match a site bundle.
 
 .DESCRIPTION
-    Runs Engine/SharePoint/Publish-SentinelDocsSite.ps1.
+    Needs the PnP.PowerShell module.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/Publish-iSOCBlueprintSite.ps1
@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     The publisher itself also requires PnP.PowerShell 3.4.1; see
@@ -99,7 +99,7 @@ function Publish-iSOCBlueprintSite {
 
         What a pipeline runs.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The engine script makes the ShouldProcess calls; -WhatIf and -Confirm are passed on to it.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The worker function makes the ShouldProcess calls; -WhatIf and -Confirm reach it through the preference variables.')]
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Token')]
     [OutputType([string])]
     param(
@@ -130,6 +130,10 @@ function Publish-iSOCBlueprintSite {
         [int] $HistoryDays
     )
 
+    begin {
+        Assert-iSOCBlueprintPrerequisite -Step Publish
+    }
+
     process {
         $params = @{ SiteUrl = $SiteUrl; Bundle = (Resolve-iSOCBlueprintPath -Path $Path) }
         if ($PSCmdlet.ParameterSetName -eq 'Token') { $params.AccessToken = $AccessToken }
@@ -141,7 +145,7 @@ function Publish-iSOCBlueprintSite {
         if ($AppPackagePath) { $params.AppPackagePath = Resolve-iSOCBlueprintPath -Path $AppPackagePath }
         Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'TokenLifetimeMinutes', 'HistoryDays'
 
-        $result = @(Invoke-iSOCBlueprintEngine -Script 'SharePoint/Publish-SentinelDocsSite.ps1' -Parameters $params -BoundParameters $PSBoundParameters)
+        $result = @(Invoke-iSOCBlueprintSitePublish @params)
         if ($result.Count -gt 0) { [string]$result[-1] }
     }
 }

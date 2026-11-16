@@ -147,10 +147,10 @@ each running a script under
 [`Modules/iSOCBlueprint/Engine/SharePoint/`](../../../Modules/iSOCBlueprint/Engine/SharePoint),
 with the dashboard template and the web part source:
 
-| Command (script) | Job |
+| Command (function) | Job |
 | --- | --- |
-| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
-| `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
+| `New-iSOCBlueprintSite` ([`Invoke-iSOCBlueprintSiteBuild.ps1`](../../../Modules/iSOCBlueprint/Private/Site/Invoke-iSOCBlueprintSiteBuild.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
+| `Publish-iSOCBlueprintSite` ([`Invoke-iSOCBlueprintSitePublish.ps1`](../../../Modules/iSOCBlueprint/Private/Publish/Invoke-iSOCBlueprintSitePublish.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
 | `Initialize-iSOCBlueprintSite` ([`Invoke-iSOCBlueprintSiteInitialize.ps1`](../../../Modules/iSOCBlueprint/Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
 | [`templates/dashboard/`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard) | The dashboard template the build fills in, kept as numbered parts (head, style, body, script, end) that `Get-SiteDashboardTemplate` joins; see the folder's README. |
 | [`Modules/iSOCBlueprint/WebParts/`](../../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Modules/iSOCBlueprint/WebParts/README.md). |

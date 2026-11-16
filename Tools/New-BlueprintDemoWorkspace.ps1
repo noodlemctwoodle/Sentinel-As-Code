@@ -96,8 +96,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.6
-    Last Updated: 2026-11-09
+    Version:      0.2.7
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
 
     Offline: reads the repository and writes files, and calls no Azure
@@ -1240,11 +1240,13 @@ Save-DemoJson 'maturity.json' (Get-SentinelMaturity -InputRoot $raw -ResourcesRo
 # ---------------------------------------------------------------------------
 $bundle = $null
 if ($Build) {
-    # The renderer and the build are not written for strict mode, which a
-    # child script inherits from this one.
+    # The module's own commands render the section model and build the
+    # bundle, as a real run does. Strict mode stays off from here on, as it
+    # has been since the renderer and the build ran as child scripts.
     Set-StrictMode -Off
-    & (Join-Path $engine 'Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName $WorkspaceName -InputRoot $OutputPath -OutputRoot $OutputPath -ResourcesRoot $resources -InformationAction SilentlyContinue *> $null
-    $bundle = & (Join-Path $engine 'SharePoint/Build-SentinelDocsSite.ps1') -Source $OutputPath -SkipWhatsNew 6> $null
+    Import-Module (Join-Path $RepoPath 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
+    ConvertTo-iSOCBlueprint -WorkspaceName $WorkspaceName -Path $OutputPath -OutputPath $OutputPath -ResourcesPath $resources -InformationAction SilentlyContinue *> $null
+    $bundle = (New-iSOCBlueprintSite -Path $OutputPath -SkipWhatsNew 6> $null).Path
     # The maturity trend reads the history the publisher keeps on the site,
     # which a local bundle lacks; the demo carries a quarter's climb to
     # today's score so the panel shows: twelve runs about a week apart, the

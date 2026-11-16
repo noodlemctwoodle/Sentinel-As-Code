@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -47,22 +47,15 @@ function Resolve-WordSource {
     Write-WordLog 'Markdown to Word report' -Level Section
 
     if (-not (Get-Command pandoc -ErrorAction SilentlyContinue)) {
-        Write-WordLog 'pandoc was not found on PATH. Install it and re-run:' -Level Error
-        Write-WordLog '  macOS    brew install pandoc'
-        Write-WordLog '  Windows  winget install --id JohnMacFarlane.Pandoc'
-        Write-WordLog '  Linux    sudo apt-get install pandoc'
-        exit 1
+        throw ("pandoc was not found on PATH. Install it and re-run:`n" +
+            "  macOS    brew install pandoc`n" +
+            "  Windows  winget install --id JohnMacFarlane.Pandoc`n" +
+            '  Linux    sudo apt-get install pandoc')
     }
 
-    if (-not (Test-Path -LiteralPath $Source)) {
-        Write-WordLog "Source path does not exist: $Source" -Level Error
-        exit 1
-    }
+    if (-not (Test-Path -LiteralPath $Source)) { throw "Source path does not exist: $Source" }
     $sourceItem = Get-Item -LiteralPath $Source
-    if (-not $sourceItem.PSIsContainer) {
-        Write-WordLog "Source must be a folder, not a file: $Source" -Level Error
-        exit 1
-    }
+    if (-not $sourceItem.PSIsContainer) { throw "Source must be a folder, not a file: $Source" }
     $sourceFull = $sourceItem.FullName
 
     if (-not $Title) { $Title = $sourceItem.Name }
@@ -78,10 +71,7 @@ function Resolve-WordSource {
         if (Test-Path -LiteralPath $bundled) { $ReferenceDoc = $bundled }
     }
     if ($NoReferenceDoc) { $ReferenceDoc = $null }
-    if ($ReferenceDoc -and -not (Test-Path -LiteralPath $ReferenceDoc)) {
-        Write-WordLog "Reference document not found: $ReferenceDoc" -Level Error
-        exit 1
-    }
+    if ($ReferenceDoc -and -not (Test-Path -LiteralPath $ReferenceDoc)) { throw "Reference document not found: $ReferenceDoc" }
 
     # Left in the conversion context for later steps.
     if (Get-Variable -Name 'OutputPath' -Scope 0 -ErrorAction Ignore) { $Context.OutputPath = $OutputPath }

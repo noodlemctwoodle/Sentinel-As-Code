@@ -6,7 +6,7 @@
     Pester tests for the access token age check in the SharePoint publisher.
 
 .DESCRIPTION
-    An -AccessToken cannot be refreshed, so Publish-SentinelDocsSite.ps1 stops
+    An -AccessToken cannot be refreshed, so Invoke-iSOCBlueprintSitePublish stops
     before a stage once the token has been in use for -TokenLifetimeMinutes.
     These tests drive Assert-TokenFresh with the script variables the publish
     sets (the parameter set, the limit and the time it connected) and check
@@ -24,8 +24,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 

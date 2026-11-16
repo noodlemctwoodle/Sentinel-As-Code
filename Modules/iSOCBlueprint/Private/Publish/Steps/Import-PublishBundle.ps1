@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+
 
@@ -43,7 +43,7 @@ function Import-PublishBundle {
 
     $Bundle = (Resolve-Path -LiteralPath $Bundle).Path
     $sitePath = Join-Path $Bundle 'site.json'
-    if (-not (Test-Path -LiteralPath $sitePath)) { throw "No site.json in '$Bundle'. Run Build-SentinelDocsSite.ps1 first." }
+    if (-not (Test-Path -LiteralPath $sitePath)) { throw "No site.json in '$Bundle'. Run New-iSOCBlueprintSite first." }
     $site = Get-Content -LiteralPath $sitePath -Raw | ConvertFrom-Json -Depth 32
     $findingsDoc = Get-Content -LiteralPath (Join-Path $Bundle 'findings.json') -Raw | ConvertFrom-Json -Depth 32
     $pageDocs = @{}

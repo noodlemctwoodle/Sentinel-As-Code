@@ -19,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -30,7 +30,7 @@ BeforeAll {
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:resourcesDir = Join-Path $script:engine 'Private/Resources'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
     $script:renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     $script:repoRoot = $repoRoot
 
@@ -193,7 +193,7 @@ Describe 'The pipelines set the lookback' {
 
 Describe 'The site names the window on every card' {
     It 'the build carries the window into the model and the estate' {
-        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1') -Raw)) -join "`n"
+        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $build | Should -Match '\$window = \[ordered\]@\{ days = \$lookbackDays; recentDays = \$recentDays \}'
         $build | Should -Match 'window\s+= \$window'
         $build | Should -Match 'window\s+= "\$\(\$lookbackDays\)d"'

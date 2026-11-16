@@ -17,12 +17,20 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
     lives on each function's own help block.
+
+    Credit and thanks: the estate flow, the detection opportunities
+    page, the automation opportunities title-to-action map, the rule
+    complexity idea and the page sections added to match the health
+    check's report are based on the Sentinel health-check script by
+    thinkndle, kindly given to the Sentinel-As-Code project. Thank you,
+    thinkndle, for sharing your work so generously; it shaped much of
+    the Blueprint's health, coverage and maturity reporting.
 #>
 
 # Keeps the file help above from being read as the help of the function below.
@@ -44,6 +52,20 @@ function Invoke-iSOCBlueprintRender {
         same sections as a Markdown pack, for the docs pull request and the
         Word report; -OutputFormat Json skips them.
 
+        Sections produced (one file of each format, plus the index):
+
+          00-overview            60-automation-rules-playbooks
+          10-data-connectors     70-content-hub
+          20-analytics-rules     80-workspace
+          25-mitre-coverage      81-table-plans-retention
+          30-hunting-queries     82-dedicated-cluster
+          35-parsers-functions   83-data-collection
+          40-workbooks           84-cost-estimate
+          50-watchlists          85-rbac
+                                 86-subscription-context
+                                 90-gap-analysis
+                                 99-references
+
         Strict mode is turned off for the run. The inventory holds JSON shapes
         from many Azure REST endpoints whose property graphs differ between API
         versions, and strict mode would force every read to be guarded.
@@ -59,14 +81,14 @@ function Invoke-iSOCBlueprintRender {
 
     .PARAMETER ResourcesRoot
         Folder holding best-practices.json, mitre-attack.json and the other
-        reference files.
+        reference files. Defaults to the module's own (Engine/Private/Resources).
 
     .PARAMETER OutputFormat
         Markdown (NN-name.md), Json (sections/NN-name.json and
         sections/index.json), or both (the default).
 
     .EXAMPLE
-        Invoke-iSOCBlueprintRender -WorkspaceName 'law-sentinel-prod' -ResourcesRoot $resources
+        Invoke-iSOCBlueprintRender -WorkspaceName 'law-sentinel-prod'
 
         Renders ./SecurityDocs/law-sentinel-prod/_raw into the section model
         and the Markdown pack beside it.
@@ -80,8 +102,7 @@ function Invoke-iSOCBlueprintRender {
 
         [string] $OutputRoot,
 
-        [Parameter(Mandatory)]
-        [string] $ResourcesRoot,
+        [string] $ResourcesRoot = (Join-Path $script:iSOCBlueprintEngineRoot 'Private/Resources'),
 
         [ValidateSet('Markdown', 'Json')]
         [string[]] $OutputFormat = @('Markdown', 'Json')
@@ -98,7 +119,7 @@ function Invoke-iSOCBlueprintRender {
 
     $rawRoot = Join-Path $InputRoot '_raw'
     if (-not (Test-Path $rawRoot)) {
-        throw "Renderer cannot find raw inventory at $rawRoot. Run Export-SentinelInventory.ps1 first."
+        throw "Renderer cannot find raw inventory at $rawRoot. Run Export-iSOCBlueprintInventory first."
     }
     if (-not (Test-Path $OutputRoot)) {
         New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null

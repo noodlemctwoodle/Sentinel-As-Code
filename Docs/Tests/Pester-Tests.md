@@ -156,10 +156,11 @@ workbook-export suites.
 | Blueprint REST wrapper | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
 | Blueprint section model | [`Tests/iSOCBlueprint/Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1) | The Markdown-to-section-model converter (loaded from [`Modules/iSOCBlueprint/Private/Section`](../../Modules/iSOCBlueprint/Private/Section)), the Mermaid chart parser (every chart kind) and the renderer's `sections/*.json` validated against the schemas, with both output formats |
 | Blueprint SharePoint site | [`Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1) | Section families, section-model-to-page conversion (charts as chart segments, the stand-in tables), the publish planners, the maturity history helper, the publisher's SharePoint steps (app catalog, section pages with the chart web part, dashboard page, navigation) against stand-in PnP functions, and an offline site-bundle build from the fixture, from the section model and from Markdown alone (no SharePoint or PnP needed) |
-| Blueprint SharePoint PnP calls | [`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`; and each entry script (publish, bootstrap, build) defines or loads every command it calls. Both PR validation jobs install that version and the suite fails in CI without it; skipped locally without it |
+| Blueprint SharePoint PnP calls | [`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1) | Every call in the SharePoint scripts binds against the PnP.PowerShell version the pipeline pins: parameters exist, sit in one parameter set, mandatory ones supplied, `Remove-PnP*` passes `-Force`; and the publish, the site build and the site set-up call only commands the module defines or PnP.PowerShell provides. Both PR validation jobs install that version and the suite fails in CI without it; skipped locally without it |
 | Blueprint table references | [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | The table-to-rule builder over the fixture rules and templates, asserted against the hand-authored reference files (imports `Sentinel.Common`) |
 | Blueprint maturity engine | [`Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1) | Scores the fixture, checks named criteria, roadmap order and the CSF rollup; synthetic criteria for the arithmetic; schema guards on `maturity-criteria.json` |
 | Blueprint custom detections | [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | The Graph detectionRule projection against the fixture reference file, plus empty and partial-object cases (dot-sources the module's copy of the Sentinel.Common KQL helpers) |
+| Blueprint Word conversion | [`Tests/iSOCBlueprint/Word-Conversion.Tests.ps1`](../../Tests/iSOCBlueprint/Word-Conversion.Tests.ps1) | `Export-iSOCBlueprintWord` stops with a clear error, not an `exit`, when pandoc, the source folder or the reference document is missing, stops with a warning on a folder with no Markdown, and (with pandoc installed) writes the document and nothing under `-WhatIf` |
 | Blueprint Word report | [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | The Word report's Markdown rewrites: status words coloured only under a Severity, Status, Coverage or Rating column, the finding-card severity, and the finding bullets |
 | Blueprint connector catalogue | [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | The shipped `connector-catalogue.json` (provenance, unique ids, the core Microsoft connectors) and its helpers: connector ids from classic and codeless connectors, 7-day activity with free tables, connected connectors against the catalogue, the connector and solution labels for a table |
 | Blueprint table families | [`Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1) | `Get-TableFamily` and `Get-ProductFamily`, the source-family mapping shared by the estate flow and the dashboard |
@@ -402,7 +403,7 @@ are described in the validate table above.
 
 - [`Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1)
   reshapes `Tests/iSOCBlueprint/Fixtures/sample/_raw` into the `<root>/<workspace>/_raw/*.json`
-  layout the renderer [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
+  layout the renderer [`ConvertTo-iSOCBlueprint`](../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprint.ps1)
   expects, runs it, and asserts the rendered Markdown (plus an empty-state /
   busy-workspace safety pass).
 - [`Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1)
@@ -428,8 +429,8 @@ are described in the validate table above.
   loads only the two Markdown helpers of
   [`Modules/iSOCBlueprint/Private/Word`](../../Modules/iSOCBlueprint/Private/Word/Helpers/Markdown)
   (`Convert-StatusWords` and `Convert-FindingBullets`, which
-  [`Convert-MarkdownToWord.ps1`](../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1)
-  loads; the script itself runs pandoc) through the PowerShell parser and drives
+  [`Invoke-iSOCBlueprintWordConversion`](../../Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1)
+  runs; the conversion itself runs pandoc) through the PowerShell parser and drives
   them on small Markdown strings; no pandoc, no fixture.
 - [`Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1)
   dot-sources
@@ -452,8 +453,8 @@ are described in the validate table above.
   against [`Modules/iSOCBlueprint/Engine/Schemas/`](../../Modules/iSOCBlueprint/Engine/Schemas).
 - [`SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1)
   dot-sources the helpers under [`Modules/iSOCBlueprint/Engine/SharePoint/Private/`](../../Modules/iSOCBlueprint/Engine/SharePoint/Private) (the publisher's SharePoint functions are one per file under [`Modules/iSOCBlueprint/Private/SharePoint`](../../Modules/iSOCBlueprint/Private/SharePoint), loaded by `SacSharePoint.ps1`)
-  and runs [`Build-SentinelDocsSite.ps1`](../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)
-  (which loads the functions under [`Modules/iSOCBlueprint/Private/Site`](../../Modules/iSOCBlueprint/Private/Site))
+  and runs [`New-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1)
+  (which builds with the functions under [`Modules/iSOCBlueprint/Private/Site`](../../Modules/iSOCBlueprint/Private/Site))
   offline against the rendered fixture. The publisher's decisions live in pure
   planning functions, and the functions that call PnP run against stand-in
   functions (`Install-PnPStub`), so nothing needs SharePoint or PnP.PowerShell.
@@ -657,7 +658,7 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |
 | [`Tests/iSOCBlueprint/Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1) | `ConvertTo-BlueprintSection`, `ConvertFrom-BlueprintMermaid`, renderer `sections/*.json` against the schemas | 46 |
 | [`Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1) | `Get-SectionFamily`, `ConvertTo-SharePointPageSegments`, `ConvertTo-SacChartFallbackHtml`, `Get-PageSyncPlan`, `Get-FindingSyncPlan`, `Get-NavigationPlan`, `Add-SacMaturityHistoryEntry`, SharePoint helpers, `Get-SacCatalogApp`, `Publish-SacSectionPage`, `Test-SacPageComponent`, `Wait-SacPageComponent`, `Publish-SacAppPackage`, `Publish-SacDashboardPage`, `Get-SacNavigation`, `Set-SacNavigation`, the web part package (versions, bundles, component ids), offline bundle build (page hashes the same when rebuilt in a fresh process) | 125 |
-| [`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1) | The pinned PnP.PowerShell is installed (fails in CI without it); every PnP.PowerShell call in `Modules/iSOCBlueprint/Engine/SharePoint/` binds against it; each entry script loads every command it calls | 11 |
+| [`Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1) | The pinned PnP.PowerShell is installed (fails in CI without it); every PnP.PowerShell call in the module's publish, set-up and SharePoint functions binds against it; the publish, the site build and the set-up call only commands the module defines or PnP.PowerShell provides | 11 |
 | [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | `Resolve-KqlTableNames`, `Get-RuleTableReferences`, `Get-TemplateTableReferences` against the fixture reference files | 12 |
 | [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | `Get-CustomDetectionTableReferences` over the fixture rules and edge cases | 4 |
 | [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | `Convert-StatusWords`, `Convert-FindingBullets` | 7 |

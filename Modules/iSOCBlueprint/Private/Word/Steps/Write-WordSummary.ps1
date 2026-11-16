@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -54,8 +54,7 @@ function Write-WordSummary {
 
     if ($exit -ne 0) {
         foreach ($line in $pandocOut) { Write-WordLog "  $line" -Level Error }
-        Write-WordLog "pandoc failed (exit $exit)." -Level Error
-        exit 1
+        throw "pandoc failed (exit $exit)."
     }
 
     # ---------------------------------------------------------------------------

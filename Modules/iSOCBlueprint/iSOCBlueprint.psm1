@@ -7,9 +7,10 @@
 .DESCRIPTION
     Dot-sources the private helpers and then the public commands, one file
     per command, and exports the public ones. The Blueprint itself (the
-    collector, the renderer, the Word and SharePoint steps) lives under
-    Engine/ as scripts with the same layout they had in Tools/Blueprint;
-    the public commands call them through Invoke-iSOCBlueprintEngine.
+    collector, the renderer, the Word and SharePoint steps) is functions
+    under Private/, one per file, that the public commands call directly.
+    Engine/ now holds only the static files they read: resources, schemas,
+    templates, the reference document and the loader shims that remain.
 
 .NOTES
     File:         Modules/iSOCBlueprint/iSOCBlueprint.psm1
@@ -17,8 +18,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and

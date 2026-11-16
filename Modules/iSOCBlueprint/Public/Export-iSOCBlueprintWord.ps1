@@ -6,7 +6,8 @@
     document.
 
 .DESCRIPTION
-    Runs Engine/Report/Convert-MarkdownToWord.ps1.
+    Needs pandoc; LibreOffice is optional and fills in the contents' page
+    numbers.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1
@@ -14,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     Needs pandoc on PATH; LibreOffice with python3-uno adds page numbers to
@@ -104,7 +105,7 @@ function Export-iSOCBlueprintWord {
 
         Renders the Markdown and converts it in one line.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The engine script makes the ShouldProcess calls; -WhatIf and -Confirm are passed on to it.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The worker function makes the ShouldProcess calls; -WhatIf and -Confirm reach it through the preference variables.')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([System.IO.FileInfo])]
     param(
@@ -145,7 +146,7 @@ function Export-iSOCBlueprintWord {
         if ($NoReferenceDoc) { $params.NoReferenceDoc = $true }
         if ($NoReformatFindings) { $params.NoReformatFindings = $true }
 
-        $null = Invoke-iSOCBlueprintEngine -Script 'Report/Convert-MarkdownToWord.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+        $null = Invoke-iSOCBlueprintWordConversion @params
 
         if (-not $WhatIfPreference -and (Test-Path -LiteralPath $document -PathType Leaf)) { Get-Item -LiteralPath $document }
     }

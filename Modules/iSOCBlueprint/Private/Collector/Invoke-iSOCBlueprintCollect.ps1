@@ -19,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -45,8 +45,26 @@ function Invoke-iSOCBlueprintCollect {
         <OutputRoot>/<WorkspaceName>/_raw/.
 
     .DESCRIPTION
-        Read-only: every call is a GET. The parameters are those of
-        Engine/Export-SentinelInventory.ps1, whose help describes them.
+        Read-only inventory tool: no mutation, every call is a GET. Designed
+        to run in the daily 'sentinel-blueprint' workflow against a workspace
+        under a least-privilege service principal (Microsoft Sentinel Reader
+        + Log Analytics Reader + Reader/Monitoring Reader at subscription
+        scope). Output is a directory of JSON files that the renderer
+        (Invoke-iSOCBlueprintRender) converts into the human report.
+
+        Splitting collector and renderer means the cheap, deterministic
+        Markdown step can be re-run any time without touching Azure, and
+        Pester fixtures can drive the renderer end to end with no auth.
+
+        The captures use Az.SecurityInsights, Az.OperationalInsights and
+        Az.Monitor cmdlets where they exist, and Invoke-SentinelRest
+        (Private/Azure/Invoke-SentinelRest.ps1) to fall back to direct REST
+        for the documented gaps (CCF connectors, Content Hub, settings, full
+        DCR JSON, and so on). Provider API versions are passed per capture
+        through Invoke-SentinelRest, so one can be bumped in one place.
+
+        Strict mode is on inside the run. The parameters are those of
+        Export-iSOCBlueprintInventory, whose help describes them.
 
     .PARAMETER SubscriptionId
         Subscription ID containing the Sentinel workspace. Defaults to the active Az context.
@@ -79,11 +97,11 @@ function Invoke-iSOCBlueprintCollect {
         The currency the cost estimate prices in; Auto takes it from the region.
 
     .PARAMETER EngineRoot
-        The Engine folder, which holds Private/Resources and the other engine
-        scripts the Gap, Cost and Maturity captures load.
+        The Engine folder, which holds Private/Resources that the Gap, Cost and
+        Maturity captures read. Defaults to the module's own.
 
     .EXAMPLE
-        Invoke-iSOCBlueprintCollect -ResourceGroup 'rg-sentinel-prod' -WorkspaceName 'law-sentinel-prod' -EngineRoot $engine
+        Invoke-iSOCBlueprintCollect -ResourceGroup 'rg-sentinel-prod' -WorkspaceName 'law-sentinel-prod'
 
         Exports the full inventory to ./SecurityDocs/law-sentinel-prod/_raw/.
     #>
@@ -123,8 +141,8 @@ function Invoke-iSOCBlueprintCollect {
         [ValidateSet('Auto', 'USD', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'DKK', 'EUR', 'GBP', 'INR', 'JPY', 'KRW', 'NOK', 'NZD', 'RUB', 'SEK', 'TWD')]
         [string]$Currency = 'Auto',
 
-        [Parameter(Mandatory = $true)]
-        [string]$EngineRoot
+        [Parameter(Mandatory = $false)]
+        [string]$EngineRoot = $script:iSOCBlueprintEngineRoot
     )
 
     Set-StrictMode -Version Latest
@@ -141,7 +159,11 @@ function Invoke-iSOCBlueprintCollect {
     $apiVersions = Get-CollectorApiVersion
     $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $EngineRoot '../iSOCBlueprint.psd1')).ModuleVersion
 
-    # Shared between captures: each capture runs in its own scope.
+    # Shared between captures: each capture runs in its own scope. The
+    # workspace capture sets WorkspaceObject, and a run in which that capture
+    # fails must not read the workspace an earlier run in this session left
+    # behind, so it is removed (as a fresh script scope had it), not emptied.
+    Remove-Variable -Name WorkspaceObject -Scope Script -ErrorAction SilentlyContinue
     $script:AlertRules         = @()
     $script:AlertRuleTemplates = @()
     $script:Workflows          = @()

@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -93,7 +93,7 @@ function Build-SitePages {
     }
 
     if ($sections.Count -eq 0) {
-        $buildWarnings.Add("No sections under $Source. Run Convert-SentinelInventoryToMarkdown.ps1 first; the site will have a dashboard and findings but no section pages.")
+        $buildWarnings.Add("No sections under $Source. Run ConvertTo-iSOCBlueprint first; the site will have a dashboard and findings but no section pages.")
     }
 
     # Left in the build context for later steps.

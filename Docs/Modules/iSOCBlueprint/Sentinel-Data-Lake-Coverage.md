@@ -71,7 +71,7 @@ workspace table is auto-mirrored to Lake at the same retention by default.
 
 ## What section 88 renders
 
-[`88-sentinel-data-lake.md`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
+[`88-sentinel-data-lake.md`](../../../Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake/Write-BlueprintSentinelDataLakeSection.ps1)
 (emitted by `Write-Section '88-sentinel-data-lake.md' $lakeBody`, the block
 build-up starts a few hundred lines earlier) is the user-facing surface. It
 composes the following blocks; each is rendered conditionally on captured
@@ -163,7 +163,7 @@ Detects asset-family system tables that Lake auto-creates on tenant
 onboarding:
 
 The patterns live in the `$assetTableNames` array inside
-`Convert-SentinelInventoryToMarkdown.ps1`:
+`Write-BlueprintSentinelDataLakeSection.ps1`:
 
 | Pattern (regex) | Family |
 |---|---|
@@ -307,7 +307,7 @@ No new captures were required to add Section 88, it composes from existing
 inventory.
 
 `$operationalTables` (the population behind the tier-distribution pie) is
-computed once, early in `Convert-SentinelInventoryToMarkdown.ps1`, as every
+computed once, early in `Read-BlueprintInventory.ps1` (the renderer's inventory reader), as every
 `workspace-tables.json` row that is either `tableType = CustomLog` (custom
 logs are always treated as intentional, so they surface even when silent)
 or present in the populated-table index built from `tables-with-data.json`.
@@ -338,7 +338,7 @@ retention chart.
 - **Lake-resident asset detection breadth.** The asset-data block detects
   five known families. As Lake expands its auto-ingested system tables
   (Defender threat intelligence, Microsoft Purview signals, etc.) the
-  pattern list in [`Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
+  pattern list in [`Write-BlueprintSentinelDataLakeSection.ps1`](../../../Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake/Write-BlueprintSentinelDataLakeSection.ps1)
   (search `_TopologyBucketFor` / asset table detection) should be
   extended.
 - **CMK incompatibility surface.** "Lake doesn't support CMK" is currently
@@ -363,7 +363,7 @@ retention chart.
 | File | Role |
 |---|---|
 | [`Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1`](../../../Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1) | The `sentinel-data-lake` capture (Resource Graph query) |
-| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
+| [`Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake`](../../../Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
 | [`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) | DataLake plan handling in the cost split |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json) | Lake meter → category mapping |
 | [`Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
@@ -371,7 +371,7 @@ retention chart.
 
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`
 / Office\* / Behavior\* pattern match) is driven by the `$assetTableNames`
-array defined locally inside `Convert-SentinelInventoryToMarkdown.ps1`, not
+array defined locally inside `Write-BlueprintSentinelDataLakeSection.ps1`, not
 by `Get-EffectiveConnectors.ps1`. `Get-EffectiveConnectors.ps1` does define
 its own `_ActiveTableFamily` helper, but that is a separate
 connector-classification function (active-table / UEBA detection for
