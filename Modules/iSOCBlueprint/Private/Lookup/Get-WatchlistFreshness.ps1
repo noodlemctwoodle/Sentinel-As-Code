@@ -21,7 +21,7 @@
     this, so the two agree.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-WatchlistFreshness.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-WatchlistFreshness.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

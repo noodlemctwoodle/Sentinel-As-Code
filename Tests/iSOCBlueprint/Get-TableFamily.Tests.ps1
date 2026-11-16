@@ -24,7 +24,7 @@
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1')
 }
 
 Describe 'Get-TableFamily' {

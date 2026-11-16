@@ -19,7 +19,7 @@
     sensible until it is added here.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SectionFamily.ps1
+    File:         Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

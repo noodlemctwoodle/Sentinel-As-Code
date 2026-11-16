@@ -21,7 +21,7 @@
     end-to-end with no auth.
 
     The collector uses Az.SecurityInsights / Az.OperationalInsights / Az.Monitor cmdlets
-    where they exist, and Invoke-SentinelRest (Private/Invoke-SentinelRest.ps1) to fall
+    where they exist, and Invoke-SentinelRest (Private/Azure/Invoke-SentinelRest.ps1) to fall
     back to direct REST for the documented gaps (CCF connectors, Content Hub, settings,
     full DCR JSON, etc.).
 
@@ -177,17 +177,17 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 
-. (Join-Path $PSScriptRoot 'Private/Invoke-SentinelRest.ps1')
-. (Join-Path $PSScriptRoot 'Private/Get-AzureRetailPrice.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'Azure' 'Invoke-SentinelRest.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'Azure' 'Get-AzureRetailPrice.ps1')
 . (Join-Path $PSScriptRoot 'Private/Write-CaptureSummary.ps1')
 
 # Sentinel.Common's KQL identifier extractor sits behind the table-reference
 # captures. The module carries its own copy of the two functions used
 # (Private/Vendor), so it needs nothing from the repository around it.
-. (Join-Path $PSScriptRoot 'Private/Vendor/SentinelCommon.Kql.ps1')
-. (Join-Path $PSScriptRoot 'Private/Get-KqlTableReferences.ps1')
-. (Join-Path $PSScriptRoot 'Private/Get-DefenderCustomDetections.ps1')
-. (Join-Path $PSScriptRoot 'Private/Get-SearchRestoreTable.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'Kql' 'Vendor' 'SentinelCommon.Kql.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'Kql' 'Get-KqlTableReferences.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'Azure' 'Get-DefenderCustomDetections.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'Lookup' 'Get-SearchRestoreTable.ps1')
 
 # The collector and its captures (the module's own Private/Collector, one
 # folder up from here), defined in this scope.

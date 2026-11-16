@@ -20,7 +20,7 @@
     side, since they are neither analytics-tier nor lake-tier.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

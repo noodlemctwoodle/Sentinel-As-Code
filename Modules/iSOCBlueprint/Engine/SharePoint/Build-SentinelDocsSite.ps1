@@ -162,18 +162,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'SiteShared' 'Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')
-. (Join-Path $PSScriptRoot 'Private/Get-SacProgress.ps1')
-. (Join-Path $PSScriptRoot '../Private/Get-TableFamily.ps1')
-. (Join-Path $PSScriptRoot '../Private/Get-AttackCoverage.ps1')
-. (Join-Path $PSScriptRoot '../Private/Get-TemplateSolution.ps1')
-. (Join-Path $PSScriptRoot '../Private/Get-TableTierProfile.ps1')
-. (Join-Path $PSScriptRoot '../Private/Get-FindingMaturityLink.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'SiteShared' 'Get-SacProgress.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-TableFamily.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-AttackCoverage.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-TemplateSolution.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-TableTierProfile.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-FindingMaturityLink.ps1')
 # Only for snapshots rendered before the section model: their Markdown is
 # converted with the renderer's own converter.
-. (Join-Path $PSScriptRoot '../Private/ConvertFrom-BlueprintMermaid.ps1')
-. (Join-Path $PSScriptRoot '../Private/ConvertTo-BlueprintSection.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'ConvertFrom-BlueprintMermaid.ps1')
+. (Join-Path $PSScriptRoot '..' 'Private' 'ConvertTo-BlueprintSection.ps1')
 
 # The site build and its steps (the module's own Private/Site, two folders up
 # from here), defined in this scope.

@@ -22,7 +22,7 @@
     shared rather than pinned on one of them.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

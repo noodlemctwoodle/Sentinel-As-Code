@@ -52,18 +52,18 @@ beneath it.
 | `Tools/Blueprint/Private/ConvertFrom-BlueprintMermaid.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1` | | |
 | `Tools/Blueprint/Private/ConvertTo-BlueprintSection.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1` | | |
 | `Tools/Blueprint/Private/GapChecks.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1` | | |
-| `Tools/Blueprint/Private/Get-AzureRetailPrice.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-AzureRetailPrice.ps1` | | |
-| `Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1` | | |
-| `Tools/Blueprint/Private/Get-DefenderCustomDetections.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1` | | |
-| `Tools/Blueprint/Private/Get-EffectiveConnectors.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1` | | |
-| `Tools/Blueprint/Private/Get-FindingMaturityLink.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1` | | |
-| `Tools/Blueprint/Private/Get-KqlTableReferences.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1` | | Its KQL helpers come from the vendored copy |
+| `Tools/Blueprint/Private/Get-AzureRetailPrice.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-AzureRetailPrice.ps1` | | |
+| `Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1` | | |
+| `Tools/Blueprint/Private/Get-DefenderCustomDetections.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1` | | |
+| `Tools/Blueprint/Private/Get-EffectiveConnectors.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1` | | |
+| `Tools/Blueprint/Private/Get-FindingMaturityLink.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1` | | |
+| `Tools/Blueprint/Private/Get-KqlTableReferences.ps1` | Move | `Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1` | | Its KQL helpers come from the vendored copy |
 | `Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1` | | |
 | `Tools/Blueprint/Private/Get-SentinelGap.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1` | | `Get-iSOCBlueprintFinding` |
 | `Tools/Blueprint/Private/Get-SentinelMaturity.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1` | | `Get-iSOCBlueprintMaturity` |
-| `Tools/Blueprint/Private/Get-TableFamily.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1` | | |
-| `Tools/Blueprint/Private/Get-TableTierProfile.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1` | | |
-| `Tools/Blueprint/Private/Invoke-SentinelRest.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1` | | |
+| `Tools/Blueprint/Private/Get-TableFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1` | | |
+| `Tools/Blueprint/Private/Get-TableTierProfile.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1` | | |
+| `Tools/Blueprint/Private/Invoke-SentinelRest.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1` | | |
 | `Tools/Blueprint/Private/Resources/best-practices.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json` | | |
 | `Tools/Blueprint/Private/Resources/commitment-tiers.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json` | | |
 | `Tools/Blueprint/Private/Resources/connector-catalogue.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json` | | |
@@ -82,9 +82,9 @@ beneath it.
 | `Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1` | | `Publish-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/Get-SacSyncPlan.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SacSyncPlan.ps1` | | |
-| `Tools/Blueprint/SharePoint/Private/Get-SectionFamily.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SectionFamily.ps1` | | |
+| `Tools/Blueprint/SharePoint/Private/Get-SectionFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/SacSharePoint.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/SacSharePoint.ps1` | | |
 | `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Move | `Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard/**` | | Split into numbered parts that `Get-SiteDashboardTemplate` joins; the joined page is the original file byte for byte |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Modules/iSOCBlueprint/WebParts/**` | | SPFx web part source (TypeScript, not PowerShell): beside the engine, outside what the module loads |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
 | `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

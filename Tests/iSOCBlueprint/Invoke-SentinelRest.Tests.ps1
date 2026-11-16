@@ -43,7 +43,7 @@
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1')
+    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1')
 }
 
 Describe 'Invoke-SentinelRest URL construction' {

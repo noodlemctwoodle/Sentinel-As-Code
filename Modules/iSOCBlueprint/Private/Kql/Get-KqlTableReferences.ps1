@@ -13,7 +13,7 @@
     the same answer to the same question: which tables does this KQL read?
 
     The identifier extraction is Sentinel.Common's Get-KqlBareIdentifiers
-    (the module's copy, Private/Vendor/SentinelCommon.Kql.ps1), the same
+    (the module's copy, Private/Kql/Vendor/SentinelCommon.Kql.ps1), the same
     code that builds dependencies.json for the repository's own
     content. It understands let-bindings, union, join, lookup and function
     calls, which a start-of-line regex does not. On top of it this file:
@@ -30,11 +30,11 @@
     so the gap engine, the renderer and the SharePoint build read a plain
     file and never need the KQL helpers or Az.Accounts themselves.
 
-    Callers must dot-source Private/Vendor/SentinelCommon.Kql.ps1 before
+    Callers must dot-source Private/Kql/Vendor/SentinelCommon.Kql.ps1 before
     this file.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1
+    File:         Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

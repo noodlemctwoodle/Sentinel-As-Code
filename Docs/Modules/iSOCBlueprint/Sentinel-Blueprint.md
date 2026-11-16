@@ -774,7 +774,7 @@ The Pester suite is fully offline:
   same fixture, copies output to a temp folder and asserts that every expected
   section file is produced and contains the headings + signal phrases the report
   promises.
-- `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Invoke-SentinelRest.ps1`:
+- `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Azure/Invoke-SentinelRest.ps1`:
   `value`/`nextLink` pagination, 429/5xx retry-with-backoff, and 404-as-empty.
 - `Get-KqlTableReferences.Tests.ps1` runs the table-to-rule builder over the
   fixture rules and templates and asserts equality with the hand-authored
@@ -842,7 +842,7 @@ diagnostic-settings pipelines that never appear in those two endpoints, so
 rendering section 10 purely from those two captures makes well-instrumented
 workspaces look almost empty.
 
-[`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1)
+[`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1)
 synthesises a unified ingestion view by walking the five captures in this
 order, with each later step skipping any table already claimed by an earlier
 one (precedence avoids double-counting):

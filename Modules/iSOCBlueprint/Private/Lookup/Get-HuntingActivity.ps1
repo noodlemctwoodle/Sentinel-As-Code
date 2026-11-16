@@ -24,7 +24,7 @@
     Rule SAC-HNT-01 and the maturity metric bookmarksRecent read it.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-HuntingActivity.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

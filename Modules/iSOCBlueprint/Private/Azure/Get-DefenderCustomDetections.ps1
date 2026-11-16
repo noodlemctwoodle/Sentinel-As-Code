@@ -19,7 +19,7 @@
     empty list.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1
+    File:         Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

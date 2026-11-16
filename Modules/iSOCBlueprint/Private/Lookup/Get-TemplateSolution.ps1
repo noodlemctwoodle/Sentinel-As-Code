@@ -28,7 +28,7 @@
     dashboard read this, so the two agree.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-TemplateSolution.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-TemplateSolution.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

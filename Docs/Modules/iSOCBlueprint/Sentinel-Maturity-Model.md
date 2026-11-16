@@ -147,7 +147,7 @@ shows the first five with a "Show all" control.
 Findings (the gap analysis) and criteria are one assessment. A criterion
 whose source is a gap rule, directly or inside `allOf` / `anyOf`, is
 decided by that rule's finding, so
-[`Private/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1)
+[`Private/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1)
 maps each finding to the criteria it decides and joins their status and
 `overallLift` from `maturity.json`. Page 90 shows it in a Maturity column and
 on every finding card, and the dashboard as a chip on each finding with a

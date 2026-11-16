@@ -14,7 +14,7 @@
     its own KQL helpers.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1
+    File:         Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

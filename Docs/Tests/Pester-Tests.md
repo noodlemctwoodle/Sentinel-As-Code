@@ -409,14 +409,14 @@ are described in the validate table above.
   dot-sources [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1)
   and feeds it a deliberately-broken fixture so each gap-analysis rule fires.
 - [`Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1)
-  dot-sources [`Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1)
+  dot-sources [`Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1`](../../Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1)
   and asserts URL construction (how `-ApiVersion` is appended when the path
   already carries a query string or its own `api-version`).
 - [`Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1)
   dot-sources the module's own KQL helpers
-  (`Engine/Private/Vendor/SentinelCommon.Kql.ps1`, once a copy of
+  (`Private/Kql/Vendor/SentinelCommon.Kql.ps1`, once a copy of
   `Sentinel.Common`'s, so it needs no Azure modules) and
-  [`Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1).
+  [`Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1`](../../Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1).
 - [`Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
   dot-sources the gap engine and
   [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
@@ -433,16 +433,16 @@ are described in the validate table above.
   them on small Markdown strings; no pandoc, no fixture.
 - [`Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1)
   dot-sources
-  [`Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1),
+  [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1),
   checks the shipped catalogue and drives the helpers against a small
   catalogue written to a temporary file; no Azure modules.
 - [`Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1)
   dot-sources
-  [`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1)
+  [`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`](../../Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1)
   and maps table and product names to source families.
 - [`Get-TableTierProfile.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1)
   dot-sources
-  [`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1)
+  [`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1)
   and classifies a hand-built set of five tables with and without lake
   enrolment; no fixture, no Azure modules.
 - [`Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1)

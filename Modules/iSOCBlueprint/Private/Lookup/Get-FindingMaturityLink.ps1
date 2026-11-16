@@ -17,7 +17,7 @@
     that do not move the score.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

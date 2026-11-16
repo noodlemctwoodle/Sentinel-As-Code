@@ -126,6 +126,10 @@ Private/             the engine runner, path defaults, prerequisite checks
     Names/  Html/  Tables/  Charts/  Data/
   SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)
     Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
+  Lookup/            shared lookups the renderer, gap checks, maturity and site build read: connectors, tables, templates, ATT&CK, hunting, finding-to-criterion links
+  Azure/             REST calls (Invoke-SentinelRest), retail prices and the Defender custom detections reader
+  Kql/               KQL table references, and Vendor/ with the two Sentinel.Common helpers it needs
+  SiteShared/        what the site build and the publisher share: section families and the progress record
   Run/               the steps of New-iSOCBlueprint, one function per file, sharing a run context
     Test-iSOCBlueprintRunRequest.ps1  Resolve-iSOCBlueprintRunFolder.ps1   check the request and the machine, then work out the folders
     Invoke-iSOCBlueprintRun{Collect,Render,Word,Site}.ps1  Complete-iSOCBlueprintRun.ps1   the steps in order, then the summary and the result
@@ -151,7 +155,7 @@ Engine/              the Blueprint itself, as scripts
   Convert-SentinelInventoryToMarkdown.ps1 renderer command line (loads Private/Render)
   Convert-MermaidToImage.ps1              chart images
   Update-ConnectorCatalogue.ps1           catalogue refresh
-  Private/                                gap analysis loader, maturity, helpers
+  Private/                                loaders for the split areas (the helper files moved to the module's Private/)
   Private/Resources/                      rules, criteria, catalogues, page 99
   Private/Vendor/                         KQL helpers copied from Sentinel.Common
   Report/                                 Word conversion

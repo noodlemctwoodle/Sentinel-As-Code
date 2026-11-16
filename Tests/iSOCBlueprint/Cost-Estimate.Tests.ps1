@@ -68,7 +68,7 @@ BeforeAll {
 
 Describe 'The price list it reads' {
     It 'fetches the Sentinel service, which is named Sentinel, and Log Analytics' {
-        $src = Get-Content (Join-Path $script:engine 'Private/Get-AzureRetailPrice.ps1') -Raw
+        $src = Get-Content (Join-Path $script:engine '../Private/Azure/Get-AzureRetailPrice.ps1') -Raw
         $src | Should -Match "\[string\[\]\]\`$ServiceNames = @\('Sentinel', 'Log Analytics'\)"
         $src | Should -Not -Match '\$ServiceNames = @\(''Microsoft Sentinel'''
     }
@@ -187,7 +187,7 @@ Describe 'Data grants' {
 
 Describe 'The currency it prices in' {
     BeforeAll {
-        . (Join-Path $script:engine 'Private/Get-AzureRetailPrice.ps1')
+        . (Join-Path $script:engine '../Private/Azure/Get-AzureRetailPrice.ps1')
         $script:repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     }
 
@@ -198,7 +198,7 @@ Describe 'The currency it prices in' {
     }
 
     It 'asks the Retail Prices API for that currency and caches each currency apart' {
-        $src = Get-Content (Join-Path $script:engine 'Private/Get-AzureRetailPrice.ps1') -Raw
+        $src = Get-Content (Join-Path $script:engine '../Private/Azure/Get-AzureRetailPrice.ps1') -Raw
         $src | Should -Match 'prices\?currencyCode=''\$CurrencyCode''&'
         $src | Should -Match 'retail-prices-\$Region-\$CurrencyCode-\$today\.json'
         $src | Should -Match 'CurrencySource = \$CurrencySource'

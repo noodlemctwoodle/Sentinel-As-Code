@@ -73,7 +73,7 @@ function Write-BlueprintSentinelDataLakeSection {
     # Catalogue-only tables (zero ingest in the workspace) are excluded
     # from the tier-distribution chart because they don't contribute to
     # the Lake state.
-    # Shared with the SharePoint build (Private/Get-TableTierProfile.ps1) so
+    # Shared with the SharePoint build (Private/Lookup/Get-TableTierProfile.ps1) so
     # the page's pie and the dashboard's lake panel count the same tables the
     # same way.
     $tierProfile   = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $hasDataLake

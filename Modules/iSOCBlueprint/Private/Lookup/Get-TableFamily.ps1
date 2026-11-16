@@ -17,7 +17,7 @@
     telemetry they belong to.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

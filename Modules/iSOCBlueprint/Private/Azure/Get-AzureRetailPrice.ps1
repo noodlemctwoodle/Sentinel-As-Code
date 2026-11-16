@@ -44,7 +44,7 @@
     rows.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-AzureRetailPrice.ps1
+    File:         Modules/iSOCBlueprint/Private/Azure/Get-AzureRetailPrice.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

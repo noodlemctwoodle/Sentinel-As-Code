@@ -25,9 +25,9 @@
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1')
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1')
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1')
     $fixture = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:rules = Get-Content (Join-Path $fixture 'defender-custom-detections.json') -Raw | ConvertFrom-Json -Depth 32
     $script:expected = Get-Content (Join-Path $fixture 'custom-detection-table-references.json') -Raw | ConvertFrom-Json -Depth 32

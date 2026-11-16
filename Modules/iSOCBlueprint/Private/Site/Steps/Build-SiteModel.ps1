@@ -115,7 +115,7 @@ function Build-SiteModel {
         generatedBlueprintUtc = $generatedBuildUtc
     }
 
-    # This run's progress record (Private/Get-SacProgress.ps1): the headline
+    # This run's progress record (Private/SiteShared/Get-SacProgress.ps1): the headline
     # numbers and the lists the Progress tab compares across runs. The run's day
     # is its folder's name (yyyy-MM-dd), else the day it was collected.
     $runDay = Split-Path -Leaf $Source

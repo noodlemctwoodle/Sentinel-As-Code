@@ -44,12 +44,12 @@
 # Counts, GB and plurals written as the dashboard writes them.
 . (Join-Path $PSScriptRoot 'Format-BlueprintText.ps1')
 # Recent hunts and bookmarks (metric bookmarksRecent), shared with SAC-HNT-01.
-. (Join-Path $PSScriptRoot 'Get-HuntingActivity.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-HuntingActivity.ps1')
 if (-not (Get-Command -Name Get-TableFamily -CommandType Function -ErrorAction SilentlyContinue)) {
-    . (Join-Path $PSScriptRoot 'Get-TableFamily.ps1')
+    . (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-TableFamily.ps1')
 }
 if (-not (Get-Command -Name Get-SearchRestoreTable -CommandType Function -ErrorAction SilentlyContinue)) {
-    . (Join-Path $PSScriptRoot 'Get-SearchRestoreTable.ps1')
+    . (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-SearchRestoreTable.ps1')
 }
 
 # The maturity functions (the module's own Private/Maturity, two folders up

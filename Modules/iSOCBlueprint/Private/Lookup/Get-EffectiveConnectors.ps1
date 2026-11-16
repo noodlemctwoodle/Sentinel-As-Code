@@ -58,7 +58,7 @@
     [pscustomobject[]] with columns: Source, Identifier, Table, Last24hGB, LastIngested.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

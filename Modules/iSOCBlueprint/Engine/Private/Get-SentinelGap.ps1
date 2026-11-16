@@ -61,10 +61,10 @@
 #>
 
 # The inventory loads the connector catalogue, whichever checks file runs.
-. (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-ConnectorCatalogue.ps1')
 # Template to Content Hub solution, so checks can leave out templates only a
 # deprecated solution ships.
-. (Join-Path $PSScriptRoot 'Get-TemplateSolution.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-TemplateSolution.ps1')
 
 function Get-SentinelGap {
     [CmdletBinding()]

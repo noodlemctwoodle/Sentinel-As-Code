@@ -9,7 +9,7 @@
 .DESCRIPTION
     Dot-sources the module's copy of Sentinel.Common's KQL helpers (for
     Get-KqlBareIdentifiers) and
-    Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1, then runs the builder
+    Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1, then runs the builder
     over the fixture rules and templates. The expected output is the pair of
     hand-authored reference files in the fixture, so a change in either the
     extractor or the fixture shows up as a diff here rather than as a wrong
@@ -33,8 +33,8 @@
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1')
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1')
+    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1')
 
     $raw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:rules     = Get-Content (Join-Path $raw 'alert-rules.json') -Raw | ConvertFrom-Json

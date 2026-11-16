@@ -467,7 +467,7 @@ Describe 'maturity-criteria.json schema guards' {
 Describe 'Get-FindingMaturityLink' {
     BeforeAll {
         $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1')
+        . (Join-Path $root 'Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1')
         $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json'
         $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/iSOCBlueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
         $script:links = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $script:fixtureMaturity

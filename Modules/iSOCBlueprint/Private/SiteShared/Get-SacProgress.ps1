@@ -23,7 +23,7 @@
     history: the previous run, a run 7, 30 or 90 days earlier, or the first.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SacProgress.ps1
+    File:         Modules/iSOCBlueprint/Private/SiteShared/Get-SacProgress.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

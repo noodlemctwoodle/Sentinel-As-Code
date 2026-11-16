@@ -37,7 +37,7 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
-    . (Join-Path $sp 'Private/Get-SectionFamily.ps1')
+    . (Join-Path $sp '../../Private/SiteShared/Get-SectionFamily.ps1')
     . (Join-Path $sp 'Private/ConvertTo-SharePointPageSegments.ps1')
     . (Join-Path $sp 'Private/Get-SacSyncPlan.ps1')
     . (Join-Path $sp 'Private/SacSharePoint.ps1')
@@ -2269,7 +2269,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'gives a tactic outside the Enterprise matrix (an ICS one) a grid column of its own' {
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-AttackCoverage.ps1')
+        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup/Get-AttackCoverage.ps1')
         $catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json') -Raw | ConvertFrom-Json
         $rule = [pscustomobject]@{ name = 'ics'; kind = 'Scheduled'; properties = [pscustomobject]@{
                 displayName = 'Process control tampering'; enabled = $true; severity = 'High'

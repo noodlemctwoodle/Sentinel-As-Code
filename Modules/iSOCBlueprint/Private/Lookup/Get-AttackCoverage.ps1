@@ -21,7 +21,7 @@
     therefore puts it under Credential Access only.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-AttackCoverage.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-AttackCoverage.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

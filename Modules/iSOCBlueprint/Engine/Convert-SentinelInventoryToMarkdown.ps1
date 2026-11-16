@@ -116,12 +116,14 @@ param(
 # one file per helper and per report section. This script is its command-line
 # entry point: it loads them, with the shared helpers from Private/, and runs
 # Invoke-iSOCBlueprintRender.
-foreach ($helper in 'Format-BlueprintText', 'Get-EffectiveConnectors', 'Get-TableFamily', 'Get-AttackCoverage',
-    'Get-SearchRestoreTable', 'Get-TemplateSolution', 'Get-WatchlistFreshness', 'Get-ConnectorCatalogue',
-    'Get-FindingMaturityLink', 'Get-TableTierProfile', 'ConvertFrom-BlueprintMermaid', 'ConvertTo-BlueprintSection') {
+foreach ($helper in 'Format-BlueprintText', 'ConvertFrom-BlueprintMermaid', 'ConvertTo-BlueprintSection') {
     . (Join-Path $PSScriptRoot "Private/$helper.ps1")
 }
-foreach ($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
+foreach ($helper in 'Get-EffectiveConnectors', 'Get-TableFamily', 'Get-AttackCoverage', 'Get-SearchRestoreTable',
+    'Get-TemplateSolution', 'Get-WatchlistFreshness', 'Get-ConnectorCatalogue', 'Get-FindingMaturityLink', 'Get-TableTierProfile') {
+    . (Join-Path $PSScriptRoot '..' 'Private' 'Lookup' "$helper.ps1")
+}
+foreach ($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '..' 'Private' 'Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
     . $file.FullName
 }
 

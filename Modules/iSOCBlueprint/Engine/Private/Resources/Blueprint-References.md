@@ -3,7 +3,7 @@
 A durable record of the API versions, services, modules and KQL queries the Blueprint
 depends on. When something in Microsoft's surface area changes, this page is
 the first thing to update; the change then ripples through `Blueprint.psd1`, the inline
-api-version table in `Get-CollectorApiVersion` (`Private/Collector/Setup`), `Private/Invoke-SentinelRest.ps1`,
+api-version table in `Get-CollectorApiVersion` (`Private/Collector/Setup`), `Private/Azure/Invoke-SentinelRest.ps1`,
 and the gap-rule resources.
 
 <!-- bp:tone warning -->
@@ -96,7 +96,7 @@ The first seven are pinned in the `Modules` block of `Engine/Blueprint.psd1`.
 `Test-iSOCBlueprintPrerequisite` reports what a machine has.
 
 The collector is **REST-first end to end**: every Sentinel and Log Analytics artefact is
-read through `Invoke-SentinelRest` (`Private/Invoke-SentinelRest.ps1`, a thin wrapper over
+read through `Invoke-SentinelRest` (`Private/Azure/Invoke-SentinelRest.ps1`, a thin wrapper over
 `Invoke-AzRestMethod`), and no `Az.SecurityInsights`, `Az.OperationalInsights` or
 `Az.Monitor` inventory cmdlet is called. These are the cmdlets it does call:
 
@@ -110,7 +110,7 @@ read through `Invoke-SentinelRest` (`Private/Invoke-SentinelRest.ps1`, a thin wr
 | `Get-AzRoleAssignment` | `Az.Resources` | Role assignments on the workspace and resource group, and for playbook identities |
 | `Invoke-AzOperationalInsightsQuery` | `Az.OperationalInsights` | The 43 KQL captures, never inventory |
 | `Invoke-MgGraphRequest` | `Microsoft.Graph.Authentication` | Defender custom detections, when a Graph session is open |
-| `Get-AzureRetailPrice` | Repository helper | The Azure Retail Prices API (`Private/Get-AzureRetailPrice.ps1`) |
+| `Get-AzureRetailPrice` | Repository helper | The Azure Retail Prices API (`Private/Azure/Get-AzureRetailPrice.ps1`) |
 
 ## Authentication pattern
 
@@ -287,7 +287,7 @@ run (with `lookback` and `recent` declared ahead of them):
 
 ## Azure Retail Prices API
 
-Anonymous, with no authentication. Read by `Private/Get-AzureRetailPrice.ps1`.
+Anonymous, with no authentication. Read by `Private/Azure/Get-AzureRetailPrice.ps1`.
 
 | | |
 |---|---|

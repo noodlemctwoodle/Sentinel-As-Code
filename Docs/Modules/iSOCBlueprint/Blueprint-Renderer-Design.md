@@ -223,7 +223,7 @@ function name to find its file.
 
 External helpers used by the renderer:
 
-- `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1), 
+- `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
 - `Get-SentinelCostEstimate` (`Private/Cost`, loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`), used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
@@ -253,7 +253,7 @@ block and read back by the section-01 headline.
   by the 25 matrix table, the 25 bar chart, and the section-01 MITRE
   headline row. It comes from `$mitreHierarchy` (tactic, then technique,
   then sub-technique, each with the enabled rules mapping it), built from
-  `Get-AttackCoverage` (`Private/Get-AttackCoverage.ps1`), which maps every
+  `Get-AttackCoverage` (`Private/Lookup/Get-AttackCoverage.ps1`), which maps every
   rule and which the SharePoint build also calls for the dashboard's ATT&CK
   grid, so the page and the grid agree. A rule's ids are its `techniques`
   and its `subTechniques` (only the preview alertRules API returns the
@@ -314,7 +314,7 @@ all show the same items, dated by the run, and each item can be tied to
 this workspace's findings and maturity criteria.
 
 Both the renderer and the site build map tables and first-party alert
-products to source families through `Private/Get-TableFamily.ps1`
+products to source families through `Private/Lookup/Get-TableFamily.ps1`
 (`Get-TableFamily`, `Get-ProductFamily`), so the Markdown and the dashboard
 never disagree on which family a table or an alert belongs to.
 
@@ -543,11 +543,11 @@ assets root).
 | [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) (loads [`Private/Collector`](../../../Modules/iSOCBlueprint/Private/Collector), one function per capture) | Stage 1, produces `_raw/*.json` |
 | [`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1) (loads [`Private/Maturity`](../../../Modules/iSOCBlueprint/Private/Maturity)) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
 | [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) (loads the one-per-file checks under [`Private/Gap`](../../../Modules/iSOCBlueprint/Private/Gap)) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
@@ -562,7 +562,7 @@ assets root).
 | [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
 | [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
 | [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
+| [`Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1`](../../../Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | [`Modules/iSOCBlueprint/Private/SyncPlan`](../../../Modules/iSOCBlueprint/Private/SyncPlan) (loaded by `Engine/SharePoint/Private/Get-SacSyncPlan.ps1`) | The site publisher's planning functions: pages, findings, navigation and asset pruning |
 | [`Modules/iSOCBlueprint/Private/CaptureSummary`](../../../Modules/iSOCBlueprint/Private/CaptureSummary) (loaded by `Engine/Private/Write-CaptureSummary.ps1`) | The collector's capture summary, sorting failed captures into permission refusals and errors |
@@ -571,7 +571,7 @@ assets root).
 | [`Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1`](../../../Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1) | The bookmarks capture's fallback to the HuntingBookmark table (9 tests) |
 | [`Modules/iSOCBlueprint/Private/Format`](../../../Modules/iSOCBlueprint/Private/Format) (loaded by `Engine/Private/Format-BlueprintText.ps1`) | Counts, GB, money, dates, plurals and API names written as the dashboard writes them, for the pages, the findings and the maturity evidence |
 | [`Tests/iSOCBlueprint/Format-BlueprintText.Tests.ps1`](../../../Tests/iSOCBlueprint/Format-BlueprintText.Tests.ps1) | The formatting helpers and their parity with the dashboard's region and SKU names (14 tests) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-HuntingActivity.ps1) | Hunts and bookmarks created or changed within the lookback, for SAC-HNT-01 and the maturity metric `bookmarksRecent` |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-HuntingActivity.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-HuntingActivity.ps1) | Hunts and bookmarks created or changed within the lookback, for SAC-HNT-01 and the maturity metric `bookmarksRecent` |
 | [`Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1`](../../../Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1) | Recent hunting activity: the helper, SAC-HNT-01 and `bookmarksRecent` (14 tests) |
 | `Tests/iSOCBlueprint/Fixtures/sample/_raw/*.json` | Fixture dataset that all renderer tests run against |
 
@@ -621,7 +621,7 @@ assets root).
    `Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`
    asserting the section renders (at least its title) cleanly.
 7. Map the section number to a family in `Get-SectionFamily`
-   (`Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SectionFamily.ps1`), and give
+   (`Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1`), and give
    it a headline in `$headlineByNum` (in
    `Modules/iSOCBlueprint/Private/Site/Steps/Build-SiteMaturity.ps1`) if the dashboard
    should summarise it; see [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).

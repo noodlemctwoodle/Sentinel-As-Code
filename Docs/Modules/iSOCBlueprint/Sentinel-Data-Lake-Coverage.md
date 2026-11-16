@@ -253,7 +253,7 @@ mirror", "Analytics + Lake extended" and "Data lake only" boxes instead of
 one "Analytics plan" box), and a "Sentinel data lake" panel on the Insights
 tab with the enrolment status, the tier distribution donut, the top tables
 by lake-only retention and the lake cost split. The tier counts come from
-[`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1),
+[`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1),
 which section 88 also calls, so the page's pie and the dashboard's donut
 are the same numbers. The build's `dataLake` model key carries them; see
 [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).

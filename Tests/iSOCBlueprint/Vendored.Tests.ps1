@@ -39,7 +39,7 @@
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:vendorFile = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1'
+    $script:vendorFile = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1'
 
     function Get-FunctionText {
         param([string] $Path, [string] $Name)

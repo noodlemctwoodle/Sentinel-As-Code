@@ -67,6 +67,7 @@ BeforeDiscovery {
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteShared') -Filter '*.ps1' -File
     ) | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } }
 }
 
@@ -90,6 +91,8 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteShared') -Filter '*.ps1' -File
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup') -Filter '*.ps1' -File
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private') -Filter '*.ps1' -File
         )
         $definitions = foreach ($file in $sources) {
@@ -213,8 +216,9 @@ Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(
             $full
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($full, [ref]$null, [ref]$null)
             foreach ($c in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] -and $args[0].InvocationOperator -eq 'Dot' }, $true)) {
-                if ($c.CommandElements[0].Extent.Text -match "Join-Path \`$PSScriptRoot '([^']+)'") {
-                    Get-SacLoadedFile -Path (Join-Path (Split-Path $full) $Matches[1]) -Seen $Seen
+                if ($c.CommandElements[0].Extent.Text -match "Join-Path \`$PSScriptRoot((?: '[^']+')+)\)") {
+                    $relative = ([regex]::Matches($Matches[1], "'([^']+)'") | ForEach-Object { $_.Groups[1].Value }) -join '/'
+                    Get-SacLoadedFile -Path (Join-Path (Split-Path $full) $relative) -Seen $Seen
                 }
             }
             # A folder loaded in a loop: `$xRoot = Join-Path $PSScriptRoot '..' 'Private' 'Site'`

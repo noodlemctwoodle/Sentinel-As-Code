@@ -2067,7 +2067,7 @@ Describe 'Every report page opens with what it covers' {
 
 Describe 'Detection opportunities name each template''s Content Hub solution' {
     BeforeAll {
-        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-TemplateSolution.ps1')
+        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Lookup/Get-TemplateSolution.ps1')
         $dep = { param($ids) [pscustomobject]@{ operator = 'AND'; criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule'; version = '1.0.0' } }) + @([pscustomobject]@{ contentId = 'wb-1'; kind = 'Workbook' }) } }
         $script:installed = @([pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('AAAA-1', 'aaaa-2')) } })
         $script:catalogue = @(

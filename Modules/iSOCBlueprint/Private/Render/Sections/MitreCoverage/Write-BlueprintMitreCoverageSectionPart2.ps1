@@ -194,7 +194,7 @@ $(Format-BlueprintTable -Items $msIncidentRows -Columns 'Name','Product','Severi
     }
 
     # Build the hierarchy: tactic -> technique -> sub-technique -> rules, from
-    # Get-AttackCoverage (Private/Get-AttackCoverage.ps1), which the dashboard's
+    # Get-AttackCoverage (Private/Lookup/Get-AttackCoverage.ps1), which the dashboard's
     # ATT&CK grid reads too, so the two agree. It maps every rule, enabled or
     # not; the tactic and technique tables count enabled rules only, and the
     # rule table at the end lists every rule with its status.

@@ -46,7 +46,7 @@
     Invoke-SentinelRest -Path '/subscriptions/.../providers/Microsoft.SecurityInsights/dataConnectorDefinitions' -ApiVersion '2024-09-01'
 
 .NOTES
-    File:           Modules/iSOCBlueprint/Engine/Private/Invoke-SentinelRest.ps1
+    File:           Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog

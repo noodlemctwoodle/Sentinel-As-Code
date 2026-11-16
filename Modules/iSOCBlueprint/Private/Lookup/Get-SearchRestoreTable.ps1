@@ -19,7 +19,7 @@
     fall back to it for snapshots collected before it did.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-SearchRestoreTable.ps1
+    File:         Modules/iSOCBlueprint/Private/Lookup/Get-SearchRestoreTable.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog

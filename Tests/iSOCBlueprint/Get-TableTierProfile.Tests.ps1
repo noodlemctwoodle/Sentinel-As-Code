@@ -24,7 +24,7 @@
 #>
 
 BeforeAll {
-    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1')
+    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1')
 
     function New-TierTable {
         param([string]$Name, [string]$Plan = 'Analytics', [int]$Retention = 30, [int]$Total = 30)

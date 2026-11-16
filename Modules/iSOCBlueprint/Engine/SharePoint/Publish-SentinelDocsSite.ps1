@@ -162,10 +162,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'Private/Get-SectionFamily.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'SiteShared' 'Get-SectionFamily.ps1')
 . (Join-Path $PSScriptRoot 'Private/Get-SacSyncPlan.ps1')
 . (Join-Path $PSScriptRoot 'Private/SacSharePoint.ps1')
-. (Join-Path $PSScriptRoot 'Private/Get-SacProgress.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'SiteShared' 'Get-SacProgress.ps1')
 # Publish-SacSectionPage writes a chart as a table, through
 # ConvertTo-SacChartFallbackHtml, when the chart web part is missing.
 . (Join-Path $PSScriptRoot 'Private/ConvertTo-SharePointPageSegments.ps1')

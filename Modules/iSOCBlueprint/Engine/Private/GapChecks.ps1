@@ -50,11 +50,11 @@ Set-StrictMode -Version Latest
 # Counts, GB, money, dates and plurals written as the dashboard writes them.
 . (Join-Path $PSScriptRoot 'Format-BlueprintText.ps1')
 # The connector catalogue helpers (SAC-PLT-10 reads the catalogue).
-. (Join-Path $PSScriptRoot 'Get-ConnectorCatalogue.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-ConnectorCatalogue.ps1')
 # Watchlist freshness (SAC-DET-15), shared with the watchlists page.
-. (Join-Path $PSScriptRoot 'Get-WatchlistFreshness.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-WatchlistFreshness.ps1')
 # Recent hunts and bookmarks (SAC-HNT-01), shared with the maturity metrics.
-. (Join-Path $PSScriptRoot 'Get-HuntingActivity.ps1')
+. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-HuntingActivity.ps1')
 
 # The check functions and their helpers (the module's own Private/Gap, two
 # folders up from here), defined in the caller's scope.

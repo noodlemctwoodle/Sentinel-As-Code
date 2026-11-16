@@ -28,7 +28,7 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
-    . (Join-Path $sp 'Private/Get-SacProgress.ps1')
+    . (Join-Path $sp '../../Private/SiteShared/Get-SacProgress.ps1')
     . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
     $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
@@ -169,7 +169,7 @@ Describe 'The site build''s progress files' {
 
 Describe 'The publisher keeps the history on the site' {
     It 'merges the bundle''s records with the site''s and saves them beside the dashboard' {
-        $script:publisher | Should -Match '\. \(Join-Path \$PSScriptRoot ''Private/Get-SacProgress\.ps1''\)'
+        $script:publisher | Should -Match '\. \(Join-Path \$PSScriptRoot ''\.\.'' ''\.\.'' ''Private'' ''SiteShared'' ''Get-SacProgress\.ps1''\)'
         $script:publisher | Should -Match 'Merge-SacProgressHistory -History \(Read-SacProgressHistory\) -Records \$progressRecords'
         $script:publisher | Should -Match 'Save-SacProgressHistory -History \$progress'
         $script:sacSharePoint | Should -Match '\$script:SacProgressHistoryFile = ''progress-history\.json'''

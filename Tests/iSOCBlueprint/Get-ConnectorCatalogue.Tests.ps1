@@ -9,7 +9,7 @@
     Two parts. Guards over the shipped resource
     (Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json): its
     provenance fields, unique ids and table lists. Then the helpers in
-    Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1 against a small
+    Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1 against a small
     hand-built catalogue: connector ids from classic and codeless
     connectors, 7-day activity with free tables included, the per-connector
     status (receiving, silent, not in the catalogue) and the table and
@@ -27,7 +27,7 @@
 #>
 
 BeforeAll {
-    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Get-ConnectorCatalogue.ps1')
+    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1')
     $script:resource = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json'
 
     $script:testCatalogue = Join-Path ([System.IO.Path]::GetTempPath()) "connector-catalogue-$(New-Guid).json"

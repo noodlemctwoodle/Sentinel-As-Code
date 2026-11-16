@@ -576,7 +576,7 @@ host page (with `scrollIntoView`) rather than its own window.
 Every panel has an empty state: a snapshot without a capture shows "not
 available" or "not assessed" rather than a zero dressed up as a result.
 The source families used by the estate flow come from
-`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`, which the Markdown renderer
+`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`, which the Markdown renderer
 also uses, so the Markdown pack and the dashboard agree.
 
 Nothing is pre-rendered for the site. Charts reach it as data in the

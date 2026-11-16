@@ -29,7 +29,7 @@ BeforeAll {
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private'
     $script:resourcesDir = Join-Path $script:engine 'Resources'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    . (Join-Path $script:engine 'Get-HuntingActivity.ps1')
+    . (Join-Path $script:engine '../../Private/Lookup/Get-HuntingActivity.ps1')
     . (Join-Path $script:engine 'Get-SentinelGap.ps1')
     . (Join-Path $script:engine 'Get-SentinelMaturity.ps1')
 
