@@ -78,7 +78,9 @@ function Get-SdlFunctionReach {
             }
         }
     }
-    for ($pass = 0; $pass -lt 10; $pass++) {
+    # Repeat until a full pass adds nothing. Table sets only grow and are
+    # finite, so this ends, cycles between functions included.
+    do {
         $changed = $false
         foreach ($info in @($reach.Values)) {
             foreach ($called in $info.Calls) {
@@ -89,9 +91,6 @@ function Get-SdlFunctionReach {
                 }
             }
         }
-        if (-not $changed) {
-            break
-        }
-    }
+    } while ($changed)
     return $reach
 }

@@ -111,6 +111,10 @@ if (-not (Test-Path $resultsDir)) {
 # ---------------------------------------------------------------------------
 # Module setup. Both pipelines start from a clean PowerShell host.
 # ---------------------------------------------------------------------------
+# The PSScriptAnalyzer lint baseline holds exact finding counts, which differ
+# between analyser versions, so the version CI pins (PSSA_VERSION) is the one
+# installed and loaded here too.
+$pssaVersion = '1.25.0'
 if ($InstallModules) {
     Write-Host '##[section]Installing test dependencies'
 
@@ -120,13 +124,18 @@ if ($InstallModules) {
     if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
         Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber | Out-Null
     }
-    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
-        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -AllowClobber | Out-Null
+    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq [version]$pssaVersion })) {
+        Install-Module -Name PSScriptAnalyzer -RequiredVersion $pssaVersion -Force -Scope CurrentUser -AllowClobber | Out-Null
     }
 }
 
 Import-Module Pester -MinimumVersion '5.0.0' -ErrorAction Stop
 Import-Module powershell-yaml -ErrorAction Stop
+if (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq [version]$pssaVersion }) {
+    Import-Module -Name PSScriptAnalyzer -RequiredVersion $pssaVersion -ErrorAction Stop
+} elseif (Get-Module -ListAvailable -Name PSScriptAnalyzer) {
+    Write-Warning "PSScriptAnalyzer $pssaVersion is not installed. The lint baseline counts are for that version, so another version can report different counts."
+}
 
 # ---------------------------------------------------------------------------
 # Pester configuration. NUnitXml is what both GitHub and ADO ingest natively;

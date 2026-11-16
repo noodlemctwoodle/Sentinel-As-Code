@@ -33,6 +33,10 @@
 
 Set-StrictMode -Version 'Latest'
 
+# The baseline's finding counts are exact for this version; CI pins it
+# (PSSA_VERSION in .github/workflows/pr-validation.yml).
+$script:PinnedVersion = [version]'1.25.0'
+
 function Get-RepositoryPowerShellFile {
     <#
     .SYNOPSIS
@@ -90,12 +94,31 @@ function Get-RepositoryPowerShellFile {
     }
 }
 
+function Get-RepositoryLintVersion {
+    <#
+    .SYNOPSIS
+        Returns the PSScriptAnalyzer version the baseline was generated with.
+
+    .OUTPUTS
+        [version] The pinned version.
+    #>
+    [CmdletBinding(PositionalBinding = $false)]
+    [OutputType([version])]
+    param ()
+
+    return $script:PinnedVersion
+}
+
 function Initialize-RepositoryLint {
     <#
     .SYNOPSIS
-        Warms PSScriptAnalyzer's command cache before any real file is linted.
+        Loads the pinned PSScriptAnalyzer and warms its command cache before
+        any real file is linted.
 
     .DESCRIPTION
+        Imports PSScriptAnalyzer at the pinned version when it is installed,
+        so a newer copy cannot report different counts against the baseline.
+
         PSScriptAnalyzer 1.25 resolves Export-ModuleMember's parameters from
         several rule threads at once, and on the first analysis in a fresh
         process that can throw a NullReferenceException. Analysing a small
@@ -115,6 +138,13 @@ function Initialize-RepositoryLint {
         [ValidateNotNullOrEmpty()]
         [string]$RepositoryRoot
     )
+
+    $available = @(Get-Module -ListAvailable -Name 'PSScriptAnalyzer' | Where-Object -FilterScript { $_.Version -eq $script:PinnedVersion })
+    if ($available.Count -gt 0) {
+        Import-Module -Name 'PSScriptAnalyzer' -RequiredVersion $script:PinnedVersion -ErrorAction Stop
+    } else {
+        Write-Warning -Message "PSScriptAnalyzer $($script:PinnedVersion) is not installed; the baseline counts are for that version."
+    }
 
     $warmup = @'
 function Get-LintWarmup {
@@ -174,4 +204,4 @@ function Invoke-RepositoryLint {
     }
 }
 
-Export-ModuleMember -Function 'Get-RepositoryPowerShellFile', 'Initialize-RepositoryLint', 'Invoke-RepositoryLint'
+Export-ModuleMember -Function 'Get-RepositoryLintVersion', 'Get-RepositoryPowerShellFile', 'Initialize-RepositoryLint', 'Invoke-RepositoryLint'

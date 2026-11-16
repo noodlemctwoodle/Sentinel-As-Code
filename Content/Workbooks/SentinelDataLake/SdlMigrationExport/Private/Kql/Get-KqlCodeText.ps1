@@ -48,10 +48,15 @@ function Get-KqlCodeText {
     if (-not $Text) {
         return ''
     }
-    $named = foreach ($match in [regex]::Matches($Text, 'table\(\s*[''"]([A-Za-z0-9_]+)[''"]\s*\)')) {
-        $match.Groups[1].Value
+    # One alternation, scanned left to right: a table('X') call is taken whole
+    # only where it starts in executable KQL, so one inside a comment or a
+    # string is swallowed by the comment or string match first.
+    $tokens = '(?<![\w.])table\(\s*(?<quote>[''"])(?<table>[A-Za-z0-9_]+)\k<quote>\s*\)|//[^\r\n]*|@"[^"]*"|@''[^'']*''|"(?:[^"\\\r\n]|\\.)*"|''(?:[^''\\\r\n]|\\.)*'''
+    $named = foreach ($match in [regex]::Matches($Text, $tokens)) {
+        if ($match.Groups['table'].Success) {
+            $match.Groups['table'].Value
+        }
     }
-    $tokens = '//[^\r\n]*|@"[^"]*"|@''[^'']*''|"(?:[^"\\\r\n]|\\.)*"|''(?:[^''\\\r\n]|\\.)*'''
     $clean = [regex]::Replace($Text, $tokens, ' ')
     return ($clean + ' ' + ($named -join ' '))
 }

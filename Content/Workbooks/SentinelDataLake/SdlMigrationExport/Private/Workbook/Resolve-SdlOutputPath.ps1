@@ -67,5 +67,7 @@ function Resolve-SdlOutputPath {
     if (-not $IsWindows -and $OutputPath -match '^[A-Za-z]:[\\/]') {
         throw "OutputPath '$OutputPath' uses a Windows drive path, which is not valid on macOS/Linux. Use a forward-slash path instead, e.g. '/tmp/report.xlsx' or './report.xlsx'."
     }
-    return $OutputPath
+    # .NET resolves relative paths against the process directory, which
+    # Set-Location does not change; resolve against PowerShell's location.
+    return $PSCmdlet.GetUnresolvedProviderPathFromPSPath($OutputPath)
 }

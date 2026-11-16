@@ -68,7 +68,7 @@ let knownTables = toscalar(
 let avgHourlySizePerTable = Usage
     | where TimeGenerated > ago(__DAYS__d)
     | where IsBillable == true
-    | summarize AvgHourlyIngestionGB = avg(Quantity) / 1000.0 by DataType;
+    | summarize AvgHourlyIngestionGB = sum(Quantity) / 1000.0 / (toreal(__DAYS__) * 24.0) by DataType;
 let queryActivity = LAQueryLogs
     | where TimeGenerated > ago(__QDAYS__d)
     | extend HoursDiff = todouble(datetime_diff('minute', QueryTimeRangeEnd, QueryTimeRangeStart)) / 60.0

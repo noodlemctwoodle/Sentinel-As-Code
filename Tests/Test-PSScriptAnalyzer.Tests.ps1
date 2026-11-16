@@ -76,6 +76,12 @@ Describe 'PSScriptAnalyzer repository lint' {
         }
     }
 
+    It 'runs the PSScriptAnalyzer version the baseline was generated with' -Skip:(-not $script:inCi) {
+        # Counts differ between analyser versions, so CI must lint with the
+        # pinned one; locally another version only produces a warning.
+        (Get-Module -Name 'PSScriptAnalyzer').Version | Should -Be (Get-RepositoryLintVersion)
+    }
+
     It 'lists only files that still exist in the baseline' {
         $existing = @(Get-RepositoryPowerShellFile -RepositoryRoot $script:repositoryRoot | ForEach-Object -Process { $_.Path })
         $stale = @($script:baseline.Keys | Where-Object -FilterScript { $existing -notcontains $_ })

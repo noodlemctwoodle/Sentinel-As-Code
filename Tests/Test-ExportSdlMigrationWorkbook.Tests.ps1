@@ -519,3 +519,64 @@ Describe 'Error scenarios' {
         { Assert-SdlSetting -Settings ([pscustomobject]@{ TargetLakeRetentionDays = 60; AnalyticsRetentionDays = 90 }) } | Should -Throw '*cannot be shorter*'
     }
 }
+
+Describe 'Regression cases' {
+    It 'ignores table() calls inside comments and string literals' {
+        $comment = Get-KqlCodeText -Text "SecurityEvent | take 1 // table('Syslog')"
+        Test-KqlIdentifier -CleanText $comment -Name 'Syslog' | Should -BeFalse
+        $string = Get-KqlCodeText -Text "SecurityEvent | where Note == `"table('Syslog')`""
+        Test-KqlIdentifier -CleanText $string -Name 'Syslog' | Should -BeFalse
+        $call = Get-KqlCodeText -Text "union table('Syslog'), SecurityEvent"
+        Test-KqlIdentifier -CleanText $call -Name 'Syslog' | Should -BeTrue
+    }
+
+    It 'reaches a table through a chain of functions longer than ten' {
+        # Outer functions are listed first, so a fixed number of passes would
+        # stop before the table reaches the top of the chain.
+        $chain = foreach ($index in 0..11) {
+            $body = if ($index -eq 11) { 'DeviceProcessEvents | take 1' } else { "Fn$($index + 1)() | take 1" }
+            [pscustomobject]@{ FunctionAlias = "Fn$index"; DisplayName = "Fn$index"; QueryBody = $body }
+        }
+        $reach = Get-SdlFunctionReach -Function $chain -TableUniverse @('DeviceProcessEvents')
+        foreach ($index in 0..11) {
+            $reach["Fn$index"].Tables | Should -Contain 'DeviceProcessEvents' -Because "Fn$index calls down the chain"
+        }
+    }
+
+    It 'bases Query-Weighted hourly ingestion on every hour in the window' {
+        Mock Invoke-SdlKqlQuery { $script:queryWeightedKql = $Query }
+        $settings = [pscustomobject]@{
+            TimeRangeDays                     = 30
+            QueryLookbackDays                 = 7
+            XdrLookbackDays                   = 7
+            AlertActivityDays                 = 30
+            Currency                          = 'USD'
+            EffectiveAnalyticsRate            = 0
+            PricingModel                      = 'PAYG'
+            LakeIngestPricePerGB              = 0.05
+            LakeProcessingPricePerGB          = 0.10
+            LakeStoragePricePerGBMonth        = 0.026
+            LakeQueryPricePerGB               = 0.005
+            TargetLakeRetentionDays           = 730
+            CompressionRatio                  = 6
+            AnalyticsRetentionDays            = 90
+            AnalyticsRetentionPricePerGBMonth = 0.10
+        }
+        $inventory = [pscustomobject]@{ ClassicV1 = @(); DcrCustom = @(); BasicPlan = @(); AuxiliaryPlan = @() }
+        $null = Get-SdlQueryWeightedReport -Connection ([pscustomobject]@{ WorkspaceName = 'ws' }) -Settings $settings -Inventory $inventory
+        $script:queryWeightedKql | Should -Match ([regex]::Escape('AvgHourlyIngestionGB = sum(Quantity) / 1000.0 / (toreal(30) * 24.0)'))
+        $script:queryWeightedKql | Should -Not -Match 'avg\(Quantity\)'
+    }
+
+    It 'resolves a relative -OutputPath against the current PowerShell location' {
+        Push-Location -LiteralPath $TestDrive
+        try {
+            $expected = [System.IO.Path]::Combine((Get-Location).ProviderPath, 'reports', 'export.xlsx')
+            $resolved = Resolve-SdlOutputPath -WorkspaceName 'ws' -Timestamp (Get-Date) -OutputPath './reports/export.xlsx'
+            [System.IO.Path]::IsPathRooted($resolved) | Should -BeTrue
+            [System.IO.Path]::GetFullPath($resolved) | Should -Be ([System.IO.Path]::GetFullPath($expected))
+        } finally {
+            Pop-Location
+        }
+    }
+}
