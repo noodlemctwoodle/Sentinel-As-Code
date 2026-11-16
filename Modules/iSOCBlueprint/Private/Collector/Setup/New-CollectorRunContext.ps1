@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -61,8 +61,8 @@ function New-CollectorRunContext {
     .PARAMETER Currency
         The currency setting, Auto or a code.
 
-    .PARAMETER EngineRoot
-        The Engine folder, for the commit the scripts came from.
+    .PARAMETER ResourcesFolder
+        The module's Resources folder, for the commit the module came from.
 
     .OUTPUTS
         One [pscustomobject], the content of _raw/run-context.json.
@@ -80,7 +80,7 @@ function New-CollectorRunContext {
         [Parameter(Mandatory = $true)] [string]$BlueprintVersion,
         [Parameter(Mandatory = $false)] [switch]$IncludePreview,
         [Parameter(Mandatory = $true)] [string]$Currency,
-        [Parameter(Mandatory = $true)] [string]$EngineRoot
+        [Parameter(Mandatory = $true)] [string]$ResourcesFolder
     )
 
     return [pscustomobject]@{
@@ -101,6 +101,6 @@ function New-CollectorRunContext {
         RecentDays        = $script:RecentDays
         DailyDays         = $script:DailyDays
         Currency          = $Currency
-        ScriptCommit      = $(if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $EngineRoot rev-parse HEAD 2>$null) -as [string] } else { $null })
+        ScriptCommit      = $(if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $ResourcesFolder rev-parse HEAD 2>$null) -as [string] } else { $null })
     }
 }

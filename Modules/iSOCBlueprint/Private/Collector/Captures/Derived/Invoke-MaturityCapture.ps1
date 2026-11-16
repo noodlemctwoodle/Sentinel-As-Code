@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -33,12 +33,12 @@ function Invoke-MaturityCapture {
 
     $rawOut = $Context.rawOut
     $TargetMaturityLevel = $Context.TargetMaturityLevel
-    $engineRoot = $Context.engineRoot
+    $resourcesFolder = $Context.resourcesFolder
 
     $maturity = Get-SentinelMaturity `
         -InputRoot $rawOut `
-        -ResourcesRoot (Join-Path $engineRoot 'Private/Resources') `
-        -CriteriaPath (Join-Path $engineRoot 'Private/Resources/maturity-criteria.json') `
+        -ResourcesRoot (Join-Path $resourcesFolder 'Data') `
+        -CriteriaPath (Join-Path $resourcesFolder 'Data/maturity-criteria.json') `
         -GapOutcomes $script:GapOutcomes `
         -TargetLevel $TargetMaturityLevel
     Save-Json -FileName 'maturity.json' -Data $maturity

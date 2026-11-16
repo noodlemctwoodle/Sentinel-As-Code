@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
@@ -46,7 +46,7 @@ function Update-iSOCBlueprintConnectorCatalogue {
 
     .PARAMETER OutputPath
         The catalogue to write. Defaults to
-        Engine/Private/Resources/connector-catalogue.json inside the module.
+        Resources/Data/connector-catalogue.json inside the module.
 
     .OUTPUTS
         [System.IO.FileInfo] The catalogue written, unless -WhatIf.
@@ -69,7 +69,7 @@ function Update-iSOCBlueprintConnectorCatalogue {
         [string] $OutputPath
     )
 
-    $target = Resolve-iSOCBlueprintPath -Path $OutputPath -Default (Join-Path $script:iSOCBlueprintEngineRoot 'Private/Resources/connector-catalogue.json')
+    $target = Resolve-iSOCBlueprintPath -Path $OutputPath -Default (Join-Path $script:iSOCBlueprintResourcesRoot 'Data/connector-catalogue.json')
     if (-not $PSCmdlet.ShouldProcess($target, 'Refresh the connector catalogue')) { return }
 
     $params = @{ OutputPath = $target }

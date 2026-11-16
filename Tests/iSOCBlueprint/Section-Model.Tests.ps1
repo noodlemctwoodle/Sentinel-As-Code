@@ -12,7 +12,7 @@
     they are exercised directly on small inputs. The renderer is then run
     over the fixture twice, with both output formats and with -OutputFormat
     Json, and every section file and the index are validated against
-    Modules/iSOCBlueprint/Engine/Schemas.
+    Modules/iSOCBlueprint/Resources/Schemas.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Section-Model.Tests.ps1 -Output Detailed
@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.3
+    Version:      0.2.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (renderer)
 #>
@@ -33,8 +33,8 @@ BeforeAll {
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     . (Get-iSOCBlueprintAreaLoader -Area Mermaid, Section)
-    $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section.schema.json'
-    $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json'
+    $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Schemas/section.schema.json'
+    $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Schemas/section-index.schema.json'
 
     function ConvertTo-Model([string] $Markdown, [string] $Id = '20-analytics-rules') { ConvertTo-BlueprintSection -Markdown $Markdown -Id $Id }
     function Get-Chart([string] $Source) { ConvertFrom-BlueprintMermaid -Source $Source }
@@ -366,7 +366,7 @@ Describe 'Renderer section model output' {
 
     BeforeAll {
         $fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-        $resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+        $resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
         $script:root = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-model-test-$(New-Guid)"
         $script:dirs = @{}
         foreach ($mode in 'Both', 'Json') {

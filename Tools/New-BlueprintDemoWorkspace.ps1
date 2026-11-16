@@ -96,7 +96,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.7
+    Version:      0.2.8
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
 
@@ -139,17 +139,17 @@ Import-Module powershell-yaml -ErrorAction Stop
 
 $RepoPath = (Resolve-Path -LiteralPath $RepoPath).Path
 $content = Join-Path $RepoPath 'Content'
-$engine = Join-Path $RepoPath 'Modules/iSOCBlueprint/Engine'
-$resources = Join-Path $engine 'Private/Resources'
+$moduleRoot = Join-Path $RepoPath 'Modules/iSOCBlueprint'
+$resources = Join-Path $moduleRoot 'Resources/Data'
 $fixtureRaw = Join-Path $RepoPath 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
 if (-not $OutputPath) { $OutputPath = Join-Path $RepoPath "SecurityDocs/$WorkspaceName" }
 $raw = Join-Path $OutputPath '_raw'
 if (Test-Path -LiteralPath $raw) { Remove-Item -LiteralPath $raw -Recurse -Force }
 New-Item -ItemType Directory -Path $raw -Force | Out-Null
 
-. (Join-Path $engine '../Private/Kql/Vendor/SentinelCommon.Kql.ps1')
-. (Join-Path $engine '../Private/Kql/Get-KqlTableReferences.ps1')
-. (Join-Path $engine '../Private/Azure/Get-DefenderCustomDetections.ps1')
+. (Join-Path $moduleRoot 'Private/Kql/Vendor/SentinelCommon.Kql.ps1')
+. (Join-Path $moduleRoot 'Private/Kql/Get-KqlTableReferences.ps1')
+. (Join-Path $moduleRoot 'Private/Azure/Get-DefenderCustomDetections.ps1')
 
 $asOfUtc = if ($AsOf.Kind -eq [System.DateTimeKind]::Unspecified) { [datetime]::SpecifyKind($AsOf, 'Utc') } else { $AsOf.ToUniversalTime() }
 $asOfUtc = [datetime]::new($asOfUtc.Year, $asOfUtc.Month, $asOfUtc.Day, $asOfUtc.Hour, $asOfUtc.Minute, 0, [System.DateTimeKind]::Utc)
@@ -1226,7 +1226,7 @@ Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTabl
 # The cost estimate, gap checks and maturity assessment (the module's own
 # Private folders), defined in this scope.
 foreach ($area in 'Lookup', 'Format', 'Cost', 'GapAnalysis', 'Gap', 'Maturity') {
-    foreach ($areaFile in Get-ChildItem -LiteralPath (Join-Path $engine '..' 'Private' $area) -Filter '*.ps1' -File -Recurse | Sort-Object FullName) { . $areaFile.FullName }
+    foreach ($areaFile in Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private' $area) -Filter '*.ps1' -File -Recurse | Sort-Object FullName) { . $areaFile.FullName }
 }
 Save-DemoJson 'cost-estimate.json' (Get-SentinelCostEstimate -InputRoot $raw -ResourcesRoot $resources)
 $outcomes = [System.Collections.Generic.List[object]]::new()
@@ -1279,7 +1279,7 @@ if ($Build) {
     # met until last week is a gap now.
     $progressPath = if ($bundle) { Join-Path $bundle 'progress.json' } else { $null }
     if ($progressPath -and (Test-Path -LiteralPath $progressPath)) {
-        . (Join-Path $engine '../Private/SiteShared/Get-SacProgress.ps1')
+        . (Join-Path $moduleRoot 'Private/SiteShared/Get-SacProgress.ps1')
         $now = Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json -Depth 32
         $firing = @($now.sets.findings | ForEach-Object { [string]$_.id })
         $fixed = @((Get-Content -LiteralPath (Join-Path $resources 'best-practices.json') -Raw | ConvertFrom-Json -Depth 16).rules |

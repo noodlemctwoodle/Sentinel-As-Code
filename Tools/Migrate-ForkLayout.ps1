@@ -11,7 +11,13 @@
     (Tools/Documenter, later Tools/Blueprint, became
     Modules/iSOCBlueprint/Engine, its SharePoint web part became
     Modules/iSOCBlueprint/WebParts, and Tests/Documenter became
-    Tests/iSOCBlueprint). Tracked files move automatically when you
+    Tests/iSOCBlueprint). Release 26.11 then moved the engine's static files
+    (rules and catalogues, schemas, the Word reference document, the dashboard
+    templates) to Modules/iSOCBlueprint/Resources and turned its scripts into
+    functions under Modules/iSOCBlueprint/Private, so those files are moved
+    there from either layout; any script of yours still in an old folder is
+    left under Modules/iSOCBlueprint/Engine, where the module does not load
+    it, to be ported by hand. Tracked files move automatically when you
     merge or rebase the restructure (git rename detection reconciles your
     customisations). This helper catches stragglers (untracked custom
     content or conflict leftovers still sitting at an old path) and moves
@@ -56,8 +62,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.5
-    Last Updated:   2026-11-09
+    Version:        0.1.6
+    Last Updated:   2026-11-16
     Requires:       PowerShell 7.6+, git
 #>
 
@@ -109,6 +115,15 @@ $moveMap = [ordered]@{
     # The web part first, so the folder below does not carry it into the engine.
     'Tools/Blueprint/SharePoint/webpart/isoc-blueprint' = 'Modules/iSOCBlueprint/WebParts'
     'Tools/Blueprint'                       = 'Modules/iSOCBlueprint/Engine'
+    # The folders above all land in Engine; the static files the module reads
+    # now live in Modules/iSOCBlueprint/Resources, so they move on from there
+    # (and from a 26.10 layout, which kept them in Engine).
+    'Modules/iSOCBlueprint/Engine/Private/Resources'                                = 'Modules/iSOCBlueprint/Resources/Data'
+    'Modules/iSOCBlueprint/Engine/Schemas'                                          = 'Modules/iSOCBlueprint/Resources/Schemas'
+    'Modules/iSOCBlueprint/Engine/Report/templates'                                 = 'Modules/iSOCBlueprint/Resources/Report/templates'
+    'Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py'                         = 'Modules/iSOCBlueprint/Resources/Report/Update-WordToc.py'
+    'Modules/iSOCBlueprint/Engine/SharePoint/templates'                             = 'Modules/iSOCBlueprint/Resources/SharePoint/templates'
+    'Modules/iSOCBlueprint/Engine/Blueprint.psd1'                                   = 'Modules/iSOCBlueprint/Resources/Blueprint.psd1'
 }
 
 # Merges one folder into another at any depth: moves what the destination

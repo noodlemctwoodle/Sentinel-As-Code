@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -32,13 +32,13 @@ function Invoke-GapAnalysisCapture {
     param([Parameter(Mandatory = $true)] [hashtable] $Context)
 
     $rawOut = $Context.rawOut
-    $engineRoot = $Context.engineRoot
+    $resourcesFolder = $Context.resourcesFolder
 
     $gapOutcomes = [System.Collections.Generic.List[object]]::new()
     $findings = Get-SentinelGap `
         -InputRoot $rawOut `
-        -ResourcesRoot (Join-Path $engineRoot 'Private/Resources') `
-        -RulesPath (Join-Path $engineRoot 'Private/Resources/best-practices.json') `
+        -ResourcesRoot (Join-Path $resourcesFolder 'Data') `
+        -RulesPath (Join-Path $resourcesFolder 'Data/best-practices.json') `
         -OutcomeCollector $gapOutcomes
     Save-Json -FileName 'gap-analysis.json' -Data $findings
     # One record per rule (Fired / Passed / Errored / Undefined), so a

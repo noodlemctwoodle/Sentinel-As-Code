@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.13.4
+    Version:      0.13.5
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -334,7 +334,7 @@ Describe 'Build-SentinelDocsSite with tables cut on their pages' {
         Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $script:cutWs '_raw')
         ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-test' -Path $script:cutWs -OutputPath $script:cutWs -Format Json `
-            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data') -InformationAction SilentlyContinue *> $null
         $script:cutLog = (New-iSOCBlueprintSite -Path $script:cutWs -MaxTableRows 3 -HistoryDays 0 6>&1 | Out-String)
         $script:cutBundle = Join-Path $script:cutWs 'sharepoint'
         $script:cutSite = Get-Content (Join-Path $script:cutBundle 'site.json') -Raw | ConvertFrom-Json
@@ -1195,7 +1195,7 @@ Describe 'Detection outcomes and template solutions in the site build' {
         ConvertTo-Json -InputObject $g -Depth 10 | Set-Content $gp
         $script:doGapId = $g[0].Id
         ConvertTo-iSOCBlueprint -WorkspaceName 'law-do' -Path $wsd -OutputPath $wsd `
-            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -Format Json -InformationAction SilentlyContinue *> $null
+            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data') -Format Json -InformationAction SilentlyContinue *> $null
         $b = (New-iSOCBlueprintSite -Path $wsd -SkipWhatsNew 6> $null).Path
         $script:doModel = Get-Content (Join-Path $b 'model.json') -Raw | ConvertFrom-Json
         $script:doHtml = Get-Content (Join-Path $b 'index.html') -Raw
@@ -1294,7 +1294,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
         ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-test' -Path $ws -OutputPath $ws `
-            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+            -ResourcesPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data') -InformationAction SilentlyContinue *> $null
 
         $script:mdFiles = @(Get-ChildItem $ws -Filter '*.md' | Where-Object { $_.Name -ne 'index.md' -and $_.BaseName -match '^\d+-' })
         $script:bundle = (New-iSOCBlueprintSite -Path $ws -SkipWhatsNew 6> $null).Path
@@ -2182,7 +2182,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         }
         $sha = [System.Security.Cryptography.SHA256]::Create()
         $hash = ([System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($sb.ToString())))).Replace('-', '').ToLowerInvariant()
-        $bundleText = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard-charts.js') -Raw
+        $bundleText = Get-Content -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard-charts.js') -Raw
         $bundleText | Should -Match "sources-sha256: $hash" -Because 'a chart source changed: run ./Modules/iSOCBlueprint/WebParts/Build-DashboardCharts.ps1'
         $bundleText | Should -Not -Match '(?i)</script'
     }
@@ -2266,7 +2266,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'gives a tactic outside the Enterprise matrix (an ICS one) a grid column of its own' {
         . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup/Get-AttackCoverage.ps1')
-        $catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json') -Raw | ConvertFrom-Json
+        $catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/mitre-attack.json') -Raw | ConvertFrom-Json
         $rule = [pscustomobject]@{ name = 'ics'; kind = 'Scheduled'; properties = [pscustomobject]@{
                 displayName = 'Process control tampering'; enabled = $true; severity = 'High'
                 tactics = @('ImpairProcessControl'); techniques = @('T0831') } }
@@ -2383,7 +2383,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 Describe 'Dashboard figures and labels' {
     BeforeAll {
         . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
-        $script:dash = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard')
+        $script:dash = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard')
     }
 
     It 'writes the data flow''s ring and incident figures with thousands separators' {

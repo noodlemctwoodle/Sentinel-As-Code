@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -159,7 +159,7 @@ $(Format-BlueprintTable -Items @($wnRows | Where-Object Product -EQ 'Microsoft D
 
 ## How each item's status is set
 
-The status comes from each entry's own wording: a call to action is Action needed; retired, retiring, deprecated or transitioning is Retiring; then Generally available or Preview as Microsoft marks it; anything else is Update. The links to this report come from Private/Resources/whats-new-topics.json.
+The status comes from each entry's own wording: a call to action is Action needed; retired, retiring, deprecated or transitioning is Retiring; then Generally available or Preview as Microsoft marks it; anything else is Update. The links to this report come from Resources/Data/whats-new-topics.json.
 
 $wnSourceLines
 "@

@@ -1,6 +1,6 @@
 # iSOC Blueprint, renderer design spec
 
-> Maintainer-facing reference for the renderer, `Invoke-iSOCBlueprintRender` and the files beside it under [`Modules/iSOCBlueprint/Private/Render`](../../../Modules/iSOCBlueprint/Private/Render), run from the command line by [`Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1).
+> Maintainer-facing reference for the renderer, `Invoke-iSOCBlueprintRender` and the files beside it under [`Modules/iSOCBlueprint/Private/Render`](../../../Modules/iSOCBlueprint/Private/Render), run from the command line by [`ConvertTo-iSOCBlueprint`](../../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprint.ps1).
 > The user-facing operating guide is the sibling [`Sentinel-Blueprint.md`](Sentinel-Blueprint.md).
 
 This doc captures the design of the renderer, what each chart is driven
@@ -24,7 +24,7 @@ _raw/*.json    → ConvertTo-iSOCBlueprint                  → 36 .md files
 *.md (ADO only)→ Invoke-iSOCBlueprintChartImage           → assets/*.png + rewritten fences
 ```
 
-These are the scripts under `Modules/iSOCBlueprint/Engine/`; users reach them
+These are the functions under `Modules/iSOCBlueprint/Private/`; users reach them
 through the module's commands (`Export-iSOCBlueprintInventory`,
 `ConvertTo-iSOCBlueprint`, `ConvertTo-iSOCBlueprintChartImage`), which pass
 their parameters on unchanged apart from the names noted in the module
@@ -434,7 +434,7 @@ the finding in its link text (`SAC-GOV-05: Roles ...`); several findings
 sharing a page share one line. It runs after the auto-linker so those ids
 stay text inside the link. Links inside a sentence, a table or a code
 fence stay where they are. The Conventions page (99) is copied from
-`Private/Resources/Blueprint-References.md`, which ends with its own
+`Resources/Data/Blueprint-References.md`, which ends with its own
 References list.
 
 ## The window a page names
@@ -542,16 +542,16 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1`](../../../Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
-| [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
-| [`Modules/iSOCBlueprint/Private/Maturity`](../../../Modules/iSOCBlueprint/Private/Maturity) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
+| [`Modules/iSOCBlueprint/Private/Maturity`](../../../Modules/iSOCBlueprint/Private/Maturity) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
 | [`Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1) + the one-per-file checks under [`Private/Gap`](../../../Modules/iSOCBlueprint/Private/Gap) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | The Microsoft 365 E5 and Defender for Servers Plan 2 data grants, their allowances and the tables each covers |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
+| [`Modules/iSOCBlueprint/Resources/Data/best-practices.json`](../../../Modules/iSOCBlueprint/Resources/Data/best-practices.json) | 66-rule catalogue driving the gap engine |
+| [`Modules/iSOCBlueprint/Resources/Data/mitre-attack.json`](../../../Modules/iSOCBlueprint/Resources/Data/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
+| [`Modules/iSOCBlueprint/Resources/Data/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Resources/Data/sentinel-benefit-tables.json) | The Microsoft 365 E5 and Defender for Servers Plan 2 data grants, their allowances and the tables each covers |
+| [`Modules/iSOCBlueprint/Resources/Data/commitment-tiers.json`](../../../Modules/iSOCBlueprint/Resources/Data/commitment-tiers.json) | Workspace commitment-tier pricing breakpoints |
 | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renderer Pester suite (~250 tests) |
 | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-engine Pester suite (97 tests) |
 | [`Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1) | Connector catalogue resource guards and helpers (13 tests) |
@@ -647,7 +647,7 @@ assets root).
    triggers a read-only-variable write error.
 
 ### Adding a new gap rule
-Out of scope for this renderer spec, see the [`best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json)
+Out of scope for this renderer spec, see the [`best-practices.json`](../../../Modules/iSOCBlueprint/Resources/Data/best-practices.json)
 schema and the checks under [`Private/Gap/Checks`](../../../Modules/iSOCBlueprint/Private/Gap/Checks)
 (one file per rule) for the pattern. The renderer consumes the gap output via `_raw/gap-analysis.json`
 and writes the 90-gap-analysis.md page; new rules surface automatically.

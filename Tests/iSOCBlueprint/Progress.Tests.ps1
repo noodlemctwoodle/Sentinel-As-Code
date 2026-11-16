@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.2.2
+    Version:      0.2.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -28,7 +28,7 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
-    $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
+    $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint'
     . (Join-Path $sp '../../Private/SiteShared/Get-SacProgress.ps1')
     . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
@@ -142,7 +142,7 @@ Describe 'The site build''s progress files' {
         # An earlier day's build left its record in its bundle.
         New-Rec '2026-10-08' 9 | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $earlier 'progress.json')
         ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-test' -Path $day -OutputPath $day -Format Json `
-            -ResourcesPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources') -InformationAction SilentlyContinue *> $null
+            -ResourcesPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data') -InformationAction SilentlyContinue *> $null
         New-iSOCBlueprintSite -Path $day -HistoryDays 30 6> $null | Out-Null
         $script:bundle = Join-Path $day 'sharepoint'
     }

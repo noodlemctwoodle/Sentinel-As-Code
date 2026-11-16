@@ -61,7 +61,7 @@ the authenticated context) is the only module it needs.
 The read-only Blueprint, the
 [`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md) module, records its
 module set in
-[`Blueprint.psd1`](../../Modules/iSOCBlueprint/Engine/Blueprint.psd1). The
+[`Blueprint.psd1`](../../Modules/iSOCBlueprint/Resources/Blueprint.psd1). The
 collector (`Export-iSOCBlueprintInventory`) imports the Az modules; the
 renderer (`ConvertTo-iSOCBlueprint`) only needs `powershell-yaml`; publishing
 and setting up the SharePoint site need PnP.PowerShell

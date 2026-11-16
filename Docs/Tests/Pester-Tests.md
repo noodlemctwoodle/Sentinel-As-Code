@@ -451,7 +451,7 @@ are described in the validate table above.
   dot-sources the section model helpers ([`Private/Mermaid`](../../Modules/iSOCBlueprint/Private/Mermaid) and [`Private/Section`](../../Modules/iSOCBlueprint/Private/Section)),
   converts small inputs directly, then renders the fixture with both output
   formats and with `-OutputFormat Json` and validates every `sections/*.json`
-  against [`Modules/iSOCBlueprint/Engine/Schemas/`](../../Modules/iSOCBlueprint/Engine/Schemas).
+  against [`Modules/iSOCBlueprint/Resources/Schemas/`](../../Modules/iSOCBlueprint/Resources/Schemas).
 - [`SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1)
   dot-sources the page segment, sync plan and SharePoint helpers ([`Private/PageSegments`](../../Modules/iSOCBlueprint/Private/PageSegments), [`Private/SyncPlan`](../../Modules/iSOCBlueprint/Private/SyncPlan) and [`Private/SharePoint`](../../Modules/iSOCBlueprint/Private/SharePoint))
   and runs [`New-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1)

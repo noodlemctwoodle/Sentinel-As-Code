@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -49,7 +49,7 @@ function Build-SiteMaturity {
     $mitreCovered = $Context.mitreCovered
     $ruleRefs = $Context.ruleRefs
     $uncoveredTotal = $Context.uncoveredTotal
-    $engineRoot = $Context.engineRoot
+    $resourcesFolder = $Context.resourcesFolder
 
     # Maturity: the page carries evidence and guidance; the dashboard keeps the
     # scores, the criteria statuses, the roadmap and the rollup.
@@ -59,7 +59,7 @@ function Build-SiteMaturity {
         # maturity.json has neither, so read them from the criteria file.
         $basis = [string]$maturityRaw.methodology.basis
         $scope = [string]$maturityRaw.methodology.scope
-        $criteriaFile = Join-Path $engineRoot 'Private/Resources/maturity-criteria.json'
+        $criteriaFile = Join-Path $resourcesFolder 'Data/maturity-criteria.json'
         if ((-not $basis -or -not $scope) -and (Test-Path -LiteralPath $criteriaFile)) {
             $criteriaMethod = (Get-Content -LiteralPath $criteriaFile -Raw | ConvertFrom-Json).methodology
             if (-not $basis) { $basis = [string]$criteriaMethod.basis }

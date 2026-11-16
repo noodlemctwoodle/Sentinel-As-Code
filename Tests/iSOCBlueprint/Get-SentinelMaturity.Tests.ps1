@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.3.1
-    Last Updated: 2026-11-09
+    Version:      0.3.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -38,7 +38,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $script:repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
     $script:criteriaPath = Join-Path $script:resourcesDir 'maturity-criteria.json'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
 
@@ -469,7 +469,7 @@ Describe 'Get-FindingMaturityLink' {
     BeforeAll {
         $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Join-Path $root 'Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1')
-        $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json'
+        $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json'
         $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/iSOCBlueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
         $script:links = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $script:fixtureMaturity
     }

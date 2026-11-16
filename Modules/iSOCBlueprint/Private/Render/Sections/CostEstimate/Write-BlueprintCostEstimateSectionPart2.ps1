@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -139,12 +139,12 @@ $(Format-BlueprintTable -Items $grantRows -Columns 'Grant','Allowance','Gb30d','
 $(if ($costMethodV2) { @"
 3. Unit price: the public prices from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for $(Get-BlueprintRegionName $cost.Region) at run-time. Analytics-plan tables are priced at the simplified Microsoft Sentinel rate, which covers Log Analytics ingestion (an older price list falls back to the classic Log Analytics and Sentinel pair); Basic tables at the Basic logs rate; tables on the data lake tier only at data lake ingestion plus data processing, and Auxiliary tables the same once the workspace is onboarded to the data lake.
 4. Commitment tier: a workspace on a tier pays its price a day for its GB, and the Analytics GB above it at the tier's effective rate (the price over the GB), as Microsoft bills it; the cost is shared over the Analytics tables by their GB.
-5. Data grants: the tables in `Private/Resources/sentinel-benefit-tables.json` are priced at list and reported under Data grants, not deducted, since their allowances depend on licence and server counts.
+5. Data grants: the tables in `Resources/Data/sentinel-benefit-tables.json` are priced at list and reported under Data grants, not deducted, since their allowances depend on licence and server counts.
 6. Commitment-tier what-if: every published tier priced against the window's Analytics ingest; the cheapest is shown when it beats the current cost.
 7. Dedicated cluster break-even: candidate flag set when daily ingest is above 500 GB and no cluster exists.
 "@ } else { @"
 3. Unit price: fetched from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) for $(Get-BlueprintRegionName $cost.Region) at collection.
-4. Sentinel free benefit: the tables then listed in `Private/Resources/sentinel-benefit-tables.json` were priced at zero on the assumption the benefit was active.
+4. Sentinel free benefit: the tables then listed in `Resources/Data/sentinel-benefit-tables.json` were priced at zero on the assumption the benefit was active.
 5. Commitment-tier projection: illustrative, as actual discounts depend on published rates.
 6. Dedicated cluster break-even: candidate flag set when daily ingest is above 500 GB and no cluster exists.
 

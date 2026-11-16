@@ -48,13 +48,13 @@ labels, and the workspace provenance line shown once under the overview.
 
 The command is [`Export-iSOCBlueprintWord`](../../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
 from the iSOCBlueprint module. What it runs lives under
-[`Modules/iSOCBlueprint/Engine/Report/`](../../../Modules/iSOCBlueprint/Engine/Report):
+[`Modules/iSOCBlueprint/Resources/Report/`](../../../Modules/iSOCBlueprint/Resources/Report):
 
 | File | Role |
 |---|---|
 | [`Invoke-iSOCBlueprintWordConversion.ps1`](../../../Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1) | The converter, with the steps and helpers beside it in [`Private/Word`](../../../Modules/iSOCBlueprint/Private/Word), one function per file: it collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
-| [`Update-WordToc.py`](../../../Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by the conversion in its default `Baked` mode. |
-| [`templates/sentinel-report-reference.docx`](../../../Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
+| [`Update-WordToc.py`](../../../Modules/iSOCBlueprint/Resources/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by the conversion in its default `Baked` mode. |
+| [`templates/sentinel-report-reference.docx`](../../../Modules/iSOCBlueprint/Resources/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
 
 The stage that stitches these together lives in
 [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml).

@@ -145,7 +145,7 @@ Private/             the Blueprint as functions, one folder per concern; path de
     Numbers/  Text/  Names/  Data/       number and amount formats, dates and words, region and SKU names, then the values they share
   SyncPlan/          the publisher's planning functions, one per file
     Pages/  Findings/  Navigation/  Assets/   what to create, update, resolve, retire or prune
-  Site/              the SharePoint site build (joins the dashboard template's parts from Engine/SharePoint/templates/dashboard), one function per file (New-iSOCBlueprintSite calls it)
+  Site/              the SharePoint site build (joins the dashboard template's parts from Resources/SharePoint/templates/dashboard), one function per file (New-iSOCBlueprintSite calls it)
     Invoke-iSOCBlueprintSiteBuild.ps1  entry point
     Steps/  Helpers/  Data/            one step per part of the model, then the bundle writer
   Maturity/          the maturity assessment, one function per file (loaded with the module)
@@ -156,11 +156,12 @@ Private/             the Blueprint as functions, one folder per concern; path de
     Checks/<Area>/                   one Test-* check per rule, by rule-id prefix
     Helpers/                         finding shape, property reads, window, converters
     Data/                            values the checks share
-Engine/              the static files the functions read
-  Private/Resources/                      rules, criteria, catalogues, page 99
+Resources/           the static files the functions read
+  Data/                                   rules, criteria, catalogues, page 99
+  Schemas/                                section model JSON schemas
   Report/                                 the Word reference document and the page-number helper
   SharePoint/templates/                   the dashboard templates
-  Schemas/                                section model JSON schemas
+  Blueprint.psd1                          reference record of the module and API versions
 WebParts/            SPFx solution for the dashboard and chart web parts
 MIGRATION.md         where each file came from
 ```
@@ -174,8 +175,8 @@ scripts they replaced did. A step that cannot go on throws; no function calls
 `exit`, which would end the caller's session. `-WhatIf` and `-Confirm` reach
 the functions through the preference variables.
 
-`Engine/` holds no code: what is left is the static files the functions read
-(resources, schemas, the dashboard templates, the Word reference document).
+`Resources/` holds no code: it is the static files the functions read (the data,
+the schemas, the dashboard templates, the Word reference document).
 
 The SharePoint web parts, the dashboard and the chart, are an SPFx solution
 (TypeScript, built with npm) in [`WebParts/`](WebParts/README.md). They sit

@@ -265,7 +265,7 @@ Beyond those headline pages the report groups into families:
   function on its own and, with `-Path`, refreshes an inventory's copy.
   The renderer ties each item to the report pages and
   maturity criteria it touches, with this workspace's status for each,
-  through `Private/Resources/whats-new-topics.json`. When the pages cannot
+  through `Resources/Data/whats-new-topics.json`. When the pages cannot
   be reached the page says so.
 - **Assessment**: `90-gap-analysis.md` (the findings) and
   `91-maturity-assessment.md` are one assessment. Each finding says which
@@ -492,7 +492,7 @@ one per file under [`Modules/iSOCBlueprint/Private/Gap/Checks`](../../../Modules
 (a folder per rule-id prefix: `Logging` for `SAC-LOG-nn`, `Detection` for
 `SAC-DET-nn`, and so on) with their shared helpers in `Private/Gap/Helpers`.
 The module loads them all. The checks are dispatched by the engine in [`Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1).
-The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
+The rules live in [`Modules/iSOCBlueprint/Resources/Data/best-practices.json`](../../../Modules/iSOCBlueprint/Resources/Data/best-practices.json),
 a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
 reads `(ConvertFrom-Json).rules`. Each entry looks like:
 
@@ -729,7 +729,7 @@ In short:
    Analytics GB above it at the tier's effective rate (the price over the GB), as
    Microsoft bills it, shared over the Analytics tables by their GB.
 5. Data grants (Microsoft 365 E5 and Defender for Servers Plan 2, listed in
-   [`Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json))
+   [`Resources/Data/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Resources/Data/sentinel-benefit-tables.json))
    are **not deducted**: their allowances depend on licence and server counts the
    Blueprint does not read. The eligible tables are priced at list and reported
    beside the total as the most each grant could save. Gap rule SAC-LOG-13 flags

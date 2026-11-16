@@ -8,7 +8,7 @@
 
 .DESCRIPTION
     The dashboard is one HTML page, kept as numbered parts under
-    Engine/SharePoint/templates/dashboard (head, style, body, script, end)
+    Resources/SharePoint/templates/dashboard (head, style, body, script, end)
     and joined by Get-SiteDashboardTemplate when the site is built. These
     tests hold every part to 300 lines, check that the joined page is whole
     (one style block, balanced script blocks, each placeholder once), and
@@ -26,14 +26,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $root = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard'
+    $root = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard'
     $parts = @(
         Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object { $_.Extension -in '.html', '.css', '.js' } | ForEach-Object {
             @{ Path = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/'); Lines = @(Get-Content -LiteralPath $_.FullName).Count; Limit = 300 }
@@ -43,7 +43,7 @@ BeforeDiscovery {
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:root = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard'
+    $script:root = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard'
     . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:page = Get-SiteDashboardTemplate -Root $script:root
 }

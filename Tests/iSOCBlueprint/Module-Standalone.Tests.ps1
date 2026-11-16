@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (the renderer)
 #>
@@ -73,7 +73,7 @@ Describe 'iSOCBlueprint outside the repository' {
     It 'carries What''s new inside the module: its command, engine file and topic map' {
         (Get-Module iSOCBlueprint).ExportedFunctions.Keys | Should -Contain 'Get-iSOCBlueprintWhatsNew'
         Test-Path -LiteralPath (Join-Path $script:copy 'Private/WhatsNew/Get-WhatsNew.ps1') | Should -BeTrue
-        Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Resources/whats-new-topics.json') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $script:copy 'Resources/Data/whats-new-topics.json') | Should -BeTrue
     }
 
     It 'renders the Markdown report and the section model from the default folder' {
@@ -86,7 +86,7 @@ Describe 'iSOCBlueprint outside the repository' {
         $page = Join-Path $script:ws '99-references.md'
         Test-Path -LiteralPath $page | Should -BeTrue
         (Get-FileHash -LiteralPath $page).Hash |
-            Should -Be (Get-FileHash -LiteralPath (Join-Path $script:copy 'Engine/Private/Resources/Blueprint-References.md')).Hash
+            Should -Be (Get-FileHash -LiteralPath (Join-Path $script:copy 'Resources/Data/Blueprint-References.md')).Hash
     }
 
     It 'links the gap-analysis method to GitHub rather than a repository-relative path' {
@@ -115,9 +115,8 @@ Describe 'iSOCBlueprint outside the repository' {
         $checked | Should -BeGreaterThan 0
     }
 
-    It 'never climbs from the engine to the repository root' {
-        $engine = Join-Path $script:copy 'Engine'
-        foreach ($file in Get-ChildItem -LiteralPath $engine -Recurse -Filter '*.ps1' -File) {
+    It 'never climbs from the module to the repository root' {
+        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Filter '*.ps1' -File | Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
             $text = Get-Content -LiteralPath $file.FullName -Raw
             $text | Should -Not -Match 'Split-Path -Parent \(Split-Path -Parent \$PSScriptRoot\)' -Because $file.Name
             $text | Should -Not -Match '\$PSScriptRoot\s+[''"]\.\./\.\./' -Because $file.Name

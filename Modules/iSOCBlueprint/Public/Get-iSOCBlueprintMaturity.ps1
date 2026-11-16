@@ -16,8 +16,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
@@ -77,8 +77,7 @@ function Get-iSOCBlueprintMaturity {
 
     process {
         $raw = Resolve-iSOCBlueprintRawPath -Path $Path
-        $engine = $script:iSOCBlueprintEngineRoot
-        $resources = Join-Path $engine 'Private/Resources'
+        $resources = Join-Path $script:iSOCBlueprintResourcesRoot 'Data'
 
         $outcomes = [System.Collections.Generic.List[object]]::new()
         $null = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources `

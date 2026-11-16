@@ -197,7 +197,7 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
 
-  # Pinned module versions. Keep in sync with Modules/iSOCBlueprint/Engine/Blueprint.psd1
+  # Pinned module versions. Keep in sync with Modules/iSOCBlueprint/Resources/Blueprint.psd1
   # and with .github/workflows/pr-validation.yml so the CI gate doesn't disagree
   # with the Blueprint pipeline on what 'works'.
   - name: pesterVersion

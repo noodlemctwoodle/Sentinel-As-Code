@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.1
-    Last Updated: 2026-11-09
+    Version:      0.3.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 
     Version 0.1.0 was Engine-Copy.Tests.ps1, which also held the engine
@@ -64,7 +64,7 @@ Describe 'Vendored KQL helpers' {
 Describe 'Vendored references page' {
     It 'Blueprint-References.md matches the docs copy' {
         $docs = Join-Path $script:repoRoot 'Docs/Modules/iSOCBlueprint/Blueprint-References.md'
-        $shipped = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md'
+        $shipped = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data/Blueprint-References.md'
         (Get-FileHash -LiteralPath $shipped).Hash | Should -Be (Get-FileHash -LiteralPath $docs).Hash
     }
 }

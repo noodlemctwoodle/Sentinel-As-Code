@@ -11,7 +11,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, connector catalogue
     Requires:     PowerShell 7.6+
@@ -23,7 +23,7 @@
 function Invoke-iSOCBlueprintConnectorCatalogueUpdate {
     <#
     .SYNOPSIS
-        Write Engine/Private/Resources/connector-catalogue.json from the
+        Write Resources/Data/connector-catalogue.json from the
         Toolkit's connectors.json.
 
     .DESCRIPTION
@@ -60,7 +60,7 @@ function Invoke-iSOCBlueprintConnectorCatalogueUpdate {
     param(
         [string] $Source = 'https://raw.githubusercontent.com/noodlemctwoodle/Sentinel-As-Code-Toolkit/main/data/connectors.json',
 
-        [string] $OutputPath = (Join-Path $script:iSOCBlueprintEngineRoot 'Private/Resources/connector-catalogue.json')
+        [string] $OutputPath = (Join-Path $script:iSOCBlueprintResourcesRoot 'Data/connector-catalogue.json')
     )
 
     # The catalogue code was written without strict mode: the Toolkit's JSON

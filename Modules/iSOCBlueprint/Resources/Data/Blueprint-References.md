@@ -92,7 +92,7 @@ api-version from the tables above.
 | `PnP.PowerShell` | `3.4.1` | The SharePoint commands |
 | `Microsoft.Graph.Authentication` | Any | The Defender custom detection capture, when a Graph session is open |
 
-The first seven are pinned in the `Modules` block of `Engine/Blueprint.psd1`.
+The first seven are pinned in the `Modules` block of `Resources/Blueprint.psd1`.
 `Test-iSOCBlueprintPrerequisite` reports what a machine has.
 
 The collector is **REST-first end to end**: every Sentinel and Log Analytics artefact is
@@ -299,7 +299,7 @@ Anonymous, with no authentication. Read by `Private/Azure/Get-AzureRetailPrice.p
 ## Data connector catalogue
 
 Which data connector writes which table, and the Content Hub solution that
-ships it, comes from `Private/Resources/connector-catalogue.json`: about 630
+ships it, comes from `Resources/Data/connector-catalogue.json`: about 630
 connectors and their tables, copied from the Sentinel as Code Toolkit's
 `data/connectors.json`. The Toolkit builds that file from Microsoft's
 Solutions Analyzer CSVs in the Azure-Sentinel repository
@@ -317,7 +317,7 @@ pay-as-you-go, Basic, Auxiliary and data lake meters, and every commitment
 tier's price a day as `<n> GB Commitment Tier Capacity Reservation`) and
 `Log Analytics` (the classic ingestion meters, the fallback for an older
 capture). The meter names it reads are in
-`Private/Resources/cost-meters.json`. Prices come in the currency the run
+`Resources/Data/cost-meters.json`. Prices come in the currency the run
 asks for (`-Currency`); `Auto`, the default, takes it from the workspace's
 region (`Resolve-AzureRetailCurrency`), since the billing account that
 really sets it is not readable with the collector's permissions.
@@ -329,7 +329,7 @@ Defender for Servers Plan 2 allowance (500 MB per server a day, SecurityEvent
 and the other security tables collected through Defender for Cloud). The
 Blueprint cannot read licence or server counts, so it prices those tables at
 list and reports the eligible volume beside the total as the most each grant
-could save. The lists are in `Private/Resources/sentinel-benefit-tables.json`,
+could save. The lists are in `Resources/Data/sentinel-benefit-tables.json`,
 reviewed against
 <https://azure.microsoft.com/offers/sentinel-microsoft-365-offer/> and
 <https://learn.microsoft.com/azure/defender-for-cloud/data-ingestion-benefit>

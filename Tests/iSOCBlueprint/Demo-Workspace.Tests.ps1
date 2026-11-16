@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.6
+    Version:      0.1.7
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml
 #>
@@ -75,7 +75,7 @@ Describe 'The demo workspace generator' {
     It 'puts the workspace on the commitment tier nearest its Analytics ingest, and prices by it' {
         $ws = Read-Demo 'workspace.json'
         $ws.properties.sku.name | Should -Be 'CapacityReservation'
-        $rungs = @((Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json') -Raw | ConvertFrom-Json).rungsGbPerDay)
+        $rungs = @((Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data/commitment-tiers.json') -Raw | ConvertFrom-Json).rungsGbPerDay)
         $rungs | Should -Contain ([int]$ws.properties.sku.capacityReservationLevel)
         $script:result.Summary.CommitmentTierGb | Should -Be ([int]$ws.properties.sku.capacityReservationLevel)
         @((Read-Demo 'retail-prices.json').Prices.meterName) | Should -Contain 'Analytics Logs Data Ingestion'

@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -32,8 +32,8 @@ function Invoke-CostEstimateCapture {
     param([Parameter(Mandatory = $true)] [hashtable] $Context)
 
     $rawOut = $Context.rawOut
-    $engineRoot = $Context.engineRoot
+    $resourcesFolder = $Context.resourcesFolder
 
-    $est = Get-SentinelCostEstimate -InputRoot $rawOut -ResourcesRoot (Join-Path $engineRoot 'Private/Resources')
+    $est = Get-SentinelCostEstimate -InputRoot $rawOut -ResourcesRoot (Join-Path $resourcesFolder 'Data')
     Save-Json -FileName 'cost-estimate.json' -Data $est
 }

@@ -5,7 +5,7 @@
     Parse one section's Markdown into the section model.
 
 .DESCRIPTION
-    The section model (Modules/iSOCBlueprint/Engine/Schemas/section.schema.json) is what
+    The section model (Modules/iSOCBlueprint/Resources/Schemas/section.schema.json) is what
     every consumer reads: the SharePoint site, and anyone building on
     sections/*.json. No Markdown reaches it. Text is a list of runs
     (@{ text; bold; italic; code; strike; href; target }) and a line break is
@@ -32,8 +32,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
 

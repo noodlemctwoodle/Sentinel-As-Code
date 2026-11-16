@@ -9,8 +9,9 @@
     per command, and exports the public ones. The Blueprint itself (the
     collector, the renderer, the Word and SharePoint steps) is functions
     under Private/, one per file, that the public commands call directly.
-    Engine/ now holds only the static files they read: resources, schemas,
-    templates, the reference document and the loader shims that remain.
+    Resources/ holds the static files they read: the data (rules, criteria,
+    catalogues), the section schemas, the dashboard templates and the Word
+    reference document.
 
 .NOTES
     File:         Modules/iSOCBlueprint/iSOCBlueprint.psm1
@@ -18,7 +19,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -31,7 +32,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:iSOCBlueprintRoot = $PSScriptRoot
-$script:iSOCBlueprintEngineRoot = Join-Path $PSScriptRoot 'Engine'
+$script:iSOCBlueprintResourcesRoot = Join-Path $PSScriptRoot 'Resources'
 
 foreach ($folder in 'Private', 'Public') {
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $folder) -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {

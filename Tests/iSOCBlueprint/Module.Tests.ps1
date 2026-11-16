@@ -33,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.4.1
+    Version:      0.4.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -332,7 +332,7 @@ Describe 'Public commands map their parameters onto the workers' {
             $ResourceGroup -eq 'rg' -and $WorkspaceName -eq 'ws' -and
             $TargetMaturityLevel -eq 3 -and [bool]$IncludePreview -and
             -not $PesterBoundParameters.ContainsKey('SubscriptionId') -and -not $PesterBoundParameters.ContainsKey('PlaybookResourceGroup') -and
-            -not $PesterBoundParameters.ContainsKey('EngineRoot')
+            -not $PesterBoundParameters.ContainsKey('ResourcesFolder')
         }
         # One folder a day, so a run does not overwrite the last.
         $day = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
@@ -421,7 +421,7 @@ Describe 'Public commands map their parameters onto the workers' {
         Update-iSOCBlueprintConnectorCatalogue -Source toolkit/connectors.json | Out-Null
         Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate -Times 1 -Exactly -ParameterFilter {
             $Source -eq (Join-Path $script:cwd 'toolkit/connectors.json') -and
-            $OutputPath -eq (Join-Path $script:moduleRoot 'Engine/Private/Resources/connector-catalogue.json')
+            $OutputPath -eq (Join-Path $script:moduleRoot 'Resources/Data/connector-catalogue.json')
         }
     }
 }

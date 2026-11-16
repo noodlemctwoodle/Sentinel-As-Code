@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Two parts. Guards over the shipped resource
-    (Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json): its
+    (Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json): its
     provenance fields, unique ids and table lists. Then the helpers in
     Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1 against a small
     hand-built catalogue: connector ids from classic and codeless
@@ -21,14 +21,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1')
-    $script:resource = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json'
+    $script:resource = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json'
 
     $script:testCatalogue = Join-Path ([System.IO.Path]::GetTempPath()) "connector-catalogue-$(New-Guid).json"
     @{

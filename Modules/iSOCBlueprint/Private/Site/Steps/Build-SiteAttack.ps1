@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -40,7 +40,7 @@ function Build-SiteAttack {
     $alertRaw = $Context.alertRaw
     $bag = $Context.bag
     $incSummaryRow = $Context.incSummaryRow
-    $engineRoot = $Context.engineRoot
+    $resourcesFolder = $Context.resourcesFolder
 
     # The Insights tab's ATT&CK grid: every rule (enabled or not) with where it
     # lands in the matrix, from the same Get-AttackCoverage the MITRE page uses.
@@ -48,7 +48,7 @@ function Build-SiteAttack {
     # ids, and every sub-technique's name, so the grid can show the gaps at both
     # levels; cells as rule indices.
     $attackModel = $null
-    $attackCatalogue = Get-Content -LiteralPath (Join-Path $engineRoot 'Private/Resources/mitre-attack.json') -Raw | ConvertFrom-Json
+    $attackCatalogue = Get-Content -LiteralPath (Join-Path $resourcesFolder 'Data/mitre-attack.json') -Raw | ConvertFrom-Json
     $attackRules = @($alertRaw | Where-Object { $_ })
     if ($attackCatalogue) {
         $cov = Get-AttackCoverage -Rules $attackRules -Catalogue $attackCatalogue

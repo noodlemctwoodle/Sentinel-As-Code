@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -28,10 +28,10 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $engine = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine'
+    $moduleRoot = Join-Path $script:repoRoot 'Modules/iSOCBlueprint'
     . (Get-iSOCBlueprintAreaLoader -Bundle CaptureSummary)
     $script:collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
-    $script:renderer = (Get-ChildItem (Join-Path $engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+    $script:renderer = (Get-ChildItem (Join-Path $moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     $script:siteBuild = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
     $script:fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:graph403 = "Microsoft Graph refused Defender custom detections to the Graph SDK session (Forbidden). To include them, Connect-MgGraph -Scopes 'CustomDetection.Read.All' with an account allowed to read custom detections, or grant CustomDetection.Read.All (application) to the pipeline identity."

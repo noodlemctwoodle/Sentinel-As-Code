@@ -19,7 +19,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
@@ -96,9 +96,10 @@ function Invoke-iSOCBlueprintCollect {
     .PARAMETER Currency
         The currency the cost estimate prices in; Auto takes it from the region.
 
-    .PARAMETER EngineRoot
-        The Engine folder, which holds Private/Resources that the Gap, Cost and
-        Maturity captures read. Defaults to the module's own.
+    .PARAMETER ResourcesFolder
+        The module's Resources folder; its Data folder holds the rules, criteria
+        and catalogues that the Gap, Cost and Maturity captures read. Defaults
+        to the module's own.
 
     .EXAMPLE
         Invoke-iSOCBlueprintCollect -ResourceGroup 'rg-sentinel-prod' -WorkspaceName 'law-sentinel-prod'
@@ -142,7 +143,7 @@ function Invoke-iSOCBlueprintCollect {
         [string]$Currency = 'Auto',
 
         [Parameter(Mandatory = $false)]
-        [string]$EngineRoot = $script:iSOCBlueprintEngineRoot
+        [string]$ResourcesFolder = $script:iSOCBlueprintResourcesRoot
     )
 
     Set-StrictMode -Version Latest
@@ -157,7 +158,7 @@ function Invoke-iSOCBlueprintCollect {
     $script:DailyDays    = [math]::Min(90, $LookbackDays)
 
     $apiVersions = Get-CollectorApiVersion
-    $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $EngineRoot '../iSOCBlueprint.psd1')).ModuleVersion
+    $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $ResourcesFolder '../iSOCBlueprint.psd1')).ModuleVersion
 
     # Shared between captures: each capture runs in its own scope. The
     # workspace capture sets WorkspaceObject, and a run in which that capture
@@ -191,7 +192,7 @@ function Invoke-iSOCBlueprintCollect {
 
     $runContext = New-CollectorRunContext -AzureContext $azure.Context -SubscriptionId $SubscriptionId -TenantId $azure.TenantId `
         -ResourceGroup $ResourceGroup -WorkspaceName $WorkspaceName -WorkspaceResourceId $workspaceResourceId `
-        -ApiVersions $apiVersions -BlueprintVersion $blueprintVersion -IncludePreview:$IncludePreview -Currency $Currency -EngineRoot $EngineRoot
+        -ApiVersions $apiVersions -BlueprintVersion $blueprintVersion -IncludePreview:$IncludePreview -Currency $Currency -ResourcesFolder $ResourcesFolder
     Save-Json -FileName 'run-context.json' -Data $runContext
 
     $context = @{
@@ -204,7 +205,7 @@ function Invoke-iSOCBlueprintCollect {
         SubscriptionId        = $SubscriptionId
         TargetMaturityLevel   = $TargetMaturityLevel
         workspaceResourceId   = $workspaceResourceId
-        engineRoot            = $EngineRoot
+        resourcesFolder       = $ResourcesFolder
     }
 
     foreach ($label in $script:CollectorCaptures.Keys) {

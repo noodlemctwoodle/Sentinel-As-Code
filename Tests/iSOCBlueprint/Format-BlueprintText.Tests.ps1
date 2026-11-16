@@ -18,7 +18,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -119,7 +119,7 @@ Describe 'API names in words' {
 
     It 'matches the dashboard''s region and SKU names' {
         . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
-        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard')
         foreach ($k in 'uksouth', 'westeurope', 'eastus2', 'australiacentral2') {
             $html.Contains("${k}:'$(Get-BlueprintRegionName $k)'") | Should -BeTrue -Because $k
         }

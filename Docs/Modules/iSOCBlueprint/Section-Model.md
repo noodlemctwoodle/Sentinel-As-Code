@@ -8,8 +8,8 @@ is built from it, and you can build on it too, without parsing Markdown.
 
 | File | What it is | Schema |
 | --- | --- | --- |
-| `sections/index.json` | The run's sections in reading order, with the run's facts | [`section-index.schema.json`](../../../Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json) |
-| `sections/<id>.json` | One section, for example `20-analytics-rules.json` | [`section.schema.json`](../../../Modules/iSOCBlueprint/Engine/Schemas/section.schema.json) |
+| `sections/index.json` | The run's sections in reading order, with the run's facts | [`section-index.schema.json`](../../../Modules/iSOCBlueprint/Resources/Schemas/section-index.schema.json) |
+| `sections/<id>.json` | One section, for example `20-analytics-rules.json` | [`section.schema.json`](../../../Modules/iSOCBlueprint/Resources/Schemas/section.schema.json) |
 
 The Markdown pack (`NN-name.md`) carries the same sections as Markdown, for the
 docs pull request and the Word report. The renderer writes both by default;

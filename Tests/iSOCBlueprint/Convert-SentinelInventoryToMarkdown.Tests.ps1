@@ -31,7 +31,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.5.2
+    Version:      0.5.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -41,7 +41,7 @@ BeforeAll {
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
     $script:fixtureRaw = Join-Path $script:fixtureWs '_raw'
-    $script:resources  = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+    $script:resources  = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
 
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-test-$(New-Guid)"
     New-Item -ItemType Directory -Path $script:outDir -Force | Out-Null

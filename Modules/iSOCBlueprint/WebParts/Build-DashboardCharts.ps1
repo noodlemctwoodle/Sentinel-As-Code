@@ -14,7 +14,7 @@
 
     This script compiles those files with TypeScript (CommonJS modules),
     wraps each in a small module loader and writes one self-contained
-    script, Engine/SharePoint/templates/dashboard-charts.js, which exposes
+    script, Resources/SharePoint/templates/dashboard-charts.js, which exposes
     window.SacCharts (renderChart, setTextMeasurer, FONT). The site build
     puts it into the dashboard page in place of /*__SAC_CHARTS__*/.
 
@@ -46,14 +46,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Node.js, TypeScript 5.3
 #>
 [CmdletBinding()]
 param(
     [string] $TscPath,
-    [string] $OutFile = (Join-Path $PSScriptRoot '../Engine/SharePoint/templates/dashboard-charts.js')
+    [string] $OutFile = (Join-Path $PSScriptRoot '../Resources/SharePoint/templates/dashboard-charts.js')
 )
 
 $ErrorActionPreference = 'Stop'

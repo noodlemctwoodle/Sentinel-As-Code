@@ -16,7 +16,10 @@ missing.
 Actions:
 
 - **Copy** - copied into the module's `Engine/` folder with the same relative
-  layout, unchanged apart from the edits named in the Edits column.
+  layout, unchanged apart from the edits named in the Edits column. Release
+  26.10 shipped that way; in 26.11 every copied file moved on (the static
+  files to `Resources/`, the scripts into functions under `Private/`), so no
+  row is a Copy any more.
 - **Move** - moved elsewhere in the repository with `git mv`.
 - **Retire** - not carried into the module; deleted with the old folder.
 - **Vendor** - functions or files from elsewhere in the repository that the
@@ -44,7 +47,7 @@ beneath it.
 
 | Source | Action | Destination | Edits | Notes |
 | --- | --- | --- | --- | --- |
-| `Tools/Blueprint/Blueprint.psd1` | Copy | `Modules/iSOCBlueprint/Engine/Blueprint.psd1` | E7 | Settings data; nothing reads it at run time |
+| `Tools/Blueprint/Blueprint.psd1` | Move | `Modules/iSOCBlueprint/Resources/Blueprint.psd1` | E7 | Settings data; nothing reads it at run time |
 | `Tools/Blueprint/Convert-MermaidToImage.ps1` | Move | `Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1` | | Now a function, with its hash helper in `Get-MermaidHash.ps1`; `ConvertTo-iSOCBlueprintChartImage` |
 | `Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1` | Move | `Modules/iSOCBlueprint/Private/Render/Invoke-iSOCBlueprintRender.ps1` | E4, E5, E6 | Now a function, with the helpers it loaded in `Private/Render`; checks the YAML module in `ConvertTo-iSOCBlueprint` in place of `#Requires -Modules`; `ConvertTo-iSOCBlueprint` |
 | `Tools/Blueprint/Export-SentinelInventory.ps1` | Move | `Modules/iSOCBlueprint/Private/Collector/Invoke-iSOCBlueprintCollect.ps1` | E1, E2, E3 | Now a function that runs strict, with the captures beside it in `Private/Collector`; the Az module check moved to `Export-iSOCBlueprintInventory` in place of `#Requires -Modules`; `Export-iSOCBlueprintInventory` |
@@ -64,19 +67,19 @@ beneath it.
 | `Tools/Blueprint/Private/Get-TableFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1` | | |
 | `Tools/Blueprint/Private/Get-TableTierProfile.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1` | | |
 | `Tools/Blueprint/Private/Invoke-SentinelRest.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1` | | |
-| `Tools/Blueprint/Private/Resources/best-practices.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json` | | |
-| `Tools/Blueprint/Private/Resources/commitment-tiers.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/commitment-tiers.json` | | |
-| `Tools/Blueprint/Private/Resources/connector-catalogue.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json` | | |
-| `Tools/Blueprint/Private/Resources/cost-meters.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json` | | |
-| `Tools/Blueprint/Private/Resources/maturity-criteria.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json` | | |
-| `Tools/Blueprint/Private/Resources/mitre-attack.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json` | | |
-| `Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json` | Copy | `Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json` | | |
+| `Tools/Blueprint/Private/Resources/best-practices.json` | Move | `Modules/iSOCBlueprint/Resources/Data/best-practices.json` | | |
+| `Tools/Blueprint/Private/Resources/commitment-tiers.json` | Move | `Modules/iSOCBlueprint/Resources/Data/commitment-tiers.json` | | |
+| `Tools/Blueprint/Private/Resources/connector-catalogue.json` | Move | `Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json` | | |
+| `Tools/Blueprint/Private/Resources/cost-meters.json` | Move | `Modules/iSOCBlueprint/Resources/Data/cost-meters.json` | | |
+| `Tools/Blueprint/Private/Resources/maturity-criteria.json` | Move | `Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json` | | |
+| `Tools/Blueprint/Private/Resources/mitre-attack.json` | Move | `Modules/iSOCBlueprint/Resources/Data/mitre-attack.json` | | |
+| `Tools/Blueprint/Private/Resources/sentinel-benefit-tables.json` | Move | `Modules/iSOCBlueprint/Resources/Data/sentinel-benefit-tables.json` | | |
 | `Tools/Blueprint/Report/Convert-FolderToWordReport.ps1` | Retire | | | Generic folder-to-Word dump, not called anywhere and untested |
 | `Tools/Blueprint/Report/Convert-MarkdownToWord.ps1` | Move | `Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1` | | Now a function; a step that cannot go on throws where the script called `exit`; `Export-iSOCBlueprintWord` |
-| `Tools/Blueprint/Report/Update-WordToc.py` | Copy | `Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py` | | |
-| `Tools/Blueprint/Report/templates/sentinel-report-reference.docx` | Copy | `Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx` | | Binary, compared by hash |
-| `Tools/Blueprint/Schemas/section-index.schema.json` | Copy | `Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json` | | |
-| `Tools/Blueprint/Schemas/section.schema.json` | Copy | `Modules/iSOCBlueprint/Engine/Schemas/section.schema.json` | | |
+| `Tools/Blueprint/Report/Update-WordToc.py` | Move | `Modules/iSOCBlueprint/Resources/Report/Update-WordToc.py` | | |
+| `Tools/Blueprint/Report/templates/sentinel-report-reference.docx` | Move | `Modules/iSOCBlueprint/Resources/Report/templates/sentinel-report-reference.docx` | | Binary, compared by hash |
+| `Tools/Blueprint/Schemas/section-index.schema.json` | Move | `Modules/iSOCBlueprint/Resources/Schemas/section-index.schema.json` | | |
+| `Tools/Blueprint/Schemas/section.schema.json` | Move | `Modules/iSOCBlueprint/Resources/Schemas/section.schema.json` | | |
 | `Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/Site/Invoke-iSOCBlueprintSiteBuild.ps1` | | Now a function; `New-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1` | | Now a function that checks the PnP module itself in place of `#Requires -Modules`; `Initialize-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/Publish/Invoke-iSOCBlueprintSitePublish.ps1` | | Now a function; the PnP module check moved to `Publish-iSOCBlueprintSite` in place of `#Requires -Modules`; `Publish-iSOCBlueprintSite` |
@@ -84,7 +87,7 @@ beneath it.
 | `Tools/Blueprint/SharePoint/Private/Get-SacSyncPlan.ps1` | Retire | | | Split one planner per file into `Private/SyncPlan`, loaded with the module |
 | `Tools/Blueprint/SharePoint/Private/Get-SectionFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/SacSharePoint.ps1` | Retire | | | Split one function per file into `Private/SharePoint`, loaded with the module |
-| `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Move | `Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard/**` | | Split into numbered parts that `Get-SiteDashboardTemplate` joins; the joined page is the original file byte for byte |
+| `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Move | `Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard/**` | | Split into numbered parts that `Get-SiteDashboardTemplate` joins; the joined page is the original file byte for byte |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Modules/iSOCBlueprint/WebParts/**` | | SPFx web part source (TypeScript, not PowerShell): beside the engine, outside what the module loads |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
-| `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |
+| `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Resources/Data/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

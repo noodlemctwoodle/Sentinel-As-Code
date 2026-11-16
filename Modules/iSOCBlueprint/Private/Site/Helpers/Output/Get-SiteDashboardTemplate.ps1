@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
@@ -23,7 +23,7 @@ function Get-SiteDashboardTemplate {
     <#
     .SYNOPSIS
         The dashboard page as one string, read from the parts under
-        Engine/SharePoint/templates/dashboard.
+        Resources/SharePoint/templates/dashboard.
 
     .DESCRIPTION
         The dashboard is one HTML page (its style, its markup and one

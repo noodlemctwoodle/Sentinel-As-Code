@@ -19,7 +19,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+, pandoc on PATH
@@ -75,7 +75,7 @@ function Invoke-iSOCBlueprintWordConversion {
         Leave finding bullets and status words as they are.
 
     .PARAMETER ReportRoot
-        The Engine/Report folder, which holds the templates and the LibreOffice
+        The Resources/Report folder, which holds the templates and the LibreOffice
         helper. Defaults to the module's own.
     #>
     [CmdletBinding(SupportsShouldProcess)]
@@ -115,7 +115,7 @@ function Invoke-iSOCBlueprintWordConversion {
         [switch]$NoReformatFindings,
 
         [Parameter(Mandatory = $false)]
-        [string]$ReportRoot = (Join-Path $script:iSOCBlueprintEngineRoot 'Report')
+        [string]$ReportRoot = (Join-Path $script:iSOCBlueprintResourcesRoot 'Report')
     )
 
     Set-StrictMode -Off

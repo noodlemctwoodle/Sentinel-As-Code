@@ -70,15 +70,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.4.1
-    Last Updated: 2026-11-09
+    Version:      0.4.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
 }
 
@@ -86,7 +86,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+    $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data'
     $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
     . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
 
@@ -553,7 +553,7 @@ Describe 'No-detection check counts Defender custom detections as coverage' {
 Describe 'Sentinel gap-analysis rule catalogue' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $script:catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json') -Raw | ConvertFrom-Json
+        $script:catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/best-practices.json') -Raw | ConvertFrom-Json
         $script:areaIds = @('DET', 'PLT', 'COV', 'AUT', 'MON', 'INC', 'INV', 'TI', 'HNT', 'LOG', 'GOV')
     }
 
@@ -591,7 +591,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
     BeforeAll {
         $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-        $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+        $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data'
         $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
 
@@ -664,7 +664,7 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
     BeforeAll {
         $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-        $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+        $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data'
         $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
 
@@ -727,8 +727,8 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
 
     It 'returns the same findings with or without a collector' {
         $plain = Get-SentinelGap -InputRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tests/iSOCBlueprint/Fixtures/sample/_raw') `
-            -ResourcesRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources') `
-            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json')
+            -ResourcesRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Resources/Data') `
+            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Resources/Data/best-practices.json')
         @($plain | ForEach-Object Id) | Should -Be @($withCollector | ForEach-Object Id)
     }
 }
@@ -859,7 +859,7 @@ Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
-        $script:catalogue = Import-ConnectorCatalogue -Path (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json')
+        $script:catalogue = Import-ConnectorCatalogue -Path (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json')
         $script:inv = {
             param([object[]]$Connectors, [object[]]$Tables)
             [pscustomobject]@{ DataConnectors = $Connectors; TablesWithData = $Tables; ConnectorCatalogue = $script:catalogue }

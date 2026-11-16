@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -28,8 +28,8 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
-    $script:resources = Join-Path $script:engine 'Private/Resources'
+    $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
+    $script:resources = Join-Path $script:moduleRoot 'Resources/Data'
     . (Get-iSOCBlueprintAreaLoader -Bundle Cost)
 
     # UK South prices as the Retail Prices API publishes them.
@@ -69,7 +69,7 @@ BeforeAll {
 
 Describe 'The price list it reads' {
     It 'fetches the Sentinel service, which is named Sentinel, and Log Analytics' {
-        $src = Get-Content (Join-Path $script:engine '../Private/Azure/Get-AzureRetailPrice.ps1') -Raw
+        $src = Get-Content (Join-Path $script:moduleRoot 'Private/Azure/Get-AzureRetailPrice.ps1') -Raw
         $src | Should -Match "\[string\[\]\]\`$ServiceNames = @\('Sentinel', 'Log Analytics'\)"
         $src | Should -Not -Match '\$ServiceNames = @\(''Microsoft Sentinel'''
     }
@@ -188,7 +188,7 @@ Describe 'Data grants' {
 
 Describe 'The currency it prices in' {
     BeforeAll {
-        . (Join-Path $script:engine '../Private/Azure/Get-AzureRetailPrice.ps1')
+        . (Join-Path $script:moduleRoot 'Private/Azure/Get-AzureRetailPrice.ps1')
         $script:repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     }
 
@@ -199,14 +199,14 @@ Describe 'The currency it prices in' {
     }
 
     It 'asks the Retail Prices API for that currency and caches each currency apart' {
-        $src = Get-Content (Join-Path $script:engine '../Private/Azure/Get-AzureRetailPrice.ps1') -Raw
+        $src = Get-Content (Join-Path $script:moduleRoot 'Private/Azure/Get-AzureRetailPrice.ps1') -Raw
         $src | Should -Match 'prices\?currencyCode=''\$CurrencyCode''&'
         $src | Should -Match 'retail-prices-\$Region-\$CurrencyCode-\$today\.json'
         $src | Should -Match 'CurrencySource = \$CurrencySource'
     }
 
     It 'takes -Currency Auto by default, everywhere it is set, and records it' {
-        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent $script:moduleRoot)) 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $collector | Should -Match "\[ValidateSet\('Auto', 'USD'.*'TWD'\)\]\s+\[string\]\`$Currency = 'Auto'"
         $collector | Should -Match 'Currency\s+= \$Currency'
         $collector | Should -Match "\`$currencyCode = if \(\`$Currency -eq 'Auto'\) \{ Resolve-AzureRetailCurrency -Region \`$region \}"
@@ -224,21 +224,21 @@ Describe 'The currency it prices in' {
     }
 
     It 'says on the cost page which currency it used and why' {
-        $renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $renderer | Should -Match "taken from the workspace's region"
         $renderer | Should -Match 'as the run''s ``-Currency`` setting asked'
-        $est = (Get-ChildItem (Join-Path $script:engine '../Private/Cost') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $est = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Cost') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $est | Should -Match 'CurrencySource\s+= \$currencySource'
     }
 }
 
 Describe 'The dashboard''s billed split' {
     It 'splits billed in full from grant eligible, keyed on the grant' {
-        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $script:engine))) 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent $script:moduleRoot)) 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
         $build | Should -Match "\`$bucketAgg = @\{ 'Billed' = 0\.0; 'Grant eligible' = 0\.0 \}"
         $build | Should -Match "if \(\`$Row\.PSObject\.Properties\['Benefit'\]\) \{ return \`$\(if \(\[string\]\`$Row\.Benefit\) \{ 0\.0 \} else \{ \`$Gb \}\) \}"
-        . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
-        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:engine 'SharePoint/templates/dashboard')
+        . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
         $html | Should -Match 'Billed vs data grant eligible'
         $html | Should -Not -Match 'Free benefit'
     }

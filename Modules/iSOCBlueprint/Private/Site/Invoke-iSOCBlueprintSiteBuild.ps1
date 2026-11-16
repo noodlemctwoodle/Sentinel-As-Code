@@ -17,7 +17,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.2.0
+    Version:      0.3.0
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
@@ -112,12 +112,12 @@ function Invoke-iSOCBlueprintSiteBuild {
     .PARAMETER HistoryDays
         Days of earlier dashboard copies to keep.
 
-    .PARAMETER EngineRoot
-        The Engine folder (Private/Resources and the report templates live
-        under it). Defaults to the module's own.
+    .PARAMETER ResourcesFolder
+        The module's Resources folder (its Data folder holds the catalogues the
+        build reads). Defaults to the module's own.
 
     .PARAMETER SiteRoot
-        The Engine/SharePoint folder (the dashboard templates live under it).
+        The Resources/SharePoint folder (the dashboard templates live under it).
         Defaults to the module's own.
 
     .OUTPUTS
@@ -161,10 +161,10 @@ function Invoke-iSOCBlueprintSiteBuild {
         [int]$HistoryDays = 90,
 
         [Parameter(Mandatory = $false)]
-        [string]$EngineRoot = $script:iSOCBlueprintEngineRoot,
+        [string]$ResourcesFolder = $script:iSOCBlueprintResourcesRoot,
 
         [Parameter(Mandatory = $false)]
-        [string]$SiteRoot = (Join-Path $script:iSOCBlueprintEngineRoot 'SharePoint')
+        [string]$SiteRoot = (Join-Path $script:iSOCBlueprintResourcesRoot 'SharePoint')
     )
 
     Set-StrictMode -Off
@@ -183,7 +183,7 @@ function Invoke-iSOCBlueprintSiteBuild {
         SkipWhatsNew    = $SkipWhatsNew
         MaxTableRows    = $MaxTableRows
         HistoryDays     = $HistoryDays
-        engineRoot      = $EngineRoot
+        resourcesFolder = $ResourcesFolder
         siteRoot        = $SiteRoot
     }
 

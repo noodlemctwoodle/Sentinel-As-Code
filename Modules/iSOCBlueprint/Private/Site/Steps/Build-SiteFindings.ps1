@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -38,7 +38,7 @@ function Build-SiteFindings {
 
     # Taken from the build context.
     $gap = $Context.gap
-    $engineRoot = $Context.engineRoot
+    $resourcesFolder = $Context.resourcesFolder
 
     # ---- Findings ----
     $sevRank = @{ 'Critical' = 0; 'Error' = 1; 'Warning' = 2; 'Info' = 3; 'Informational' = 3 }
@@ -53,7 +53,7 @@ function Build-SiteFindings {
     }
     # Each finding carries the maturity criteria it decides, so the dashboard's
     # Assessment tab can show what closing it does to the score.
-    $findingMaturity = Get-FindingMaturityLink -CriteriaPath (Join-Path $engineRoot 'Private/Resources/maturity-criteria.json') -Maturity (Read-SiteRaw 'maturity.json')
+    $findingMaturity = Get-FindingMaturityLink -CriteriaPath (Join-Path $resourcesFolder 'Data/maturity-criteria.json') -Maturity (Read-SiteRaw 'maturity.json')
     $findingList = @()
     foreach ($f in ($gap | Where-Object { $_ } | Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
         $findingList += [ordered]@{

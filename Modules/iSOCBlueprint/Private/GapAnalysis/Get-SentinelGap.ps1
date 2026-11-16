@@ -16,8 +16,8 @@
 
     Usage:
         $findings = Get-SentinelGap -InputRoot './SecurityDocs/myws/_raw' `
-                                    -ResourcesRoot './Modules/iSOCBlueprint/Engine/Private/Resources' `
-                                    -RulesPath './Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json'
+                                    -ResourcesRoot './Modules/iSOCBlueprint/Resources/Data' `
+                                    -RulesPath './Modules/iSOCBlueprint/Resources/Data/best-practices.json'
 
     Each finding is a [pscustomobject] with these fields:
         Id           : SAC-LOG-03
@@ -56,8 +56,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.7.2
-    Last Updated: 2026-11-09
+    Version:      0.7.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail

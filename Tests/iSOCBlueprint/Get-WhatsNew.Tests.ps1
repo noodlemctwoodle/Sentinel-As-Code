@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -142,8 +142,8 @@ Describe 'Get-WhatsNew' {
 
 Describe 'whats-new-topics.json' {
     BeforeAll {
-        $script:topics = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/whats-new-topics.json') -Raw | ConvertFrom-Json).topics)
-        $script:criteria = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id)
+        $script:topics = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/whats-new-topics.json') -Raw | ConvertFrom-Json).topics)
+        $script:criteria = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id)
         $script:renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     }
 

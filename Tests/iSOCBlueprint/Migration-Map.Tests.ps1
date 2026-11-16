@@ -30,8 +30,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.2
-    Last Updated: 2026-11-09
+    Version:      0.2.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 
     Version 0.1.0 checked the map against the old folder while it still
@@ -90,10 +90,8 @@ Describe 'The move out of Tools/Blueprint' {
         }
     }
 
-    It '<Source> kept its place in the tree when copied' -ForEach $rows {
-        if ($Row.Action -eq 'Copy') {
-            $Row.Destination | Should -BeExactly ($Row.Source -replace '^Tools/Blueprint/', 'Modules/iSOCBlueprint/Engine/')
-        }
+    It 'lists no Copy row, because every copied file has since moved' {
+        @($script:map | Where-Object Action -eq 'Copy').Count | Should -Be 0
     }
 
     It 'documents every edit a row names' {

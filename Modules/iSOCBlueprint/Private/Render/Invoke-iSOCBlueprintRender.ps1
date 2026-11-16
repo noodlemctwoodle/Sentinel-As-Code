@@ -17,7 +17,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.2.0
+    Version:      0.2.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -47,7 +47,7 @@ function Invoke-iSOCBlueprintRender {
         produces the same output for the same input.
 
         Each section is written as the section model, sections/<id>.json
-        (Modules/iSOCBlueprint/Engine/Schemas/section.schema.json), with
+        (Modules/iSOCBlueprint/Resources/Schemas/section.schema.json), with
         sections/index.json listing them in order. The Markdown files are the
         same sections as a Markdown pack, for the docs pull request and the
         Word report; -OutputFormat Json skips them.
@@ -81,7 +81,7 @@ function Invoke-iSOCBlueprintRender {
 
     .PARAMETER ResourcesRoot
         Folder holding best-practices.json, mitre-attack.json and the other
-        reference files. Defaults to the module's own (Engine/Private/Resources).
+        reference files. Defaults to the module's own (Resources/Data).
 
     .PARAMETER OutputFormat
         Markdown (NN-name.md), Json (sections/NN-name.json and
@@ -102,7 +102,7 @@ function Invoke-iSOCBlueprintRender {
 
         [string] $OutputRoot,
 
-        [string] $ResourcesRoot = (Join-Path $script:iSOCBlueprintEngineRoot 'Private/Resources'),
+        [string] $ResourcesRoot = (Join-Path $script:iSOCBlueprintResourcesRoot 'Data'),
 
         [ValidateSet('Markdown', 'Json')]
         [string[]] $OutputFormat = @('Markdown', 'Json')

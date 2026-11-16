@@ -39,7 +39,7 @@ maturity card and maturity view on the dashboard. The longer list is under
 **Basis.** The model is a custom one based on the SOC-CMM framework. The
 areas, the criteria, the scale and the scoring are this project's own,
 adapted to what a Sentinel workspace can show, and are defined in
-[`Private/Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json)
+[`Resources/Data/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json)
 and computed by
 [`Private/Maturity/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Private/Maturity/Get-SentinelMaturity.ps1)
 and the functions beside it.

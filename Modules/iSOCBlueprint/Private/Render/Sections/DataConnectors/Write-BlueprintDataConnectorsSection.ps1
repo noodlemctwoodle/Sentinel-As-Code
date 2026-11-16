@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -156,7 +156,7 @@ function Write-BlueprintDataConnectorsSection {
         $_ | Select-Object *, @{ Name = 'CatalogueConnector'; Expression = { $label } }
     })
     $catalogueBlock = if (-not $connectorCatalogue) {
-        '_The connector catalogue (``Private/Resources/connector-catalogue.json``) is missing from this Blueprint build._'
+        '_The connector catalogue (``Resources/Data/connector-catalogue.json``) is missing from this Blueprint build._'
     } else {
         Format-BlueprintTable -Items $catalogueRows -Columns 'Connector','Solution','Status','TablesWithData','QuietTables' -EmptyMessage (Get-BlueprintEmptyMessage 'data-connectors-classic.json' '_No data connectors in the workspace._')
     }

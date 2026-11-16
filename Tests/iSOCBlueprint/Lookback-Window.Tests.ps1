@@ -19,7 +19,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -27,11 +27,11 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
-    $script:resourcesDir = Join-Path $script:engine 'Private/Resources'
+    $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
+    $script:resourcesDir = Join-Path $script:moduleRoot 'Resources/Data'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
-    $script:renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+    $script:renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
     $script:repoRoot = $repoRoot
 
     # A copy of the fixture's _raw with the run's lookback set.
@@ -70,7 +70,7 @@ Describe 'The collector reads one lookback' {
     }
 
     It 'declares lookback, recent and daily ahead of the query text' {
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
         $script:LookbackDays = 14; $script:RecentDays = 7; $script:DailyDays = 14
         Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 14d;`nlet recent = 7d;`nlet daily = 14d;`nUsage | take 1"
     }
@@ -160,8 +160,8 @@ Describe 'The maturity assessment and the cost estimate follow the window' {
 Describe 'The renderer names the window it read' {
     It 'fills the window tokens from run-context.json' {
         function Read-BlueprintRaw { param($Name) [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 } }
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Render/Helpers/Window/Get-BlueprintWindow.ps1') 'Get-BlueprintWindow')))
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Render/Helpers/Window/Resolve-BlueprintWindowText.ps1') 'Resolve-BlueprintWindowText')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Render/Helpers/Window/Get-BlueprintWindow.ps1') 'Get-BlueprintWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Render/Helpers/Window/Resolve-BlueprintWindowText.ps1') 'Resolve-BlueprintWindowText')))
         $script:BpWindow = $null
         Resolve-BlueprintWindowText 'last {lookback} ({lookback-d}), recent {recent} ({recent-d})' | Should -Be 'last 1 day (1d), recent 1 day (1d)'
     }
@@ -200,8 +200,8 @@ Describe 'The site names the window on every card' {
     }
 
     It 'the dashboard reads it once and labels from it' {
-        . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
-        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:engine 'SharePoint/templates/dashboard')
+        . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
         $html.Contains("const days=(M.window&&+M.window.days>0)? +M.window.days : 30;") | Should -BeTrue
         $html.Contains("const paintWindow=()=>document.querySelectorAll('[data-win]')") | Should -BeTrue
         ([regex]::Matches($html, 'data-win="')).Count | Should -BeGreaterOrEqual 6

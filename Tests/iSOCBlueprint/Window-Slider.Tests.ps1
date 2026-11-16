@@ -21,7 +21,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -29,11 +29,11 @@
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
-    $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
+    $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
-    . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
-    $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:engine 'SharePoint/templates/dashboard')
+    . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+    $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
 
     # The fixture's _raw in a workspace folder, changed by $Edit, built.
@@ -71,7 +71,7 @@ Describe 'The collector counts the daily series' {
     }
 
     It 'declares daily with lookback and recent, falling back to the lookback capped at 90' {
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine '../Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
         $script:LookbackDays = 120; $script:RecentDays = 7; $script:DailyDays = 0
         Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 120d;`nlet recent = 7d;`nlet daily = 90d;`nUsage | take 1"
         $script:DailyDays = 14
@@ -206,7 +206,7 @@ Describe 'The build carries the daily series' {
         $m.estate.rulesFired | Should -Be 1
         $m.estate.rings.alerts.max | Should -Be 1
         $m.estate.rings.alerts.pct | Should -Be 100
-        $renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $renderer | Should -Match 'RulesFired\s+= \$firedEnabled'
     }
 }

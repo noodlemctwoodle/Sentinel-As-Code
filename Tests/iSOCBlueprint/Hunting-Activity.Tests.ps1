@@ -19,16 +19,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private'
-    $script:resourcesDir = Join-Path $script:engine 'Resources'
+    $script:resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
     . (Get-iSOCBlueprintAreaLoader -Bundle Maturity)
