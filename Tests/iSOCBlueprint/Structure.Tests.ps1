@@ -35,7 +35,6 @@ BeforeDiscovery {
     $limit = 300
     $legacy = @(
         'Public/New-iSOCBlueprint.ps1'
-        'Engine/Private/Format-BlueprintText.ps1'
         'Engine/Private/Get-WhatsNew.ps1'
     )
     $files = @(

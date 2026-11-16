@@ -126,6 +126,8 @@ Private/             the engine runner, path defaults, prerequisite checks
     Names/  Html/  Tables/  Charts/  Data/
   SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)
     Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
+  Format/            the text formatters for counts, GB, money, dates, plurals and names, one function per file (loaded by Engine/Private/Format-BlueprintText.ps1)
+    Numbers/  Text/  Names/  Data/       number and amount formats, dates and words, region and SKU names, then the values they share
   SyncPlan/          the publisher's planning functions, one per file (loaded by Engine/SharePoint/Private/Get-SacSyncPlan.ps1)
     Pages/  Findings/  Navigation/  Assets/   what to create, update, resolve, retire or prune
   Site/              the SharePoint site build, one function per file (loaded by Engine/SharePoint/Build-SentinelDocsSite.ps1)
