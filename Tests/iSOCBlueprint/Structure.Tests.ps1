@@ -35,7 +35,6 @@ BeforeDiscovery {
     $limit = 300
     $legacy = @(
         'Public/New-iSOCBlueprint.ps1'
-        'Engine/Private/Get-WhatsNew.ps1'
     )
     $files = @(
         Get-ChildItem -LiteralPath $moduleRoot -Filter '*.ps1' -File -Recurse |

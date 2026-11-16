@@ -126,6 +126,9 @@ Private/             the engine runner, path defaults, prerequisite checks
     Names/  Html/  Tables/  Charts/  Data/
   SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)
     Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
+  WhatsNew/          the What's new reader, one function per file (loaded by Engine/Private/Get-WhatsNew.ps1)
+    Get-WhatsNew.ps1                 entry point
+    Parsing/  Helpers/  Data/        one page's Markdown to items, then slugs, links, status and deadlines, and the two pages read
   Format/            the text formatters for counts, GB, money, dates, plurals and names, one function per file (loaded by Engine/Private/Format-BlueprintText.ps1)
     Numbers/  Text/  Names/  Data/       number and amount formats, dates and words, region and SKU names, then the values they share
   SyncPlan/          the publisher's planning functions, one per file (loaded by Engine/SharePoint/Private/Get-SacSyncPlan.ps1)

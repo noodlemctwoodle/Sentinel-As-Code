@@ -259,7 +259,7 @@ Beyond those headline pages the report groups into families:
   previewed and announced for retirement in Microsoft Sentinel and
   Microsoft Defender XDR over the last 12 months, retirements and calls to
   action first. The collector reads the two What's new pages on Microsoft
-  Learn as Markdown (`Engine/Private/Get-WhatsNew.ps1`, saved as
+  Learn as Markdown (`Private/WhatsNew`, loaded by `Engine/Private/Get-WhatsNew.ps1`, saved as
   `_raw/whats-new.json`; the one capture that reads a public page rather
   than the tenant). The module's `Get-iSOCBlueprintWhatsNew` runs the same
   function on its own and, with `-Path`, refreshes an inventory's copy.
