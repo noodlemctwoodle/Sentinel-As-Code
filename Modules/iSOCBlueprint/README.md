@@ -107,6 +107,9 @@ Private/             the engine runner, path defaults, prerequisite checks
     Invoke-iSOCBlueprintCollect.ps1  entry point
     Captures/<Area>/                 one Invoke-*Capture function per capture
     Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Try-Capture, capture order
+  CaptureSummary/    the collector's capture notes and end-of-run summary, one function per file (loaded by Engine/Private/Write-CaptureSummary.ps1)
+    Write-CaptureSummary.ps1         entry point
+    Issues/  Helpers/                sorting a failed capture and its notes, then wrapping and file counts
   Word/              the Word report conversion, one function per file (loaded by Engine/Report/Convert-MarkdownToWord.ps1)
     Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
   Mermaid/           the Mermaid chart parser, one function per file (loaded by Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
