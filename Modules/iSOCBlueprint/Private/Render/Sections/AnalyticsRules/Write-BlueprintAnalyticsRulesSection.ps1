@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -122,7 +122,10 @@ $(Format-BlueprintTable -Items @($effectivenessRows | Where-Object { $_.Source -
         if (-not $msSevCounts.ContainsKey($sev)) { $msSevCounts[$sev] = 0 }
         $msSevCounts[$sev]++
     }
-    $msPieRows = $msSevCounts.GetEnumerator() | Where-Object { $_.Value -gt 0 } | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
+    $msPieRows = $msSevCounts.GetEnumerator() |
+            Where-Object { $_.Value -gt 0 } |
+            Sort-Object @{ Expression = 'Value'; Descending = $true }, Key |
+            ForEach-Object {
         "    `"$($_.Key)`" : $($_.Value)"
     }
     $msChartBlock = if ($msRules.Count -gt 0) {
@@ -176,7 +179,10 @@ $(Format-BlueprintTable -Items ($msRules | ForEach-Object { [pscustomobject]@{ K
         if (-not $lm) { continue }
         $parsed = [datetime]::MinValue
         if ($lm -is [datetime]) { $parsed = $lm }
-        elseif (-not [datetime]::TryParse([string]$lm, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) { continue }
+        elseif (-not [datetime]::TryParse([string]$lm, [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+            continue
+        }
         $key = $parsed.ToUniversalTime().ToString('yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)
         if ($monthBuckets.Contains($key)) { $monthBuckets[$key]++ }
     }

@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -105,7 +105,8 @@ function Publish-SacDashboardPage {
                 Where-Object { ([string]$_.Id).Trim('{}').ToLowerInvariant() -eq $script:SacWebPartComponentId } |
                 Select-Object -First 1
             if ($component) {
-                Add-PnPPageWebPart -Page $PageName -Component $component -WebPartProperties $properties -Section $sectionIndex -Column 1 -ErrorAction Stop | Out-Null
+                Add-PnPPageWebPart -Page $PageName -Component $component -WebPartProperties $properties -Section $sectionIndex -Column 1 -ErrorAction Stop |
+                    Out-Null
                 break
             }
             if ((Get-Date) -ge $deadline) {

@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -69,7 +69,8 @@ function Build-SiteEstate {
     $maturityRaw   = Read-SiteRaw 'maturity.json'
     # A failed maturity capture writes '{}', which is truthy, so test for the
     # members the dashboard needs.
-    $maturityOk    = ($null -ne $maturityRaw -and $null -ne $maturityRaw.PSObject.Properties['areas'] -and $null -ne $maturityRaw.PSObject.Properties['overall'])
+    $maturityOk    = ($null -ne $maturityRaw -and $null -ne $maturityRaw.PSObject.Properties['areas'] -and $null -ne
+        $maturityRaw.PSObject.Properties['overall'])
 
     # Estate: source families -> ingestion -> detection -> alerts -> incidents,
     # the same numbers the Markdown renderer draws on 00 and 01.
@@ -82,7 +83,14 @@ function Build-SiteEstate {
     $customDetPerTable = @{}
     foreach ($r in $customDetRefs) {
         if (-not $r -or $r.Enabled -ne $true) { continue }
-        foreach ($t in @($r.Tables)) { if ($t) { $k = [string]$t; $referencedTables[$k] = $true; if (-not $customDetPerTable.ContainsKey($k)) { $customDetPerTable[$k] = 0 }; $customDetPerTable[$k]++ } }
+        foreach ($t in @($r.Tables)) {
+            if ($t) {
+                $k = [string]$t
+                $referencedTables[$k] = $true
+                if (-not $customDetPerTable.ContainsKey($k)) { $customDetPerTable[$k] = 0 }
+                $customDetPerTable[$k]++
+            }
+        }
     }
     $famAgg2 = [ordered]@{}
     $tablesActive = 0; $tablesSeen = 0; $tablesCovered = 0; $estateTotalGb = 0.0; $estateCoveredGb = 0.0
@@ -90,7 +98,9 @@ function Build-SiteEstate {
     $rulesPerTableBuild = @{}
     foreach ($r in $ruleRefs) {
         if (-not $r -or $r.Enabled -ne $true) { continue }
-        foreach ($t in @($r.Tables)) { if ($t) { $k = [string]$t; if (-not $rulesPerTableBuild.ContainsKey($k)) { $rulesPerTableBuild[$k] = 0 }; $rulesPerTableBuild[$k]++ } }
+        foreach ($t in @($r.Tables)) {
+            if ($t) { $k = [string]$t; if (-not $rulesPerTableBuild.ContainsKey($k)) { $rulesPerTableBuild[$k] = 0 }; $rulesPerTableBuild[$k]++ }
+        }
     }
     $estateTableRows = @()
     foreach ($t in $tablesData) {
@@ -120,7 +130,13 @@ function Build-SiteEstate {
     $sortedFams = @($famAgg2.Values | Sort-Object { $_.gb } -Descending)
     $estateSources = @()
     foreach ($f in $sortedFams) {
-        $estateSources += [ordered]@{ category = $f.category; tables = $f.tables; gb = [math]::Round($f.gb, 2); coveredGb = [math]::Round($f.coveredGb, 2); covered = $f.covered }
+        $estateSources += [ordered]@{
+            category = $f.category
+            tables = $f.tables
+            gb = [math]::Round($f.gb, 2)
+            coveredGb = [math]::Round($f.coveredGb, 2)
+            covered = $f.covered
+        }
     }
     $alerts30d = [long]0
     foreach ($f in $firedRows) { if ($f) { $alerts30d += [long](ConvertTo-BuildNumber $f.Alerts) } }
@@ -136,7 +152,9 @@ function Build-SiteEstate {
     foreach ($v in @($volumes | Where-Object { $_ })) {
         $n = [long](ConvertTo-BuildNumber $v.Alerts)
         $allAlerts30d += $n
-        if ([string]$(if ($v.PSObject.Properties['ProductName']) { $v.ProductName } else { '' }) -match 'Sentinel') { $sentinelAlerts30d += $n } else { $xdrAlerts30d += $n }
+        if ([string]$(if ($v.PSObject.Properties['ProductName']) { $v.ProductName } else { '' }) -match 'Sentinel') {
+            $sentinelAlerts30d += $n
+        } else { $xdrAlerts30d += $n }
     }
     if ($allAlerts30d -le 0) { $allAlerts30d = $alerts30d; $sentinelAlerts30d = $alerts30d }
     # First-party detections by source family: alerts raised inside Defender XDR,
@@ -166,15 +184,22 @@ function Build-SiteEstate {
     }
     $rulesFiredCount = @($firedRows | Where-Object {
         if (-not $_) { return $false }
-        $k = ([string]$(if ($_.PSObject.Properties['AlertRuleId']) { $_.AlertRuleId } else { '' })).ToLowerInvariant(); if ($k -match '/') { $k = ($k -split '/')[-1] }
-        if ($k) { $queryRuleKeys.ContainsKey($k) } else { $queryRuleKeys.ContainsKey("name:$([string]$(if ($_.PSObject.Properties['AlertName']) { $_.AlertName } else { '' }))") }
+        $k = ([string]$(if ($_.PSObject.Properties['AlertRuleId']) { $_.AlertRuleId } else { '' })).ToLowerInvariant()
+        if ($k -match '/') { $k = ($k -split '/')[-1] }
+        if ($k) {
+            $queryRuleKeys.ContainsKey($k)
+        } else { $queryRuleKeys.ContainsKey("name:$([string]$(if ($_.PSObject.Properties['AlertName']) { $_.AlertName } else { '' }))") }
     }).Count
     $estate = [ordered]@{
         window          = "$($lookbackDays)d"
         sources         = $estateSources
         tables          = @($estateTableRows | Sort-Object { $_.gb } -Descending)
         productAlerts   = $productAlerts
-        customDetections = [ordered]@{ captured = $customDetCaptured; total = @($customDetRaw | Where-Object { $_ }).Count; enabled = @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true }).Count }
+        customDetections = [ordered]@{
+            captured = $customDetCaptured
+            total = @($customDetRaw | Where-Object { $_ }).Count
+            enabled = @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true }).Count
+        }
         totalGb         = [math]::Round($estateTotalGb, 2)
         coveredGb       = [math]::Round($estateCoveredGb, 2)
         uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)

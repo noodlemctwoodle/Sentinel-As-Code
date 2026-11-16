@@ -6,7 +6,7 @@
     and tables against it.
 
 .DESCRIPTION
-    Resources/connector-catalogue.json lists every Microsoft Sentinel data
+    Resources/Data/connector-catalogue.json lists every Microsoft Sentinel data
     connector with the tables it writes and the Content Hub solution that
     ships it (copied from the Sentinel as Code Toolkit by
     Update-iSOCBlueprintConnectorCatalogue). The renderer and the gap
@@ -27,8 +27,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -65,7 +65,9 @@ function Import-ConnectorCatalogue {
         }
     }
     # ConvertFrom-Json reads the ISO timestamp as a [datetime].
-    $version = if ($doc.version -is [datetime]) { $doc.version.ToUniversalTime().ToString('yyyy-MM-dd') } else { ([string]$doc.version).Substring(0, [math]::Min(10, ([string]$doc.version).Length)) }
+    $version = if ($doc.version -is [datetime]) {
+        $doc.version.ToUniversalTime().ToString('yyyy-MM-dd')
+    } else { ([string]$doc.version).Substring(0, [math]::Min(10, ([string]$doc.version).Length)) }
     return [pscustomobject]@{
         Version    = $version
         Connectors = @($doc.connectors)
@@ -125,9 +127,14 @@ function Get-TableActivity {
         if ($null -eq $row -or -not $row.PSObject.Properties['DataType']) { continue }
         $name = [string]$row.DataType
         if (-not $name) { continue }
-        $field = if ($row.PSObject.Properties['IngestedLast7d']) { 'IngestedLast7d' } elseif ($row.PSObject.Properties['BillableLast7d']) { 'BillableLast7d' } else { $null }
+        $field = if ($row.PSObject.Properties['IngestedLast7d']) {
+            'IngestedLast7d'
+        } elseif ($row.PSObject.Properties['BillableLast7d']) { 'BillableLast7d' } else { $null }
         $value = 0.0
-        if ($field) { [void][double]::TryParse([string]$row.$field, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$value) }
+        if ($field) {
+            [void][double]::TryParse([string]$row.$field, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture,
+                [ref]$value)
+        }
         $gb[$name] = $(if ($gb.ContainsKey($name)) { $gb[$name] } else { 0.0 }) + $value
     }
     return $gb
@@ -170,7 +177,9 @@ function Get-ConnectorCatalogueStatus {
         $tables = @(if ($entry) { @($entry.tables) | Where-Object { $_ } | ForEach-Object { [string]$_ } })
         $withData = @($tables | Where-Object { $Activity.ContainsKey($_) -and $Activity[$_] -gt 0 })
         $quiet = @($tables | Where-Object { $withData -notcontains $_ })
-        $status = if (-not $entry) { 'Not in the catalogue' } elseif ($tables.Count -eq 0) { 'No tables in the catalogue' } elseif ($withData.Count) { 'Receiving data' } else { 'Silent' }
+        $status = if (-not $entry) {
+            'Not in the catalogue'
+        } elseif ($tables.Count -eq 0) { 'No tables in the catalogue' } elseif ($withData.Count) { 'Receiving data' } else { 'Silent' }
         [pscustomobject]@{
             Connector  = $(if ($entry) { [string]$entry.title } else { $id })
             Id         = $id
@@ -267,7 +276,9 @@ function Get-TableSolutionLabel {
     if (-not $Catalogue.ByTable.ContainsKey($Table)) { return '' }
     $solutions = @(@($Catalogue.ByTable[$Table]) | ForEach-Object { [string]$_.solution } | Where-Object { $_ -and $_ -ne 'Platform' } | Sort-Object -Unique)
     if ($solutions.Count -eq 0) { return '' }
-    $installed = @($solutions | Where-Object { $s = $_; @($InstalledSolutions | Where-Object { $_ -and $_.Equals($s, [StringComparison]::OrdinalIgnoreCase) }).Count })
+    $installed = @(
+        $solutions | Where-Object { $s = $_; @($InstalledSolutions | Where-Object { $_ -and $_.Equals($s, [StringComparison]::OrdinalIgnoreCase) }).Count }
+    )
     if ($solutions.Count -le 3) {
         return (@($solutions | ForEach-Object { if ($installed -contains $_) { "$_ (installed)" } else { $_ } }) -join '; ')
     }

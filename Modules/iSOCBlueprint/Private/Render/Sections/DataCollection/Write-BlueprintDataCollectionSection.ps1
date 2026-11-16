@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -166,7 +166,9 @@ function Write-BlueprintDataCollectionSection {
     $hasDataLake  = $plansInUse.ContainsKey('DataLake') -or @($sentinelDataLake).Count -gt 0 -or $unifiedBilling
     $hasArchive   = $archiveTables -gt 0
 
-    $wspNodes = @('        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $(Format-BlueprintCount $enabledRules.Count)]", '        INC[Incidents]')
+    $wspNodes = @(
+        '        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $(Format-BlueprintCount $enabledRules.Count)]", '        INC[Incidents]'
+    )
     $wspEdges = @('    WS --> RUL', '    RUL --> INC')
     if ($hasBasic)     { $wspNodes += '        BAS[Basic plan tables]';     $wspEdges += '    WS --> BAS' }
     if ($hasAuxiliary) { $wspNodes += '        AUX[Auxiliary plan tables]'; $wspEdges += '    WS --> AUX' }
@@ -202,8 +204,15 @@ function Write-BlueprintDataCollectionSection {
     # The topology as data for the SharePoint graphic: every source family
     # (none rolled up), the table plans in use and not, and the destinations.
     $planTableCounts = @{}
-    foreach ($t in $workspaceTables) { $pl = [string]$t.properties.plan; if ($pl) { if (-not $planTableCounts.ContainsKey($pl)) { $planTableCounts[$pl] = 0 }; $planTableCounts[$pl]++ } }
-    $planDetail = { param([string]$Plan) if ($planTableCounts.ContainsKey($Plan)) { "$($planTableCounts[$Plan]) table$(if ($planTableCounts[$Plan] -ne 1) { 's' })" } else { 'In use' } }
+    foreach ($t in $workspaceTables) {
+        $pl = [string]$t.properties.plan
+        if ($pl) { if (-not $planTableCounts.ContainsKey($pl)) { $planTableCounts[$pl] = 0 }; $planTableCounts[$pl]++ }
+    }
+    $planDetail = {
+        param([string]$Plan) if ($planTableCounts.ContainsKey($Plan)) {
+            "$($planTableCounts[$Plan]) table$(if ($planTableCounts[$Plan] -ne 1) { 's' })"
+        } else { 'In use' }
+    }
     $topologyVisualLine = Format-VisualLine -Kind 'topology' -Data ([ordered]@{
         sources     = @($sortedBuckets | ForEach-Object { [ordered]@{ name = [string]$_.Name; count = [int]$_.Count } })
         sourceTotal = @($effective).Count

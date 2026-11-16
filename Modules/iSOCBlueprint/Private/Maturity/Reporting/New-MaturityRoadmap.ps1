@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
 
@@ -68,7 +68,13 @@ function New-MaturityRoadmap {
             }
         }
     })
-    $ordered = @($roadmapRaw | Sort-Object -Property @{ Expression = 'overallLift'; Descending = $true }, @{ Expression = { $script:MaturityEffortRank[$_.effort] } }, @{ Expression = 'criterionId' })
+    $ordered = @(
+        $roadmapRaw |
+            Sort-Object -Property @{
+                Expression = 'overallLift'
+                Descending = $true
+            }, @{ Expression = { $script:MaturityEffortRank[$_.effort] } }, @{ Expression = 'criterionId' }
+    )
     $running = if ($null -ne $OverallScore) { [double]$OverallScore } else { 0.0 }
     $priority = 0
     $roadmap = @(foreach ($entry in $ordered) {

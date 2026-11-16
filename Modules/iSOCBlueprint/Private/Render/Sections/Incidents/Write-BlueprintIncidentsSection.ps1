@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -64,8 +64,14 @@ function Write-BlueprintIncidentsSection {
         if (-not $sevAgg.Contains($s)) { $sevAgg[$s] = [long]0 }
         $sevAgg[$s] += [long](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $v 'Alerts' 0))
     }
-    $alertSeverityRows = @($sevAgg.GetEnumerator() | Sort-Object { if ($sevOrder.ContainsKey([string]$_.Key)) { $sevOrder[[string]$_.Key] } else { 9 } } | ForEach-Object {
-        [pscustomobject]@{ Severity = $_.Key; Alerts = $_.Value; Share = $(if ($alertVolumeTotal -gt 0) { "$([math]::Round(100.0 * $_.Value / $alertVolumeTotal, 1))%" } else { '0%' }) }
+    $alertSeverityRows = @($sevAgg.GetEnumerator() |
+            Sort-Object { if ($sevOrder.ContainsKey([string]$_.Key)) { $sevOrder[[string]$_.Key] } else { 9 } } |
+            ForEach-Object {
+        [pscustomobject]@{
+            Severity = $_.Key
+            Alerts = $_.Value
+            Share = $(if ($alertVolumeTotal -gt 0) { "$([math]::Round(100.0 * $_.Value / $alertVolumeTotal, 1))%" } else { '0%' })
+        }
     })
     $productLabel = @{ 'Microsoft Defender Advanced Threat Protection' = 'Defender for Endpoint'; 'Azure Sentinel' = 'Microsoft Sentinel' }
     $srcAgg = [ordered]@{}
@@ -78,7 +84,12 @@ function Write-BlueprintIncidentsSection {
         $srcAgg[$p].Rules++
     }
     $alertSourceRows = @($srcAgg.Values | Sort-Object { -$_.Alerts } | ForEach-Object {
-        [pscustomobject]@{ Source = $_.Source; Alerts = $_.Alerts; Rules = $_.Rules; Share = $(if ($alertVolumeTotal -gt 0) { "$([math]::Round(100.0 * $_.Alerts / $alertVolumeTotal, 1))%" } else { '0%' }) }
+        [pscustomobject]@{
+            Source = $_.Source
+            Alerts = $_.Alerts
+            Rules = $_.Rules
+            Share = $(if ($alertVolumeTotal -gt 0) { "$([math]::Round(100.0 * $_.Alerts / $alertVolumeTotal, 1))%" } else { '0%' })
+        }
     })
     $incDaily   = Read-BlueprintRawArray 'incidents-daily-metrics.json' | Select-Object -First 1
 
@@ -113,11 +124,16 @@ function Write-BlueprintIncidentsSection {
     # Closure verdicts (ByClassification arrived with the 2.2 collector; older
     # captures have no bag and get no chart) and the per-rule effectiveness
     # table shared with section 21.
-    $incClassBag = if ($incSummary -and $incSummary.PSObject.Properties['ByClassification']) { ConvertTo-BlueprintBag $incSummary.ByClassification } else { [ordered]@{} }
+    $incClassBag = if ($incSummary -and $incSummary.PSObject.Properties['ByClassification']) {
+        ConvertTo-BlueprintBag $incSummary.ByClassification
+    } else { [ordered]@{} }
     $incClassTotal = 0
     foreach ($v in $incClassBag.Values) { $incClassTotal += [long]$v }
     $incOutcomeBlock = if ($incClassTotal -gt 0) {
-        $classRows = ($incClassBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { "    `"$(ConvertTo-BlueprintWords ([string]$_.Key))`" : $($_.Value)" }) -join [Environment]::NewLine
+        $classRows = ($incClassBag.GetEnumerator() |
+            Sort-Object @{ Expression = 'Value'; Descending = $true }, Key |
+            ForEach-Object { "    `"$(ConvertTo-BlueprintWords ([string]$_.Key))`" : $($_.Value)" }) -join
+            [Environment]::NewLine
     @"
 
 ## Incident outcomes (closed, last {lookback-d})
@@ -142,7 +158,10 @@ Undetermined and Unclassified closures carry no verdict, so they feed neither th
     }
     # Sentinel rules first, then other products' alerts by name; Source is the
     # collector's column when present, else derived from the rule id.
-    $effectivenessRows = @($ruleEffectiveness | Sort-Object { -(ConvertTo-BlueprintNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable | ForEach-Object {
+    $effectivenessRows = @($ruleEffectiveness |
+            Sort-Object { -(ConvertTo-BlueprintNumber $_.Incidents) } |
+            Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable |
+            ForEach-Object {
         $src = if ($_.PSObject.Properties['Source'] -and $_.Source) { [string]$_.Source }
                elseif ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 'Analytics rule' }
                elseif ($_.PSObject.Properties['Product'] -and $_.Product) { [string]$_.Product }
@@ -180,7 +199,11 @@ Undetermined and Unclassified closures carry no verdict, so they feed neither th
     } else { '_Not captured in this snapshot._' }
     $incProviderBag = if ($incSummary -and $incSummary.PSObject.Properties['ByProvider']) { ConvertTo-BlueprintBag $incSummary.ByProvider } else { $null }
     $incProviderRows = if ($incProviderBag) {
-        @($incProviderBag.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object { [pscustomobject]@{ Provider = $_.Key; Incidents = $_.Value } })
+        @(
+            $incProviderBag.GetEnumerator() |
+                Sort-Object @{ Expression = 'Value'; Descending = $true }, Key |
+                ForEach-Object { [pscustomobject]@{ Provider = $_.Key; Incidents = $_.Value } }
+        )
     } else { @() }
     $alertVolumes = @(Read-BlueprintRawArray 'analytics-rule-volumes.json' | Where-Object { $_ })
     $alert7dCaptured = @($alertVolumes | Where-Object { $_.PSObject.Properties['Alerts7d'] }).Count -gt 0
@@ -191,7 +214,13 @@ Undetermined and Unclassified closures carry no verdict, so they feed neither th
     $alertProviderRows = @($alertVolumes | Where-Object { (ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Alerts' 0)) -gt 0 } |
         Sort-Object @{ Expression = { ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Alerts' 0) }; Descending = $true }, AlertName |
         ForEach-Object {
-            $row = [ordered]@{ Provider = [string](Get-BlueprintRawProperty $_ 'ProviderName' ''); Product = $_.ProductName; Alert = $_.AlertName; Severity = $_.AlertSeverity; Alerts = [long](ConvertTo-BlueprintNumber $_.Alerts) }
+            $row = [ordered]@{
+                Provider = [string](Get-BlueprintRawProperty $_ 'ProviderName' '')
+                Product = $_.ProductName
+                Alert = $_.AlertName
+                Severity = $_.AlertSeverity
+                Alerts = [long](ConvertTo-BlueprintNumber $_.Alerts)
+            }
             if ($alertProviderRecent) { $row.Alerts7d = [long](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Alerts7d' 0)) }
             [pscustomobject]$row
         })
@@ -199,21 +228,41 @@ Undetermined and Unclassified closures carry no verdict, so they feed neither th
 
     $incStatusBag = if ($incSummary -and $incSummary.PSObject.Properties['ByStatus']) { ConvertTo-BlueprintBag $incSummary.ByStatus } else { $null }
     $incAckKnown = $incMttr -and ($incMttr.PSObject.Properties.Name -contains 'AcknowledgedCount')
-    $incMinutes = { param($v) $s = [string]$v; $d = 0.0; if ($null -ne $v -and $s -ne 'NaN' -and [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { [math]::Round($d, 1) } else { $null } }
+    $incMinutes = {
+        param($v) $s = [string]$v
+        $d = 0.0
+        if ($null -ne $v -and $s -ne 'NaN' -and
+                [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$d)) {
+            [math]::Round($d, 1)
+        } else { $null }
+    }
     $lifecycleVisual = [ordered]@{
         days           = 30
         raised         = $totalIncidents
         new            = $(if ($incStatusBag) { [long](Get-BlueprintRawProperty ([pscustomobject]$incStatusBag) 'New' 0) } else { $null })
         active         = $(if ($incStatusBag) { [long](Get-BlueprintRawProperty ([pscustomobject]$incStatusBag) 'Active' 0) } else { $null })
-        closed         = $(if ($incStatusBag) { [long](Get-BlueprintRawProperty ([pscustomobject]$incStatusBag) 'Closed' 0) } elseif ($incMttr) { $closedCount } else { $null })
+        closed         = $(
+            if ($incStatusBag) { [long](Get-BlueprintRawProperty ([pscustomobject]$incStatusBag) 'Closed' 0) } elseif ($incMttr) { $closedCount } else { $null }
+        )
         acknowledged   = $(if ($incAckKnown) { $ackCountForState } else { $null })
         unacknowledged = $(if ($incAckKnown) { $unackCount } else { $null })
         mttaMinutes    = $(if ($incMttr) { & $incMinutes (Get-BlueprintRawProperty $incMttr 'MTTAMinutes') } else { $null })
         mttrMinutes    = $(if ($incMttr) { & $incMinutes (Get-BlueprintRawProperty $incMttr 'MTTRMinutes') } else { $null })
-        unified        = $(if ($incSummary -and $incSummary.PSObject.Properties['Unified']) { [long](ConvertTo-BlueprintNumber $incSummary.Unified) } else { $null })
-        openBySeverity = ConvertTo-LifecycleList -Bag $(if ($incSummary -and $incSummary.PSObject.Properties['OpenBySeverity']) { ConvertTo-BlueprintBag $incSummary.OpenBySeverity } else { $null }) -Order 'High', 'Medium', 'Low', 'Informational'
-        classification = ConvertTo-LifecycleList -Bag $incClassBag -Order 'TruePositive', 'BenignPositive', 'FalsePositive', 'Undetermined', 'Unclassified' -Labels @{ TruePositive = 'True positive'; BenignPositive = 'Benign positive'; FalsePositive = 'False positive' }
-        closedBy       = ConvertTo-LifecycleList -Bag $(if ($incSummary -and $incSummary.PSObject.Properties['ClosedBy']) { ConvertTo-BlueprintBag $incSummary.ClosedBy } else { $null }) -Labels @{ AutomationRule = 'Automation rule'; DefenderXdr = 'Defender XDR' }
+        unified        = $(
+            if ($incSummary -and $incSummary.PSObject.Properties['Unified']) { [long](ConvertTo-BlueprintNumber $incSummary.Unified) } else { $null }
+        )
+        openBySeverity = ConvertTo-LifecycleList -Bag $(
+            if ($incSummary -and $incSummary.PSObject.Properties['OpenBySeverity']) { ConvertTo-BlueprintBag $incSummary.OpenBySeverity } else { $null }
+        ) -Order 'High', 'Medium', 'Low', 'Informational'
+        classification = ConvertTo-LifecycleList -Bag $incClassBag -Order 'TruePositive', 'BenignPositive', 'FalsePositive', 'Undetermined',
+                'Unclassified' -Labels @{
+            TruePositive = 'True positive'
+            BenignPositive = 'Benign positive'
+            FalsePositive = 'False positive'
+        }
+        closedBy       = ConvertTo-LifecycleList -Bag $(
+            if ($incSummary -and $incSummary.PSObject.Properties['ClosedBy']) { ConvertTo-BlueprintBag $incSummary.ClosedBy } else { $null }
+        ) -Labels @{ AutomationRule = 'Automation rule'; DefenderXdr = 'Defender XDR' }
         check          = [ordered]@{ id = 'SAC-INC-05'; fired = $script:FiredFindingIds.ContainsKey('SAC-INC-05') }
     }
     $lifecycleVisualLine = Format-VisualLine -Kind 'incident-lifecycle' -Data $lifecycleVisual

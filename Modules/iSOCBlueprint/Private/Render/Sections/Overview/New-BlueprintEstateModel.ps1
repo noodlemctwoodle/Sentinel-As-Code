@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -101,7 +101,10 @@ function New-BlueprintEstateModel {
         TotalGb             = [math]::Round($totalGb, 2)
         CoveredGb           = [math]::Round($coveredGb, 2)
         UncoveredGb         = [math]::Round($totalGb - $coveredGb, 2)
-        TemplatesApplicable = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) }).Count
+        TemplatesApplicable = @(
+            $templateTableRefs |
+                Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) }
+        ).Count
         RulesEnabled        = $enabledRules.Count
         RulesQueryEnabled   = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
         RulesFired          = $firedEnabled

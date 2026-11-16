@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -50,19 +50,32 @@ function Build-SiteDetection {
 
     $effectiveness = @()
     # Sentinel rules first, then other products' alerts by name.
-    $effectSorted = @($effectRows | Where-Object { $_ } | Sort-Object { -(ConvertTo-BuildNumber $_.Incidents) } | Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable)
+    $effectSorted = @(
+        $effectRows |
+            Where-Object { $_ } |
+            Sort-Object { -(ConvertTo-BuildNumber $_.Incidents) } |
+            Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable
+    )
     foreach ($e in $effectSorted) {
-        $src = if ($e.PSObject.Properties['Source'] -and $e.Source) { [string]$e.Source } elseif ($e.PSObject.Properties['AlertRuleId'] -and $e.AlertRuleId) { 'Analytics rule' } else { 'Other' }
+        $src = if ($e.PSObject.Properties['Source'] -and $e.Source) {
+            [string]$e.Source
+        } elseif ($e.PSObject.Properties['AlertRuleId'] -and $e.AlertRuleId) { 'Analytics rule' } else { 'Other' }
         $effectiveness += [ordered]@{
             rule = $e.RuleName; source = $src; incidents = [int](ConvertTo-BuildNumber $e.Incidents); closed = [int](ConvertTo-BuildNumber $e.Closed)
-            tp = [int](ConvertTo-BuildNumber $e.TruePositive); fp = [int](ConvertTo-BuildNumber $e.FalsePositive); bp = [int](ConvertTo-BuildNumber $e.BenignPositive)
+            tp = [int](ConvertTo-BuildNumber $e.TruePositive)
+            fp = [int](ConvertTo-BuildNumber $e.FalsePositive)
+            bp = [int](ConvertTo-BuildNumber $e.BenignPositive)
             undetermined = [int](ConvertTo-BuildNumber $e.Undetermined); fpRate = [math]::Round((ConvertTo-BuildNumber $e.FPRate), 1)
         }
     }
 
     $usageDaily = @()
     foreach ($u in ($usageRows | Where-Object { $_ } | Sort-Object { [datetime]$_.Day } | Select-Object -Last 90)) {
-        $usageDaily += [ordered]@{ day = ([datetime]$u.Day).ToUniversalTime().ToString('yyyy-MM-dd'); billable = [math]::Round((ConvertTo-BuildNumber $u.BillableGB), 2); free = [math]::Round((ConvertTo-BuildNumber $u.FreeGB), 2) }
+        $usageDaily += [ordered]@{
+            day = ([datetime]$u.Day).ToUniversalTime().ToString('yyyy-MM-dd')
+            billable = [math]::Round((ConvertTo-BuildNumber $u.BillableGB), 2)
+            free = [math]::Round((ConvertTo-BuildNumber $u.FreeGB), 2)
+        }
     }
 
     # Tables with data that no enabled rule reads, with the undeployed templates
@@ -79,7 +92,13 @@ function Build-SiteDetection {
         $pkgInstalled = Read-SiteRawArray 'content-packages.json'
         $pkgCatalogue = Read-SiteRawArray 'content-product-packages.json'
         $tplSolutions = Get-TemplateSolutionMap -Installed $pkgInstalled -Catalogue $pkgCatalogue
-        $undeployed = @($templateRefs | Where-Object { $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and -not (Test-TemplateRetired -Map $tplSolutions -TemplateId ([string]$_.TemplateId)) })
+        $undeployed = @(
+            $templateRefs |
+                Where-Object {
+                    $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and
+                        -not (Test-TemplateRetired -Map $tplSolutions -TemplateId ([string]$_.TemplateId))
+                }
+        )
         $sevRank2 = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
         $operationalOnly = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
         $uncovered = @($tablesData | Where-Object {
@@ -89,12 +108,22 @@ function Build-SiteDetection {
         $uncoveredTotal = $uncovered.Count
         foreach ($t in $uncovered) {
             $name = [string]$t.DataType
-            $cands = @($undeployed | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank2.ContainsKey($sv)) { $sevRank2[$sv] } else { 9 } }, DisplayName)
+            $cands = @(
+                $undeployed |
+                    Where-Object { @($_.Tables) -contains $name } |
+                    Sort-Object { $sv = [string]$_.Severity; if ($sevRank2.ContainsKey($sv)) { $sevRank2[$sv] } else { 9 } }, DisplayName
+            )
             $detectionOpportunities += [ordered]@{
                 table     = $name
                 family    = (Get-TableFamily $name)
                 gb30d     = [math]::Round((ConvertTo-BuildNumber $t.BillableLast30d), 2)
-                templates = @($cands | ForEach-Object { $sol = Get-TemplateSolution -Map $tplSolutions -TemplateId ([string]$_.TemplateId); [ordered]@{ name = $_.DisplayName; severity = $_.Severity; solution = $sol.Solution; installed = $sol.Installed } })
+                templates = @(
+                    $cands |
+                        ForEach-Object {
+                            $sol = Get-TemplateSolution -Map $tplSolutions -TemplateId ([string]$_.TemplateId)
+                            [ordered]@{ name = $_.DisplayName; severity = $_.Severity; solution = $sol.Solution; installed = $sol.Installed }
+                        }
+                )
             }
         }
     }
@@ -126,7 +155,9 @@ function Build-SiteDetection {
     $ruleFailures = @{}
     foreach ($h in @($ruleHealthRaw | Where-Object { $_ })) {
         $fails = [long](ConvertTo-BuildNumber $(if ($h.PSObject.Properties['Failures']) { $h.Failures } else { 0 }))
-        if ($fails -gt 0 -or [string]$(if ($h.PSObject.Properties['Status']) { $h.Status } else { '' }) -eq 'Failure') { $ruleFailures[[string]$h.RuleName] = [math]::Max($fails, 1) }
+        if ($fails -gt 0 -or [string]$(if ($h.PSObject.Properties['Status']) { $h.Status } else { '' }) -eq 'Failure') {
+            $ruleFailures[[string]$h.RuleName] = [math]::Max($fails, 1)
+        }
     }
     $outcomeOf = {
         param($e)
@@ -159,11 +190,15 @@ function Build-SiteDetection {
         } + $o
     }
     $healthRank = @{ Failing = 0; Working = 1; Silent = 2 }
-    $detectionOutcomes = @($detectionOutcomes | Sort-Object @{ Expression = { $healthRank[$_.health] } }, @{ Expression = { -[long]$_.incidents } }, @{ Expression = { $_.name } })
+    $detectionOutcomes = @(
+        $detectionOutcomes | Sort-Object @{ Expression = { $healthRank[$_.health] } }, @{ Expression = { -[long]$_.incidents } }, @{ Expression = { $_.name } }
+    )
     # The source family of every table they read, for the matrix's columns: a
     # rule can read a table that has no ingestion, so the estate cannot say.
     $detectionTableFamily = [ordered]@{}
-    foreach ($o in $detectionOutcomes) { foreach ($t in @($o.tables)) { if (-not $detectionTableFamily.Contains($t)) { $detectionTableFamily[$t] = Get-TableFamily $t } } }
+    foreach ($o in $detectionOutcomes) {
+        foreach ($t in @($o.tables)) { if (-not $detectionTableFamily.Contains($t)) { $detectionTableFamily[$t] = Get-TableFamily $t } }
+    }
 
     # Left in the build context for later steps.
     $Context.detectionOpportunities = $detectionOpportunities

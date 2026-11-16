@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -58,7 +58,13 @@ function ConvertTo-SectionBlocks {
                     if ([string]$b.kind -in 'pie', 'xy') {
                         $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = $title; data = $b.data })
                     } else {
-                        $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = $title; data = (ConvertTo-DashboardChartData -Chart $b); source = [string]$b.source })
+                        $blocks.Add([ordered]@{
+                            t = 'chart'
+                            kind = [string]$b.kind
+                            title = $title
+                            data = (ConvertTo-DashboardChartData -Chart $b)
+                            source = [string]$b.source
+                        })
                     }
                 }
             }
@@ -77,9 +83,14 @@ function ConvertTo-SectionBlocks {
                 $first = $inner | Select-Object -First 1
                 if ($inner.Count -gt 1 -and $first -and [string]$first.type -eq 'paragraph') {
                     $lead = ((@($first.text) | ForEach-Object { if ($_.text) { $_.text } }) -join '').Trim()
-                    if ($lead -match '^[A-Za-z][\w &/-]{1,24}$') { $title = ConvertTo-SectionRunsHtml @($first.text); $inner = @($inner | Select-Object -Skip 1) }
+                    if ($lead -match '^[A-Za-z][\w &/-]{1,24}$') {
+                        $title = ConvertTo-SectionRunsHtml @($first.text)
+                        $inner = @($inner | Select-Object -Skip 1)
+                    }
                 }
-                $tone = if ($b -is [System.Collections.IDictionary]) { [string]$b['tone'] } elseif ($b.PSObject.Properties['tone']) { [string]$b.tone } else { '' }
+                $tone = if ($b -is [System.Collections.IDictionary]) {
+                    [string]$b['tone']
+                } elseif ($b.PSObject.Properties['tone']) { [string]$b.tone } else { '' }
                 $blocks.Add([ordered]@{
                         t     = 'note'
                         tone  = $(if ($tone) { $tone } else { 'info' })

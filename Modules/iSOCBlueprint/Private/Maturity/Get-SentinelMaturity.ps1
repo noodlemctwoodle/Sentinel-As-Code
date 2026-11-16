@@ -7,9 +7,13 @@
     captures, and builds a prioritised roadmap to a target level.
 
 .DESCRIPTION
-    Pure data-in/data-out, testable end-to-end with fixture files. The work is\n    shared out across the files beside this one: New-MaturityMetrics\n    computes the metrics, Resolve-MaturitySource and New-MaturityArea score the\n    criteria, New-MaturityRoadmap orders the gaps and Get-MaturityCsfRollup\n    counts the NIST CSF coverage.
+    Pure data-in/data-out, testable end-to-end with fixture files. The work is
+    shared out across the files beside this one: New-MaturityMetrics
+    computes the metrics, Resolve-MaturitySource and New-MaturityArea score the
+    criteria, New-MaturityRoadmap orders the gaps and Get-MaturityCsfRollup
+    counts the NIST CSF coverage.
 
-    The criteria live in Resources/maturity-criteria.json. Each criterion
+    The criteria live in Resources/Data/maturity-criteria.json. Each criterion
     names a source that resolves to one of three statuses:
 
         Met      the practice is in place or the coverage is present
@@ -60,7 +64,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.6.2
+    Version:      0.6.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -179,7 +183,19 @@ function Get-SentinelMaturity {
                 id = $_.id; name = $_.name; description = $_.description; score = $_.score; level = $_.level; levelName = $_.levelName
                 met = $_.met; gap = $_.gap; unknown = $_.unknown; evaluated = $_.evaluated; confidence = $_.confidence
                 criteria = @($_.criteria | ForEach-Object {
-                    [pscustomobject]@{ id = $_.id; kind = $_.kind; name = $_.name; status = $_.status; evidence = $_.evidence; weight = $_.weight; effort = $_.effort; impact = $_.impact; guidance = $_.guidance; csf = $_.csf; source = $_.source }
+                    [pscustomobject]@{
+                        id = $_.id
+                        kind = $_.kind
+                        name = $_.name
+                        status = $_.status
+                        evidence = $_.evidence
+                        weight = $_.weight
+                        effort = $_.effort
+                        impact = $_.impact
+                        guidance = $_.guidance
+                        csf = $_.csf
+                        source = $_.source
+                    }
                 })
             }
         })

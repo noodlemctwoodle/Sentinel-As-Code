@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -43,8 +43,12 @@ function Get-ConnectorFriendlyTitle {
         'MicrosoftThreatProtection'                    { 'Microsoft Defender XDR' }
         'Office365'                                    { 'Microsoft 365 (Office 365)' }
         'AzureSecurityCenter'                          { 'Microsoft Defender for Cloud' }
-        'GenericUI'                                    { if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind } }
-        'StaticUI'                                     { if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind } }
+        'GenericUI'                                    {
+            if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind }
+        }
+        'StaticUI'                                     {
+            if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind }
+        }
         { $_ -in 'RestApiPoller','Push' }              {
             # CCF-derived kinds. Each connector instance carries a
             # connectorDefinitionName that points at the matching CCF

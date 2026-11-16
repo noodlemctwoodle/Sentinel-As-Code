@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -31,7 +31,8 @@ function Format-TableCell($Value, [bool]$Identifier, [bool]$Gb = $false) {
     if ($null -eq $Value) { return '' }
     if ($Value -is [datetime]) { return Format-DateUtc $Value }
     if ($Gb -and -not $Identifier -and $Value -isnot [bool]) { return Format-BlueprintGb $Value }
-    $isNumber = ($Value -is [decimal]) -or ($Value.GetType().IsPrimitive -and $Value -isnot [bool] -and $Value -isnot [char] -and $Value -isnot [IntPtr] -and $Value -isnot [UIntPtr])
+    $isNumber = ($Value -is [decimal]) -or
+        ($Value.GetType().IsPrimitive -and $Value -isnot [bool] -and $Value -isnot [char] -and $Value -isnot [IntPtr] -and $Value -isnot [UIntPtr])
     if ($isNumber -and -not $Identifier) {
         $d = [double]$Value
         if ([double]::IsNaN($d) -or [double]::IsInfinity($d)) { return [string]$Value }

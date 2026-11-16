@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -52,7 +52,9 @@ function Read-BlueprintInventory {
         if ($solSku) { $sentinelSolutionSku = [string](Get-BlueprintRawProperty $solSku 'name' '') }
     }
     $sentinelPricingText = if (-not $sentinelSolutionSku) { '_(not recorded on the Microsoft Sentinel solution)_' }
-        elseif ($sentinelSolutionSku -eq 'Unified') { "Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion (solution SKU ``Unified``)" }
+        elseif ($sentinelSolutionSku -eq 'Unified') {
+            "Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion (solution SKU ``Unified``)"
+        }
         else { "Classic: Microsoft Sentinel analysis and Log Analytics ingestion billed separately (solution SKU ``$sentinelSolutionSku``)" }
     $run                = Read-BlueprintRaw 'run-context.json'
     $rules              = Read-BlueprintRawArray 'alert-rules.json'
@@ -107,7 +109,9 @@ function Read-BlueprintInventory {
         cards = @($top5Findings | ForEach-Object {
             [ordered]@{
                 id = [string]$_.Id; severity = [string]$_.Severity; title = [string]$_.Title; category = [string](Get-BlueprintRawProperty $_ 'Category' '')
-                evidence = [string](Get-BlueprintRawProperty $_ 'Evidence' ''); remediation = [string](Get-BlueprintRawProperty $_ 'Remediation' ''); learn = [string](Get-BlueprintRawProperty $_ 'Learn' '')
+                evidence = [string](Get-BlueprintRawProperty $_ 'Evidence' '')
+                remediation = [string](Get-BlueprintRawProperty $_ 'Remediation' '')
+                learn = [string](Get-BlueprintRawProperty $_ 'Learn' '')
                 href = "90-gap-analysis.md#$(([string]$_.Id).ToLowerInvariant())"
             }
         })
@@ -124,11 +128,17 @@ function Read-BlueprintInventory {
     # Each template's Content Hub solution; a template only deprecated solutions
     # ship (Threat Intelligence, replaced by Threat Intelligence (NEW)) is not
     # one to enable, so it counts nowhere a template is offered.
-    $templateSolutionMap = Get-TemplateSolutionMap -Installed @(Read-BlueprintRawArray 'content-packages.json') -Catalogue @(Read-BlueprintRawArray 'content-product-packages.json')
+    $templateSolutionMap = Get-TemplateSolutionMap -Installed @(
+        Read-BlueprintRawArray 'content-packages.json'
+    ) -Catalogue @(Read-BlueprintRawArray 'content-product-packages.json')
     $customDetectionRefs = Read-BlueprintRawArray 'custom-detection-table-references.json'
     $customDetectionsCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'defender-custom-detections.json')
     $customDetectionTableSet = @{}
-    foreach ($cd in $customDetectionRefs) { if ($cd -and (Get-BlueprintRawProperty $cd 'Enabled' $false) -eq $true) { foreach ($t in @(Get-BlueprintRawProperty $cd 'Tables' @())) { if ($t) { $customDetectionTableSet[[string]$t] = $true } } } }
+    foreach ($cd in $customDetectionRefs) {
+        if ($cd -and (Get-BlueprintRawProperty $cd 'Enabled' $false) -eq $true) {
+            foreach ($t in @(Get-BlueprintRawProperty $cd 'Tables' @())) { if ($t) { $customDetectionTableSet[[string]$t] = $true } }
+        }
+    }
     $ruleEffectiveness = Read-BlueprintRawArray 'rule-effectiveness.json'
     $rulesFired        = Read-BlueprintRawArray 'rules-fired.json'
     $playbookRuns      = Read-BlueprintRawArray 'playbook-runs.json'
@@ -155,7 +165,9 @@ function Read-BlueprintInventory {
         foreach ($mArea in @(Get-BlueprintRawProperty $maturity 'areas' @())) {
             foreach ($mCrit in @(Get-BlueprintRawProperty $mArea 'criteria' @())) {
                 $mid = [string](Get-BlueprintRawProperty $mCrit 'id' '')
-                if ($mid -and (Get-BlueprintRawProperty $mCrit 'status' '') -eq 'Gap' -and $script:FindingIds.ContainsKey($mid)) { $script:FiredFindingIds[$mid] = $true }
+                if ($mid -and (Get-BlueprintRawProperty $mCrit 'status' '') -eq 'Gap' -and $script:FindingIds.ContainsKey($mid)) {
+                    $script:FiredFindingIds[$mid] = $true
+                }
             }
         }
     }

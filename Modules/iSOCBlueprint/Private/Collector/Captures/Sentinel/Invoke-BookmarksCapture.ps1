@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -62,7 +62,8 @@ HuntingBookmark
             $listed = $null
             $tableError = $null
             try {
-                $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) -ErrorAction Stop
+                $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kql) `
+                    -ErrorAction Stop
                 $listed = @($result.Results | ForEach-Object { ConvertFrom-HuntingBookmarkRow -Row $_ })
             } catch { $tableError = $_ }
             # The table's retention, from the tables capture, to say how far
@@ -71,8 +72,12 @@ HuntingBookmark
             $tablesPath = Join-Path $rawOut 'workspace-tables.json'
             if (Test-Path -LiteralPath $tablesPath) {
                 try {
-                    $hb = @(Get-Content -LiteralPath $tablesPath -Raw | ConvertFrom-Json -Depth 16) | Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name -eq 'HuntingBookmark' } | Select-Object -First 1
-                    if ($hb -and $hb.PSObject.Properties['properties'] -and $hb.properties.PSObject.Properties['retentionInDays']) { $keeps = [int]$hb.properties.retentionInDays }
+                    $hb = @(Get-Content -LiteralPath $tablesPath -Raw | ConvertFrom-Json -Depth 16) |
+                        Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name -eq 'HuntingBookmark' } |
+                        Select-Object -First 1
+                    if ($hb -and $hb.PSObject.Properties['properties'] -and $hb.properties.PSObject.Properties['retentionInDays']) {
+                        $keeps = [int]$hb.properties.retentionInDays
+                    }
                 } catch { $keeps = 0 }
             }
             $period = if ($keeps -gt 0) { "in the last $keeps days" } else { 'within the table''s retention' }
@@ -81,16 +86,27 @@ HuntingBookmark
                 $tableMsg = Get-CaptureErrorText $tableError
                 $tableKind = Get-CaptureIssueKind $tableMsg
                 Write-CaptureNote -Kind $tableKind -Label 'bookmarks' -Text "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read: $(Format-CaptureMessage $tableMsg) Kept the count."
-                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = $tableKind; Message = "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read, so only the count was kept: $tableMsg" })
+                $script:CaptureErrors.Add([pscustomobject]@{
+                    Label = 'bookmarks'
+                    Kind = $tableKind
+                    Message = "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read, so only the count was kept: $tableMsg"
+                })
             } elseif ($listed.Count -eq 0) {
                 # Read, but empty: the table logs every bookmark change for its
                 # retention, so none of them has changed in that time.
                 Write-CaptureNote -Kind NotAvailable -Text "$count bookmarks exist, too many for the API to list, and none has been created or changed $period (the HuntingBookmark table, which logs every change, holds none). Kept the count."
-                $script:CaptureErrors.Add([pscustomobject]@{ Label = 'bookmarks'; Kind = 'NotAvailable'; Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed ${period}: the HuntingBookmark table, which logs every change, holds none. Only the count was kept." })
+                $script:CaptureErrors.Add([pscustomobject]@{
+                    Label = 'bookmarks'
+                    Kind = 'NotAvailable'
+                    Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed ${period}: the HuntingBookmark table, which logs every change, holds none. Only the count was kept."
+                })
             } else {
                 Write-Information "  ↳ $count bookmarks exist, too many for the API to list; listed the $($listed.Count) in the HuntingBookmark table instead."
             }
-            Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{ Count = $count; Source = 'The bookmarks list was refused as too large; the count is the one the service reported.' })
+            Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{
+                Count = $count
+                Source = 'The bookmarks list was refused as too large; the count is the one the service reported.'
+            })
             if (-not $tableError) { Save-Json -FileName 'bookmarks-from-logs.json' -Data $listed }
         } else {
             throw

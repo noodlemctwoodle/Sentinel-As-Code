@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
 
@@ -23,7 +23,8 @@ function ConvertTo-SacBlocksHtml {
     # HTML for blocks that stay inside one Text web part (lists, notes, tables).
     # A table cut at MaxTableRows is added whole to Tables as CSV, named from
     # the heading above it.
-    param([object[]] $Blocks, [string] $FindingsListUrl, [int] $MaxTableRows, [string] $Id, [System.Collections.Generic.List[string]] $Warnings, [System.Collections.Generic.List[object]] $Tables, [string] $Heading = '')
+    param([object[]] $Blocks, [string] $FindingsListUrl, [int] $MaxTableRows, [string] $Id, [System.Collections.Generic.List[string]] $Warnings,
+        [System.Collections.Generic.List[object]] $Tables, [string] $Heading = '')
     $sb = [System.Text.StringBuilder]::new()
     foreach ($b in @($Blocks)) {
         if ($null -eq $b) { continue }
@@ -40,12 +41,22 @@ function ConvertTo-SacBlocksHtml {
                 [void]$sb.Append("<$tag$start>")
                 foreach ($item in @($b.items)) {
                     [void]$sb.Append('<li>' + (ConvertTo-SacRunsHtml -Runs @($item.text) -FindingsListUrl $FindingsListUrl))
-                    if (@($item.blocks).Count) { [void]$sb.Append((ConvertTo-SacBlocksHtml -Blocks @($item.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading)) }
+                    if (@($item.blocks).Count) {
+                        [void]$sb.Append((ConvertTo-SacBlocksHtml -Blocks @(
+                            $item.blocks
+                        ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading))
+                    }
                     [void]$sb.Append('</li>')
                 }
                 [void]$sb.Append("</$tag>")
             }
-            'note' { [void]$sb.Append('<blockquote>' + (ConvertTo-SacBlocksHtml -Blocks @($b.blocks) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading) + '</blockquote>') }
+            'note' {
+                [void]$sb.Append('<blockquote>' +
+                    (ConvertTo-SacBlocksHtml -Blocks @(
+                        $b.blocks
+                    ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading) +
+                    '</blockquote>')
+            }
             'table' {
                 $csvUrl = $null
                 $csvFile = $null
@@ -55,7 +66,9 @@ function ConvertTo-SacBlocksHtml {
                     $csvUrl = "$script:SacTablesUrl/$csvFile"
                 }
                 $t = ConvertTo-SacTableHtml -Table $b -MaxRows $MaxTableRows -FindingsListUrl $FindingsListUrl -CsvUrl $csvUrl
-                if ($t.Truncated -gt 0) { $Warnings.Add("$Id : a table was capped at $MaxTableRows rows ($($t.Truncated) not shown)$(if ($csvFile) { "; every row is in tables/$csvFile" }).") }
+                if ($t.Truncated -gt 0) {
+                    $Warnings.Add("$Id : a table was capped at $MaxTableRows rows ($($t.Truncated) not shown)$(if ($csvFile) { "; every row is in tables/$csvFile" }).")
+                }
                 [void]$sb.Append($t.Html)
             }
             'code' { [void]$sb.Append('<pre>' + (ConvertTo-SacHtmlText ([string]$b.text)) + '</pre>') }

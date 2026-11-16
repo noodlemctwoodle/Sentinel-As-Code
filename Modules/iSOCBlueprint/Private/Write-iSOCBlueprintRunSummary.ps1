@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.2.1
-    Last Updated: 2026-11-09
+    Version:      0.2.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -86,7 +86,11 @@ function Write-iSOCBlueprintRunSummary {
     $files = @(Get-ChildItem -LiteralPath $raw -Filter '*.json' -File -ErrorAction SilentlyContinue).Count
     if ($Collected) {
         $issues = @(& $prop (& $readJson (Join-Path $raw 'run-context.json')) 'CaptureIssues' | Where-Object { $_ })
-        $labels = { param([string[]] $Kinds, [bool] $Not) @($issues | Where-Object { ((& $prop $_ 'Kind') -in $Kinds) -ne $Not } | ForEach-Object { [string](& $prop $_ 'Label') } | Select-Object -Unique) }
+        $labels = {
+            param([string[]] $Kinds, [bool] $Not) @(
+                $issues | Where-Object { ((& $prop $_ 'Kind') -in $Kinds) -ne $Not } | ForEach-Object { [string](& $prop $_ 'Label') } | Select-Object -Unique
+            )
+        }
         $notAvailable = @(& $labels @('NotAvailable') $false)
         $permission = @(& $labels @('Permission') $false)
         $failed = @(& $labels @('NotAvailable', 'Permission') $true)
@@ -96,7 +100,8 @@ function Write-iSOCBlueprintRunSummary {
             Write-Host (& $row '' "$($notAvailable.Count) not available in this workspace: $($notAvailable -join ', ')") -ForegroundColor DarkCyan
         }
         if ($permission.Count) {
-            Write-Host (& $row '' "$($permission.Count) not read in full, no permission (expected without the role): $($permission -join ', ')") -ForegroundColor Magenta
+            Write-Host (& $row '' "$($permission.Count) not read in full, no permission (expected without the role): $($permission -join ', ')") `
+                -ForegroundColor Magenta
         }
         if ($failed.Count) {
             Write-Host (& $row '' "$($failed.Count) failed: $($failed -join ', ')") -ForegroundColor Yellow
@@ -109,13 +114,17 @@ function Write-iSOCBlueprintRunSummary {
     }
 
     $pages = @(Get-ChildItem -LiteralPath $Path -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object Name -ne 'index.md').Count
-    $sections = @(Get-ChildItem -LiteralPath (Join-Path $Path 'sections') -Filter '*.json' -File -ErrorAction SilentlyContinue | Where-Object Name -ne 'index.json').Count
+    $sections = @(
+        Get-ChildItem -LiteralPath (Join-Path $Path 'sections') -Filter '*.json' -File -ErrorAction SilentlyContinue | Where-Object Name -ne 'index.json'
+    ).Count
     $report = @()
     if ($pages) { $report += "$pages Markdown pages" }
     if ($sections) { $report += "$sections JSON sections" }
     if ($report.Count) { Write-Host (& $row 'Report' ($report -join ', ')) }
 
-    if ($WordDocument) { Write-Host (& $row 'Word' (& $short ([string]$(if ($WordDocument -is [System.IO.FileInfo]) { $WordDocument.FullName } else { $WordDocument })))) }
+    if ($WordDocument) {
+        Write-Host (& $row 'Word' (& $short ([string]$(if ($WordDocument -is [System.IO.FileInfo]) { $WordDocument.FullName } else { $WordDocument }))))
+    }
 
     if ($SiteBundle) {
         $site = & $readJson (Join-Path $SiteBundle 'site.json')

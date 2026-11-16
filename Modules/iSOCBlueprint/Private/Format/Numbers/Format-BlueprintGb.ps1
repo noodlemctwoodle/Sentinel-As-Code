@@ -2,7 +2,8 @@
 
 <#
 .SYNOPSIS
-    A volume in GB as the dashboard writes it: two decimal places with thousands separators (56,941.81), <0.01 for a volume too small to show, 0.00 for none. The caller adds ' GB'.
+    A volume in GB as the dashboard writes it: two decimal places with thousands separators
+    (56,941.81), <0.01 for a volume too small to show, 0.00 for none. The caller adds ' GB'.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Format/Numbers/Format-BlueprintGb.ps1
@@ -10,7 +11,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Blueprint text formatting
     Requires:     PowerShell 7.6+

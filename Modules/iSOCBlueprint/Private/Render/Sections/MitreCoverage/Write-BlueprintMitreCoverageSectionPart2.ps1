@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -227,7 +227,13 @@ $(Format-BlueprintTable -Items $msIncidentRows -Columns 'Name','Product','Severi
             [pscustomobject]@{
                 'Rule'           = $_.Name
                 'Status'         = $(if ($_.Enabled) { 'Enabled' } else { 'Disabled' })
-                'Tactics'        = $(if ($_.Tactics.Count) { ($_.Tactics | ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { Format-TacticName ([string]$_) } }) -join ', ' } else { 'None' })
+                'Tactics'        = $(
+                    if ($_.Tactics.Count) {
+                        ($_.Tactics |
+                            ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { Format-TacticName ([string]$_) } }) -join
+                            ', '
+                    } else { 'None' }
+                )
                 'Techniques'     = $(if ($_.Techniques.Count) { $_.Techniques -join ', ' } else { 'None' })
                 'Sub-techniques' = $(if ($_.SubTechniques.Count) { $_.SubTechniques -join ', ' } else { 'None' })
             }

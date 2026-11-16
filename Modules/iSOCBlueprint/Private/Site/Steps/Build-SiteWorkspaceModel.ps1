@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -59,16 +59,23 @@ function Build-SiteWorkspaceModel {
     $wsProps = if ($wsRaw) { $wsRaw.properties } else { $null }
 
     # ---- Headline / workspace ----
-    $generatedUtc = if ($runCtx -and $runCtx.StartedAtUtc) { ([datetime]$runCtx.StartedAtUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC' } else { '' }
+    $generatedUtc = if ($runCtx -and $runCtx.StartedAtUtc) {
+        ([datetime]$runCtx.StartedAtUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC'
+    } else { '' }
     $workspace = [ordered]@{
         name            = $WorkspaceName
         id              = if ($wsProps) { $wsProps.customerId } else { '' }
         region          = if ($wsRaw) { $wsRaw.location } else { '' }
         sku             = if ($wsProps -and $wsProps.sku) { $wsProps.sku.name } else { '' }
         # The commitment tier's GB a day, on a CapacityReservation workspace.
-        skuCapacity     = if ($wsProps -and $wsProps.sku -and $wsProps.sku.PSObject.Properties['capacityReservationLevel'] -and $wsProps.sku.capacityReservationLevel) { [int]$wsProps.sku.capacityReservationLevel } else { 0 }
+        skuCapacity     = if ($wsProps -and $wsProps.sku -and $wsProps.sku.PSObject.Properties['capacityReservationLevel'] -and
+                $wsProps.sku.capacityReservationLevel) {
+            [int]$wsProps.sku.capacityReservationLevel
+        } else { 0 }
         retentionDays   = if ($wsProps) { [int]$wsProps.retentionInDays } else { 0 }
-        dailyCap        = if ($wsProps -and $wsProps.workspaceCapping -and $wsProps.workspaceCapping.dailyQuotaGb -ge 0) { "$($wsProps.workspaceCapping.dailyQuotaGb) GB" } else { 'Unlimited' }
+        dailyCap        = if ($wsProps -and $wsProps.workspaceCapping -and $wsProps.workspaceCapping.dailyQuotaGb -ge 0) {
+            "$($wsProps.workspaceCapping.dailyQuotaGb) GB"
+        } else { 'Unlimited' }
         pnaIngestion    = if ($wsProps) { $wsProps.publicNetworkAccessForIngestion } else { '' }
         pnaQuery        = if ($wsProps) { $wsProps.publicNetworkAccessForQuery } else { '' }
         subscriptionId  = if ($runCtx) { $runCtx.SubscriptionId } else { '' }
@@ -107,15 +114,29 @@ function Build-SiteWorkspaceModel {
         }
         if ($cost.ByPlan) {
             foreach ($p in $cost.ByPlan.PSObject.Properties) {
-                $costModel.byPlan += [ordered]@{ plan = $p.Name; gb30d = [math]::Round([double]$p.Value.Gb30d, 2); cost = [math]::Round([double]$p.Value.MonthlyCost, 2) }
+                $costModel.byPlan += [ordered]@{
+                    plan = $p.Name
+                    gb30d = [math]::Round([double]$p.Value.Gb30d, 2)
+                    cost = [math]::Round([double]$p.Value.MonthlyCost, 2)
+                }
             }
         }
         foreach ($t in @($cost.Top10TablesByCost | Where-Object { $_ })) {
-            $costModel.topTables += [ordered]@{ table = $t.Table; plan = $t.Plan; gb30d = [math]::Round([double]$t.Gb30d, 2); cost = [math]::Round([double]$t.MonthlyCost, 2) }
+            $costModel.topTables += [ordered]@{
+                table = $t.Table
+                plan = $t.Plan
+                gb30d = [math]::Round([double]$t.Gb30d, 2)
+                cost = [math]::Round([double]$t.MonthlyCost, 2)
+            }
         }
         if ($cost.PSObject.Properties['AllTablesByCost']) {
             foreach ($t in @($cost.AllTablesByCost | Where-Object { $_ -and [double]$_.Gb30d -gt 0 } | Sort-Object { [double]$_.Gb30d } -Descending)) {
-                $costModel.allTables += [ordered]@{ table = $t.Table; plan = $t.Plan; gb30d = [math]::Round([double]$t.Gb30d, 2); cost = [math]::Round([double]$t.MonthlyCost, 2) }
+                $costModel.allTables += [ordered]@{
+                    table = $t.Table
+                    plan = $t.Plan
+                    gb30d = [math]::Round([double]$t.Gb30d, 2)
+                    cost = [math]::Round([double]$t.MonthlyCost, 2)
+                }
             }
         }
     }

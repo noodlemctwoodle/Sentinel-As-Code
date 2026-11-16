@@ -56,7 +56,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.7.3
+    Version:      0.7.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -196,7 +196,10 @@ function New-InventoryFromRaw {
     if ($runContext -and $runContext.PSObject.Properties['StartedAtUtc'] -and $runContext.StartedAtUtc) {
         $parsed = [datetime]::MinValue
         if ($runContext.StartedAtUtc -is [datetime]) { $asOf = $runContext.StartedAtUtc.ToUniversalTime() }
-        elseif ([datetime]::TryParse([string]$runContext.StartedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) { $asOf = $parsed }
+        elseif ([datetime]::TryParse([string]$runContext.StartedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+            $asOf = $parsed
+        }
     }
 
     [pscustomobject]@{

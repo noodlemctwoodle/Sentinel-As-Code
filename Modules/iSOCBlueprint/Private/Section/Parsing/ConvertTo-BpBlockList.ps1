@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
 
@@ -109,7 +109,10 @@ function ConvertTo-BpBlockList {
                 if ($visual.Success) {
                     $data = $null
                     try { $data = $visual.Groups['json'].Value | ConvertFrom-Json -ErrorAction Stop } catch { $data = $null }
-                    if ($null -ne $data) { $Context.content = $true; [ordered]@{ type = 'chart'; kind = $visual.Groups['kind'].Value; title = $null; data = $data; source = '' } }
+                    if ($null -ne $data) {
+                        $Context.content = $true
+                        [ordered]@{ type = 'chart'; kind = $visual.Groups['kind'].Value; title = $null; data = $data; source = '' }
+                    }
                     break
                 }
                 $Context.content = $true

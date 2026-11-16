@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -115,8 +115,15 @@ function Write-BlueprintContentHubSection {
             [ordered]@{ label = 'Not in catalogue'; value = (& $cpStatusCount 'Not in catalogue'); tone = 'rose' }
             [ordered]@{ label = 'Not checked'; value = (& $cpStatusCount ''); tone = 'neutral' }
         ) }
-        [ordered]@{ title = 'By source'; caption = 'Who publishes each package'; total = $cpRows.Count; parts = @($sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
-            [ordered]@{ label = [string]$_.Key; value = [int]$_.Value; tone = $(if ($sourceTone.ContainsKey([string]$_.Key)) { $sourceTone[[string]$_.Key] } else { 'neutral' }) }
+        [ordered]@{ title = 'By source'
+        caption = 'Who publishes each package'
+        total = $cpRows.Count
+        parts = @($sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
+            [ordered]@{
+                label = [string]$_.Key
+                value = [int]$_.Value
+                tone = $(if ($sourceTone.ContainsKey([string]$_.Key)) { $sourceTone[[string]$_.Key] } else { 'neutral' })
+            }
         }) }
     ) })
 

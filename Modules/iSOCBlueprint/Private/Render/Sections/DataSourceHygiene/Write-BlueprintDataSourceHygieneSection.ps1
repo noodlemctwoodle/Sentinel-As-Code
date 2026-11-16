@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -50,13 +50,28 @@ function Write-BlueprintDataSourceHygieneSection {
         [pscustomobject]@{ DeviceVendor = $_.DeviceVendor; DeviceProduct = $_.DeviceProduct; LogCount = Format-BlueprintCount $_.LogCount }
     }
     $cefSyslogRows = $cefInSyslog | ForEach-Object {
-        [pscustomobject]@{ Computer = $_.Computer; ProductVendor = Get-BlueprintRawProperty $_ 'ProductVendor' ''; LogCount = Format-BlueprintCount $_.LogCount }
+        [pscustomobject]@{
+            Computer = $_.Computer
+            ProductVendor = Get-BlueprintRawProperty $_ 'ProductVendor' ''
+            LogCount = Format-BlueprintCount $_.LogCount
+        }
     }
     $secEvtDupeRows = $secEvtDupes | ForEach-Object {
-        [pscustomobject]@{ Computer = $_.Computer; DuplicateRecords = Format-BlueprintCount (Get-BlueprintRawProperty $_ 'DuplicateRecords' ''); Copies = Format-BlueprintCount $_.LogCount; DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ') }
+        [pscustomobject]@{
+            Computer = $_.Computer
+            DuplicateRecords = Format-BlueprintCount (Get-BlueprintRawProperty $_ 'DuplicateRecords' '')
+            Copies = Format-BlueprintCount $_.LogCount
+            DuplicateEventIds = (@($_.DuplicateEventIds) -join ', ')
+        }
     }
     $topEventIdRows = $topEventIds | ForEach-Object {
-        [pscustomobject]@{ TableName = $_.TableName; EventID = $_.EventID; EventDescription = $_.EventDescription; LogCount = Format-BlueprintCount (Get-BlueprintRawProperty $_ 'LogCount' ''); BilledSizeGB = $_.BilledSizeGB }
+        [pscustomobject]@{
+            TableName = $_.TableName
+            EventID = $_.EventID
+            EventDescription = $_.EventDescription
+            LogCount = Format-BlueprintCount (Get-BlueprintRawProperty $_ 'LogCount' '')
+            BilledSizeGB = $_.BilledSizeGB
+        }
     }
 
     # Aggregate CEF logs by DeviceVendor for the headline pie.
@@ -83,7 +98,12 @@ A single vendor dominating means CEF ingestion is mostly that source, likely a c
 
     # Log composition by host: who writes Syslog (by facility) and SecurityEvent.
     $syslogContribRows = @(Read-BlueprintRawArray 'syslog-contributors.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{ Computer = $_.Computer; Facility = $_.Facility; LogCount = Format-BlueprintCount $_.LogCount; SizeMB = Format-BlueprintNumber $_.SizeMB }
+        [pscustomobject]@{
+            Computer = $_.Computer
+            Facility = $_.Facility
+            LogCount = Format-BlueprintCount $_.LogCount
+            SizeMB = Format-BlueprintNumber $_.SizeMB
+        }
     })
     $secEventHostRows = @(Read-BlueprintRawArray 'securityevent-top-hosts.json' | Where-Object { $_ } | ForEach-Object {
         [pscustomobject]@{ Computer = $_.Computer; LogCount = Format-BlueprintCount $_.LogCount; SizeMB = Format-BlueprintNumber $_.SizeMB }

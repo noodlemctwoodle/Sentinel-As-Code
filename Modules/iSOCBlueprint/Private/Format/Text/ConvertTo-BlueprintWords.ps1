@@ -2,7 +2,10 @@
 
 <#
 .SYNOPSIS
-    A CamelCase API value in words, first word capitalised: CredentialAccess reads Credential access, BenignPositive reads Benign positive, CommandAndControl reads Command and control. An acronym keeps its capitals (IPAddress reads IP address); a value with spaces, punctuation or in one word is returned as given.
+    A CamelCase API value in words, first word capitalised: CredentialAccess reads Credential
+    access, BenignPositive reads Benign positive, CommandAndControl reads Command and control.
+    An acronym keeps its capitals (IPAddress reads IP address); a value with spaces, punctuation
+    or in one word is returned as given.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Format/Text/ConvertTo-BlueprintWords.ps1
@@ -10,7 +13,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Blueprint text formatting
     Requires:     PowerShell 7.6+

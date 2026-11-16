@@ -5,7 +5,7 @@
     Gap check SAC-PLT-02: CLv1 (HTTP Data Collector API) custom log tables still in use
 
 .DESCRIPTION
-    Gap check for rule SAC-PLT-02 (Resources/best-practices.json). Takes the inventory
+    Gap check for rule SAC-PLT-02 (Resources/Data/best-practices.json). Takes the inventory
     built by Get-SentinelGap and returns $null when the rule passes, or a finding
     with Evidence and Detail when it fires.
 
@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 

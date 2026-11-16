@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
@@ -54,7 +54,8 @@ function Initialize-SacSiteStructure {
     foreach ($name in $script:SacFindingFields.Keys) {
         if (Get-PnPField -List $script:SacFindingsListUrl -Identity $name -ErrorAction SilentlyContinue) { continue }
         if ($PSCmdlet.ShouldProcess("$script:SacFindingsListUrl/$name", 'Add column')) {
-            Add-PnPField -List $script:SacFindingsListUrl -DisplayName $name -InternalName $name -Type $script:SacFindingFields[$name] -AddToDefaultView | Out-Null
+            Add-PnPField -List $script:SacFindingsListUrl -DisplayName $name -InternalName $name -Type $script:SacFindingFields[$name] -AddToDefaultView |
+                Out-Null
             if ($name -eq 'FindingId') {
                 Set-PnPField -List $script:SacFindingsListUrl -Identity $name -Values @{ Indexed = $true } | Out-Null
             }

@@ -19,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -104,7 +104,7 @@ Describe 'The bookmarks capture when the list is refused as too large' {
         $script:capture | Should -Match 'none has been created or changed \$period \(the HuntingBookmark table, which logs every change, holds none\)\. Kept the count\.'
         $script:capture | Should -Match '"in the last \$keeps days"'
         $script:capture | Should -Match 'the HuntingBookmark table could not be read: '
-        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{ Label = ''bookmarks''')).Count | Should -Be 2
+        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{\s+Label = ''bookmarks''')).Count | Should -Be 2
         $script:capture.IndexOf('Write-CaptureNote -Kind NotAvailable') | Should -BeLessThan $script:capture.IndexOf("Save-Json -FileName 'bookmarks-count.json'")
     }
 }

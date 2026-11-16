@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running.
@@ -54,7 +54,10 @@ function Get-HuntingActivityTime {
         if (-not $p -or -not $p.Value) { continue }
         $t = [datetime]::MinValue
         if ($p.Value -is [datetime]) { $t = $p.Value.ToUniversalTime() }
-        elseif (-not [datetime]::TryParse([string]$p.Value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$t)) { continue }
+        elseif (-not [datetime]::TryParse([string]$p.Value, [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$t)) {
+            continue
+        }
         if ($null -eq $latest -or $t -gt $latest) { $latest = $t }
     }
     $latest
@@ -117,7 +120,9 @@ function Get-HuntingActivity {
         }
         if ($recent -eq 0 -and $undated -gt 0) { $null } else { $recent }
     }
-    $bookmarkTime = { param($b) Get-HuntingActivityTime -Object $(if ($b.PSObject.Properties['properties']) { $b.properties } else { $b }) -Names 'created', 'updated' }
+    $bookmarkTime = {
+        param($b) Get-HuntingActivityTime -Object $(if ($b.PSObject.Properties['properties']) { $b.properties } else { $b }) -Names 'created', 'updated'
+    }
 
     $bookmarkTotal = $null
     $bookmarkRecent = $null
@@ -132,7 +137,9 @@ function Get-HuntingActivity {
             # The table logs every change for its retention, so nothing
             # recent in it means nothing changed, if it keeps the window.
             $table = @($WorkspaceTables | Where-Object { $_ -and [string]$_.name -eq 'HuntingBookmark' }) | Select-Object -First 1
-            $keeps = if ($table -and $table.PSObject.Properties['properties'] -and $table.properties.PSObject.Properties['retentionInDays']) { [int]$table.properties.retentionInDays } else { 0 }
+            $keeps = if ($table -and $table.PSObject.Properties['properties'] -and $table.properties.PSObject.Properties['retentionInDays']) {
+                [int]$table.properties.retentionInDays
+            } else { 0 }
             $bookmarkRecent = if ($fromLogs -gt 0) { $fromLogs } elseif ($fromLogs -eq 0 -and $keeps -ge $WindowDays) { 0 } else { $null }
         }
     }
@@ -141,7 +148,11 @@ function Get-HuntingActivity {
     $huntRecent = $null
     if ($null -ne $Hunts) {
         $huntTotal = @($Hunts | Where-Object { $_ }).Count
-        $huntRecent = & $recentOf $Hunts { param($h) Get-HuntingActivityTime -Object $(if ($h.PSObject.Properties['systemData']) { $h.systemData } else { $null }) -Names 'createdAt', 'lastModifiedAt' }
+        $huntRecent = & $recentOf $Hunts {
+            param($h) Get-HuntingActivityTime -Object $(
+                if ($h.PSObject.Properties['systemData']) { $h.systemData } else { $null }
+            ) -Names 'createdAt', 'lastModifiedAt'
+        }
     }
 
     [pscustomobject]@{

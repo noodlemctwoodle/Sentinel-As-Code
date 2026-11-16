@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
 
@@ -100,7 +100,9 @@ function New-MaturityMetrics {
             foreach ($t in @(Get-MaturityPropertyValue $r 'properties.tactics' @())) { if ($t) { [void]$covered.Add([string]$t) } }
         }
         if ($null -ne $mitre -and (Get-MaturityPropertyValue $mitre 'tactics')) {
-            $tacticsCovered = @((Get-MaturityPropertyValue $mitre 'tactics') | Where-Object { $covered.Contains([string](Get-MaturityPropertyValue $_ 'sentinelShortName' '')) }).Count
+            $tacticsCovered = @(
+                (Get-MaturityPropertyValue $mitre 'tactics') | Where-Object { $covered.Contains([string](Get-MaturityPropertyValue $_ 'sentinelShortName' '')) }
+            ).Count
         } else {
             $tacticsCovered = $covered.Count
         }
@@ -120,13 +122,17 @@ function New-MaturityMetrics {
         $billableGb30d = [math]::Round((Get-RowSum $tables 'BillableLast30d'), 2)
         $entraTablesPresent = @($tables | Where-Object {
             $name = [string](Get-MaturityPropertyValue $_ 'DataType' '')
-            $ingested7d = if (Test-MaturityProperty $_ 'IngestedLast7d') { Get-MaturityPropertyValue $_ 'IngestedLast7d' 0 } else { Get-MaturityPropertyValue $_ 'BillableLast7d' 0 }
+            $ingested7d = if (Test-MaturityProperty $_ 'IngestedLast7d') {
+                Get-MaturityPropertyValue $_ 'IngestedLast7d' 0
+            } else { Get-MaturityPropertyValue $_ 'BillableLast7d' 0 }
             ((Get-TableFamily -Table $name) -eq 'Entra ID / Identity') -and ((ConvertTo-MaturityNumber $ingested7d) -gt 0)
         }).Count
     }
 
     $xdr = Read-Rows 'xdr-table-presence.json'
-    $xdrTablesPresent = if ($null -eq $xdr) { $null } else { @($xdr | Where-Object { (ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'RecordCount' 0)) -gt 0 }).Count }
+    $xdrTablesPresent = if ($null -eq $xdr) {
+        $null
+    } else { @($xdr | Where-Object { (ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'RecordCount' 0)) -gt 0 }).Count }
 
     $entityAnalyticsEnabled = $null
     if ($null -ne $settings) {
@@ -176,7 +182,9 @@ function New-MaturityMetrics {
             $total = ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.totalRetentionInDays' 0)
             ($plan -in @('DataLake', 'Auxiliary')) -or ($total -gt $interactive)
         }).Count
-        $default = if ($null -ne $workspace) { ConvertTo-MaturityNumber (Get-MaturityPropertyValue $workspace 'properties.retentionInDays' $null) } else { $null }
+        $default = if ($null -ne $workspace) {
+            ConvertTo-MaturityNumber (Get-MaturityPropertyValue $workspace 'properties.retentionInDays' $null)
+        } else { $null }
         $tablesWithCustomRetention = @($schema | Where-Object {
             if (Test-MaturityProperty (Get-MaturityPropertyValue $_ 'properties' $null) 'retentionInDaysAsDefault') {
                 -not [bool](Get-MaturityPropertyValue $_ 'properties.retentionInDaysAsDefault' $true)
@@ -193,7 +201,9 @@ function New-MaturityMetrics {
     $highPrivilegeAssignments = $null; $sentinelRoleAssignments = $null
     if ($null -ne $rbac) {
         $highPrivilegeAssignments = @($rbac | Where-Object { (Get-MaturityPropertyValue $_ 'RoleDefinitionName' '') -in @('Owner', 'Contributor') }).Count
-        $sentinelRoleAssignments  = @($rbac | Where-Object { ([string](Get-MaturityPropertyValue $_ 'RoleDefinitionName' '')) -like 'Microsoft Sentinel*' }).Count
+        $sentinelRoleAssignments  = @(
+            $rbac | Where-Object { ([string](Get-MaturityPropertyValue $_ 'RoleDefinitionName' '')) -like 'Microsoft Sentinel*' }
+        ).Count
     }
 
     # The bookmarks list is refused when too large; the collector then keeps
@@ -210,15 +220,24 @@ function New-MaturityMetrics {
     $activityRc = Read-Json 'run-context.json'
     $activityDays = 30
     $activityAsOf = [datetime]::UtcNow
-    if ($activityRc -and $activityRc.PSObject.Properties['LookbackDays'] -and [int]$activityRc.LookbackDays -ge 1) { $activityDays = [int]$activityRc.LookbackDays }
+    if ($activityRc -and $activityRc.PSObject.Properties['LookbackDays'] -and [int]$activityRc.LookbackDays -ge 1) {
+        $activityDays = [int]$activityRc.LookbackDays
+    }
     if ($activityRc -and $activityRc.PSObject.Properties['StartedAtUtc'] -and $activityRc.StartedAtUtc) {
         $parsedAsOf = [datetime]::MinValue
         if ($activityRc.StartedAtUtc -is [datetime]) { $activityAsOf = $activityRc.StartedAtUtc.ToUniversalTime() }
-        elseif ([datetime]::TryParse([string]$activityRc.StartedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsedAsOf)) { $activityAsOf = $parsedAsOf }
+        elseif ([datetime]::TryParse([string]$activityRc.StartedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsedAsOf)) {
+            $activityAsOf = $parsedAsOf
+        }
     }
-    $huntingActivity = Get-HuntingActivity -Bookmarks (Read-Rows 'bookmarks.json') -BookmarksCount (Read-Json 'bookmarks-count.json') -BookmarksFromLogs (Read-Rows 'bookmarks-from-logs.json') -Hunts (Read-Rows 'hunts.json') -WorkspaceTables $schema -WindowDays $activityDays -AsOf $activityAsOf
+    $huntingActivity = Get-HuntingActivity -Bookmarks (Read-Rows 'bookmarks.json') -BookmarksCount (Read-Json 'bookmarks-count.json') -BookmarksFromLogs `
+        (Read-Rows 'bookmarks-from-logs.json') -Hunts (Read-Rows 'hunts.json') -WorkspaceTables $schema -WindowDays $activityDays -AsOf $activityAsOf
 
-    $connectorFailures7d = Get-RowSum $health 'LogCount' { param($row) ((Get-MaturityPropertyValue $row 'Status' '') -eq 'Failure') -and (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector') }
+    $connectorFailures7d = Get-RowSum $health 'LogCount' {
+        param($row) ((Get-MaturityPropertyValue $row 'Status' '') -eq 'Failure') -and
+            (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector')
+    }
     $sentinelHealthRows7d = Get-RowSum $health 'LogCount'
     $laQueryLogs7d = Get-RowSum (Read-Rows 'la-query-logs.json') 'QueryCount'
 

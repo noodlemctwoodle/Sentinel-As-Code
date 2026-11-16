@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -105,7 +105,11 @@ function Build-SiteDaily {
             $byTable[$n][$k] = @($k, [math]::Round($prev + (ConvertTo-BuildNumber $r.GB), 4))
         }
         foreach ($n in $byTable.Keys) {
-            $plan = if ($planByTable.ContainsKey($n)) { $planByTable[$n] } elseif ($wsTableByName.ContainsKey($n) -and $wsTableByName[$n].properties -and $wsTableByName[$n].properties.PSObject.Properties['plan']) { [string]$wsTableByName[$n].properties.plan } else { 'Analytics' }
+            $plan = if ($planByTable.ContainsKey($n)) {
+                $planByTable[$n]
+            } elseif ($wsTableByName.ContainsKey($n) -and $wsTableByName[$n].properties -and $wsTableByName[$n].properties.PSObject.Properties['plan']) {
+                [string]$wsTableByName[$n].properties.plan
+            } else { 'Analytics' }
             $dTables.Add([ordered]@{
                 t = $n; f = (Get-TableFamily $n); plan = $plan; pl = (Get-FlowPlanLabel -Table $n -Plan $plan)
                 u = $(if ($unitByTable.ContainsKey($n)) { [math]::Round($unitByTable[$n], 6) } else { 0 })
@@ -126,7 +130,9 @@ function Build-SiteDaily {
             $key = @([string]$r.AlertName, $prod, [string]$r.AlertSeverity, [string]$r.ProviderName, (& $ruleIdKey $r.AlertRuleId)) -join "`u{1f}"
             if (-not $byAlert.Contains($key)) {
                 $byAlert[$key] = [ordered]@{ n = [string]$r.AlertName; p = $prod; s = [string]$r.AlertSeverity; pv = [string]$r.ProviderName
-                    pf = $(if ($prod -and $prod -notmatch 'Sentinel') { Get-ProductFamily -Product $prod } else { '' }); r = (& $ruleIdKey $r.AlertRuleId); days = @{} }
+                    pf = $(if ($prod -and $prod -notmatch 'Sentinel') { Get-ProductFamily -Product $prod } else { '' })
+                    r = (& $ruleIdKey $r.AlertRuleId)
+                    days = @{} }
             }
             $prev = if ($byAlert[$key].days.ContainsKey($k)) { [long]$byAlert[$key].days[$k][1] } else { 0 }
             $byAlert[$key].days[$k] = @($k, ($prev + [long](ConvertTo-BuildNumber $r.Alerts)))
@@ -139,8 +145,13 @@ function Build-SiteDaily {
         foreach ($r in @($dailyIncRaw | Where-Object { $_ })) {
             $k = & $dayOf $r; if (-not (& $inSpan $k)) { continue }
             $key = @([string]$r.Severity, [string]$r.Status, [string]$r.Class, [string]$r.ClosedBy) -join "`u{1f}"
-            if (-not $byInc.Contains($key)) { $byInc[$key] = [ordered]@{ sev = [string]$r.Severity; st = [string]$r.Status; c = [string]$r.Class; by = [string]$r.ClosedBy; days = @{} } }
-            $v = @([long](ConvertTo-BuildNumber $r.Incidents), [long](ConvertTo-BuildNumber $r.AckCount), [double](ConvertTo-BuildNumber $r.AckSum), [long](ConvertTo-BuildNumber $r.RsvCount), [double](ConvertTo-BuildNumber $r.RsvSum))
+            if (-not $byInc.Contains($key)) {
+                $byInc[$key] = [ordered]@{ sev = [string]$r.Severity; st = [string]$r.Status; c = [string]$r.Class; by = [string]$r.ClosedBy; days = @{} }
+            }
+            $v = @(
+                [long](ConvertTo-BuildNumber $r.Incidents), [long](ConvertTo-BuildNumber $r.AckCount), [double](ConvertTo-BuildNumber $r.AckSum),
+                    [long](ConvertTo-BuildNumber $r.RsvCount), [double](ConvertTo-BuildNumber $r.RsvSum)
+            )
             if ($byInc[$key].days.ContainsKey($k)) { $o = $byInc[$key].days[$k]; for ($i = 0; $i -lt 5; $i++) { $o[$i + 1] += $v[$i] } }
             else { $byInc[$key].days[$k] = @($k) + $v }
         }
@@ -163,10 +174,21 @@ function Build-SiteDaily {
             $alertName = [string]$r.RuleName
             $key = if ($id) { $id } else { $alertName }
             if (-not $byRule.Contains($key)) {
-                $src = if ($id) { 'Analytics rule' } elseif ([string]$r.Product) { [string]$r.Product } elseif ([string]$r.Provider) { [string]$r.Provider } else { 'Other' }
-                $byRule[$key] = [ordered]@{ id = $id; an = $alertName; n = $(if ($id -and $ruleNameById.ContainsKey($id)) { $ruleNameById[$id] } else { $alertName }); src = $src; days = @{} }
+                $src = if ($id) {
+                    'Analytics rule'
+                } elseif ([string]$r.Product) { [string]$r.Product } elseif ([string]$r.Provider) { [string]$r.Provider } else { 'Other' }
+                $byRule[$key] = [ordered]@{
+                    id = $id
+                    an = $alertName
+                    n = $(if ($id -and $ruleNameById.ContainsKey($id)) { $ruleNameById[$id] } else { $alertName })
+                    src = $src
+                    days = @{}
+                }
             }
-            $v = @('Incidents', 'Closed', 'TruePositive', 'FalsePositive', 'BenignPositive', 'Undetermined' | ForEach-Object { [long](ConvertTo-BuildNumber $r.$_) })
+            $v = @(
+                'Incidents', 'Closed', 'TruePositive', 'FalsePositive', 'BenignPositive', 'Undetermined' |
+                    ForEach-Object { [long](ConvertTo-BuildNumber $r.$_) }
+            )
             if ($byRule[$key].days.ContainsKey($k)) { $o = $byRule[$key].days[$k]; for ($i = 0; $i -lt 6; $i++) { $o[$i + 1] += $v[$i] } }
             else { $byRule[$key].days[$k] = @($k) + $v }
         }
@@ -201,7 +223,9 @@ function Build-SiteDaily {
 
         $daily = [ordered]@{
             span      = $dailyDays
-            asOf      = $(if ($runCtx -and $runCtx.StartedAtUtc) { ([datetime]$runCtx.StartedAtUtc).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') } else { '' })
+            asOf      = $(
+                if ($runCtx -and $runCtx.StartedAtUtc) { ([datetime]$runCtx.StartedAtUtc).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') } else { '' }
+            )
             costed    = $costed
             rulesQueryEnabled = $rulesQueryEnabled
             queryRules = @($queryRuleKeys.Keys | Sort-Object)

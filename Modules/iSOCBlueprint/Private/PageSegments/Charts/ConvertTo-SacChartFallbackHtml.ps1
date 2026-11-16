@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
 
@@ -40,8 +40,12 @@ function ConvertTo-SacChartFallbackHtml {
         'sankey' { foreach ($l in @($Chart.data.links)) { , @("$($l.source) to $($l.target)", [string]$l.value) } }
         'incident-lifecycle' {
             $d = $Chart.data
-            foreach ($f in @(@('Raised', 'raised'), @('New', 'new'), @('Active', 'active'), @('Closed', 'closed'), @('Closed without acknowledgement', 'unacknowledged'))) {
-                $v = if ($d -is [System.Collections.IDictionary]) { $d[$f[1]] } elseif ($d -and $d.PSObject.Properties[$f[1]]) { $d.PSObject.Properties[$f[1]].Value } else { $null }
+            foreach ($f in @(
+                @('Raised', 'raised'), @('New', 'new'), @('Active', 'active'), @('Closed', 'closed'), @('Closed without acknowledgement', 'unacknowledged')
+            )) {
+                $v = if ($d -is [System.Collections.IDictionary]) {
+                    $d[$f[1]]
+                } elseif ($d -and $d.PSObject.Properties[$f[1]]) { $d.PSObject.Properties[$f[1]].Value } else { $null }
                 if ($null -ne $v) { , @($f[0], [string]$v) }
             }
         }

@@ -63,8 +63,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.1
-    Last Updated: 2026-11-09
+    Version:      0.1.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -138,7 +138,9 @@ function Get-EffectiveConnectors {
                 $last24h = if (Get-Command Format-Gb -ErrorAction SilentlyContinue) { Format-Gb $r.BillableLast24h } else { [string]$r.BillableLast24h }
             }
             if ($r.LastIngested) {
-                $lastIngested = if (Get-Command Format-DateUtc -ErrorAction SilentlyContinue) { Format-DateUtc $r.LastIngested } else { [string]$r.LastIngested }
+                $lastIngested = if (Get-Command Format-DateUtc -ErrorAction SilentlyContinue) {
+                    Format-DateUtc $r.LastIngested
+                } else { [string]$r.LastIngested }
             }
         }
         $rows.Add([pscustomobject]@{

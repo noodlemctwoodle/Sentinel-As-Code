@@ -17,7 +17,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.2.1
+    Version:      0.2.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -220,7 +220,9 @@ function Invoke-iSOCBlueprintRender {
 
     if ($script:WriteJson) {
         # sections/index.json: every section in reading order.
-        $ordered = @($script:SectionIndex | Sort-Object @{ Expression = { if ($null -eq $_.order) { [int]::MaxValue } else { $_.order } } }, @{ Expression = { $_.id } })
+        $ordered = @(
+            $script:SectionIndex | Sort-Object @{ Expression = { if ($null -eq $_.order) { [int]::MaxValue } else { $_.order } } }, @{ Expression = { $_.id } }
+        )
         [ordered]@{ schemaVersion = 1; meta = $script:SectionMeta; sections = $ordered } |
             ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $script:SectionsRoot 'index.json') -Encoding utf8
     }

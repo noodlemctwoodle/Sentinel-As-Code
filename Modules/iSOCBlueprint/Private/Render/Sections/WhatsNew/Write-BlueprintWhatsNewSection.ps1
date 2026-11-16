@@ -15,7 +15,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
@@ -73,11 +73,20 @@ function Write-BlueprintWhatsNewSection {
         $shown = $D
         $inv = [System.Globalization.CultureInfo]::InvariantCulture
         $parsed = [datetime]::MinValue
-        if ($D -match '^\d{4}-\d{2}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM-dd', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) { $shown = $parsed.ToString('d MMM yyyy', $inv) }
-        elseif ($D -match '^\d{4}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) { $shown = $parsed.ToString('MMM yyyy', $inv) }
+        if ($D -match '^\d{4}-\d{2}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM-dd', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+            $shown = $parsed.ToString('d MMM yyyy', $inv)
+        }
+        elseif ($D -match '^\d{4}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+            $shown = $parsed.ToString('MMM yyyy', $inv)
+        }
         if ($D.Length -le $wnToday.Length -and [string]::CompareOrdinal($D, $wnToday.Substring(0, $D.Length)) -lt 0) { "$shown (passed)" } else { $shown }
     }
-    $wnMonth = { param([string]$M) try { ([datetime]::ParseExact($M, 'yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)).ToString('MMM yyyy', [System.Globalization.CultureInfo]::InvariantCulture) } catch { $M } }
+    $wnMonth = {
+        param([string]$M) try {
+            ([datetime]::ParseExact($M, 'yyyy-MM', [System.Globalization.CultureInfo]::InvariantCulture)).ToString('MMM yyyy',
+                [System.Globalization.CultureInfo]::InvariantCulture)
+        } catch { $M }
+    }
     $wnRows = @($wnItems | ForEach-Object {
         $rel = Get-WhatsNewRelations -Item $_
         [pscustomobject]@{
@@ -94,16 +103,29 @@ function Write-BlueprintWhatsNewSection {
     })
     $wnStatusOrder = 'Action needed', 'Retiring', 'Generally available', 'Preview', 'Update'
     $wnCount = { param([string]$S, [string]$P) @($wnRows | Where-Object { $_.Status -eq $S -and (-not $P -or $_.Product -eq $P) }).Count }
-    $wnActionRows = @($wnRows | Where-Object { $_.Status -in 'Action needed', 'Retiring' } | Sort-Object @{ Expression = { if ($_.DeadlineKey) { $_.DeadlineKey } else { '9999' } } })
+    $wnActionRows = @(
+        $wnRows |
+            Where-Object { $_.Status -in 'Action needed', 'Retiring' } |
+            Sort-Object @{ Expression = { if ($_.DeadlineKey) { $_.DeadlineKey } else { '9999' } } }
+    )
     $wnGapCount = @($wnRows | Where-Object Gap).Count
     $wnTone = @{ 'Action needed' = 'warn'; 'Retiring' = 'bad'; 'Generally available' = 'ok'; 'Preview' = 'info'; 'Update' = 'neutral' }
     $wnVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{
         meters = @(foreach ($p in 'Microsoft Sentinel', 'Microsoft Defender XDR') {
-            [ordered]@{ title = $p; caption = "Items in the last $(if ($whatsNew) { $whatsNew.Months } else { 12 }) months"; total = @($wnRows | Where-Object Product -EQ $p).Count; parts = @(foreach ($s in $wnStatusOrder) { [ordered]@{ label = $s; value = (& $wnCount $s $p); tone = $wnTone[$s] } }) }
+            [ordered]@{
+                title = $p
+                caption = "Items in the last $(if ($whatsNew) { $whatsNew.Months } else { 12 }) months"
+                total = @($wnRows | Where-Object Product -EQ $p).Count
+                parts = @(foreach ($s in $wnStatusOrder) { [ordered]@{ label = $s; value = (& $wnCount $s $p); tone = $wnTone[$s] } })
+            }
         })
         figures = @(
             [ordered]@{ label = 'Retiring or needing action'; value = $wnActionRows.Count; caption = 'Listed first below, soonest deadline first' }
-            [ordered]@{ label = 'Touching a criterion not met here'; value = $wnGapCount; caption = 'A linked maturity criterion is a gap or unknown on this workspace' }
+            [ordered]@{
+                label = 'Touching a criterion not met here'
+                value = $wnGapCount
+                caption = 'A linked maturity criterion is a gap or unknown on this workspace'
+            }
         )
     })
     $wnSources = @(if ($whatsNew -and $whatsNew.PSObject.Properties['Sources']) { @($whatsNew.Sources) })

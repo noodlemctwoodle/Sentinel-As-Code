@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -93,14 +93,24 @@ $($tierPieRows -join [Environment]::NewLine)
         $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
         $last = if ($use) { Get-BlueprintRawProperty $use 'LastIngested' } else { $null }
         $lastDt = $null
-        if ($last) { $parsed = [datetime]::MinValue; if ([datetime]::TryParse([string]$last, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) { $lastDt = $parsed } }
+        if ($last) {
+            $parsed = [datetime]::MinValue
+            if ([datetime]::TryParse([string]$last, [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) {
+                $lastDt = $parsed
+            }
+        }
         $days = if ($lastDt) { [math]::Round(($nowUtc88 - $lastDt).TotalDays, 1) } else { $null }
         [pscustomobject]@{
             Table = $name; Plan = $_.Plan; LakeOnlyDays = $_.LakeOnlyDays
             Gb90d = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
             LastIngested = Format-DateUtc $last
             DaysSince = $(if ($null -ne $days) { Format-BlueprintNumber $days -Decimals 1 } else { 'n/a' })
-            Validation = $(if ($null -eq $days) { 'Check: no data in {lookback}' } elseif ($days -gt 7) { "Check: last record $(Format-BlueprintNumber $days -Decimals 1) days ago" } else { 'OK: ingesting' })
+            Validation = $(
+                if ($null -eq $days) {
+                    'Check: no data in {lookback}'
+                } elseif ($days -gt 7) { "Check: last record $(Format-BlueprintNumber $days -Decimals 1) days ago" } else { 'OK: ingesting' }
+            )
         }
     } | Sort-Object @{ Expression = { $_.Validation -like 'OK*' } }, @{ Expression = 'Gb90d'; Descending = $true })
 
@@ -202,14 +212,19 @@ _No tables currently route to the Lake-only tier on this workspace._ When Lake i
     # retention: enabled rules reading the table, summary rules whose query
     # names it, search or restore output tables derived from it, and audited
     # queries from table-query-usage.json when the collector captured it.
-    $summaryRuleQueries = @($summaryRules | Where-Object { $_ } | ForEach-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'query' '') })
+    $summaryRuleQueries = @(
+        $summaryRules | Where-Object { $_ } | ForEach-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'query' '') }
+    )
     $derivedSources = @{}
     foreach ($t in $workspaceTables) {
         $n = [string](Get-BlueprintRawProperty $t 'name' '')
         if ($n -match '^(.+?)_(SRCH|RST|KQL_CL)$') { $derivedSources[$matches[1]] = $true }
     }
     $tableQueryUsage = @{}
-    foreach ($row in @(Read-BlueprintRawArray 'table-query-usage.json' | Where-Object { $_ })) { $tn = [string](Get-BlueprintRawProperty $row 'Table' ''); if ($tn) { $tableQueryUsage[$tn] = $row } }
+    foreach ($row in @(Read-BlueprintRawArray 'table-query-usage.json' | Where-Object { $_ })) {
+        $tn = [string](Get-BlueprintRawProperty $row 'Table' '')
+        if ($tn) { $tableQueryUsage[$tn] = $row }
+    }
     $queryUsageCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'table-query-usage.json')
     $lakeUsageRows = @($retentionRows | ForEach-Object {
         $name = [string]$_.Table
@@ -229,13 +244,20 @@ _No tables currently route to the Lake-only tier on this workspace._ When Lake i
         }
     } | Sort-Object -Property @{ Expression = { $_.Verdict -eq 'In use' } }, @{ Expression = 'Gb90d'; Descending = $true })
     $noExtensionRows = @($operationalTables | Where-Object {
-        $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'plan') -eq 'Analytics' -and (Get-TableTier -Table $_ -LakeEnrolled $hasDataLake) -eq 'MirroredOnly'
+        $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'plan') -eq 'Analytics' -and
+            (Get-TableTier -Table $_ -LakeEnrolled $hasDataLake) -eq 'MirroredOnly'
     } | ForEach-Object {
         $name = [string]$_.name
         $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
         $gb = if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 }
         if ($gb -le 0) { return }
-        [pscustomobject]@{ Table = $name; AnalyticsDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'retentionInDays' ''; TotalDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'totalRetentionInDays' ''; Gb90d = $gb; Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }) }
+        [pscustomobject]@{
+            Table = $name
+            AnalyticsDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'retentionInDays' ''
+            TotalDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'totalRetentionInDays' ''
+            Gb90d = $gb
+            Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 })
+        }
     } | Sort-Object -Property Gb90d -Descending)
     $lakeUsageBlock = if (-not $hasDataLake) { '' } else { @"
 

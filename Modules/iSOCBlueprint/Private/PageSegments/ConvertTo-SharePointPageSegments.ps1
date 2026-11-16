@@ -41,8 +41,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
 
@@ -118,7 +118,9 @@ function ConvertTo-SharePointPageSegments {
             continue
         }
         if ([string]$b.type -eq 'heading' -and [int]$b.level -le 2) { & $flush }
-        [void]$buffer.Append((ConvertTo-SacBlocksHtml -Blocks @($b) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings -Tables $tables -Heading $lastHeading))
+        [void]$buffer.Append((ConvertTo-SacBlocksHtml -Blocks @(
+            $b
+        ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings -Tables $tables -Heading $lastHeading))
     }
     & $flush
 

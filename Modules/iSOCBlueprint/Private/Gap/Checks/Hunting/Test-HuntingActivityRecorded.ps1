@@ -5,7 +5,7 @@
     Gap check SAC-HNT-01: No hunting activity recorded
 
 .DESCRIPTION
-    Gap check for rule SAC-HNT-01 (Resources/best-practices.json). Takes the inventory
+    Gap check for rule SAC-HNT-01 (Resources/Data/best-practices.json). Takes the inventory
     built by Get-SentinelGap and returns $null when the rule passes, or a finding
     with Evidence and Detail when it fires.
 
@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -40,7 +40,10 @@ function Test-HuntingActivityRecorded {
         $bookmarkCount = ConvertTo-GapInt (Get-PropOrDefault $Inventory.BookmarksCount 'Count' 0)
     }
     if (@($Inventory.Hunts).Count -eq 0 -and $bookmarkCount -eq 0) {
-        return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{ Hunts = 0; Bookmarks = 0 }
+        return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{
+            Hunts = 0
+            Bookmarks = 0
+        }
     }
     # Hunts or bookmarks exist: is any of them recent? A workspace can hold
     # hundreds of bookmarks nobody has touched in a year. Fires only when
@@ -55,8 +58,16 @@ function Test-HuntingActivityRecorded {
     if ($Inventory.RawFiles -contains 'bookmarks-from-logs.json') { $fromLogs = @(Get-PropOrDefault $Inventory 'BookmarksFromLogs' @()) }
     $bookmarkList = $null
     if ($Inventory.RawFiles -contains 'bookmarks.json') { $bookmarkList = @($Inventory.Bookmarks) }
-    $activity = Get-HuntingActivity -Bookmarks $bookmarkList -BookmarksCount $Inventory.BookmarksCount -BookmarksFromLogs $fromLogs -Hunts @($Inventory.Hunts) -WorkspaceTables @(Get-PropOrDefault $Inventory 'WorkspaceTables' @()) -WindowDays $days -AsOf $asOf
+    $activity = Get-HuntingActivity -Bookmarks $bookmarkList -BookmarksCount $Inventory.BookmarksCount -BookmarksFromLogs $fromLogs -Hunts @(
+        $Inventory.Hunts
+    ) -WorkspaceTables @(Get-PropOrDefault $Inventory 'WorkspaceTables' @()) -WindowDays $days -AsOf $asOf
     if ($activity.BookmarksRecent -ne 0 -or $activity.HuntsRecent -ne 0) { return $null }
     $hunts = @($Inventory.Hunts).Count
-    return New-Finding -Evidence "$(Format-BlueprintPlural $bookmarkCount 'bookmark') and $(Format-BlueprintPlural $hunts 'hunt') exist, but none has been created or changed in the last $(Format-GapDays $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{ Hunts = $hunts; Bookmarks = $bookmarkCount; RecentHunts = 0; RecentBookmarks = 0; WindowDays = $days }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $bookmarkCount 'bookmark') and $(Format-BlueprintPlural $hunts 'hunt') exist, but none has been created or changed in the last $(Format-GapDays $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{
+        Hunts = $hunts
+        Bookmarks = $bookmarkCount
+        RecentHunts = 0
+        RecentBookmarks = 0
+        WindowDays = $days
+    }
 }

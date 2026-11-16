@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -113,18 +113,54 @@ pie showData title Playbook runs by outcome ({lookback-d})
     # family. The title-to-action map is ported from the health check
     # contributed by thinkndle.
     $autoPlaybookMap = @(
-        @{ Pattern = 'brute.?force|password.?spray|failed.?(sign|log).?in'; Action = 'Disable the account on threshold, require an MFA reset, notify IAM and tag the incident as identity attack'; Playbook = 'Disable-AADUser / Confirm-AADRiskyUser' }
-        @{ Pattern = 'impossible travel|atypical travel|anomalous (sign|log).?in'; Action = 'Trigger an MFA challenge, revoke sessions, raise the Entra ID Protection risk and notify the manager'; Playbook = 'Block-AADUser-Sessions' }
-        @{ Pattern = 'phish|suspicious mail|mail.?flow'; Action = 'Soft-delete similar messages through Defender for Office 365, block the sender, scan clicked URLs and isolate affected devices'; Playbook = 'ZAP-Phish-Mail / Defender-Submission' }
-        @{ Pattern = 'malware|ransom|trojan|suspicious process'; Action = 'Isolate the device through Defender for Endpoint, run a full scan, block the file hash as a custom indicator and open an IR ticket'; Playbook = 'Isolate-MDEDevice' }
-        @{ Pattern = 'data exfil|dlp|mass download|unusual upload'; Action = 'Suspend the session, block egress at the proxy, restrict sharing and escalate to the DLP team'; Playbook = 'Block-AADUser + Restrict-Sharing' }
-        @{ Pattern = 'lateral movement|pass.?the.?hash|kerberoast|golden ticket'; Action = 'Isolate the source host, reset affected service accounts and review a krbtgt rotation'; Playbook = 'Isolate-Host + Reset-Account' }
-        @{ Pattern = 'privilege escal|added to (admin|privileged)|role assign'; Action = 'Revert the role assignment outside a change window, notify the PIM owner and require a ticket reference'; Playbook = 'Remove-AADRole' }
+        @{
+            Pattern = 'brute.?force|password.?spray|failed.?(sign|log).?in'
+            Action = 'Disable the account on threshold, require an MFA reset, notify IAM and tag the incident as identity attack'
+            Playbook = 'Disable-AADUser / Confirm-AADRiskyUser'
+        }
+        @{
+            Pattern = 'impossible travel|atypical travel|anomalous (sign|log).?in'
+            Action = 'Trigger an MFA challenge, revoke sessions, raise the Entra ID Protection risk and notify the manager'
+            Playbook = 'Block-AADUser-Sessions'
+        }
+        @{
+            Pattern = 'phish|suspicious mail|mail.?flow'
+            Action = 'Soft-delete similar messages through Defender for Office 365, block the sender, scan clicked URLs and isolate affected devices'
+            Playbook = 'ZAP-Phish-Mail / Defender-Submission'
+        }
+        @{
+            Pattern = 'malware|ransom|trojan|suspicious process'
+            Action = 'Isolate the device through Defender for Endpoint, run a full scan, block the file hash as a custom indicator and open an IR ticket'
+            Playbook = 'Isolate-MDEDevice'
+        }
+        @{
+            Pattern = 'data exfil|dlp|mass download|unusual upload'
+            Action = 'Suspend the session, block egress at the proxy, restrict sharing and escalate to the DLP team'
+            Playbook = 'Block-AADUser + Restrict-Sharing'
+        }
+        @{
+            Pattern = 'lateral movement|pass.?the.?hash|kerberoast|golden ticket'
+            Action = 'Isolate the source host, reset affected service accounts and review a krbtgt rotation'
+            Playbook = 'Isolate-Host + Reset-Account'
+        }
+        @{
+            Pattern = 'privilege escal|added to (admin|privileged)|role assign'
+            Action = 'Revert the role assignment outside a change window, notify the PIM owner and require a ticket reference'
+            Playbook = 'Remove-AADRole'
+        }
         @{ Pattern = 'token theft|refresh token|primary refresh'; Action = 'Revoke refresh tokens, force re-authentication with MFA and audit OAuth grants'; Playbook = 'Revoke-AADUserTokens' }
-        @{ Pattern = 'c2|command.?and.?control|beacon|dns tunneling'; Action = 'Isolate the device, sinkhole the domain in DNS and block the indicator at the firewall and proxy'; Playbook = 'Isolate-MDEDevice + Block-IoC' }
+        @{
+            Pattern = 'c2|command.?and.?control|beacon|dns tunneling'
+            Action = 'Isolate the device, sinkhole the domain in DNS and block the indicator at the firewall and proxy'
+            Playbook = 'Isolate-MDEDevice + Block-IoC'
+        }
         @{ Pattern = 'defender|av disabled|tamper'; Action = 'Isolate the device, re-enable antivirus through Intune and escalate to the endpoint team'; Playbook = 'Isolate-MDEDevice' }
         @{ Pattern = 'guest|external user|b2b'; Action = 'Disable the guest pending review, audit external sharing and notify identity governance'; Playbook = 'Block-AADUser' }
-        @{ Pattern = 'deprecated|legacy auth|basic auth'; Action = 'Block legacy authentication with Conditional Access and notify the owner of the affected app or account'; Playbook = 'Enforce-CAPolicy' }
+        @{
+            Pattern = 'deprecated|legacy auth|basic auth'
+            Action = 'Block legacy authentication with Conditional Access and notify the owner of the affected app or account'
+            Playbook = 'Enforce-CAPolicy'
+        }
     )
     $autoOppRows = @(Read-BlueprintRawArray 'incident-title-stats.json' | Where-Object { $_ } | ForEach-Object {
         $title = [string](Get-BlueprintRawProperty $_ 'Title' '')
@@ -134,9 +170,16 @@ pie showData title Playbook runs by outcome ({lookback-d})
         $match = $autoPlaybookMap | Where-Object { $title -match $_.Pattern } | Select-Object -First 1
         [pscustomobject]@{
             Title = $title; Severity = [string](Get-BlueprintRawProperty $_ 'Severity' ''); Total = [int]$total; Closed = [int]$closed
-            AvgMinsToClose = Format-BlueprintNumber (Get-BlueprintRawProperty $_ 'AvgMinsToClose' ''); ClosedWithinHour = [int]$fast; FP = [int]$fp; TP = [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'TP' 0))
+            AvgMinsToClose = Format-BlueprintNumber (Get-BlueprintRawProperty $_ 'AvgMinsToClose' '')
+            ClosedWithinHour = [int]$fast
+            FP = [int]$fp
+            TP = [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'TP' 0))
             Signal = $signal
-            SuggestedAutomation = if ($match) { $match.Action } elseif ($signal -eq 'Mostly false positive') { 'Tune the rule or auto-close with a classification and comment through an automation rule' } else { 'Automation rule to assign, tag and enrich (TI, watchlists), then close on a verified benign pattern' }
+            SuggestedAutomation = if ($match) {
+                $match.Action
+            } elseif ($signal -eq 'Mostly false positive') {
+                'Tune the rule or auto-close with a classification and comment through an automation rule'
+            } else { 'Automation rule to assign, tag and enrich (TI, watchlists), then close on a verified benign pattern' }
             Playbook = if ($match) { $match.Playbook } else { 'Generic-Enrich-And-Close' }
         }
     } | Sort-Object -Property @{ Expression = 'Total'; Descending = $true })

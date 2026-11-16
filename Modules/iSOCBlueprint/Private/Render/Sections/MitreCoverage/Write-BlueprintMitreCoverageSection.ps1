@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -123,7 +123,9 @@ function Write-BlueprintMitreCoverageSection {
         $ruleKindCounts[$k]++
     }
     $schedNote = if ($ruleKindCounts.ContainsKey('Scheduled')) { "$($ruleKindCounts['Scheduled']) deployed" } else { 'not deployed' }
-    $msicNote  = if ($ruleKindCounts.ContainsKey('MicrosoftSecurityIncidentCreation')) { "$($ruleKindCounts['MicrosoftSecurityIncidentCreation']) deployed" } else { 'not deployed' }
+    $msicNote  = if ($ruleKindCounts.ContainsKey('MicrosoftSecurityIncidentCreation')) {
+        "$($ruleKindCounts['MicrosoftSecurityIncidentCreation']) deployed"
+    } else { 'not deployed' }
 
     # Fusion vs Defender XDR Correlation Engine state. When a workspace is
     # onboarded to the Microsoft Defender unified portal (USOP), Microsoft
@@ -173,12 +175,48 @@ function Write-BlueprintMitreCoverageSection {
         $ruleKindEnabled[$k]++
     }
     $ruleKindDefs = @(
-        [ordered]@{ kind = 'Scheduled'; label = 'Scheduled'; summary = 'A KQL query on a schedule; raises an alert when its results pass a threshold.'; fields = @('queryFrequency', 'queryPeriod', 'triggerThreshold', 'query'); legacy = $false }
-        [ordered]@{ kind = 'NRT'; label = 'Near real time'; summary = 'A KQL query run every minute with no threshold, for detections that cannot wait.'; fields = @('query', 'eventGrouping'); legacy = $false }
-        [ordered]@{ kind = 'Fusion'; label = 'Fusion'; summary = 'Microsoft machine learning that correlates low-fidelity alerts into high-fidelity incidents.'; fields = @('alertRuleTemplateName', 'sourceSettings'); legacy = $false }
-        [ordered]@{ kind = 'MicrosoftSecurityIncidentCreation'; label = 'Microsoft incident creation'; summary = 'Turns alerts from a Microsoft security product into incidents: the pattern from before Defender XDR.'; fields = @('productFilter', 'severitiesFilter', 'displayNamesFilter', 'displayNamesExcludeFilter'); legacy = $true }
-        [ordered]@{ kind = 'ThreatIntelligence'; label = 'Threat intelligence'; summary = 'Matches Microsoft threat intelligence indicators against the workspace logs.'; fields = @('templateVersion'); legacy = $false }
-        [ordered]@{ kind = 'MLBehaviorAnalytics'; label = 'ML behaviour analytics'; summary = 'Built-in machine learning anomaly detections, such as unusual SSH or RDP sign-ins.'; fields = @('alertRuleTemplateName'); legacy = $false }
+        [ordered]@{
+            kind = 'Scheduled'
+            label = 'Scheduled'
+            summary = 'A KQL query on a schedule; raises an alert when its results pass a threshold.'
+            fields = @('queryFrequency', 'queryPeriod', 'triggerThreshold', 'query')
+            legacy = $false
+        }
+        [ordered]@{
+            kind = 'NRT'
+            label = 'Near real time'
+            summary = 'A KQL query run every minute with no threshold, for detections that cannot wait.'
+            fields = @('query', 'eventGrouping')
+            legacy = $false
+        }
+        [ordered]@{
+            kind = 'Fusion'
+            label = 'Fusion'
+            summary = 'Microsoft machine learning that correlates low-fidelity alerts into high-fidelity incidents.'
+            fields = @('alertRuleTemplateName', 'sourceSettings')
+            legacy = $false
+        }
+        [ordered]@{
+            kind = 'MicrosoftSecurityIncidentCreation'
+            label = 'Microsoft incident creation'
+            summary = 'Turns alerts from a Microsoft security product into incidents: the pattern from before Defender XDR.'
+            fields = @('productFilter', 'severitiesFilter', 'displayNamesFilter', 'displayNamesExcludeFilter')
+            legacy = $true
+        }
+        [ordered]@{
+            kind = 'ThreatIntelligence'
+            label = 'Threat intelligence'
+            summary = 'Matches Microsoft threat intelligence indicators against the workspace logs.'
+            fields = @('templateVersion')
+            legacy = $false
+        }
+        [ordered]@{
+            kind = 'MLBehaviorAnalytics'
+            label = 'ML behaviour analytics'
+            summary = 'Built-in machine learning anomaly detections, such as unusual SSH or RDP sign-ins.'
+            fields = @('alertRuleTemplateName')
+            legacy = $false
+        }
     )
     $ruleKindItems = [System.Collections.Generic.List[object]]::new()
     foreach ($d in $ruleKindDefs) {
@@ -191,7 +229,15 @@ function Write-BlueprintMitreCoverageSection {
         $ruleKindItems.Add($item)
     }
     foreach ($k in @($ruleKindCounts.Keys | Where-Object { $_ -notin @($ruleKindDefs | ForEach-Object { $_.kind }) } | Sort-Object)) {
-        $ruleKindItems.Add([ordered]@{ kind = $k; label = $k; summary = 'A rule kind this report does not describe.'; fields = @(); legacy = $false; deployed = $ruleKindCounts[$k]; enabled = $(if ($ruleKindEnabled.ContainsKey($k)) { $ruleKindEnabled[$k] } else { 0 }) })
+        $ruleKindItems.Add([ordered]@{
+            kind = $k
+            label = $k
+            summary = 'A rule kind this report does not describe.'
+            fields = @()
+            legacy = $false
+            deployed = $ruleKindCounts[$k]
+            enabled = $(if ($ruleKindEnabled.ContainsKey($k)) { $ruleKindEnabled[$k] } else { 0 })
+        })
     }
     $ruleKindsVisualLine = Format-VisualLine -Kind 'rule-kinds' -Data ([ordered]@{
         total  = $rules.Count

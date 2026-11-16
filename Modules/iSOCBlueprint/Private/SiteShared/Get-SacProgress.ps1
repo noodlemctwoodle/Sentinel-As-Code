@@ -28,8 +28,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -89,24 +89,46 @@ function New-SacProgressRecord {
     # into the rule list).
     $rules = @(& $v 'attack.rules')
     $enabled = [System.Collections.Generic.HashSet[int]]::new()
-    for ($i = 0; $i -lt $rules.Count; $i++) { if ($rules[$i] -and (Get-SacProgressValue -Object $rules[$i] -Path 'enabled') -eq $true) { [void]$enabled.Add($i) } }
+    for ($i = 0; $i -lt $rules.Count; $i++) {
+        if ($rules[$i] -and (Get-SacProgressValue -Object $rules[$i] -Path 'enabled') -eq $true) { [void]$enabled.Add($i) }
+    }
     # Counted, not tested for truth: a match on rule 0 would read as false.
     $techniques = @(@(& $v 'attack.cells') | Where-Object { $_ } | Where-Object {
             @(@(Get-SacProgressValue -Object $_ -Path 'rules') | Where-Object { $null -ne $_ -and $enabled.Contains([int]$_) }).Count -gt 0
         } | ForEach-Object { [string](Get-SacProgressValue -Object $_ -Path 'technique') } | Where-Object { $_ } | Sort-Object -Unique)
-    $ruleNames = @($rules | Where-Object { $_ -and (Get-SacProgressValue -Object $_ -Path 'enabled') -eq $true } | ForEach-Object { [string](Get-SacProgressValue -Object $_ -Path 'name') } | Where-Object { $_ } | Sort-Object -Unique)
+    $ruleNames = @(
+        $rules |
+            Where-Object { $_ -and (Get-SacProgressValue -Object $_ -Path 'enabled') -eq $true } |
+            ForEach-Object { [string](Get-SacProgressValue -Object $_ -Path 'name') } |
+            Where-Object { $_ } |
+            Sort-Object -Unique
+    )
 
     $estateTables = @(@(& $v 'estate.tables') | Where-Object { $_ })
     $tables = @($estateTables | ForEach-Object { [string](Get-SacProgressValue -Object $_ -Path 'table') } | Where-Object { $_ } | Sort-Object -Unique)
-    $uncovered = @($estateTables | Where-Object { (Get-SacProgressValue -Object $_ -Path 'covered') -ne $true } | ForEach-Object { [string](Get-SacProgressValue -Object $_ -Path 'table') } | Where-Object { $_ } | Sort-Object -Unique)
+    $uncovered = @(
+        $estateTables |
+            Where-Object { (Get-SacProgressValue -Object $_ -Path 'covered') -ne $true } |
+            ForEach-Object { [string](Get-SacProgressValue -Object $_ -Path 'table') } |
+            Where-Object { $_ } |
+            Sort-Object -Unique
+    )
 
     $findings = @(@(& $v 'findings.items') | Where-Object { $_ } | ForEach-Object {
-            [ordered]@{ id = [string](Get-SacProgressValue -Object $_ -Path 'id'); severity = [string](Get-SacProgressValue -Object $_ -Path 'severity'); title = [string](Get-SacProgressValue -Object $_ -Path 'title') }
+            [ordered]@{
+                id = [string](Get-SacProgressValue -Object $_ -Path 'id')
+                severity = [string](Get-SacProgressValue -Object $_ -Path 'severity')
+                title = [string](Get-SacProgressValue -Object $_ -Path 'title')
+            }
         } | Sort-Object { $_.id })
     $statusCode = @{ Met = 'M'; Gap = 'G' }
     $criteria = @(@(& $v 'maturity.criteria') | Where-Object { $_ } | ForEach-Object {
             $st = [string](Get-SacProgressValue -Object $_ -Path 'status')
-            [ordered]@{ id = [string](Get-SacProgressValue -Object $_ -Path 'id'); name = [string](Get-SacProgressValue -Object $_ -Path 'name'); status = $(if ($statusCode.ContainsKey($st)) { $statusCode[$st] } else { 'U' }) }
+            [ordered]@{
+                id = [string](Get-SacProgressValue -Object $_ -Path 'id')
+                name = [string](Get-SacProgressValue -Object $_ -Path 'name')
+                status = $(if ($statusCode.ContainsKey($st)) { $statusCode[$st] } else { 'U' })
+            }
         } | Sort-Object { $_.id })
     $areas = [ordered]@{}
     foreach ($a in @(& $v 'maturity.areas')) {
@@ -123,7 +145,9 @@ function New-SacProgressRecord {
         foreach ($n in $props) { if ($null -ne $n) { $open += [int]$n } }
     }
     $daily = @(@(& $v 'usageDaily') | Where-Object { $_ })
-    $dailyGb = if ($daily.Count) { [math]::Round((($daily | ForEach-Object { [double](Get-SacProgressValue -Object $_ -Path 'billable') }) | Measure-Object -Sum).Sum / $daily.Count, 2) } else { $null }
+    $dailyGb = if ($daily.Count) {
+        [math]::Round((($daily | ForEach-Object { [double](Get-SacProgressValue -Object $_ -Path 'billable') }) | Measure-Object -Sum).Sum / $daily.Count, 2)
+    } else { $null }
     $customCaptured = (& $v 'estate.customDetections.captured') -eq $true
     $mitre = @(& $v 'mitre')
 

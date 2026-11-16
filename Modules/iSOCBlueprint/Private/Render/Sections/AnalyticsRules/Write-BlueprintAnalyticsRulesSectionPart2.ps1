@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -104,7 +104,9 @@ $(Format-BlueprintTable -Items $mismatchRows -Columns 'Name','Kind','CurrentVers
         $ents   = @(Get-BlueprintRawProperty $props 'entityMappings' @()).Count
         $ti     = [bool]($q -match '(?i)ThreatIntel')
         $incOn  = [bool](Get-BlueprintRawProperty (Get-BlueprintRawProperty $props 'incidentConfiguration') 'createIncident' $true)
-        $score  = [math]::Min(10, [math]::Round($q.Length / 400.0) + $lets + 2 * $joins + $unions + $(if ($ti) { 1 } else { 0 }) + $(if ($ents -eq 0) { 1 } else { 0 }))
+        $score  = [math]::Min(10, [math]::Round($q.Length / 400.0) + $lets + 2 * $joins + $unions + $(
+            if ($ti) { 1 } else { 0 }
+        ) + $(if ($ents -eq 0) { 1 } else { 0 }))
         [pscustomobject]@{
             Rule       = [string](Get-BlueprintRawProperty $props 'displayName' $r.name)
             Kind       = $r.kind
@@ -131,7 +133,13 @@ $(Format-BlueprintTable -Items $complexityRows -Columns 'Rule','Kind','Complexit
     # the collector did not run this capture; empty file: no failures.
     $ruleHealthCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'rule-health.json')
     $ruleHealthRows = @(Read-BlueprintRawArray 'rule-health.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{ Rule = $_.RuleName; Status = $_.Status; Failures = $_.Failures; 'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure'); Reason = [string](Get-BlueprintRawProperty $_ 'Reason' '') }
+        [pscustomobject]@{
+            Rule = $_.RuleName
+            Status = $_.Status
+            Failures = $_.Failures
+            'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure')
+            Reason = [string](Get-BlueprintRawProperty $_ 'Reason' '')
+        }
     } | Sort-Object { ConvertTo-BlueprintNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
     $ruleHealthSection = @"
 
@@ -172,7 +180,9 @@ $(if (-not $customDetectionsCaptured) { '_Not captured in this run: the Graph ca
 "@
     # Each part begins with a newline and ends without one; joining with a
     # newline keeps a blank line between a table and the next heading.
-    Write-BlueprintSection '20-analytics-rules.md' (@($rulesBody.TrimEnd(), $msRulesSection, $modificationsSection, $solutionSection, $customDetectionSection, $analyticsLinks) -join [Environment]::NewLine)
+    Write-BlueprintSection '20-analytics-rules.md' (@(
+        $rulesBody.TrimEnd(), $msRulesSection, $modificationsSection, $solutionSection, $customDetectionSection, $analyticsLinks
+    ) -join [Environment]::NewLine)
 
     # Left in the render context for later sections.
     $Context.analyticsLinks = $analyticsLinks

@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -47,15 +47,30 @@ function Write-BlueprintRuleHealthQualitySection {
     # Section 22: rule health and quality. Rules that fail to run, rules hard to
     # trust, and the anti-patterns the health check lists: no entity mappings,
     # alerts that never become incidents, rules nobody has touched in a year.
-    $scheduledEnabled22 = @($rules | Where-Object { $_ -and $_.kind -in @('Scheduled', 'NRT') -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'enabled' $false) })
-    $noEntityRows = @($scheduledEnabled22 | Where-Object { @(Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'entityMappings' @() | Where-Object { $_ }).Count -eq 0 } | ForEach-Object {
-        [pscustomobject]@{ Rule = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name); Kind = $_.kind; Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '') }
+    $scheduledEnabled22 = @(
+        $rules |
+            Where-Object {
+                $_ -and $_.kind -in @('Scheduled', 'NRT') -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'enabled' $false)
+            }
+    )
+    $noEntityRows = @($scheduledEnabled22 |
+            Where-Object { @(Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'entityMappings' @() | Where-Object { $_ }).Count -eq 0 } |
+            ForEach-Object {
+        [pscustomobject]@{
+            Rule = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name)
+            Kind = $_.kind
+            Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '')
+        }
     } | Sort-Object Rule)
     $alertOnlyRows = @($scheduledEnabled22 | Where-Object {
         $ic = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'incidentConfiguration'
         $ic -and $ic.PSObject.Properties['createIncident'] -and -not [bool]$ic.createIncident
     } | ForEach-Object {
-        [pscustomobject]@{ Rule = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name); Kind = $_.kind; Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '') }
+        [pscustomobject]@{
+            Rule = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name)
+            Kind = $_.kind
+            Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '')
+        }
     } | Sort-Object Rule)
     $antiPatternSection = @"
 

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, What's new reading
     Requires:     PowerShell 7.6+
@@ -61,7 +61,8 @@ function ConvertFrom-WhatsNewMarkdown {
         if ($line -match '^##\s+(.+?)\s*$' -and $line -notmatch '^###') {
             $label = $Matches[1].Trim()
             $date = [datetime]::MinValue
-            if ([datetime]::TryParseExact($label, 'MMMM yyyy', [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$date)) {
+            if ([datetime]::TryParseExact($label, 'MMMM yyyy', [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::None, [ref]$date)) {
                 $current = [pscustomobject]@{ Month = $date.ToString('yyyy-MM'); Label = $label; Lines = [System.Collections.Generic.List[string]]::new() }
                 $monthsList.Add($current)
             }
@@ -84,9 +85,18 @@ function ConvertFrom-WhatsNewMarkdown {
                 $j++
                 $text = [System.Collections.Generic.List[string]]::new()
                 while ($j -lt $body.Count -and $body[$j] -notmatch '^###\s') { $text.Add($body[$j]); $j++ }
-                $paras = @(($text -join "`n") -split "\n\s*\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -and $_ -notmatch '^(Note|Important|Tip|Caution|Warning)$' -and $_ -notmatch '^[-*|>#]' })
+                $paras = @(
+                    ($text -join "`n") -split "\n\s*\n" |
+                        ForEach-Object { $_.Trim() } |
+                        Where-Object { $_ -and $_ -notmatch '^(Note|Important|Tip|Caution|Warning)$' -and $_ -notmatch '^[-*|>#]' }
+                )
                 $summary = if ($paras.Count) { ConvertTo-WhatsNewPlain $paras[0] } else { '' }
-                $details = @($text | Where-Object { $_ -match '^\s*[-*]\s+' } | ForEach-Object { ConvertTo-WhatsNewPlain ($_ -replace '^\s*[-*]\s+', '') } | Where-Object { $_ })
+                $details = @(
+                    $text |
+                        Where-Object { $_ -match '^\s*[-*]\s+' } |
+                        ForEach-Object { ConvertTo-WhatsNewPlain ($_ -replace '^\s*[-*]\s+', '') } |
+                        Where-Object { $_ }
+                )
                 $title = ConvertTo-WhatsNewPlain $rawTitle
                 $all = ($text -join ' ')
                 $firstLink = [regex]::Match($all, '\]\(([^)\s]+)\)')
@@ -127,7 +137,9 @@ function ConvertFrom-WhatsNewMarkdown {
                 $title = if ($bold.Success -and $bold.Index -lt 200) { ConvertTo-WhatsNewPlain $bold.Groups[1].Value } else {
                     $plain = ConvertTo-WhatsNewPlain $first
                     $stop = $plain.IndexOfAny([char[]]'.:')
-                    if ($stop -gt 20 -and $stop -lt 160) { $plain.Substring(0, $stop) } elseif ($plain.Length -gt 140) { $plain.Substring(0, $plain.LastIndexOf(' ', 140)) } else { $plain }
+                    if ($stop -gt 20 -and $stop -lt 160) {
+                        $plain.Substring(0, $stop)
+                    } elseif ($plain.Length -gt 140) { $plain.Substring(0, $plain.LastIndexOf(' ', 140)) } else { $plain }
                 }
                 $summary = ConvertTo-WhatsNewPlain $full
                 $firstLink = [regex]::Match($full, '\]\(([^)\s]+)\)')

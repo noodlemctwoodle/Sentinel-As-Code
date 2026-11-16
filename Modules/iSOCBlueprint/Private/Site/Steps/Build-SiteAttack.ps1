@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
@@ -59,7 +59,9 @@ function Build-SiteAttack {
         foreach ($t in @($attackCatalogue.techniques)) {
             if ($t.PSObject.Properties.Name -contains 'parentId' -and $t.parentId) {
                 $subName[[string]$t.id] = [string]$t.name
-                if (-not $subsByParent.ContainsKey([string]$t.parentId)) { $subsByParent[[string]$t.parentId] = [System.Collections.Generic.List[string]]::new() }
+                if (-not $subsByParent.ContainsKey([string]$t.parentId)) {
+                    $subsByParent[[string]$t.parentId] = [System.Collections.Generic.List[string]]::new()
+                }
                 $subsByParent[[string]$t.parentId].Add([string]$t.id)
             }
         }
@@ -82,9 +84,23 @@ function Build-SiteAttack {
             }
         }
         $attackModel = [ordered]@{
-            tactics    = @(foreach ($id in $killChain) { if ($tacticById.ContainsKey($id)) { [ordered]@{ id = $id; name = [string]$tacticById[$id].name; short = [string]$tacticById[$id].sentinelShortName } } })
-            techniques = @(foreach ($t in (@($attackCatalogue.techniques) | Where-Object { -not ($_.PSObject.Properties.Name -contains 'parentId' -and $_.parentId) } | Sort-Object id)) {
-                    [ordered]@{ id = [string]$t.id; name = [string]$t.name; tactics = @($t.tacticsSentinel | Where-Object { $_ }); subTotal = [int]$cov.SubTotals[[string]$t.id]; subs = @($subsByParent[[string]$t.id] | Sort-Object) }
+            tactics    = @(
+                foreach ($id in $killChain) {
+                    if ($tacticById.ContainsKey($id)) {
+                        [ordered]@{ id = $id; name = [string]$tacticById[$id].name; short = [string]$tacticById[$id].sentinelShortName }
+                    }
+                }
+            )
+            techniques = @(foreach ($t in (@($attackCatalogue.techniques) |
+                    Where-Object { -not ($_.PSObject.Properties.Name -contains 'parentId' -and $_.parentId) } |
+                    Sort-Object id)) {
+                    [ordered]@{
+                        id = [string]$t.id
+                        name = [string]$t.name
+                        tactics = @($t.tacticsSentinel | Where-Object { $_ })
+                        subTotal = [int]$cov.SubTotals[[string]$t.id]
+                        subs = @($subsByParent[[string]$t.id] | Sort-Object)
+                    }
                 })
             subNames   = $usedSubs
             rules      = @(foreach ($r in $cov.Rules) { [ordered]@{ name = $r.Name; enabled = $r.Enabled; kind = $r.Kind; severity = $r.Severity } })
@@ -95,7 +111,9 @@ function Build-SiteAttack {
     $incidentsByClassification = @()
     if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['ByClassification']) {
         $bag = Get-BuildBag $incSummaryRow.ByClassification
-        foreach ($k in ($bag.Keys | Sort-Object { $bag[$_] } -Descending)) { if ($bag[$k] -gt 0) { $incidentsByClassification += [ordered]@{ label = [string]$k; value = [long]$bag[$k] } } }
+        foreach ($k in ($bag.Keys | Sort-Object { $bag[$_] } -Descending)) {
+            if ($bag[$k] -gt 0) { $incidentsByClassification += [ordered]@{ label = [string]$k; value = [long]$bag[$k] } }
+        }
     }
 
     # Left in the build context for later steps.

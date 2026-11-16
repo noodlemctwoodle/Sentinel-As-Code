@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -88,7 +88,9 @@ GB that reaches **Not monitored** is ingested and billed but read by no enabled 
     } else {
         # No billable ingestion, so no ribbons to draw; first-party alerts and
         # the custom-detection count still belong here when they exist.
-        $familyTail = if (@($estate.ProductAlerts).Count -gt 0 -or $estate.CustomDetectionsCaptured) { "`n`n" + (Format-BlueprintEstateFamilyTable -Estate $estate) } else { '' }
+        $familyTail = if (@($estate.ProductAlerts).Count -gt 0 -or $estate.CustomDetectionsCaptured) {
+            "`n`n" + (Format-BlueprintEstateFamilyTable -Estate $estate)
+        } else { '' }
     @"
 
 ## Estate flow
@@ -109,7 +111,9 @@ _No billable ingestion in the last {lookback}, so there is no flow to draw._$fam
     $usageTrendBlock = if ($usageDaily.Count -ge 2) {
         $pts = @($usageDaily | Sort-Object { [datetime]$_.Day })
         # Day labels read "13 Sep", not "09-13".
-        $labels = ($pts | ForEach-Object { "`"$(([datetime]$_.Day).ToUniversalTime().ToString('d MMM', [System.Globalization.CultureInfo]::InvariantCulture))`"" }) -join ', '
+        $labels = ($pts |
+            ForEach-Object { "`"$(([datetime]$_.Day).ToUniversalTime().ToString('d MMM', [System.Globalization.CultureInfo]::InvariantCulture))`"" }) -join
+            ', '
         $bill = ($pts | ForEach-Object { [math]::Round((ConvertTo-BlueprintNumber $_.BillableGB), 2) }) -join ', '
         $free = ($pts | ForEach-Object { [math]::Round((ConvertTo-BlueprintNumber $_.FreeGB), 2) }) -join ', '
         $max = 1.0

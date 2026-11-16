@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -51,7 +51,9 @@ function Build-SiteOperations {
     if (-not (Test-Path -LiteralPath (Join-Path $script:RawRoot 'bookmarks.json'))) {
         $bookmarkCountDoc = Read-SiteRaw 'bookmarks-count.json'
         # Neither file: the count is unknown, not zero.
-        $bookmarkCount = if ($bookmarkCountDoc -and $bookmarkCountDoc.PSObject.Properties['Count']) { [int](ConvertTo-BuildNumber $bookmarkCountDoc.Count) } else { $null }
+        $bookmarkCount = if ($bookmarkCountDoc -and $bookmarkCountDoc.PSObject.Properties['Count']) {
+            [int](ConvertTo-BuildNumber $bookmarkCountDoc.Count)
+        } else { $null }
     }
     $huntsSummary = [ordered]@{
         captured       = (Test-Path -LiteralPath (Join-Path $script:RawRoot 'hunts.json'))
@@ -70,7 +72,13 @@ function Build-SiteOperations {
             $pbFailing += [ordered]@{ playbook = $r.Playbook; runs = $runs; failed = $failed; lastFailure = $last }
         }
     }
-    $playbookHealth = [ordered]@{ runs7d = $pbRuns; failed7d = $pbFailed; playbooks = @($runRows | Where-Object { $_ }).Count; unavailable = $pbUnavailable; failing = @($pbFailing | Sort-Object { $_.failed } -Descending) }
+    $playbookHealth = [ordered]@{
+        runs7d = $pbRuns
+        failed7d = $pbFailed
+        playbooks = @($runRows | Where-Object { $_ }).Count
+        unavailable = $pbUnavailable
+        failing = @($pbFailing | Sort-Object { $_.failed } -Descending)
+    }
 
     $tiBySource = @()
     foreach ($row in ($tiCountRows | Where-Object { $_ } | Sort-Object { ConvertTo-BuildNumber $_.Count } -Descending)) {
@@ -101,7 +109,11 @@ function Build-SiteOperations {
     $alertLifecycle = [ordered]@{
         closedBy       = $closedByMap
         openBySeverity = $openBySeverityMap
-        mttrMinutes    = $(if ($mttrRow -and $mttrRow.PSObject.Properties['MTTRMinutes'] -and "$($mttrRow.MTTRMinutes)" -ne '') { [math]::Round((ConvertTo-BuildNumber $mttrRow.MTTRMinutes), 1) } else { $null })
+        mttrMinutes    = $(
+            if ($mttrRow -and $mttrRow.PSObject.Properties['MTTRMinutes'] -and "$($mttrRow.MTTRMinutes)" -ne '') {
+                [math]::Round((ConvertTo-BuildNumber $mttrRow.MTTRMinutes), 1)
+            } else { $null }
+        )
     }
 
     # Left in the build context for later steps.

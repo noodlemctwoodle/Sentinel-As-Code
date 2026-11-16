@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -52,7 +52,10 @@ function Write-BlueprintDetectionOpportunitiesSection {
     # rule reads, and the undeployed templates that would cover them. The
     # detection-headroom view from the health-check script contributed to the
     # project, computed from the collector's table references.
-    $applicableTemplates = @($templateTableRefs | Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) })
+    $applicableTemplates = @(
+        $templateTableRefs |
+            Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) }
+    )
     $undeployedTemplates = @($applicableTemplates | Where-Object { $_.AlreadyDeployed -ne $true })
     $enabledTableSet = @{}
     foreach ($ref in $ruleTableRefs) {
@@ -61,7 +64,9 @@ function Write-BlueprintDetectionOpportunitiesSection {
     }
     foreach ($t in $customDetectionTableSet.Keys) { $enabledTableSet[$t] = $true }
     $dataTableSet = @{}
-    foreach ($t in $tablesWithData) { if ($t.DataType -and (ConvertTo-BlueprintNumber $t.BillableLast30d) -gt 0) { $dataTableSet[[string]$t.DataType] = $true } }
+    foreach ($t in $tablesWithData) {
+        if ($t.DataType -and (ConvertTo-BlueprintNumber $t.BillableLast30d) -gt 0) { $dataTableSet[[string]$t.DataType] = $true }
+    }
     $sevRank = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
     # Sentinel's own operational tables are outputs, not detection sources.
     $operationalOnlyTables = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
@@ -99,7 +104,11 @@ $(Format-BlueprintTable -Items $retiredReady -Columns 'Template','Deprecated sol
     } else { '' }
     $opportunityRows = @($uncoveredTables | ForEach-Object {
         $name = [string]$_.DataType
-        $cands = @($undeployedTemplates | Where-Object { @($_.Tables) -contains $name } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName)
+        $cands = @(
+            $undeployedTemplates |
+                Where-Object { @($_.Tables) -contains $name } |
+                Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName
+        )
         [pscustomobject]@{
             Table                       = $name
             'GB ({lookback-d})'                  = [math]::Round((ConvertTo-BlueprintNumber $_.BillableLast30d), 2)
@@ -109,12 +118,21 @@ $(Format-BlueprintTable -Items $retiredReady -Columns 'Template','Deprecated sol
             Gb30d                       = [math]::Round((ConvertTo-BlueprintNumber $_.BillableLast30d), 2)
         }
     })
-    $installedSolutionNames = @(Read-BlueprintRawArray 'content-packages.json' | Where-Object { $_ } | ForEach-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'displayName' '') } | Where-Object { $_ })
+    $installedSolutionNames = @(
+        Read-BlueprintRawArray 'content-packages.json' |
+            Where-Object { $_ } |
+            ForEach-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'displayName' '') } |
+            Where-Object { $_ }
+    )
     $noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object {
         [pscustomobject]@{
             Table      = $_.Table
             'GB ({lookback-d})' = $_.Gb30d
-            Solutions  = $(if ($connectorCatalogue) { Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames } else { '' })
+            Solutions  = $(
+                if ($connectorCatalogue) {
+                    Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames
+                } else { '' }
+            )
         }
     })
     $readyTemplates = @($undeployedTemplates | Where-Object {
@@ -139,7 +157,10 @@ $(Format-BlueprintTable -Items $retiredReady -Columns 'Template','Deprecated sol
     # template catalogue is deployed, and of what is ready to enable, how much
     # comes from a solution already installed.
     $headroomVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters = @(
-        [ordered]@{ title = 'Applicable templates'; caption = 'Rule templates in the catalogue, deprecated ones left out'; total = $applicableTemplates.Count; parts = @(
+        [ordered]@{ title = 'Applicable templates'
+        caption = 'Rule templates in the catalogue, deprecated ones left out'
+        total = $applicableTemplates.Count
+        parts = @(
             [ordered]@{ label = 'Deployed'; value = ($applicableTemplates.Count - $undeployedTemplates.Count); tone = 'ok' }
             [ordered]@{ label = 'Not yet deployed'; value = $undeployedTemplates.Count; tone = 'violet' }
         ) }
@@ -150,7 +171,11 @@ $(Format-BlueprintTable -Items $retiredReady -Columns 'Template','Deprecated sol
         ) }
     ); figures = @(
         [ordered]@{ label = 'Enabled analytics rules'; value = $enabledRules.Count; caption = 'Of every kind, on this workspace' }
-        [ordered]@{ label = 'Tables with data and no detection'; value = $opportunityRows.Count; caption = 'Read by no enabled rule or custom detection, last {lookback}' }
+        [ordered]@{
+            label = 'Tables with data and no detection'
+            value = $opportunityRows.Count
+            caption = 'Read by no enabled rule or custom detection, last {lookback}'
+        }
     ) })
     $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
     @"

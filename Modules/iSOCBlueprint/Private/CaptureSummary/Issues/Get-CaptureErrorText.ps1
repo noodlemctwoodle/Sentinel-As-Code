@@ -2,7 +2,9 @@
 
 <#
 .SYNOPSIS
-    An error's message with the service's own reason added, which Invoke-AzOperationalInsightsQuery keeps out of the message ("Operation returned an invalid status code 'BadRequest'") and in the body.
+    An error's message with the service's own reason added, which Invoke-
+    AzOperationalInsightsQuery keeps out of the message ("Operation returned an invalid status
+    code 'BadRequest'") and in the body.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/CaptureSummary/Issues/Get-CaptureErrorText.ps1
@@ -10,7 +12,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Capture reporting
     Requires:     PowerShell 7.6+

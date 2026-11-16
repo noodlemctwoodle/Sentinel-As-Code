@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, cost estimate
     Requires:     PowerShell 7.6+
@@ -41,7 +41,7 @@ function Get-CostMeterPrices {
     $pricesBlob = $Context.pricesBlob
     $ResourcesRoot = $Context.ResourcesRoot
 
-    # Pricing table lookup driven by Resources/cost-meters.json. Each
+    # Pricing table lookup driven by Resources/Data/cost-meters.json. Each
     # category in that file declares either:
     #   - meterNames, exact-match meter strings (case-sensitive), OR
     #   - meterContains, list of substrings that must ALL be present in

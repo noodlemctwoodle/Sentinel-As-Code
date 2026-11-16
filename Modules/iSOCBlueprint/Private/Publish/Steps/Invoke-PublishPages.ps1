@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+
 
@@ -68,10 +68,14 @@ function Invoke-PublishPages {
         if ($probe) {
             # Wait for it only when step 2 deployed a package this run; otherwise
             # it is either there already or not coming, so look once.
-            $chartReady = Wait-SacPageComponent -ComponentId $script:SacChartWebPartComponentId -PageName $probe -WaitSeconds $(if ($AppPackagePath) { 300 } else { 0 })
+            $chartReady = Wait-SacPageComponent -ComponentId $script:SacChartWebPartComponentId -PageName $probe -WaitSeconds $(
+                if ($AppPackagePath) { 300 } else { 0 }
+            )
             if (-not $chartReady) {
                 $sibling = try { Test-SacPageComponent -ComponentId $script:SacWebPartComponentId -PageName $probe } catch { $false }
-                $which = if ($sibling) { 'the dashboard web part from the same package is listed, the chart web part is not' } else { 'neither web part from the package is listed' }
+                $which = if ($sibling) {
+                    'the dashboard web part from the same package is listed, the chart web part is not'
+                } else { 'neither web part from the package is listed' }
                 Write-Host "  Chart web part not on the site ($which); charts go in as tables and those pages are rebuilt next run." -ForegroundColor Yellow
             }
         }
@@ -87,7 +91,8 @@ function Invoke-PublishPages {
         if ($step.Action -eq 'Skip') { $publishedHashes[$step.Name] = $hash; continue }
         Assert-TokenFresh "page $($step.Name)"
         try {
-            $native = Publish-SacSectionPage -PageDoc $pageDocs[$step.Name] -Create:($step.Action -eq 'Create') -WebServerRelativeUrl $webRel -ChartComponentAvailable:$chartReady
+            $native = Publish-SacSectionPage -PageDoc $pageDocs[$step.Name] -Create:($step.Action -eq
+                'Create') -WebServerRelativeUrl $webRel -ChartComponentAvailable:$chartReady
             if (-not $WhatIfPreference -and $native) { $publishedHashes[$step.Name] = $hash }
             Write-Host "  $($step.Action): $($step.Name)$(if (-not $native) { ' (charts as tables)' })"
         }

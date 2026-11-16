@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -31,7 +31,8 @@ function ConvertTo-UtcDateTime {
     if ($null -eq $Value) { return $null }
     if ($Value -is [datetime]) { return $Value.ToUniversalTime() }
     $parsed = [datetime]::MinValue
-    if ([datetime]::TryParse([string]$Value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+    if ([datetime]::TryParse([string]$Value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal,
+            [ref]$parsed)) {
         return $parsed.ToUniversalTime()
     }
     return $null

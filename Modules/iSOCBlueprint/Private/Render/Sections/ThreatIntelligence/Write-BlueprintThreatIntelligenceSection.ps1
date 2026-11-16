@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -122,7 +122,10 @@ $(Format-BlueprintTable -Items @($tiTypeRows | ForEach-Object { [pscustomobject]
     # indicator table on this page lists every source.
     $tiPieBlock = if ($tiRows -and ($tiRows | Measure-Object -Property IndicatorCount -Sum).Sum -gt 0) {
         $tiBySource = [ordered]@{}
-        foreach ($row in @($tiRows)) { $k = [string]$row.SourceSystem; $tiBySource[$k] = $(if ($tiBySource.Contains($k)) { $tiBySource[$k] } else { 0 }) + [long]$row.IndicatorCount }
+        foreach ($row in @($tiRows)) {
+            $k = [string]$row.SourceSystem
+            $tiBySource[$k] = $(if ($tiBySource.Contains($k)) { $tiBySource[$k] } else { 0 }) + [long]$row.IndicatorCount
+        }
         $tiPieRows = Format-PieSlices -Counts $tiBySource -Limit 6
         @"
 
@@ -155,7 +158,10 @@ Objects in ``ThreatIntelObjects`` by STIX type. Indicators alone give matches; t
 $(Format-BlueprintTable -Items ($tiObjects | ForEach-Object { [pscustomobject]@{ StixType = $_.StixType; Count = (Format-BlueprintCount $_.Count) } }) -Columns 'StixType','Count')
 "@
     } else { '' }
-    $tiFeedKinds = @('MicrosoftThreatIntelligence', 'PremiumMicrosoftDefenderForThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence', 'ThreatIntelligenceUploadIndicatorsAPI')
+    $tiFeedKinds = @(
+        'MicrosoftThreatIntelligence', 'PremiumMicrosoftDefenderForThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence',
+            'ThreatIntelligenceUploadIndicatorsAPI'
+    )
     $tiFeedRows = @($connectors | Where-Object { $_.kind -in $tiFeedKinds } | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.name } })
 
     # Which TI tables carry data: the current ThreatIntelIndicators and
@@ -174,12 +180,22 @@ $(Format-BlueprintTable -Items ($tiObjects | ForEach-Object { [pscustomobject]@{
             Status     = $(if (-not $row) { 'Not in workspace' } elseif ($n30 -gt 0) { 'Ingesting' } else { 'No data in {lookback}' })
         }
     })
-    $tiCurrent = [long](@($tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelIndicators' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }) | Measure-Object -Sum).Sum
-    $tiLegacy = [long](@($tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelligenceIndicator' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }) | Measure-Object -Sum).Sum
+    $tiCurrent = [long](@(
+        $tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelIndicators' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }
+    ) |
+        Measure-Object -Sum).Sum
+    $tiLegacy = [long](@(
+        $tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelligenceIndicator' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }
+    ) |
+        Measure-Object -Sum).Sum
     $tiMigration = if (-not (Test-Path (Join-Path $rawRoot 'threat-intel-tables.json'))) { '_Not captured in this snapshot._' }
-        elseif ($tiCurrent -gt 0 -and $tiLegacy -gt 0) { '**Both tables carry data.** `ThreatIntelIndicators` is current; confirm nothing still writes to or reads the retired table ([SAC-TI-01], [SAC-TI-02]).' }
+        elseif ($tiCurrent -gt 0 -and $tiLegacy -gt 0) {
+            '**Both tables carry data.** `ThreatIntelIndicators` is current; confirm nothing still writes to or reads the retired table ([SAC-TI-01], [SAC-TI-02]).'
+        }
         elseif ($tiCurrent -gt 0) { '**Current.** Threat intelligence is flowing into `ThreatIntelIndicators`.' }
-        elseif ($tiLegacy -gt 0) { '**Retired table only.** Indicators land in `ThreatIntelligenceIndicator` but not `ThreatIntelIndicators`; check the TI connector configuration ([SAC-TI-01]).' }
+        elseif ($tiLegacy -gt 0) {
+            '**Retired table only.** Indicators land in `ThreatIntelligenceIndicator` but not `ThreatIntelIndicators`; check the TI connector configuration ([SAC-TI-01]).'
+        }
         else { '**No threat intelligence** in either table over the last {lookback}.' }
 
     $tiHealth = Read-BlueprintRawArray 'threat-intel-health.json' | Select-Object -First 1
@@ -196,8 +212,15 @@ $(Format-BlueprintTable -Items ($tiObjects | ForEach-Object { [pscustomobject]@{
     } else { Get-BlueprintEmptyMessage 'threat-intel-health.json' '_No indicators in `ThreatIntelIndicators` over the last {lookback}._' }
 
     $tiKqlSourceRows = @($tiCounts | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{ SourceSystem = $_.SourceSystem; Records = $_.Count; Indicators = Get-BlueprintRawProperty $_ 'Indicators' ''; LastSeen = Format-DateUtc $_.Last }
-    } | Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Records }; Descending = $true }, SourceSystem | ForEach-Object { $_.Records = Format-BlueprintCount $_.Records; $_.Indicators = Format-BlueprintCount $_.Indicators; $_ })
+        [pscustomobject]@{
+            SourceSystem = $_.SourceSystem
+            Records = $_.Count
+            Indicators = Get-BlueprintRawProperty $_ 'Indicators' ''
+            LastSeen = Format-DateUtc $_.Last
+        }
+    } |
+        Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Records }; Descending = $true }, SourceSystem |
+        ForEach-Object { $_.Records = Format-BlueprintCount $_.Records; $_.Indicators = Format-BlueprintCount $_.Indicators; $_ })
 
     $taxiiRows = @(Read-BlueprintRawArray 'taxii-clients.json' | Where-Object { $_ } | ForEach-Object {
         $tp = Get-BlueprintRawProperty $_ 'properties'

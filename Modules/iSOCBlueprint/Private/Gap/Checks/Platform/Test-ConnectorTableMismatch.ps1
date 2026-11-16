@@ -5,7 +5,7 @@
     Gap check SAC-PLT-10: Connector connected but its tables received no data
 
 .DESCRIPTION
-    Gap check for rule SAC-PLT-10 (Resources/best-practices.json). Takes the inventory
+    Gap check for rule SAC-PLT-10 (Resources/Data/best-practices.json). Takes the inventory
     built by Get-SentinelGap and returns $null when the rule passes, or a finding
     with Evidence and Detail when it fires.
 
@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -67,7 +67,16 @@ function Test-ConnectorTableMismatch {
     $parts = @()
     # A table can be expected by several connectors, so count the tables.
     $badTables = @($bad | ForEach-Object { ($_ -split ' to ')[-1] } | Sort-Object -Unique).Count
-    if ($bad.Count) { $parts += "$(Format-BlueprintPlural $badTables 'core table') with no data in the last $(Format-GapDays (Get-GapWindow $Inventory).RecentDays): $($bad -join '; ')" }
-    if ($silent.Count) { $parts += "$(Format-BlueprintPlural $silent.Count 'connector') with no data in any table $(Select-GapWording $silent.Count 'it writes' 'they write'): " + (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ') }
-    return New-Finding -Evidence "Connected data connectors that are not delivering, $($parts -join '; and ')." -Detail @{ Mismatches = @($bad); SilentConnectors = @($silent | ForEach-Object { [pscustomobject]@{ Connector = $_.Connector; Id = $_.Id; Tables = $_.Tables } }) }
+    if ($bad.Count) {
+        $parts += "$(Format-BlueprintPlural $badTables 'core table') with no data in the last $(Format-GapDays (Get-GapWindow $Inventory).RecentDays): $($bad -join '; ')"
+    }
+    if ($silent.Count) {
+        $parts += "$(Format-BlueprintPlural $silent.Count 'connector') with no data in any table $(Select-GapWording $silent.Count 'it writes' `
+            'they write'): " +
+            (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ')
+    }
+    return New-Finding -Evidence "Connected data connectors that are not delivering, $($parts -join '; and ')." -Detail @{
+        Mismatches = @($bad)
+        SilentConnectors = @($silent | ForEach-Object { [pscustomobject]@{ Connector = $_.Connector; Id = $_.Id; Tables = $_.Tables } })
+    }
 }

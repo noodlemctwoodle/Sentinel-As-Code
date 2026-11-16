@@ -28,8 +28,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
 
@@ -75,7 +75,9 @@ function ConvertFrom-BlueprintMermaid {
         if ($comment.StartsWith('%%')) {
             if ($comment -match '^%%\s*x-labels\s+(?<list>\[.*\])\s*$') { $fullLabels = @(ConvertFrom-BpMermaidList $Matches['list']) }
             elseif (-not $visual -and $comment -match '^%%\s*visual\s+(?<kind>[a-z][a-z0-9-]*)\s+(?<json>\{.*\})\s*$') {
-                try { $visual = [ordered]@{ kind = $Matches['kind']; title = $null; data = ($Matches['json'] | ConvertFrom-Json -ErrorAction Stop) } } catch { $visual = $null }
+                try {
+                    $visual = [ordered]@{ kind = $Matches['kind']; title = $null; data = ($Matches['json'] | ConvertFrom-Json -ErrorAction Stop) }
+                } catch { $visual = $null }
             }
             continue
         }

@@ -5,7 +5,7 @@
     Gap check SAC-MON-05: High-volume table with no enabled rule referencing it
 
 .DESCRIPTION
-    Gap check for rule SAC-MON-05 (Resources/best-practices.json). Takes the inventory
+    Gap check for rule SAC-MON-05 (Resources/Data/best-practices.json). Takes the inventory
     built by Get-SentinelGap and returns $null when the rule passes, or a finding
     with Evidence and Detail when it fires.
 
@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -49,7 +49,8 @@ function Test-HighVolumeTableWithoutDetection {
     $operational = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
     $uncovered = @($Inventory.TablesWithData | Where-Object {
         $t = [string](Get-PropOrDefault $_ 'DataType' '')
-        $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and ((ConvertTo-GapPer30Days (Get-GapBillable30d $_) $Inventory) -ge $threshold)
+        $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and
+            ((ConvertTo-GapPer30Days (Get-GapBillable30d $_) $Inventory) -ge $threshold)
     } | Sort-Object { -(Get-GapBillable30d $_) })
     if ($uncovered.Count -eq 0) { return $null }
 
@@ -72,10 +73,13 @@ function Test-HighVolumeTableWithoutDetection {
     # highest severity first.
     $severityRank = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
     $solutionMap = if (Get-Command Get-TemplateSolutionMap -ErrorAction SilentlyContinue) {
-        Get-TemplateSolutionMap -Installed @(Get-PropOrDefault $Inventory 'ContentPackages' @() | Where-Object { $null -ne $_ }) -Catalogue @(Get-PropOrDefault $Inventory 'ContentProductPackages' @() | Where-Object { $null -ne $_ })
+        Get-TemplateSolutionMap -Installed @(
+            Get-PropOrDefault $Inventory 'ContentPackages' @() | Where-Object { $null -ne $_ }
+        ) -Catalogue @(Get-PropOrDefault $Inventory 'ContentProductPackages' @() | Where-Object { $null -ne $_ })
     } else { $null }
     $templates = @($Inventory.TemplateTableReferences | Where-Object {
-        $null -ne $_ -and -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'AlreadyDeployed' $false)) -and
+        $null -ne $_ -and -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and
+            -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'AlreadyDeployed' $false)) -and
         -not ($solutionMap -and (Test-TemplateRetired -Map $solutionMap -TemplateId ([string](Get-PropOrDefault $_ 'TemplateId' ''))))
     })
     $rows = @(foreach ($table in $uncovered) {
@@ -102,5 +106,11 @@ function Test-HighVolumeTableWithoutDetection {
     if ([math]::Round($allTablesGb, 2) -ne [math]::Round($totalGb, 2)) {
         $ofAll = ", of $(Format-BlueprintGb $allTablesGb) GB in every table no detection reads (the rest is in smaller tables or Sentinel's own operational tables)"
     }
-    return New-Finding -Evidence "$(Format-BlueprintPlural $rows.Count 'table') of $(Format-BlueprintCount $threshold) GB a month or more $(Select-GapWording $rows.Count 'ingests' 'ingest') $(Format-BlueprintGb $totalGb) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading $(Select-GapWording $rows.Count 'it' 'them')$($ofAll): $sample." -Detail @{ Count = $rows.Count; TotalGb30d = [math]::Round($totalGb, 2); AllTablesGb30d = [math]::Round($allTablesGb, 2); Tables = $rows }
+    return New-Finding -Evidence "$(Format-BlueprintPlural $rows.Count 'table') of $(Format-BlueprintCount $threshold) GB a month or more $(Select-GapWording `
+            $rows.Count 'ingests' 'ingest') $(Format-BlueprintGb $totalGb) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading $(Select-GapWording $rows.Count 'it' 'them')$($ofAll): $sample." -Detail @{
+        Count = $rows.Count
+        TotalGb30d = [math]::Round($totalGb, 2)
+        AllTablesGb30d = [math]::Round($allTablesGb, 2)
+        Tables = $rows
+    }
 }

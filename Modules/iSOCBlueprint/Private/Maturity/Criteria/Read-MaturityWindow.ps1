@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
 
@@ -42,7 +42,10 @@ function Read-MaturityWindow {
     $runContextPath = Join-Path $InputRoot 'run-context.json'
     if (Test-Path $runContextPath) {
         $rc = Get-Content $runContextPath -Raw | ConvertFrom-Json
-        if ($rc -and $rc.PSObject.Properties['LookbackDays'] -and [int]$rc.LookbackDays -ge 1) { $window.Days = [int]$rc.LookbackDays; $window.RecentDays = [math]::Min(7, $window.Days) }
+        if ($rc -and $rc.PSObject.Properties['LookbackDays'] -and [int]$rc.LookbackDays -ge 1) {
+            $window.Days = [int]$rc.LookbackDays
+            $window.RecentDays = [math]::Min(7, $window.Days)
+        }
         if ($rc -and $rc.PSObject.Properties['RecentDays'] -and [int]$rc.RecentDays -ge 1) { $window.RecentDays = [int]$rc.RecentDays }
     }
     return $window

@@ -27,7 +27,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, What's new reading
     Requires:     PowerShell 7.6+
@@ -65,7 +65,10 @@ function Get-WhatsNew {
     $sources = foreach ($s in $script:WhatsNewSources) {
         try {
             $resp = Invoke-WebRequest -Uri $s.Url -Headers @{ Accept = 'text/markdown' } -TimeoutSec 30 -UseBasicParsing -ErrorAction Stop
-            $kept = @(ConvertFrom-WhatsNewMarkdown -Markdown ([string]$resp.Content) -Product $s.Product -PageUrl $s.Url | Where-Object { [string]::CompareOrdinal($_.Month, $since) -ge 0 })
+            $kept = @(
+                ConvertFrom-WhatsNewMarkdown -Markdown ([string]$resp.Content) -Product $s.Product -PageUrl $s.Url |
+                    Where-Object { [string]::CompareOrdinal($_.Month, $since) -ge 0 }
+            )
             foreach ($k in $kept) { $items.Add($k) }
             [pscustomobject]@{ Product = $s.Product; Url = $s.Url; Ok = $true; Error = $null; Items = $kept.Count }
         }

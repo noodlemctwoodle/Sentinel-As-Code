@@ -33,8 +33,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.1
-    Last Updated: 2026-11-09
+    Version:      0.2.2
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -125,8 +125,16 @@ function Get-TemplateSolutionMap {
 
     $map = @{}
     $rank = @{}
-    $name = { param($p) if ($p -and $p.properties -and $p.properties.PSObject.Properties.Name -contains 'displayName') { [string]$p.properties.displayName } else { '' } }
-    $cid = { param($p) if ($p -and $p.properties -and $p.properties.PSObject.Properties.Name -contains 'contentId') { ([string]$p.properties.contentId).ToLowerInvariant() } else { '' } }
+    $name = {
+        param($p) if ($p -and $p.properties -and $p.properties.PSObject.Properties.Name -contains 'displayName') {
+            [string]$p.properties.displayName
+        } else { '' }
+    }
+    $cid = {
+        param($p) if ($p -and $p.properties -and $p.properties.PSObject.Properties.Name -contains 'contentId') {
+            ([string]$p.properties.contentId).ToLowerInvariant()
+        } else { '' }
+    }
     $catalogueList = @($Catalogue | Where-Object { $null -ne $_ })
     # An installed package may not carry the flag; its catalogue entry does.
     $deprecatedId = @{}
@@ -154,7 +162,12 @@ function Get-TemplateSolutionMap {
         foreach ($tid in (Get-PackageAnalyticsRuleId -Package $p)) {
             if ($rank.ContainsKey($tid) -and $rank[$tid] -le $r) { continue }
             $rank[$tid] = $r
-            $map[$tid] = [pscustomobject]@{ Solution = $n; Installed = $inst; Deprecated = [bool]$dep; ReplacedBy = $(if ($dep) { & $replacement $n } else { $null }) }
+            $map[$tid] = [pscustomobject]@{
+                Solution = $n
+                Installed = $inst
+                Deprecated = [bool]$dep
+                ReplacedBy = $(if ($dep) { & $replacement $n } else { $null })
+            }
         }
     }
     foreach ($p in $catalogueList) { & $consider $p $false }
@@ -227,6 +240,11 @@ function Format-TemplateSolutionSummary {
         if (-not $groups.ContainsKey($s.Solution)) { $groups[$s.Solution] = [pscustomobject]@{ Solution = $s.Solution; Installed = $s.Installed; Count = 0 } }
         $groups[$s.Solution].Count++
     }
-    $ordered = @($groups.Values | Sort-Object @{ Expression = { if ($_.Installed -eq $true) { 0 } elseif ($_.Installed -eq $false) { 1 } else { 2 } } }, @{ Expression = 'Count'; Descending = $true }, Solution)
+    $ordered = @(
+        $groups.Values |
+            Sort-Object @{
+                Expression = { if ($_.Installed -eq $true) { 0 } elseif ($_.Installed -eq $false) { 1 } else { 2 } }
+            }, @{ Expression = 'Count'; Descending = $true }, Solution
+    )
     return (($ordered | ForEach-Object { "$($_.Solution) ($($_.Count)$(if ($_.Installed -eq $true) { ', installed' }))" }) -join '; ')
 }

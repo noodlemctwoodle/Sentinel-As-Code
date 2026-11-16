@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -57,7 +57,11 @@ function Write-BlueprintCoverageBreakdownsSection {
     }
     # Entra ID tables: which of the well-known identity tables exist in the
     # catalogue and which received data in the last 7 days.
-    $entraTableNames = @('SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs','AADServicePrincipalSignInLogs','AADManagedIdentitySignInLogs','AADProvisioningLogs','ADFSSignInLogs','AADRiskyUsers','AADUserRiskEvents','AADRiskyServicePrincipals','AADServicePrincipalRiskEvents','MicrosoftGraphActivityLogs','IdentityInfo')
+    $entraTableNames = @(
+        'SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs','AADServicePrincipalSignInLogs','AADManagedIdentitySignInLogs','AADProvisioningLogs',
+            'ADFSSignInLogs','AADRiskyUsers','AADUserRiskEvents','AADRiskyServicePrincipals','AADServicePrincipalRiskEvents','MicrosoftGraphActivityLogs',
+            'IdentityInfo'
+    )
     $entraRows = @(foreach ($name in $entraTableNames) {
         $cat = @($workspaceTables | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'name') -eq $name }) | Select-Object -First 1
         $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
@@ -121,7 +125,11 @@ A short bar means that XDR surface (email / device / identity / cloud-app) isn't
         }
     })
     $fwTableRows = @($tablesWithData | Where-Object { $_ -and [string](Get-BlueprintRawProperty $_ 'DataType' '') -like 'AZFW*' } | ForEach-Object {
-        [pscustomobject]@{ Table = $_.DataType; Gb7d = [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'BillableLast7d' 0)), 2); LastIngested = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastIngested') }
+        [pscustomobject]@{
+            Table = $_.DataType
+            Gb7d = [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'BillableLast7d' 0)), 2)
+            LastIngested = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastIngested')
+        }
     })
     $fwLegacyRows = @($fwCategoryRows | Where-Object { $_.Form -eq 'Legacy category' })
     $fwVerdict = if (-not (Test-Path (Join-Path $rawRoot 'azure-firewall-categories.json'))) { '_Not captured in this snapshot._' }

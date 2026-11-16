@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -48,7 +48,10 @@ function Write-BlueprintCostEstimateSection {
             [pscustomobject]@{ Plan = $_.Name; Gb30d = [math]::Round($_.Value.Gb30d, 2); MonthlyCost = $_.Value.MonthlyCost }
         }
         # The same rows for the table: the amounts as the dashboard writes them.
-        $planTableRows = @($planRows | ForEach-Object { [pscustomobject]@{ Plan = $_.Plan; Gb30d = $_.Gb30d; MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency) } })
+        $planTableRows = @(
+            $planRows |
+                ForEach-Object { [pscustomobject]@{ Plan = $_.Plan; Gb30d = $_.Gb30d; MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency) } }
+        )
         # How the workspace is priced, its commitment tier, and the data grants
         # that may cover part of it; an estimate from before these were reported
         # has none of them.
@@ -67,12 +70,20 @@ function Write-BlueprintCostEstimateSection {
         } else { '' }
         $costCurrencySource = [string](& $costField 'CurrencySource')
         $costCurrencyText = switch ($costCurrencySource) {
-            'Region'    { "Prices are in $($cost.Currency), taken from the workspace's region ($(Get-BlueprintRegionName $cost.Region)); billing currency follows the billing account, so set the collector's ``-Currency`` (the pipelines' currency setting) when that is wrong." }
+            'Region'    {
+                "Prices are in $($cost.Currency), taken from the workspace's region ($(Get-BlueprintRegionName $cost.Region)); billing currency follows the billing account, so set the collector's ``-Currency`` (the pipelines' currency setting) when that is wrong."
+            }
             'Parameter' { "Prices are in $($cost.Currency), as the run's ``-Currency`` setting asked." }
             default     { '' }
         }
         $grantRows = @(@(& $costField 'BenefitEligible') | Where-Object { $_ } | ForEach-Object {
-            [pscustomobject]@{ Grant = [string]$_.Benefit; Allowance = [string]$_.Allowance; Gb30d = $_.Gb30d; MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency); Tables = [string]$_.Tables }
+            [pscustomobject]@{
+                Grant = [string]$_.Benefit
+                Allowance = [string]$_.Allowance
+                Gb30d = $_.Gb30d
+                MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency)
+                Tables = [string]$_.Tables
+            }
         })
 
         # ---------------------------------------------------------------------
@@ -90,7 +101,9 @@ function Write-BlueprintCostEstimateSection {
             $gb = [double]$t.Gb30d
             if ($gb -lt 0.01) { continue }
             # The rate each table bills at is its plan's.
-            $tier = switch ([string]$t.Plan) { 'Basic' { 'Basic rate' } 'Auxiliary' { 'Auxiliary rate' } 'DataLake' { 'Data lake rate' } default { 'Analytics rate' } }
+            $tier = switch ([string]$t.Plan) {
+                'Basic' { 'Basic rate' } 'Auxiliary' { 'Auxiliary rate' } 'DataLake' { 'Data lake rate' } default { 'Analytics rate' }
+            }
             $flowFiltered.Add([pscustomobject]@{
                 Table  = $t.Table
                 Gb     = $gb
@@ -188,12 +201,20 @@ function Write-BlueprintCostEstimateSection {
             currency     = [string]$cost.Currency
             monthlyTotal = $cost.MonthlyTotal
             totalGb      = [math]::Round([double]$totalGb, 2)
-            plans        = @($planRows | Sort-Object { -[double]$_.Gb30d } | ForEach-Object { [ordered]@{ name = [string]$_.Plan; gb = [double]$_.Gb30d; cost = $_.MonthlyCost } })
+            plans        = @(
+                $planRows |
+                    Sort-Object { -[double]$_.Gb30d } |
+                    ForEach-Object { [ordered]@{ name = [string]$_.Plan; gb = [double]$_.Gb30d; cost = $_.MonthlyCost } }
+            )
             sources      = @($flowFiltered | Group-Object Source | ForEach-Object {
                 [ordered]@{
                     name   = [string]$_.Name
                     gb     = [math]::Round([double](($_.Group | Measure-Object -Property Gb -Sum).Sum), 2)
-                    tables = @($_.Group | Sort-Object -Property Gb -Descending | ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = [string]$_.Tier } })
+                    tables = @(
+                        $_.Group |
+                            Sort-Object -Property Gb -Descending |
+                            ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = [string]$_.Tier } }
+                    )
                 }
             } | Sort-Object { -$_.gb })
         })

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint sync planning
     Requires:     PowerShell 7.6+
@@ -96,7 +96,9 @@ function Get-FindingSyncPlan {
         # legacyId; an item still filed under that id is the same finding and
         # is updated in place (its FindingId moves to the new id).
         $legacyId = if ($f.PSObject.Properties['legacyId'] -and $f.legacyId) { [string]$f.legacyId } else { $null }
-        $match = if ($existingById.ContainsKey($id)) { $existingById[$id] } elseif ($legacyId -and $existingById.ContainsKey($legacyId)) { $existingById[$legacyId] } else { $null }
+        $match = if ($existingById.ContainsKey($id)) {
+            $existingById[$id]
+        } elseif ($legacyId -and $existingById.ContainsKey($legacyId)) { $existingById[$legacyId] } else { $null }
         if ($match -and $legacyId) { [void]$fired.Add($legacyId) }
         $severity = [string]$f.severity
         $values = @{

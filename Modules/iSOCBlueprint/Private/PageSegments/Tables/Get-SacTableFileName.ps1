@@ -2,7 +2,9 @@
 
 <#
 .SYNOPSIS
-    The CSV file name for a cut table: the section id and the heading above the table, lower case, letters, digits and hyphens only, with -2, -3 and so on when the section has more than one under a heading.
+    The CSV file name for a cut table: the section id and the heading above the table, lower
+    case, letters, digits and hyphens only, with -2, -3 and so on when the section has more than
+    one under a heading.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/PageSegments/Tables/Get-SacTableFileName.ps1
@@ -10,8 +12,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.0
-    Last Updated: 2026-11-13
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
 

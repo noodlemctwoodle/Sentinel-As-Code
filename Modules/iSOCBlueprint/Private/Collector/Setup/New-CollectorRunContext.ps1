@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
@@ -101,6 +101,8 @@ function New-CollectorRunContext {
         RecentDays        = $script:RecentDays
         DailyDays         = $script:DailyDays
         Currency          = $Currency
-        ScriptCommit      = $(if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $ResourcesFolder rev-parse HEAD 2>$null) -as [string] } else { $null })
+        ScriptCommit      = $(
+            if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $ResourcesFolder rev-parse HEAD 2>$null) -as [string] } else { $null }
+        )
     }
 }

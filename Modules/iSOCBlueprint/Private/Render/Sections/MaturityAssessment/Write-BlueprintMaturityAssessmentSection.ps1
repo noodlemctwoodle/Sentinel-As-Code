@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -65,14 +65,26 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
                 Evaluated   = "$($_.met) met of $($_.evaluated)"
                 Unknown     = $_.unknown
                 Confidence  = $_.confidence
-                GapToTarget = if ($null -eq $_.score) { 'n/a' } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { Format-BlueprintNumber ($maturity.targetLevel - $_.score) }
+                GapToTarget = if ($null -eq $_.score) {
+                    'n/a'
+                } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { Format-BlueprintNumber ($maturity.targetLevel - $_.score) }
             }
         })
         $roadmapRows = @(@($maturity.roadmap) | ForEach-Object {
-            [pscustomobject]@{ Priority = $_.priority; Criterion = "$($_.criterionId) $($_.name)"; Area = $_.area; Effort = $_.effort; Lift = (Format-BlueprintNumber $_.overallLift); Projected = (Format-BlueprintNumber $_.projectedScore); Guidance = $_.guidance }
+            [pscustomobject]@{
+                Priority = $_.priority
+                Criterion = "$($_.criterionId) $($_.name)"
+                Area = $_.area
+                Effort = $_.effort
+                Lift = (Format-BlueprintNumber $_.overallLift)
+                Projected = (Format-BlueprintNumber $_.projectedScore)
+                Guidance = $_.guidance
+            }
         })
         $quickWinLines = if (@($maturity.quickWins).Count -gt 0) {
-            (@($maturity.quickWins) | ForEach-Object { "- **$($_.criterionId)** $($_.name) ($($_.area), lift $(Format-BlueprintNumber $_.overallLift)): $($_.guidance)" }) -join [Environment]::NewLine
+            (@($maturity.quickWins) |
+                ForEach-Object { "- **$($_.criterionId)** $($_.name) ($($_.area), lift $(Format-BlueprintNumber $_.overallLift)): $($_.guidance)" }) -join
+                [Environment]::NewLine
         } else { '_No Low-effort gaps remain; the rest of the roadmap is Medium or High effort._' }
         $csfRows = @(@($maturity.csf.functions) | ForEach-Object {
             [pscustomobject]@{ Function = "$($_.id) $($_.name)"; Criteria = $_.criteria; Met = $_.met; Gap = $_.gap; Unknown = $_.unknown }
@@ -80,7 +92,15 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
         $criteriaRows = @($mAreas | ForEach-Object {
             $areaId = $_.id
             @($_.criteria) | ForEach-Object {
-                [pscustomobject]@{ Id = $_.id; Area = $areaId; Kind = $_.kind; Criterion = $_.name; Status = $_.status; Effort = $_.effort; Evidence = $_.evidence }
+                [pscustomobject]@{
+                    Id = $_.id
+                    Area = $areaId
+                    Kind = $_.kind
+                    Criterion = $_.name
+                    Status = $_.status
+                    Effort = $_.effort
+                    Evidence = $_.evidence
+                }
             }
         })
         $outOfScopeLines = (@($maturity.outOfScope) | ForEach-Object { "- **$($_.area)**: $($_.reason)" }) -join [Environment]::NewLine
@@ -101,7 +121,9 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
                 [pscustomobject]@{ Id = $_.id; Area = $areaId; Criterion = $_.name; Effort = $_.effort; Impact = $_.impact; Guidance = $_.guidance }
             }
         })
-        $overallText = if ($null -eq $maturity.overall.score) { 'not assessed' } else { "$(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
+        $overallText = if ($null -eq $maturity.overall.score) {
+            'not assessed'
+        } else { "$(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
     @"
 $(Format-Banner -Title "Maturity Assessment")
 

@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
@@ -55,7 +55,9 @@ function Build-SiteFindings {
     # Assessment tab can show what closing it does to the score.
     $findingMaturity = Get-FindingMaturityLink -CriteriaPath (Join-Path $resourcesFolder 'Data/maturity-criteria.json') -Maturity (Read-SiteRaw 'maturity.json')
     $findingList = @()
-    foreach ($f in ($gap | Where-Object { $_ } | Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
+    foreach ($f in ($gap |
+            Where-Object { $_ } |
+            Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
         $findingList += [ordered]@{
             id          = $f.Id
             legacyId    = $(if ($f.PSObject.Properties['LegacyId'] -and $f.LegacyId) { [string]$f.LegacyId } else { $null })
@@ -64,11 +66,23 @@ function Build-SiteFindings {
             severity    = [string]$f.Severity
             category    = [string]$f.Category
             # An older snapshot's "?" for an unnamed principal, in words, as on the report page.
-            evidence    = $(if ($f.Evidence) { [regex]::Replace([string]$f.Evidence, '(?<=[:;]\s)\?(?=\s*(;|\.?\s*$))', 'Unnamed (no name in this snapshot)') } else { $f.Evidence })
+            evidence    = $(
+                if ($f.Evidence) {
+                    [regex]::Replace([string]$f.Evidence, '(?<=[:;]\s)\?(?=\s*(;|\.?\s*$))', 'Unnamed (no name in this snapshot)')
+                } else { $f.Evidence }
+            )
             remediation = $f.Remediation
             learn       = $f.Learn
             maturity    = @($(if ($findingMaturity.ContainsKey([string]$f.Id)) { @($findingMaturity[[string]$f.Id]) } else { @() }) | ForEach-Object {
-                    [ordered]@{ criterionId = $_.CriterionId; name = $_.Name; area = $_.Area; areaName = $_.AreaName; status = $_.Status; lift = $_.Lift; shared = $_.Shared }
+                    [ordered]@{
+                        criterionId = $_.CriterionId
+                        name = $_.Name
+                        area = $_.Area
+                        areaName = $_.AreaName
+                        status = $_.Status
+                        lift = $_.Lift
+                        shared = $_.Shared
+                    }
                 })
         }
     }

@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -115,7 +115,9 @@ function Write-SiteBundle {
     # The chart web part's renderers, bundled by WebParts/Build-DashboardCharts.ps1,
     # draw the diagrams the dashboard does not draw itself.
     $chartBundlePath = Join-Path $siteRoot 'templates/dashboard-charts.js'
-    $chartBundle = if (Test-Path -LiteralPath $chartBundlePath) { Get-Content -LiteralPath $chartBundlePath -Raw -Encoding utf8 } else { $buildWarnings.Add('templates/dashboard-charts.js is missing: the dashboard draws only pie and xy charts.'); '' }
+    $chartBundle = if (Test-Path -LiteralPath $chartBundlePath) {
+        Get-Content -LiteralPath $chartBundlePath -Raw -Encoding utf8
+    } else { $buildWarnings.Add('templates/dashboard-charts.js is missing: the dashboard draws only pie and xy charts.'); '' }
     $html = $template.Replace('__TITLE__', (ConvertTo-HtmlText $Title)).Replace('/*__MODEL__*/null', $modelJson).Replace('/*__SAC_CHARTS__*/', $chartBundle)
     $indexPath = Join-Path $OutputRoot 'index.html'
     if ($PSCmdlet.ShouldProcess($indexPath, 'Write dashboard HTML')) {
@@ -130,13 +132,20 @@ function Write-SiteBundle {
     Write-SiteBundleJson -Path (Join-Path $OutputRoot 'progress.json') -Data $progressRecord -What 'Write progress record'
     $earlierProgress = @()
     if ($runDay -eq (Split-Path -Leaf $Source)) {
-        foreach ($day in @(Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $runDay) -lt 0 })) {
+        foreach ($day in @(
+            Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $runDay) -lt 0 }
+        )) {
             $p = Join-Path $day.FullName 'sharepoint/progress.json'
             if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { continue }
-            try { $earlierProgress += , (Get-Content -LiteralPath $p -Raw | ConvertFrom-Json -Depth 32) } catch { $buildWarnings.Add("Unreadable progress record in $($day.Name): $($_.Exception.Message)") }
+            try {
+                $earlierProgress += , (Get-Content -LiteralPath $p -Raw | ConvertFrom-Json -Depth 32)
+            } catch { $buildWarnings.Add("Unreadable progress record in $($day.Name): $($_.Exception.Message)") }
         }
     }
-    $progressHistory = Merge-SacProgressHistory -History $null -Records (@($earlierProgress) + , $progressRecord) -Days $(if ($HistoryDays -gt 0) { $HistoryDays } else { 90 })
+    $progressHistory = Merge-SacProgressHistory -History $null -Records (@($earlierProgress) + , $progressRecord) -Days $(
+        if ($HistoryDays -gt 0) { $HistoryDays } else { 90 }
+    )
     Write-SiteBundleJson -Path (Join-Path $OutputRoot 'progress-history.json') -Data $progressHistory -What 'Write progress history'
 
     foreach ($p in $pageDocs) {
@@ -187,9 +196,13 @@ function Write-SiteBundle {
     $sourceDay = Split-Path -Leaf $Source
     if ($HistoryDays -gt 0 -and $sourceDay -match '^\d{4}-\d{2}-\d{2}$') {
         $historyDir = Join-Path $OutputRoot 'history'
-        $cutoff = [datetime]::ParseExact($sourceDay, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
+        $cutoff = [datetime]::ParseExact($sourceDay, 'yyyy-MM-dd',
+            [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
         $dayFolders = @(Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $cutoff) -ge 0 -and [string]::CompareOrdinal($_.Name, $sourceDay) -le 0 } |
+            Where-Object {
+                $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $cutoff) -ge 0 -and
+                    [string]::CompareOrdinal($_.Name, $sourceDay) -le 0
+            } |
             Sort-Object Name -Descending)
         $historyEntries = [System.Collections.Generic.List[object]]::new()
         if ($PSCmdlet.ShouldProcess($historyDir, 'Write dashboard history')) {
@@ -215,7 +228,8 @@ function Write-SiteBundle {
                     score     = $(if ($daySummary) { $daySummary.score } else { $null })
                 })
             }
-            ([ordered]@{ entries = $historyEntries.ToArray() } | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath (Join-Path $historyDir 'index.json') -Encoding utf8
+            ([ordered]@{ entries = $historyEntries.ToArray() } | ConvertTo-Json -Depth 6) |
+                Set-Content -LiteralPath (Join-Path $historyDir 'index.json') -Encoding utf8
         }
         Write-SiteLog "  History: $($historyEntries.Count) day(s) of dashboard copies kept (last $HistoryDays)" Info
     }

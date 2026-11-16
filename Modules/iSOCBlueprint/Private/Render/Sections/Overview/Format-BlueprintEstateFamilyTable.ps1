@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -46,7 +46,14 @@ function Format-BlueprintEstateFamilyTable {
     })
     foreach ($fam in @($alertsByFamily.Keys | Sort-Object)) {
         if (-not @($rows | Where-Object { $_.Family -eq $fam }).Count) {
-            $rows += [pscustomobject]@{ Family = $fam; Tables = 0; Gb30d = Format-BlueprintGb 0; TablesRead = 0; GbRead = Format-BlueprintGb 0; FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ') }
+            $rows += [pscustomobject]@{
+                Family = $fam
+                Tables = 0
+                Gb30d = Format-BlueprintGb 0
+                TablesRead = 0
+                GbRead = Format-BlueprintGb 0
+                FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ')
+            }
         }
     }
     $customLine = if ($Estate.CustomDetectionsCaptured) {

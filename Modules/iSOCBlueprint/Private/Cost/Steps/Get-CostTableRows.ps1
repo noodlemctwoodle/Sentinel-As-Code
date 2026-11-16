@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, cost estimate
     Requires:     PowerShell 7.6+
@@ -60,7 +60,12 @@ function Get-CostTableRows {
             default     { $analyticsUnit }
         }
         [pscustomobject]@{ Table = $name; Plan = $plan; Gb = $billable30d; Cost = $billable30d * $unit * $toMonth
-            Benefit = $(if ($benefitOf.ContainsKey($name)) { $g = $benefitOf[$name]; if ($g.PSObject.Properties.Name -contains 'short' -and $g.short) { [string]$g.short } else { [string]$g.name } } else { '' }) }
+            Benefit = $(
+                if ($benefitOf.ContainsKey($name)) {
+                    $g = $benefitOf[$name]
+                    if ($g.PSObject.Properties.Name -contains 'short' -and $g.short) { [string]$g.short } else { [string]$g.name }
+                } else { '' }
+            ) }
     }
     $rows = @($rows)
 

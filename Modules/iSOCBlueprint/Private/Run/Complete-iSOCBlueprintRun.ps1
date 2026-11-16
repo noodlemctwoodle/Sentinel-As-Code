@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, one-command run
     Requires:     PowerShell 7.6+
@@ -36,7 +36,8 @@ function Complete-iSOCBlueprintRun {
     [OutputType([pscustomobject])]
     param([Parameter(Mandatory)] [hashtable] $Run)
 
-    Write-iSOCBlueprintRunSummary -Path $Run.Workspace -Elapsed $Run.Timer.Elapsed -Collected (-not $Run.SkipCollection) -WordDocument $Run.Document -SiteBundle $Run.Bundle -SiteUrl $Run.Published
+    Write-iSOCBlueprintRunSummary -Path $Run.Workspace -Elapsed $Run.Timer.Elapsed -Collected (-not $Run.SkipCollection) -WordDocument $Run.Document `
+        -SiteBundle $Run.Bundle -SiteUrl $Run.Published
 
     [pscustomobject]@{
         PSTypeName    = 'iSOCBlueprint.Blueprint'

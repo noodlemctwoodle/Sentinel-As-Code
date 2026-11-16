@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -64,12 +64,48 @@ function Format-BlueprintEstateSankey {
         windowDays = (Get-BlueprintWindow).Days
         totalGb   = [math]::Round([double]$Estate.TotalGb, 2)
         coveredGb = [math]::Round([double]$Estate.CoveredGb, 2)
-        sources   = @($Estate.Sources | Sort-Object { -[double]$_.Gb } | ForEach-Object { [ordered]@{ name = [string]$_.Category; gb = [math]::Round([double]$_.Gb, 2); coveredGb = [math]::Round([double]$_.CoveredGb, 2); tables = [int]$_.Tables; covered = [int]$_.Covered } })
+        sources   = @(
+            $Estate.Sources |
+                Sort-Object { -[double]$_.Gb } |
+                ForEach-Object {
+                    [ordered]@{
+                        name = [string]$_.Category
+                        gb = [math]::Round([double]$_.Gb, 2)
+                        coveredGb = [math]::Round([double]$_.CoveredGb, 2)
+                        tables = [int]$_.Tables
+                        covered = [int]$_.Covered
+                    }
+                }
+        )
         stages    = @(
-            [ordered]@{ name = 'Ingestion'; value = [int]$Estate.TablesActive; of = [int]$Estate.TablesSeen; label = 'tables with data in {lookback} still receiving data in the last {recent}'; detail = "$(Format-BlueprintGb $Estate.TotalGb) GB in {lookback}" }
-            [ordered]@{ name = 'Detection'; value = [int]$Estate.TablesCovered; of = [int]$Estate.TablesActive; label = 'active tables read by an enabled detection'; detail = "$(& $n0 $Estate.RulesEnabled) enabled rules" }
-            [ordered]@{ name = 'Alerts'; value = [int]$Estate.RulesFired; of = [int]$Estate.RulesQueryEnabled; label = 'scheduled and NRT rules that fired'; detail = "$(& $n0 $Estate.RuleAlerts) Sentinel alerts$(if ([long]$Estate.XdrAlerts -gt 0) { " and $(& $n0 $Estate.XdrAlerts) Defender XDR alerts" }) in {lookback}" }
-            [ordered]@{ name = 'Incidents'; value = [int]$Estate.IncidentsClosed; of = [int]$Estate.Incidents; label = 'incidents closed'; detail = "$(& $n0 $Estate.IncidentsOpen) still open" }
+            [ordered]@{
+                name = 'Ingestion'
+                value = [int]$Estate.TablesActive
+                of = [int]$Estate.TablesSeen
+                label = 'tables with data in {lookback} still receiving data in the last {recent}'
+                detail = "$(Format-BlueprintGb $Estate.TotalGb) GB in {lookback}"
+            }
+            [ordered]@{
+                name = 'Detection'
+                value = [int]$Estate.TablesCovered
+                of = [int]$Estate.TablesActive
+                label = 'active tables read by an enabled detection'
+                detail = "$(& $n0 $Estate.RulesEnabled) enabled rules"
+            }
+            [ordered]@{
+                name = 'Alerts'
+                value = [int]$Estate.RulesFired
+                of = [int]$Estate.RulesQueryEnabled
+                label = 'scheduled and NRT rules that fired'
+                detail = "$(& $n0 $Estate.RuleAlerts) Sentinel alerts$(if ([long]$Estate.XdrAlerts -gt 0) { " and $(& $n0 $Estate.XdrAlerts) Defender XDR alerts" }) in {lookback}"
+            }
+            [ordered]@{
+                name = 'Incidents'
+                value = [int]$Estate.IncidentsClosed
+                of = [int]$Estate.Incidents
+                label = 'incidents closed'
+                detail = "$(& $n0 $Estate.IncidentsOpen) still open"
+            }
         )
     })
     @"

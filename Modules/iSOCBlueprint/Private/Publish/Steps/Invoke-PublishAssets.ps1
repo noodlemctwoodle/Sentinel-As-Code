@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+
 
@@ -97,7 +97,9 @@ function Invoke-PublishAssets {
         $progressRecords = @(Get-Content -LiteralPath $bundleProgress -Raw | ConvertFrom-Json -Depth 32)
     }
     if ($progressRecords.Count) {
-        $progress = Merge-SacProgressHistory -History (Read-SacProgressHistory) -Records $progressRecords -Days $(if ($HistoryDays -gt 0) { $HistoryDays } else { 90 })
+        $progress = Merge-SacProgressHistory -History (Read-SacProgressHistory) -Records $progressRecords -Days $(
+            if ($HistoryDays -gt 0) { $HistoryDays } else { 90 }
+        )
         Save-SacProgressHistory -History $progress
         Write-Host "  Progress history: $(if ($WhatIfPreference) { 'would keep' } else { 'kept' }) $(@($progress.entries).Count) run(s)"
     }
@@ -112,23 +114,32 @@ function Invoke-PublishAssets {
         $generated = [string]$site.generatedUtc
         $snapDate = if ($generated -match '^\d{4}-\d{2}-\d{2}') { $Matches[0] } else { (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') }
         $snapFile = "$snapDate.html"
-        $findingItems = @(if ($model.PSObject.Properties['findings'] -and $model.findings -and $model.findings.PSObject.Properties['items']) { @($model.findings.items) })
+        $findingItems = @(
+            if ($model.PSObject.Properties['findings'] -and $model.findings -and $model.findings.PSObject.Properties['items']) { @($model.findings.items) }
+        )
         $snapEntry = @{
             date      = $snapDate
             file      = $snapFile
             generated = $generated
             findings  = $findingItems.Count
             critical  = @($findingItems | Where-Object { $_ -and [string]$_.severity -eq 'Critical' }).Count
-            score     = $(if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.maturity.PSObject.Properties['overall']) { $model.maturity.overall.score } else { $null })
+            score     = $(
+                if ($model.PSObject.Properties['maturity'] -and $model.maturity -and $model.maturity.PSObject.Properties['overall']) {
+                    $model.maturity.overall.score
+                } else { $null }
+            )
         }
         # Days the bundle carries (a local run written to day folders) that the
         # site does not have yet go up first, so a first publish brings the
         # history with it.
         $siteIndex = Read-SacSnapshotIndex
         $onSite = @($siteIndex.entries | ForEach-Object { [string]$_.date })
-        $cutoff = [datetime]::ParseExact($snapDate, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
+        $cutoff = [datetime]::ParseExact($snapDate, 'yyyy-MM-dd',
+            [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
         $bundleIndexPath = Join-Path $Bundle 'history/index.json'
-        $carried = @(if (Test-Path -LiteralPath $bundleIndexPath) { @((Get-Content -LiteralPath $bundleIndexPath -Raw | ConvertFrom-Json -AsHashtable).entries) })
+        $carried = @(
+            if (Test-Path -LiteralPath $bundleIndexPath) { @((Get-Content -LiteralPath $bundleIndexPath -Raw | ConvertFrom-Json -AsHashtable).entries) }
+        )
         $seeded = 0
         foreach ($e in $carried) {
             $d = [string]$e.date

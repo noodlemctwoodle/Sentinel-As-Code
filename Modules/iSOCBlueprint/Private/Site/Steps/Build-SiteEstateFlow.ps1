@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -49,14 +49,26 @@ function Build-SiteEstateFlow {
     $wsTablesRaw = Read-SiteRawArray 'workspace-tables.json'
     $wsTableByName = @{}
     foreach ($t in $wsTablesRaw) { if ($t -and $t.PSObject.Properties['name'] -and $t.name) { $wsTableByName[[string]$t.name] = $t } }
-    $unifiedBilling = [bool]($wsProps -and $wsProps.PSObject.Properties['features'] -and $wsProps.features -and $wsProps.features.PSObject.Properties['unifiedSentinelBillingOnly'] -and $wsProps.features.unifiedSentinelBillingOnly)
-    $lakePlanTables = @($wsTablesRaw | Where-Object { $_ -and $_.PSObject.Properties['properties'] -and $_.properties -and $_.properties.PSObject.Properties['plan'] -and $_.properties.plan -eq 'DataLake' }).Count
+    $unifiedBilling = [bool]($wsProps -and $wsProps.PSObject.Properties['features'] -and $wsProps.features -and
+        $wsProps.features.PSObject.Properties['unifiedSentinelBillingOnly'] -and $wsProps.features.unifiedSentinelBillingOnly)
+    $lakePlanTables = @(
+        $wsTablesRaw |
+            Where-Object {
+                $_ -and $_.PSObject.Properties['properties'] -and $_.properties -and $_.properties.PSObject.Properties['plan'] -and $_.properties.plan -eq
+                    'DataLake'
+            }
+    ).Count
     $lakeEnrolled = ($dataLake.Count -gt 0) -or $unifiedBilling -or ($lakePlanTables -gt 0)
     # The flow's plan column names the lake tier a table lands in, so an
     # enrolled workspace shows its lake instead of a single "Analytics plan"
     # box. Basic and Auxiliary tables keep their plan name: they are neither
     # analytics-tier nor lake-mirrored.
-    $script:FlowTierLabel = @{ AnalyticsOnly = 'Analytics plan'; MirroredOnly = 'Analytics + Lake mirror'; MirroredExtended = 'Analytics + Lake extended'; LakeOnly = 'Data lake only' }
+    $script:FlowTierLabel = @{
+        AnalyticsOnly = 'Analytics plan'
+        MirroredOnly = 'Analytics + Lake mirror'
+        MirroredExtended = 'Analytics + Lake extended'
+        LakeOnly = 'Data lake only'
+    }
 
     $flowNodes = @()
     $flowLinks = @()
@@ -73,7 +85,12 @@ function Build-SiteEstateFlow {
         foreach ($t in $top) {
             $gb = [math]::Round([double]$t.Gb30d, 3)
             $billedGb = Get-FlowBilledGb $t $gb
-            $tableRows += [ordered]@{ table = $t.Table; family = (Get-TableFamily $t.Table); gb = $gb; parts = @([ordered]@{ plan = (Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)); gb = $gb; billedGb = $billedGb }) }
+            $tableRows += [ordered]@{
+                table = $t.Table
+                family = (Get-TableFamily $t.Table)
+                gb = $gb
+                parts = @([ordered]@{ plan = (Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)); gb = $gb; billedGb = $billedGb })
+            }
         }
         if ($rest.Count -gt 0) {
             $restParts = [ordered]@{}
@@ -83,12 +100,14 @@ function Build-SiteEstateFlow {
                 $restParts[$label].gb += [double]$t.Gb30d
                 $restParts[$label].billedGb += Get-FlowBilledGb $t ([double]$t.Gb30d)
             }
-            $restGb = 0.0; foreach ($pt in $restParts.Values) { $pt.gb = [math]::Round($pt.gb, 3); $pt.billedGb = [math]::Round($pt.billedGb, 3); $restGb += $pt.gb }
+            $restGb = 0.0
+            foreach ($pt in $restParts.Values) { $pt.gb = [math]::Round($pt.gb, 3); $pt.billedGb = [math]::Round($pt.billedGb, 3); $restGb += $pt.gb }
             $tableRows += [ordered]@{ table = "Other (+$($rest.Count))"; family = 'Other'; gb = [math]::Round($restGb, 3); parts = @($restParts.Values) }
         }
 
         # Nodes: families (col0), tables (col1), plans and lake tiers (col2), billed buckets (col3)
-        $famAgg = @{}; foreach ($row in $tableRows) { if (-not $famAgg.ContainsKey($row.family)) { $famAgg[$row.family] = 0.0 }; $famAgg[$row.family] += $row.gb }
+        $famAgg = @{}
+        foreach ($row in $tableRows) { if (-not $famAgg.ContainsKey($row.family)) { $famAgg[$row.family] = 0.0 }; $famAgg[$row.family] += $row.gb }
         $planAgg = @{}; $planBucket = @{}
         $bucketAgg = @{ 'Billed' = 0.0; 'Grant eligible' = 0.0 }
         foreach ($row in $tableRows) {

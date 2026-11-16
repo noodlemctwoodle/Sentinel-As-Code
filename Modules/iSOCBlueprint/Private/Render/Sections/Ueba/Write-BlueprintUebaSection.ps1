@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -56,7 +56,12 @@ function Write-BlueprintUebaSection {
     }
     $uebaPresence = Read-BlueprintRawArray 'ueba-data-presence.json'
     $uebaPresenceRows = $uebaPresence | ForEach-Object {
-        [pscustomobject]@{ Table = $_.TableName; Rows7d = Get-BlueprintRawProperty $_ 'Count7d' ''; Rows12d = $_.Count; Rows14d = Get-BlueprintRawProperty $_ 'Count14d' '' }
+        [pscustomobject]@{
+            Table = $_.TableName
+            Rows7d = Get-BlueprintRawProperty $_ 'Count7d' ''
+            Rows12d = $_.Count
+            Rows14d = Get-BlueprintRawProperty $_ 'Count14d' ''
+        }
     }
     # Entity analytics: the identity providers synchronised into IdentityInfo
     # (Microsoft Entra ID, Active Directory), from the settings resource, and the
@@ -64,7 +69,9 @@ function Write-BlueprintUebaSection {
     $entitySetting = if ($null -ne $settingsRaw) { Get-BlueprintRawProperty $settingsRaw 'EntityAnalytics' } else { $null }
     $entityProviders = @(Get-BlueprintRawProperty (Get-BlueprintRawProperty $entitySetting 'properties') 'entityProviders' @())
     $identityRow = @($uebaPresence | Where-Object { $_ -and [string]$_.TableName -eq 'IdentityInfo' }) | Select-Object -First 1
-    $identityRows14 = if ($identityRow) { ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $identityRow 'Count14d' (Get-BlueprintRawProperty $identityRow 'Count' 0)) } else { 0 }
+    $identityRows14 = if ($identityRow) {
+        ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $identityRow 'Count14d' (Get-BlueprintRawProperty $identityRow 'Count' 0))
+    } else { 0 }
     $entityEnabled = $entityProviders.Count -gt 0 -or $identityRows14 -gt 0
     $entityBlock = @"
 | | |

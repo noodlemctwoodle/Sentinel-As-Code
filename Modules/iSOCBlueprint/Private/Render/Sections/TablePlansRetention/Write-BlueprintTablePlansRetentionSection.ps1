@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -105,7 +105,11 @@ function Write-BlueprintTablePlansRetentionSection {
         $name = [string]$_.name
         [pscustomobject]@{
             Table     = $name
-            Connector = $(if ($connectorCatalogue) { Get-TableConnectorLabel -Catalogue $connectorCatalogue -Table $name -ConnectedIds $connectedConnectorIds } else { '' })
+            Connector = $(
+                if ($connectorCatalogue) {
+                    Get-TableConnectorLabel -Catalogue $connectorCatalogue -Table $name -ConnectedIds $connectedConnectorIds
+                } else { '' }
+            )
         }
     } | Sort-Object Table)
 
@@ -123,12 +127,23 @@ function Write-BlueprintTablePlansRetentionSection {
     $customDetectionsPerTable = @{}
     foreach ($cd in $customDetectionRefs) {
         if (-not $cd -or (Get-BlueprintRawProperty $cd 'Enabled' $false) -ne $true) { continue }
-        foreach ($t in @(Get-BlueprintRawProperty $cd 'Tables' @())) { if ($t) { if (-not $customDetectionsPerTable.ContainsKey($t)) { $customDetectionsPerTable[$t] = 0 }; $customDetectionsPerTable[$t]++ } }
+        foreach ($t in @(Get-BlueprintRawProperty $cd 'Tables' @())) {
+            if ($t) { if (-not $customDetectionsPerTable.ContainsKey($t)) { $customDetectionsPerTable[$t] = 0 }; $customDetectionsPerTable[$t]++ }
+        }
     }
     $coverageRows = @($tableRows | Where-Object { $_.Gb90d -gt 0 } | ForEach-Object {
         $n = if ($rulesPerTable.ContainsKey($_.Name)) { $rulesPerTable[$_.Name] } else { 0 }
         $cdn = if ($customDetectionsPerTable.ContainsKey($_.Name)) { $customDetectionsPerTable[$_.Name] } else { 0 }
-        [pscustomobject]@{ Name = $_.Name; Plan = $_.Plan; Gb90d = $_.Gb90d; Rules = $n; CustomDetections = $cdn; Coverage = if ($n -gt 0 -and $cdn -gt 0) { 'Rule and custom detection' } elseif ($n -gt 0) { 'Sentinel rule' } elseif ($cdn -gt 0) { 'Custom detection' } else { 'None' } }
+        [pscustomobject]@{
+            Name = $_.Name
+            Plan = $_.Plan
+            Gb90d = $_.Gb90d
+            Rules = $n
+            CustomDetections = $cdn
+            Coverage = if ($n -gt 0 -and $cdn -gt 0) {
+                'Rule and custom detection'
+            } elseif ($n -gt 0) { 'Sentinel rule' } elseif ($cdn -gt 0) { 'Custom detection' } else { 'None' }
+        }
     } | Sort-Object -Property Gb90d -Descending)
     $coverageBlock = if ($ruleTableRefs.Count -eq 0) {
         '_Table-to-rule mapping was not computed in this run._'
@@ -139,15 +154,34 @@ function Write-BlueprintTablePlansRetentionSection {
     # Silent tables in detail, split by whether an enabled rule reads them: a
     # silent table nobody detects on is a cost question, one that rules depend
     # on is a detection outage ([SAC-MON-06]).
-    $docNow = $(if ($run -and (Get-BlueprintRawProperty $run 'CompletedAtUtc')) { ([datetime]::Parse([string]$run.CompletedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal)).ToUniversalTime() } else { [datetime]::UtcNow })
+    $docNow = $(
+        if ($run -and (Get-BlueprintRawProperty $run 'CompletedAtUtc')) {
+            ([datetime]::Parse([string]$run.CompletedAtUtc, [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AssumeUniversal)).ToUniversalTime()
+        } else { [datetime]::UtcNow }
+    )
     $silentRows = @($silent | ForEach-Object {
         $name = $_.Name
         $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
         $lastRaw = Get-BlueprintRawProperty $use 'LastIngested'
         $days = ''
-        if ($lastRaw) { $parsed = [datetime]::MinValue; if ([datetime]::TryParse([string]$lastRaw, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) { $days = [int][math]::Floor(($docNow - $parsed.ToUniversalTime()).TotalDays) } }
+        if ($lastRaw) {
+            $parsed = [datetime]::MinValue
+            if ([datetime]::TryParse([string]$lastRaw, [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$parsed)) {
+                $days = [int][math]::Floor(($docNow - $parsed.ToUniversalTime()).TotalDays)
+            }
+        }
         $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
-        [pscustomobject]@{ Name = $name; Plan = $_.Plan; Gb90d = $_.Gb90d; LastIngested = $_.LastIngested; DaysSilent = $days; Rules = $n; Impact = if ($n -gt 0) { 'Detection outage' } else { 'Cost only' } }
+        [pscustomobject]@{
+            Name = $name
+            Plan = $_.Plan
+            Gb90d = $_.Gb90d
+            LastIngested = $_.LastIngested
+            DaysSilent = $days
+            Rules = $n
+            Impact = if ($n -gt 0) { 'Detection outage' } else { 'Cost only' }
+        }
     } | Sort-Object -Property @{ Expression = 'Rules'; Descending = $true }, @{ Expression = 'Gb90d'; Descending = $true })
     $silentWithRules = @($silentRows | Where-Object { $_.Rules -gt 0 })
     $silentDetail = if ($silentRows.Count -eq 0) { '' } else { @"
@@ -162,18 +196,46 @@ $(Format-BlueprintTable -Items $silentRows -Columns 'Name','Plan','Gb90d','LastI
     # 14 September 2026; every table still written through it needs a DCR
     # before then. tableSubType is the authoritative marker when present.
     $classicTables = @($workspaceTables | Where-Object {
-        $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableType') -eq 'CustomLog' -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableSubType') -eq 'Classic'
+        $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableType') -eq 'CustomLog' -and
+            (Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableSubType') -eq 'Classic'
     })
-    $dcrBasedCustom = @($workspaceTables | Where-Object { $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableSubType') -eq 'DataCollectionRuleBased' }).Count
+    $dcrBasedCustom = @(
+        $workspaceTables |
+            Where-Object {
+                $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableSubType') -eq
+                    'DataCollectionRuleBased'
+            }
+    ).Count
     $classicRows = @($classicTables | ForEach-Object {
         $name = [string]$_.name
         $props = Get-BlueprintRawProperty $_ 'properties'
         $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
-        $gb24 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast24h' 0); $gb7 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast7d' 0); $gb30 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast30d' 0); $gb90 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)
-        $status = if ($gb24 -gt 0) { 'Active (last 24h)' } elseif ($gb7 -gt 0) { 'Active (last {recent-d})' } elseif ($gb30 -gt 0) { 'Intermittent' } elseif ($gb90 -gt 0) { 'Stale' } else { 'No data in {lookback-d}' }
+        $gb24 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast24h' 0)
+        $gb7 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast7d' 0)
+        $gb30 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast30d' 0)
+        $gb90 = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)
+        $status = if ($gb24 -gt 0) {
+            'Active (last 24h)'
+        } elseif ($gb7 -gt 0) {
+            'Active (last {recent-d})'
+        } elseif ($gb30 -gt 0) { 'Intermittent' } elseif ($gb90 -gt 0) { 'Stale' } else { 'No data in {lookback-d}' }
         $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
-        $action = if ($gb90 -le 0) { 'Confirm the source is retired, then delete the table' } elseif ($n -eq 0) { 'Still ingesting with no rule reading it: migrate to a DCR-based table or stop the collection' } else { 'Rules depend on it: migrate to the Logs Ingestion API and a DCR before the retirement date' }
-        [pscustomobject]@{ Name = $name; Plan = [string](Get-BlueprintRawProperty $props 'plan' ''); Interactive = Get-BlueprintRawProperty $props 'retentionInDays' ''; Total = Get-BlueprintRawProperty $props 'totalRetentionInDays' ''; Gb90d = [math]::Round($gb90, 2); LastIngested = $(if ($use) { Format-DateUtc (Get-BlueprintRawProperty $use 'LastIngested') } else { '' }); Status = $status; Rules = $n; Action = $action }
+        $action = if ($gb90 -le 0) {
+            'Confirm the source is retired, then delete the table'
+        } elseif ($n -eq 0) {
+            'Still ingesting with no rule reading it: migrate to a DCR-based table or stop the collection'
+        } else { 'Rules depend on it: migrate to the Logs Ingestion API and a DCR before the retirement date' }
+        [pscustomobject]@{
+            Name = $name
+            Plan = [string](Get-BlueprintRawProperty $props 'plan' '')
+            Interactive = Get-BlueprintRawProperty $props 'retentionInDays' ''
+            Total = Get-BlueprintRawProperty $props 'totalRetentionInDays' ''
+            Gb90d = [math]::Round($gb90, 2)
+            LastIngested = $(if ($use) { Format-DateUtc (Get-BlueprintRawProperty $use 'LastIngested') } else { '' })
+            Status = $status
+            Rules = $n
+            Action = $action
+        }
     } | Sort-Object -Property @{ Expression = { $_.Status -eq 'No data in {lookback-d}' } }, @{ Expression = 'Gb90d'; Descending = $true })
     $classicActiveCount = @($classicRows | Where-Object { $_.Status -like 'Active*' }).Count
     $classicDormantCount = @($classicRows | Where-Object { $_.Status -in @('Stale', 'No data in {lookback-d}') }).Count

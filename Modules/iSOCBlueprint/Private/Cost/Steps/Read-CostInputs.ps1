@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Component:    iSOC Blueprint, cost estimate
     Requires:     PowerShell 7.6+
@@ -49,7 +49,9 @@ function Read-CostInputs {
     foreach ($sol in @(Read-CostJson (Join-Path $InputRoot 'solutions-installed.json'))) {
         if (-not $sol -or -not $sol.PSObject.Properties['plan'] -or -not $sol.plan -or [string]$sol.plan.product -notmatch 'SecurityInsights$') { continue }
         $solProps = if ($sol.PSObject.Properties['properties']) { $sol.properties } else { $null }
-        $solSku = if ($solProps -and $solProps.PSObject.Properties['sku'] -and $solProps.sku -and $solProps.sku.PSObject.Properties['name']) { [string]$solProps.sku.name } else { '' }
+        $solSku = if ($solProps -and $solProps.PSObject.Properties['sku'] -and $solProps.sku -and $solProps.sku.PSObject.Properties['name']) {
+            [string]$solProps.sku.name
+        } else { '' }
         if ($solSku) { $billedModel = if ($solSku -eq 'Unified') { 'Simplified' } else { 'Classic' } }
     }
     $pricesBlob   = Read-CostJson (Join-Path $InputRoot 'retail-prices.json')
@@ -59,7 +61,9 @@ function Read-CostInputs {
     # from it as 30 days at the window's rate.
     $runContext   = Read-CostJson (Join-Path $InputRoot 'run-context.json')
     $windowDays   = 30
-    if ($runContext -and $runContext.PSObject.Properties['LookbackDays'] -and [int]$runContext.LookbackDays -ge 1) { $windowDays = [int]$runContext.LookbackDays }
+    if ($runContext -and $runContext.PSObject.Properties['LookbackDays'] -and [int]$runContext.LookbackDays -ge 1) {
+        $windowDays = [int]$runContext.LookbackDays
+    }
     $toMonth      = 30.0 / $windowDays
 
     # Left for the steps after this one.

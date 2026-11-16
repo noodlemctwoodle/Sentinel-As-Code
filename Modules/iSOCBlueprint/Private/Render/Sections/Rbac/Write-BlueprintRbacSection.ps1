@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -47,7 +47,12 @@ function Write-BlueprintRbacSection {
     $rbacRg = Read-BlueprintRawArray 'rbac-resourcegroup.json'
 
     $wsRows = $rbacWs | ForEach-Object {
-        [pscustomobject]@{ Principal = (Format-BlueprintRbacPrincipal $_); SignIn = [string](Get-BlueprintRawProperty $_ 'SignInName' ''); Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType)); Role = $_.RoleDefinitionName }
+        [pscustomobject]@{
+            Principal = (Format-BlueprintRbacPrincipal $_)
+            SignIn = [string](Get-BlueprintRawProperty $_ 'SignInName' '')
+            Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
+            Role = $_.RoleDefinitionName
+        }
     }
     # Counts per role by principal type, and the three views the access review
     # starts from: Sentinel roles, Log Analytics and monitoring roles, and the
@@ -65,7 +70,11 @@ function Write-BlueprintRbacSection {
     $lawRoleRows = @($wsRows | Where-Object { $_.Role -match 'Log Analytics|Monitoring (Reader|Contributor)' })
     $highPrivRows = @($wsRows | Where-Object { $_.Role -in @('Owner', 'Contributor', 'User Access Administrator') })
     $rgRows = $rbacRg | ForEach-Object {
-        [pscustomobject]@{ Principal = (Format-BlueprintRbacPrincipal $_); Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType)); Role = $_.RoleDefinitionName }
+        [pscustomobject]@{
+            Principal = (Format-BlueprintRbacPrincipal $_)
+            Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
+            Role = $_.RoleDefinitionName
+        }
     }
 
     # Build the RBAC flowchart. Group principals by role to keep the flow readable.
@@ -104,7 +113,8 @@ function Write-BlueprintRbacSection {
             if ($n -eq 0) { continue }
             $prinIdx++
             $prinId = "P$prinIdx"
-            $principalNodes += "        $prinId[$(Format-BlueprintCount $n) $(Format-BlueprintPlural $n (ConvertTo-BlueprintWords $t).ToLowerInvariant() -NoCount)]"
+            $principalNodes += "        $prinId[$(Format-BlueprintCount $n) $(Format-BlueprintPlural $n (ConvertTo-BlueprintWords $t).ToLowerInvariant() `
+                -NoCount)]"
             if ($role -in @('Owner', 'Contributor')) {
                 $sentId = if ($t -eq 'ServicePrincipal') { 'sac-gov-05' } else { 'sac-gov-06' }
                 $principalEdges += "    $prinId -.->|broad| $($roleIdMap[$role])"
@@ -131,7 +141,12 @@ function Write-BlueprintRbacSection {
         } | Sort-Object { -($_.users + $_.groups + $_.servicePrincipals) }, { $_.role })
     }
     $accessVisualLine = Format-VisualLine -Kind 'access' -Data ([ordered]@{ bands = @(
-        [ordered]@{ name = 'Broad roles'; tone = 'bad'; findings = @(@('SAC-GOV-05', 'SAC-GOV-06') | Where-Object { $script:FiredFindingIds.ContainsKey($_) }); roles = @(& $accessRoles 'broad') }
+        [ordered]@{
+            name = 'Broad roles'
+            tone = 'bad'
+            findings = @(@('SAC-GOV-05', 'SAC-GOV-06') | Where-Object { $script:FiredFindingIds.ContainsKey($_) })
+            roles = @(& $accessRoles 'broad')
+        }
         [ordered]@{ name = 'Microsoft Sentinel roles'; tone = 'ok'; findings = @(); roles = @(& $accessRoles 'sentinel') }
         [ordered]@{ name = 'Log Analytics and monitoring'; tone = 'info'; findings = @(); roles = @(& $accessRoles 'monitor') }
         [ordered]@{ name = 'Other roles'; tone = 'neutral'; findings = @(); roles = @(& $accessRoles 'other') }
@@ -142,14 +157,23 @@ function Write-BlueprintRbacSection {
     # roles it holds; one with neither a display name nor a sign-in name is
     # deleted or not readable by the collector.
     $rbacValid = @($rbacWs | Where-Object { $_ })
-    $rbacPrincipals = @($rbacValid | Group-Object { $oid = [string](Get-BlueprintRawProperty $_ 'ObjectId' ''); if ($oid) { $oid } else { [string](Get-BlueprintRawProperty $_ 'DisplayName' '') + '|' + [string](Get-BlueprintRawProperty $_ 'SignInName' '') } })
+    $rbacPrincipals = @(
+        $rbacValid |
+            Group-Object {
+                $oid = [string](Get-BlueprintRawProperty $_ 'ObjectId' '')
+                if ($oid) { $oid } else { [string](Get-BlueprintRawProperty $_ 'DisplayName' '') + '|' + [string](Get-BlueprintRawProperty $_ 'SignInName' '') }
+            }
+    )
     $rbacOfType = { param($t) @($rbacPrincipals | Where-Object { [string](Get-BlueprintRawProperty $_.Group[0] 'ObjectType' '') -eq $t }).Count }
     $rbacHigh = @($rbacValid | Where-Object { $_.RoleDefinitionName -in 'Owner', 'Contributor', 'User Access Administrator' }).Count
     $rbacHighPct = if ($rbacValid.Count) { [math]::Round(100 * $rbacHigh / $rbacValid.Count) } else { 0 }
     $rbacOwners = @($rbacValid | Where-Object RoleDefinitionName -EQ 'Owner').Count
     $rbacSentinel = @($rbacValid | Where-Object { [string]$_.RoleDefinitionName -like 'Microsoft Sentinel*' }).Count
     $rbacGuests = @($rbacPrincipals | Where-Object { [string](Get-BlueprintRawProperty $_.Group[0] 'SignInName' '') -match '#EXT#' }).Count
-    $rbacUnnamed = @($rbacPrincipals | Where-Object { -not (Get-BlueprintRawProperty $_.Group[0] 'DisplayName' '') -and -not (Get-BlueprintRawProperty $_.Group[0] 'SignInName' '') }).Count
+    $rbacUnnamed = @(
+        $rbacPrincipals |
+            Where-Object { -not (Get-BlueprintRawProperty $_.Group[0] 'DisplayName' '') -and -not (Get-BlueprintRawProperty $_.Group[0] 'SignInName' '') }
+    ).Count
 
     Write-BlueprintSection '85-rbac.md' (@"
 $(Format-Banner -Title "Access Control (RBAC)")

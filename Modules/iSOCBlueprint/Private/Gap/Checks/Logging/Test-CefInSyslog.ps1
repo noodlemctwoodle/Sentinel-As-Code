@@ -5,7 +5,7 @@
     Gap check SAC-LOG-23: CEF records landing in the Syslog table
 
 .DESCRIPTION
-    Gap check for rule SAC-LOG-23 (Resources/best-practices.json). Takes the inventory
+    Gap check for rule SAC-LOG-23 (Resources/Data/best-practices.json). Takes the inventory
     built by Get-SentinelGap and returns $null when the rule passes, or a finding
     with Evidence and Detail when it fires.
 
@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -33,8 +33,13 @@ function Test-CefInSyslog {
     $rows = @($Inventory.CefInSyslog | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'Computer' '') })
     if ($rows.Count -eq 0) { return $null }
     $byHost = @($rows | Group-Object { [string]$_.Computer } | ForEach-Object {
-        [pscustomobject]@{ Computer = $_.Name; Records = (@($_.Group | ForEach-Object { ConvertTo-GapInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum }
+        [pscustomobject]@{
+            Computer = $_.Name
+            Records = (@($_.Group | ForEach-Object { ConvertTo-GapInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum
+        }
     } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
     $names = @($byHost | ForEach-Object { "$($_.Computer) ($(Format-BlueprintPlural $_.Records 'record'))" })
-    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(Format-GapDays (Get-GapWindow $Inventory).Days), from $(Format-BlueprintPlural $byHost.Count 'forwarder'): $($names -join ', ')." -Detail @{ Forwarders = $byHost }
+    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(Format-GapDays (Get-GapWindow $Inventory).Days), from $(Format-BlueprintPlural $byHost.Count 'forwarder'): $($names -join ', ')." -Detail @{
+        Forwarders = $byHost
+    }
 }

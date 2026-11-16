@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -50,10 +50,15 @@ function Build-SiteDataLake {
     # operational tables (data in 90 days, plus custom logs) exactly as section
     # 88 counts them, through the shared helper.
     $populatedNames = @{}
-    foreach ($t in $tablesData) { if ($t -and $t.PSObject.Properties['DataType'] -and $t.DataType -and (ConvertTo-BuildNumber $t.BillableLast90d) -gt 0) { $populatedNames[[string]$t.DataType] = $true } }
+    foreach ($t in $tablesData) {
+        if ($t -and $t.PSObject.Properties['DataType'] -and $t.DataType -and (ConvertTo-BuildNumber $t.BillableLast90d) -gt 0) {
+            $populatedNames[[string]$t.DataType] = $true
+        }
+    }
     $operationalTables = @($wsTablesRaw | Where-Object {
         $_ -and $_.PSObject.Properties['name'] -and $_.name -and $_.PSObject.Properties['properties'] -and $_.properties -and (
-            ($_.properties.PSObject.Properties['schema'] -and $_.properties.schema -and $_.properties.schema.PSObject.Properties['tableType'] -and $_.properties.schema.tableType -eq 'CustomLog') -or
+            ($_.properties.PSObject.Properties['schema'] -and $_.properties.schema -and $_.properties.schema.PSObject.Properties['tableType'] -and
+                $_.properties.schema.tableType -eq 'CustomLog') -or
             $populatedNames.ContainsKey([string]$_.name))
     })
     $tierProfile = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $lakeEnrolled
@@ -63,7 +68,9 @@ function Build-SiteDataLake {
     $dataLakeModel = [ordered]@{
         enrolled          = $lakeEnrolled
         signals           = [ordered]@{ resource = ($dataLake.Count -gt 0); unifiedBilling = $unifiedBilling; lakeOnlyTables = $lakePlanTables }
-        provisioningState = if ($lakeResource -and $lakeResource.properties -and $lakeResource.properties.PSObject.Properties['provisioningState']) { [string]$lakeResource.properties.provisioningState } else { '' }
+        provisioningState = if ($lakeResource -and $lakeResource.properties -and $lakeResource.properties.PSObject.Properties['provisioningState']) {
+            [string]$lakeResource.properties.provisioningState
+        } else { '' }
         region            = if ($lakeResource -and $lakeResource.PSObject.Properties['location']) { [string]$lakeResource.location } else { '' }
         operationalTables = $operationalTables.Count
         tiers             = $tierProfile.Tiers

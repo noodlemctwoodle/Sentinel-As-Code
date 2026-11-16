@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
 
@@ -46,19 +46,34 @@ function Resolve-MaturitySource {
         'metric' {
             $path = [string](Get-MaturityPropertyValue $Source 'path' '')
             $value = $Metrics[$path]
-            if ($null -eq $value) { return [pscustomobject]@{ Status = 'Unknown'; Metric = $null; Rule = $null; Evidence = "Metric '$path' has no value in this run (not captured, or nothing to measure)." } }
+            if ($null -eq $value) {
+                return [pscustomobject]@{
+                    Status = 'Unknown'
+                    Metric = $null
+                    Rule = $null
+                    Evidence = "Metric '$path' has no value in this run (not captured, or nothing to measure)."
+                }
+            }
             $expected = Get-MaturityPropertyValue $Source 'value' $null
             $op = [string](Get-MaturityPropertyValue $Source 'op' '')
             $pass = if ($expected -is [bool]) {
                 ([bool]$value) -eq $expected
             } else {
                 $left = ConvertTo-MaturityNumber $value; $right = ConvertTo-MaturityNumber $expected
-                switch ($op) { 'gt' { $left -gt $right } 'ge' { $left -ge $right } 'eq' { $left -eq $right } 'lt' { $left -lt $right } 'le' { $left -le $right } default { $false } }
+                switch ($op) {
+                    'gt' {
+                        $left -gt $right
+                    } 'ge' { $left -ge $right } 'eq' { $left -eq $right } 'lt' { $left -lt $right } 'le' { $left -le $right } default { $false }
+                }
             }
             return [pscustomobject]@{ Status = $(if ($pass) { 'Met' } else { 'Gap' }); Metric = $value; Rule = $null; Evidence = $null }
         }
         { $_ -in 'allOf', 'anyOf' } {
-            $parts = @(foreach ($s in @(Get-MaturityPropertyValue $Source 'sources' @())) { Resolve-MaturitySource -Source $s -Metrics $Metrics -OutcomeById $OutcomeById -EvidenceById $EvidenceById })
+            $parts = @(
+                foreach ($s in @(Get-MaturityPropertyValue $Source 'sources' @())) {
+                    Resolve-MaturitySource -Source $s -Metrics $Metrics -OutcomeById $OutcomeById -EvidenceById $EvidenceById
+                }
+            )
             $statuses = @($parts | ForEach-Object Status)
             $status = if ($kind -eq 'allOf') {
                 if ($statuses -contains 'Gap') { 'Gap' } elseif ($statuses -contains 'Unknown') { 'Unknown' } else { 'Met' }

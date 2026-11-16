@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -58,7 +58,11 @@ function Write-BlueprintSentinelHealthSection {
     $healthFailuresCaptured = @($health | Where-Object { $_ -and $_.PSObject.Properties['Failures'] }).Count -gt 0
     $connectorHealthRows = @($health | Where-Object {
         $_ -and (([string]$_.SentinelResourceType + ' ' + [string]$_.SentinelResourceKind) -match 'connector') -and
-        $(if ($_.PSObject.Properties['Failures']) { [long]$_.Failures -gt 0 } else { @(Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses') | Where-Object { $_ -ne 'Success' }).Count -gt 0 })
+        $(
+            if ($_.PSObject.Properties['Failures']) {
+                [long]$_.Failures -gt 0
+            } else { @(Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses') | Where-Object { $_ -ne 'Success' }).Count -gt 0 }
+        )
     } | ForEach-Object {
         [pscustomobject]@{
             Connector   = $_.SentinelResourceName
@@ -67,7 +71,9 @@ function Write-BlueprintSentinelHealthSection {
             'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure')
             Statuses    = ((Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses')) -join ', ')
         }
-    } | Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Failures }; Descending = $true }, Connector | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
+    } |
+        Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Failures }; Descending = $true }, Connector |
+        ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
     $healthSummary = Read-BlueprintRawArray 'sentinel-health-summary.json'
     $healthSummaryRows = $healthSummary | ForEach-Object {
         [pscustomobject]@{ OperationName = $_.OperationName; Status = $_.Status; Events = Format-BlueprintCount $_.LogCount }

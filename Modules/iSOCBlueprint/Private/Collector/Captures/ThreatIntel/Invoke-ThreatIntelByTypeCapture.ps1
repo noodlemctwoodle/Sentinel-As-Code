@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-16
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -64,11 +64,13 @@ ThreatIntelligenceIndicator
 | order by Count desc
 '@
     try {
-        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlModern) -ErrorAction Stop
+        $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlModern) -ErrorAction `
+            Stop
         Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
     } catch {
         try {
-            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlLegacy) -ErrorAction Stop
+            $result = Invoke-AzOperationalInsightsQuery -WorkspaceId $script:WorkspaceObject.properties.customerId -Query (Add-BpWindow $kqlLegacy) `
+                -ErrorAction Stop
             Save-Json -FileName 'threat-intel-by-type.json' -Data ($result.Results)
         } catch {
             Skip-Capture -FileName 'threat-intel-by-type.json' -ErrorRecord $_
