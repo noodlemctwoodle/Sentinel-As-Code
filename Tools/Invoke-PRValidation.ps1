@@ -48,7 +48,8 @@
         ./Tools/Invoke-PRValidation.ps1 -TestNameFilter '*Resolve-RuleSource*'
 
 .PARAMETER InstallModules
-    Install Pester and powershell-yaml at the user scope before running tests.
+    Install Pester, powershell-yaml and PSScriptAnalyzer at the user scope
+    before running tests (PSScriptAnalyzer backs the lint tests).
     Default true (matches CI behaviour). Pass -InstallModules:$false locally if
     the modules are already pinned via your profile.
 
@@ -70,9 +71,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-29
-    Version:        1.0.1
-    Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Pester 5+ and powershell-yaml (both auto-installed if missing)
+    Version:        1.0.2
+    Last Updated:   2026-11-16
+    Requires:       PowerShell 7.2+, Pester 5+, powershell-yaml and PSScriptAnalyzer (all auto-installed if missing)
 #>
 
 [CmdletBinding()]
@@ -110,6 +111,10 @@ if (-not (Test-Path $resultsDir)) {
 # ---------------------------------------------------------------------------
 # Module setup. Both pipelines start from a clean PowerShell host.
 # ---------------------------------------------------------------------------
+# The PSScriptAnalyzer lint baseline holds exact finding counts, which differ
+# between analyser versions, so the version CI pins (PSSA_VERSION) is the one
+# installed and loaded here too.
+$pssaVersion = '1.25.0'
 if ($InstallModules) {
     Write-Host '##[section]Installing test dependencies'
 
@@ -119,10 +124,18 @@ if ($InstallModules) {
     if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
         Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber | Out-Null
     }
+    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq [version]$pssaVersion })) {
+        Install-Module -Name PSScriptAnalyzer -RequiredVersion $pssaVersion -Force -Scope CurrentUser -AllowClobber | Out-Null
+    }
 }
 
 Import-Module Pester -MinimumVersion '5.0.0' -ErrorAction Stop
 Import-Module powershell-yaml -ErrorAction Stop
+if (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq [version]$pssaVersion }) {
+    Import-Module -Name PSScriptAnalyzer -RequiredVersion $pssaVersion -ErrorAction Stop
+} elseif (Get-Module -ListAvailable -Name PSScriptAnalyzer) {
+    Write-Warning "PSScriptAnalyzer $pssaVersion is not installed. The lint baseline counts are for that version, so another version can report different counts."
+}
 
 # ---------------------------------------------------------------------------
 # Pester configuration. NUnitXml is what both GitHub and ADO ingest natively;

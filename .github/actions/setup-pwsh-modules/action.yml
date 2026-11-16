@@ -37,6 +37,11 @@
 #   # SharePoint PnP call check). Left empty, nothing changes for callers
 #   # that do not need it, including the cache key:
 #       pnp-version: '3.4.1'
+#
+#   # Also install PSScriptAnalyzer at an exact version (the PR-validation
+#   # gate passes it so the lint test runs, and fails, in CI instead of
+#   # skipping). Left empty, nothing changes for other callers:
+#       pssa-version: '1.25.0'
 # ---------------------------------------------------------------------------
 
 name: Set up PowerShell modules
@@ -59,6 +64,10 @@ inputs:
     description: When set, also install PnP.PowerShell at exactly this version. Empty (the default) skips it.
     required: false
     default: ''
+  pssa-version:
+    description: When set, also install PSScriptAnalyzer at exactly this version. Empty (the default) skips it.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -71,7 +80,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.local/share/powershell/Modules
-        key: pwsh-modules-${{ runner.os }}-pester${{ inputs.pester-version }}-yaml${{ inputs.yaml-version }}${{ inputs.pnp-version != '' && format('-pnp{0}', inputs.pnp-version) || '' }}
+        key: pwsh-modules-${{ runner.os }}-pester${{ inputs.pester-version }}-yaml${{ inputs.yaml-version }}${{ inputs.pnp-version != '' && format('-pnp{0}', inputs.pnp-version) || '' }}${{ inputs.pssa-version != '' && format('-pssa{0}', inputs.pssa-version) || '' }}
 
     - name: Install Pester and powershell-yaml (pinned)
       shell: pwsh
@@ -112,6 +121,17 @@ runs:
                 Format-Table Name, Version
         }
 
+        $pssaVersion = '${{ inputs.pssa-version }}'
+        if ($pssaVersion) {
+            $havePssa = Get-Module -ListAvailable -Name PSScriptAnalyzer |
+                Where-Object { $_.Version -eq [version]$pssaVersion }
+            if (-not $havePssa) {
+                Install-Module -Name PSScriptAnalyzer `
+                    -RequiredVersion $pssaVersion `
+                    -Force -Scope CurrentUser -AllowClobber
+            }
+        }
+
         $listed = if ($installPester) {
             Get-Module -ListAvailable Pester, powershell-yaml
         } else {
@@ -141,6 +161,11 @@ runs:
         $pnpVersion = '${{ inputs.pnp-version }}'
         if ($pnpVersion -and -not (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { $_.Version -eq [version]$pnpVersion })) {
             throw "PnP.PowerShell $pnpVersion is not installed"
+        }
+
+        $pssaVersion = '${{ inputs.pssa-version }}'
+        if ($pssaVersion) {
+            Import-Module PSScriptAnalyzer -RequiredVersion $pssaVersion -ErrorAction Stop
         }
 
         $msg = if ($installPester) {
