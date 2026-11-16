@@ -82,7 +82,7 @@ stages:
             fetchDepth: 1
 
           - task: PowerShell@2
-            displayName: "Install Pester, powershell-yaml and PnP.PowerShell"
+            displayName: "Install Pester, powershell-yaml, PnP.PowerShell and PSScriptAnalyzer"
             inputs:
               targetType: "inline"
               pwsh: true
@@ -106,7 +106,15 @@ stages:
                 if (-not (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $pnpVersion })) {
                     Install-Module -Name PnP.PowerShell -RequiredVersion $pnpVersion -Force -Scope CurrentUser -AllowClobber
                 }
-                Get-Module -ListAvailable Pester, powershell-yaml, PnP.PowerShell | Format-Table Name, Version
+                # PSScriptAnalyzer for the lint tests (for example
+                # Tests/Test-ExportSdlMigrationWorkbook.Tests.ps1), which fail in
+                # CI rather than skip when it is missing. Pinned like PSSA_VERSION
+                # in .github/workflows/pr-validation.yml.
+                $pssaVersion = '1.25.0'
+                if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { [string]$_.Version -eq $pssaVersion })) {
+                    Install-Module -Name PSScriptAnalyzer -RequiredVersion $pssaVersion -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable Pester, powershell-yaml, PnP.PowerShell, PSScriptAnalyzer | Format-Table Name, Version
 
           - task: PowerShell@2
             displayName: "Run PR validation"

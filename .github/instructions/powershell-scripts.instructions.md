@@ -307,6 +307,17 @@ Every public function gets a Pester unit test. See
 for the AST-extraction pattern used to test functions defined in
 scripts (rather than modules).
 
+## Lint (PSScriptAnalyzer)
+
+Every PowerShell file is linted on every PR by
+[`Tests/Test-PSScriptAnalyzer.Tests.ps1`](../../Tests/Test-PSScriptAnalyzer.Tests.ps1)
+with the profiles in [`Tests/PSScriptAnalyzer/`](../../Tests/PSScriptAnalyzer)
+(source, test and formatting profiles). A new file must be clean. An existing
+file may not gain findings beyond its count in `PSScriptAnalyzerBaseline.psd1`;
+when you fix findings, lower it with `./Tools/Update-PSScriptAnalyzerBaseline.ps1`.
+Never raise a baseline count to make a change pass. Details:
+[`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md#psscriptanalyzer-lint).
+
 ## Cross-references
 
 - Script reference: [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md)

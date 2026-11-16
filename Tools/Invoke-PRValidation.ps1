@@ -48,7 +48,8 @@
         ./Tools/Invoke-PRValidation.ps1 -TestNameFilter '*Resolve-RuleSource*'
 
 .PARAMETER InstallModules
-    Install Pester and powershell-yaml at the user scope before running tests.
+    Install Pester, powershell-yaml and PSScriptAnalyzer at the user scope
+    before running tests (PSScriptAnalyzer backs the lint tests).
     Default true (matches CI behaviour). Pass -InstallModules:$false locally if
     the modules are already pinned via your profile.
 
@@ -70,9 +71,9 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-29
-    Version:        1.0.1
-    Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Pester 5+ and powershell-yaml (both auto-installed if missing)
+    Version:        1.0.2
+    Last Updated:   2026-11-16
+    Requires:       PowerShell 7.2+, Pester 5+, powershell-yaml and PSScriptAnalyzer (all auto-installed if missing)
 #>
 
 [CmdletBinding()]
@@ -118,6 +119,9 @@ if ($InstallModules) {
     }
     if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
         Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber | Out-Null
+    }
+    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
+        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -AllowClobber | Out-Null
     }
 }
 
