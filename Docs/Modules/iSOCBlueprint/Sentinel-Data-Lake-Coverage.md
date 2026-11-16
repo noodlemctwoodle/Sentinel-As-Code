@@ -273,7 +273,7 @@ node.
 
 ### `84-cost-estimate.md`, Sankey + cost split
 
-The cost calculator ([`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1))
+The cost calculator ([`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost), loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`)
 recognises the `DataLake` plan as one of the four ingestion buckets
 (Analytics / Basic / Auxiliary / DataLake). Unit prices come from the
 `cost-meters.json` catalogue ([`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json)),
@@ -364,7 +364,7 @@ retention chart.
 |---|---|
 | [`Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1`](../../../Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1) | The `sentinel-data-lake` capture (Resource Graph query) |
 | [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
+| [`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) | DataLake plan handling in the cost split |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json) | Lake meter → category mapping |
 | [`Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
 | [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |

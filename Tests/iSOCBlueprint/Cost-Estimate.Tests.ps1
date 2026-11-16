@@ -226,7 +226,7 @@ Describe 'The currency it prices in' {
         $renderer = (Get-ChildItem (Join-Path $script:engine '../Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $renderer | Should -Match "taken from the workspace's region"
         $renderer | Should -Match 'as the run''s ``-Currency`` setting asked'
-        $est = Get-Content (Join-Path $script:engine 'Private/Get-SentinelCostEstimate.ps1') -Raw
+        $est = (Get-ChildItem (Join-Path $script:engine '../Private/Cost') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
         $est | Should -Match 'CurrencySource\s+= \$currencySource'
     }
 }

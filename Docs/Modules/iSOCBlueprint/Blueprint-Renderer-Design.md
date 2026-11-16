@@ -225,7 +225,7 @@ External helpers used by the renderer:
 
 - `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
-- `Get-SentinelCostEstimate`, used by the **exporter** (not the renderer) to
+- `Get-SentinelCostEstimate` (`Private/Cost`, loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`), used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
 - `Get-SentinelGap` + the gap checks (`Private/Gap`, loaded by `GapChecks.ps1`), also exporter-side; produces
   `_raw/gap-analysis.json`.

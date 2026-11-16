@@ -110,6 +110,9 @@ Private/             the engine runner, path defaults, prerequisite checks
   Word/              the Word report conversion, one function per file (loaded by Engine/Report/Convert-MarkdownToWord.ps1)
     Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
   Mermaid/           the Mermaid chart parser, one function per file (loaded by Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
+  Cost/              the cost estimate, one function per file (loaded by Engine/Private/Get-SentinelCostEstimate.ps1)
+    Get-SentinelCostEstimate.ps1   entry point
+    Steps/  Helpers/                 one step per part of the estimate, then JSON reading and the price lookups
   Section/           the Markdown-to-section-model converter, one function per file (loaded by Engine/Private/ConvertTo-BlueprintSection.ps1)
     ConvertTo-BlueprintSection.ps1   entry point
     Parsing/  Inline/  Data/         the token walk and table chunking, text runs and links, shared values

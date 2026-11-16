@@ -710,7 +710,7 @@ Categories are informational: `Cost`, `Coverage`, `Operational`, `Identity`,
 ## How the cost estimator works
 
 The `84-cost-estimate.md` page is produced by
-[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1).
+[`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) (loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`).
 It is opinionated and the methodology is reproduced verbatim in the report so
 the reader can trust or push back on the number.
 
