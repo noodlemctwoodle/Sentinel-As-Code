@@ -136,7 +136,7 @@ Private/             the engine runner, path defaults, prerequisite checks
     Numbers/  Text/  Names/  Data/       number and amount formats, dates and words, region and SKU names, then the values they share
   SyncPlan/          the publisher's planning functions, one per file (loaded by Engine/SharePoint/Private/Get-SacSyncPlan.ps1)
     Pages/  Findings/  Navigation/  Assets/   what to create, update, resolve, retire or prune
-  Site/              the SharePoint site build, one function per file (loaded by Engine/SharePoint/Build-SentinelDocsSite.ps1)
+  Site/              the SharePoint site build (joins the dashboard template's parts from Engine/SharePoint/templates/dashboard), one function per file (loaded by Engine/SharePoint/Build-SentinelDocsSite.ps1)
     Invoke-iSOCBlueprintSiteBuild.ps1  entry point
     Steps/  Helpers/  Data/            one step per part of the model, then the bundle writer
   Maturity/          the maturity assessment, one function per file (loaded by Engine/Private/Get-SentinelMaturity.ps1)
@@ -168,7 +168,7 @@ scripts keep the layout and behaviour they had before the module.
 The SharePoint web parts, the dashboard and the chart, are an SPFx solution
 (TypeScript, built with npm) in [`WebParts/`](WebParts/README.md). They sit
 with the module because the dashboard they host is the engine's
-`SharePoint/templates/sharepoint-dashboard.html` and the module's
+`SharePoint/templates/dashboard/` (the dashboard template, in parts) and the module's
 `Publish-iSOCBlueprintSite -AppPackagePath` deploys their package; the module
 itself loads nothing from the folder. The pipelines build the package with
 `npm ci` and `npm run package` in `WebParts/` and pass

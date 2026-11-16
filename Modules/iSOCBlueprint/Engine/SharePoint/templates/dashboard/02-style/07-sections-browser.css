@@ -1,0 +1,227 @@
+  /* ---------- sections browser (docs) ---------- */
+  .docwrap{display:grid;grid-template-columns:288px 1fr;gap:var(--gap);align-items:start;margin:var(--gap) 0}
+  @media(max-width:900px){.docwrap{grid-template-columns:1fr}}
+  .docnav{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:14px;overflow:visible}
+  @media(max-width:900px){.docnav{position:static}}
+  .docsearch{width:100%;font:inherit;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:10px;
+    background:var(--canvas) no-repeat 11px center;color:var(--ink);margin-bottom:12px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%238b93a7' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")}
+  .docfam{font-size:10.5px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;margin:14px 8px 5px}
+  .docfam:first-child{margin-top:2px}
+  .docitem{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:9px;cursor:pointer;
+    color:var(--ink-2);font-size:13px;font-weight:600;border:1px solid transparent;transition:background .12s,color .12s}
+  .docitem:hover{background:var(--chip);color:var(--ink)}
+  .docitem.active{background:color-mix(in srgb,var(--brand) 12%,var(--panel));border-color:color-mix(in srgb,var(--brand) 32%,var(--line));color:var(--brand-ink)}
+  .docitem .dtt{flex:1;line-height:1.3;overflow-wrap:anywhere}
+  /* The page reaches the bottom of the contents list beside it and no
+     further (layoutDoc in the script). No entry animation: it would move
+     the page while it is measured. */
+  .docwrap>.docnav{align-self:start}
+  .doccontent{min-width:0;align-self:stretch;display:flex;flex-direction:column}
+  .docpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:24px 26px;flex:1 0 auto}
+  .docpanel .dhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .docpanel .dpage{margin-left:auto}
+  .docpanel .dpage+.dpage{margin-left:0}
+  .docpanel .dbadge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-ink);
+    background:color-mix(in srgb,var(--brand) 11%,transparent);border:1px solid color-mix(in srgb,var(--brand) 22%,var(--line));
+    padding:4px 10px;border-radius:999px}
+  .docpanel h2.dtitle{margin:0;font-size:26px;font-weight:850;letter-spacing:-.025em;line-height:1.15}
+  .docpanel .dhead{padding-bottom:12px;border-bottom:2px solid var(--line);margin-bottom:14px}
+  /* A heading runs into a hairline to the page's edge: no coloured edge bar. */
+  .docbody h3{margin:30px 0 10px;font-size:17px;font-weight:800;letter-spacing:-.015em;display:flex;align-items:center;gap:12px}
+  .docbody h3::after{content:'';flex:1 1 auto;min-width:24px;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--muted) 40%,transparent),transparent)}
+  .docbody h4{margin:18px 0 6px;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+  .docbody p{margin:9px 0;color:var(--ink-2);font-size:13.5px;line-height:1.6}
+  .docbody ul{margin:9px 0;padding-left:20px;color:var(--ink-2);font-size:13.5px;line-height:1.6}
+  .docbody li{margin:4px 0}
+  .docbody code{background:var(--chip);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .docbody a.xref{cursor:pointer}
+  /* A callout is a softly tinted box, no coloured edge bar. */
+  .docnote{position:relative;margin:16px 0;padding:10px 14px;border-radius:12px;
+    background:color-mix(in srgb,var(--brand) 6%,transparent);border:1px solid color-mix(in srgb,var(--brand) 16%,var(--line));
+    color:var(--ink-2);font-size:13px;line-height:1.6}
+  .docnote .nt{display:flex;align-items:center;gap:7px;font-weight:750;color:var(--ink);font-size:13px;margin-bottom:5px}
+  .docnote.dn{display:flex;gap:10px;align-items:flex-start}
+  .docnote .dni{flex:none;display:grid;place-items:center;width:18px;height:18px;margin-top:3px;color:var(--brand)}
+  .docnote .dni svg{width:17px;height:17px}
+  .docnote .dnb{flex:1;min-width:0}
+  .docnote .dnb > :first-child{margin-top:0} .docnote .dnb > :last-child{margin-bottom:0}
+  .docnote.t-success{background:color-mix(in srgb,var(--green) 8%,transparent);border-color:color-mix(in srgb,var(--green) 28%,var(--line))}
+  .docnote.t-success .dni{color:var(--green)}
+  .docnote.t-warning{background:color-mix(in srgb,var(--amber) 9%,transparent);border-color:color-mix(in srgb,var(--amber) 32%,var(--line))}
+  .docnote.t-warning .dni{color:var(--amber)}
+  .docnote.t-critical{background:color-mix(in srgb,var(--red) 8%,transparent);border-color:color-mix(in srgb,var(--red) 32%,var(--line))}
+  .docnote.t-critical .dni{color:var(--red)}
+  .docnote p{margin:5px 0}
+  .docnote ul{margin:5px 0;padding-left:18px}
+  .docnote li{margin:5px 0}
+  /* Inner tabs on a tall Report page: page-section tabs, not a switch.
+     Plain labels on a hairline rule; the selected one in full ink with
+     the button gradient as an underline. They wrap when there are many. */
+  .doctabs{display:flex;flex-wrap:wrap;gap:2px 24px;margin:20px 0 16px;border-bottom:1px solid var(--line)}
+  .doctab{position:relative;display:inline-flex;align-items:center;gap:7px;border:0;background:none;margin-bottom:-1px;padding:9px 1px 11px;
+    color:var(--muted);font:inherit;font-size:13px;font-weight:650;cursor:pointer;transition:color .15s}
+  .doctab::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:3px 3px 0 0;background:transparent;transition:background .15s}
+  .doctab:hover{color:var(--ink)}
+  .doctab:hover::after{background:var(--line)}
+  .doctab:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:4px}
+  .doctab[aria-selected="true"]{color:var(--ink)}
+  .doctab[aria-selected="true"]::after{background:var(--btn-bg)}
+  .doctab .dtn{font-size:11px;font-weight:750;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--muted);border:1px solid var(--line)}
+  .doctab[aria-selected="true"] .dtn{background:color-mix(in srgb,var(--brand) 16%,var(--panel));color:var(--brand-ink);border-color:transparent}
+  /* A tab, a section and the intro keep their blocks' margins inside, so
+     their heights are what layoutDoc measures. A tab's own section heading
+     is its label, so it hides inside the tab. */
+  .docpane,.docsec,.docintro{display:flow-root}
+  .docbody.tabbed .docsec.lead>.dsech{display:none}
+  .doctable-wrap{margin:16px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  .doctable-tools{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel-soft)}
+  .doctable-tools input{flex:1;font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--canvas);color:var(--ink)}
+  .doctable-tools .dtc{font-size:11.5px;color:var(--faint);font-weight:650;white-space:nowrap}
+  .doctscroll{overflow:auto;max-height:620px}
+  table.doct{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+  table.doct th,table.doct td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
+  table.doct td.wrap,table.doct th.wrap{white-space:normal;min-width:180px}
+  table.doct th code{background:none;border:0;padding:0;font:inherit;color:inherit}
+  table.doct td.flexw,table.doct th.flexw{white-space:normal}
+  table.doct thead th{position:sticky;top:0;background:var(--panel);color:var(--faint);font-weight:750;font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.04em;z-index:1;box-shadow:0 1px 0 var(--line)}
+  table.doct tbody tr:nth-child(even){background:color-mix(in srgb,var(--line-2) 35%,transparent)}
+  table.doct tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  table.doct td.num,table.doct th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.doct tbody tr.rowpick td{background:color-mix(in srgb,var(--brand) 16%,transparent);transition:background .6s}
+  .docrefs{margin-top:24px}
+  .docnote.rulepin{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .docrefs .refs{margin:0}
+  table.doct th.num{width:1%}
+  /* Sortable column titles: the title is a button; a small arrow shows the
+     order, faint until the column is sorted. */
+  table.doct th .thsort{all:unset;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;white-space:inherit}
+  table.doct th .thsort:hover{color:var(--ink)}
+  table.doct th .thsort:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+  table.doct th .sorti{flex:none;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:.3}
+  table.doct th[aria-sort="ascending"],table.doct th[aria-sort="descending"]{color:var(--ink)}
+  table.doct th[aria-sort="ascending"] .sorti{border-top:0;border-bottom:5px solid var(--brand);opacity:1}
+  table.doct th[aria-sort="descending"] .sorti{border-top-color:var(--brand);opacity:1}
+  table.doct td .pillval{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .cellp{color:var(--ink-2);line-height:1.5;margin-bottom:6px}
+  .cellkv{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:4px 0}
+  /* A chip key: the legend's swatches on the filter chips (.fchip), so the
+     key also filters its table, one kind at a time; select it again to
+     clear. */
+  .chipkey{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .chipkey .fchip i{display:inline-block;width:11px;height:11px;border-radius:4px;flex:none}
+  .chipkey i.ck-ready{background:color-mix(in srgb,var(--green) 30%,var(--panel));border:1px solid color-mix(in srgb,var(--green) 60%,var(--line))}
+  .chipkey i.ck-notinst{background:var(--chip);border:1px solid var(--line-2)}
+  /* A solution chip that lists its templates (tooltip) and opens them. */
+  .tagpill.chiplink{cursor:pointer}
+  .tagpill.chiplink:hover,.tagpill.chiplink:focus-visible{border-color:var(--brand);color:var(--ink);outline:none}
+  /* A summary value (a plan, a provider) that lists the rows behind it in a
+     bigger table on the same page. */
+  .grouplink{cursor:pointer;color:var(--brand);text-decoration:underline dotted;text-underline-offset:3px}
+  .grouplink:hover,.grouplink:focus-visible{text-decoration-style:solid;outline:none}
+  /* Progress: the change colours, the change lists and the baseline
+     marker on the area bars (the switch shares the Assessment switch's
+     rules above). */
+  .pg-good{color:var(--green);font-weight:650;white-space:nowrap}
+  .pg-bad{color:var(--red);font-weight:650;white-space:nowrap}
+  .pg-same{color:var(--muted);white-space:nowrap}
+  .abar .pgd{position:absolute;top:0;bottom:0;min-width:3px}
+  .abar .pgd.up{background:var(--green);border-radius:0 999px 999px 0}
+  .abar .pgd.down{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--red) 70%,transparent) 0 3px,color-mix(in srgb,var(--red) 25%,transparent) 3px 6px);border-radius:0 999px 999px 0}
+  .matbadge.worse{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+  .pgtiles .pill .k{line-height:1.35;min-height:2.7em}
+  .pgsub+.pgsub{margin-top:16px}
+  .pgsubh{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .pgsubh .subcount{font-size:11px;padding:1px 7px;letter-spacing:0}
+  .pgrow{display:flex;align-items:baseline;gap:9px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:13px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
+  .pgrow i{width:9px;height:9px;border-radius:3px;flex:none;background:var(--slate);transform:translateY(-1px)}
+  .pgrow i.good{background:var(--green)} .pgrow i.bad{background:var(--red)}
+  .pgrow b{color:var(--ink);font-weight:650}
+  .pgsub .morewrap>.pgrow:last-of-type{border-bottom:0}
+  .pgrow .tagpill{margin:0 2px}
+  .pglink{color:var(--brand);cursor:pointer;font-weight:650}
+  .pglink:hover,.pglink:focus-visible{text-decoration:underline;outline:none}
+  p.note.pgquiet{margin:0 2px var(--gap)}
+  .panel p.note.pgquiet{margin:0}
+  .cellchips .tagpill{white-space:normal}
+  /* A maturity criterion with its state on this workspace ("SAC-DET-07 gap")
+     is a chip in the state's colour, as on the maturity view. */
+  .tagpill.crit{color:#fff;border-color:transparent;font-weight:750}
+  .tagpill.crit a{color:inherit;text-decoration:none} .tagpill.crit a:hover{text-decoration:underline}
+  .tagpill.crit.c-met{background:var(--green)} .tagpill.crit.c-gap{background:var(--red)} .tagpill.crit.c-unknown{background:var(--slate)}
+  .tagpill.crit.c-na{background:var(--chip);border-color:var(--line-2);color:var(--muted);font-weight:650}
+  .vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .cellchips .tagpill.inst{background:color-mix(in srgb,var(--green) 14%,var(--panel));border-color:color-mix(in srgb,var(--green) 40%,var(--line))}
+  .cellk{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-right:3px}
+  .tagpill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:650;
+    background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2)}
+  .docempty{color:var(--faint);font-size:13px;padding:14px}
+
+  /* section summary stat chips */
+  .docstats{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 18px}
+  /* A line of figures in a Report page reads as tiles (kvTiles). */
+  /* Each tile spans three rows the tiles beside it share (subgrid), so the
+     labels, figures and captions line up across a row however the labels
+     wrap. */
+  /* A diagram drawn by the chart web part's renderers scrolls sideways
+     when it is wider than the page. */
+  .wpchart{margin:16px 0;overflow-x:auto}
+  .wpchart svg{max-width:none}
+  .docbody .docdesc{font-size:14px;line-height:1.6;color:var(--ink-2);margin:2px 0 14px;max-width:110ch}
+  .kvtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:10px;row-gap:0;margin:12px 0 8px}
+  .kvt{display:grid;grid-row:span 3;grid-template-rows:subgrid;align-content:start;margin-bottom:10px;
+    background:var(--panel-soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+  .kvk{align-self:end;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;line-height:1.3}
+  .kvv{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-top:6px;color:var(--ink);overflow-wrap:anywhere}
+  .kvc{font-size:11.5px;color:var(--muted);margin-top:3px;min-width:0;overflow-wrap:anywhere}
+  .kvt code,.kvc code{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+  /* Further reading: a paragraph or list of links only, one tile a link. */
+  .refs{margin:20px 0 10px}
+  .refs-h{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:10.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em}
+  .refs-h svg{flex:none;color:var(--brand)}
+  .refs-h::after{content:'';flex:1;height:1px;background:var(--line)}
+  .refl{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+  .docbody a.refa{display:flex;align-items:center;gap:11px;min-width:0;padding:10px 12px;border-radius:12px;text-decoration:none;color:inherit;
+    background:var(--panel-soft);border:1px solid var(--line);transition:border-color .15s,background .15s}
+  .docbody a.refa:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--line));background:color-mix(in srgb,var(--brand) 6%,var(--panel-soft))}
+  .docbody a.refa:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .refi{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;
+    background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+  .reft{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .refn{font-size:13px;font-weight:650;line-height:1.35;color:var(--ink);overflow-wrap:anywhere}
+  .refsub{font-size:11.5px;line-height:1.3;color:var(--muted)}
+  .refgo{flex:none;color:var(--faint);transition:color .15s}
+  .docbody a.refa:hover .refgo{color:var(--brand)}
+  .docstat{display:flex;align-items:center;gap:10px;background:var(--panel-soft);border:1px solid var(--line);
+    border-radius:11px;padding:9px 14px 9px 11px}
+  .docstat .si{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--chip);color:var(--muted)}
+  .docstat .si svg{width:16px;height:16px}
+  .docstat .sv{font-size:17px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .docstat .sk{font-size:10.5px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+
+  /* charts in the Report tab: the section's own, or one drawn from a table */
+  .docchart{margin:16px 0;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);
+    padding:16px 18px;background:var(--panel)}
+  .docchart .cct{font-size:13px;font-weight:750;color:var(--ink);margin-bottom:3px}
+  .docchart .ccn{font-size:11.5px;color:var(--muted);margin-bottom:13px}
+  /* The rows share one grid: the label column fits the longest label (up to
+     half the card), so names show whole and every bar starts together. */
+  .cbars{display:grid;grid-template-columns:fit-content(50%) minmax(80px,1fr) auto;column-gap:12px;row-gap:9px;align-items:center;margin:9px 0}
+  .cbar{grid-column:1/-1;display:grid;grid-template-columns:subgrid;align-items:center}
+  .cbar .cl{min-width:120px;font-size:12.5px;color:var(--ink-2);font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+  .cbar .ct{height:10px;border-radius:999px;background:var(--line-2);overflow:hidden}
+  .cbar .cf{height:100%;border-radius:999px;width:var(--w,0%);
+    background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .6s cubic-bezier(.22,.8,.3,1)}
+  .cbar .cv{font-size:12.5px;font-weight:750;color:var(--ink);min-width:58px;text-align:right;font-variant-numeric:tabular-nums}
+  .cbar .cts{display:grid;gap:3px}
+  .cbar .ct.thin{height:7px}
+  .cbar .cf.solid{background:var(--c)}
+  .docchart .legend{margin-top:10px}
+  .docchart .piewrap{margin-top:12px}
+
+

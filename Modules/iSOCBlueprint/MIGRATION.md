@@ -84,7 +84,7 @@ beneath it.
 | `Tools/Blueprint/SharePoint/Private/Get-SacSyncPlan.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SacSyncPlan.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/Get-SectionFamily.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SectionFamily.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/SacSharePoint.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/SacSharePoint.ps1` | | |
-| `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html` | | |
+| `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Move | `Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard/**` | | Split into numbered parts that `Get-SiteDashboardTemplate` joins; the joined page is the original file byte for byte |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Modules/iSOCBlueprint/WebParts/**` | | SPFx web part source (TypeScript, not PowerShell): beside the engine, outside what the module loads |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
 | `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

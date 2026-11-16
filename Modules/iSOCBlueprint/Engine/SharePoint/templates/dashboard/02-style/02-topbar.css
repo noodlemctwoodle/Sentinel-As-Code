@@ -1,0 +1,135 @@
+  /* ---------- sticky topbar ---------- */
+  .topbar{position:sticky;top:0;z-index:40;backdrop-filter:saturate(1.4) blur(14px);
+    -webkit-backdrop-filter:saturate(1.4) blur(14px);background:var(--topbar-bg);
+    border-bottom:1px solid var(--line);}
+  .topbar .inner{max-width:1800px;margin:0 auto;padding:11px clamp(16px,3vw,40px);
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;row-gap:10px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+  .brand .mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;
+    background:linear-gradient(135deg,#2563eb,#6d28d9);box-shadow:0 4px 12px -2px rgba(76,29,149,.55)}
+  .brand .mark svg{width:17px;height:17px}
+  .brand .bt{font-size:14.5px}
+  .brand .bs{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.01em;margin-top:-2px}
+  /* The Blueprint version that built this dashboard, beside the product's name. */
+  .brand .bv{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);
+    background:var(--chip);color:var(--ink-2);font-size:10.5px;font-weight:700;letter-spacing:.02em;vertical-align:2px;
+    font-variant-numeric:tabular-nums}
+  .brand .bv[hidden]{display:none}
+  .nav{display:flex;gap:3px;margin-left:8px;background:var(--chip);border:1px solid var(--line);
+    padding:4px;border-radius:12px;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .tab{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:9px;color:var(--tab-ink);
+    font-weight:600;font-size:13px;cursor:pointer;border:1px solid transparent;white-space:nowrap;
+    transition:color .15s,background .15s,box-shadow .15s,transform .05s}
+  .tab svg{width:15px;height:15px;opacity:.85}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--brand-ink);background:var(--panel);border-color:var(--line);box-shadow:var(--shadow-sm)}
+  /* Assessment: maturity and findings under one tab, with a switch */
+  .subnav{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:var(--gap) 0;padding:12px 14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .subtabs,.pgtabs{display:inline-flex;gap:4px;background:var(--chip);border:1px solid var(--line);padding:4px;border-radius:12px}
+  .subtab,.pgtab{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:650;font-size:14px;padding:8px 16px;
+    border-radius:9px;border:1px solid transparent;background:none;color:var(--ink-2);cursor:pointer;
+    transition:color .15s,background .15s,box-shadow .15s}
+  .subtab:hover,.pgtab:hover:not([disabled]){color:var(--ink);background:var(--panel)}
+  .subtab:focus-visible,.pgtab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .subtab.active,.pgtab.active{color:#fff;background:var(--btn-bg);box-shadow:var(--btn-shadow)}
+  .subcount{font-size:12px;font-weight:750;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--ink-2);border:1px solid var(--line)}
+  .subtab.active .subcount,.pgtab.active .subcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+  .subnav .note{margin:0;flex:1 1 320px;min-width:0}
+  /* Progress: the baseline switch wraps on a narrow screen; a baseline with
+     no kept run that far back is greyed. */
+  .pgtabs{flex-wrap:wrap}
+  /* What the maturity score is based on and what it leaves out: two
+     matching tiles, side by side where there is room. */
+  .matscope{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 18px}
+  .matscope .ms{padding:12px 14px;border-radius:12px;background:var(--panel-soft);border:1px solid var(--line)}
+  .matscope .msh{display:flex;align-items:center;gap:7px;margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .matscope .msh svg{width:14px;height:14px;flex:none;color:var(--brand-ink)}
+  .matscope p{margin:0;color:var(--ink-2);font-size:12.5px;line-height:1.55}
+  /* Findings view summary: the same kind of picture as the maturity view.
+     Every legend entry, bar and row filters the list below. */
+  .fsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 32px}
+  .fsum h3{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--ink-2)}
+  .fpick{display:flex;align-items:center;gap:9px;width:100%;font:inherit;font-size:12.5px;color:var(--ink-2);background:none;
+    border:0;border-radius:6px;padding:3px 6px;margin:0 -6px;cursor:pointer;text-align:left}
+  .fpick:hover,.fpick:focus-visible{background:var(--chip);outline:none}
+  .fpick i{width:12px;height:12px;border-radius:3px;flex:none}
+  .fpick .pv{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:750;color:var(--ink)}
+  .fpick .pp{color:var(--faint);font-size:11px;font-weight:650;margin-left:7px;min-width:34px;text-align:right}
+  .fgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:var(--gap);margin:var(--gap) 0}
+  .fgrid2>.panel{margin:0}
+  .fkey{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 14px;font-size:12px;color:var(--muted)}
+  .fkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .fbars{display:grid;grid-template-columns:minmax(150px,38%) 1fr auto;align-items:center;gap:9px 12px}
+  .fbar{display:contents;cursor:pointer}
+  .fbar .fl{font-size:12.5px;font-weight:650;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fbar:hover .fl{color:var(--brand-ink)}
+  .fbar .ft{display:flex;height:12px;border-radius:999px;background:var(--line-2);overflow:hidden}
+  .fbar .ft span{height:100%}
+  .fbar .fv{font-size:12.5px;font-weight:800;min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
+  table.tbl tr.frow{cursor:pointer}
+  table.tbl tr.frow:hover td{background:var(--chip)}
+  html[data-theme="dark"] .tab.active{color:#fff;background:linear-gradient(135deg,#2a63d6,#5b45c9);border-color:transparent}
+  .spacer{flex:1 1 0;min-width:0}
+  /* The window pill, beside the theme toggle: the last N days of the
+     collected activity, with the dates they cover. */
+  .winwrap{flex:none;display:inline-flex;align-items:center;gap:10px;height:38px;padding:0 12px 0 11px;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink-2);box-shadow:var(--shadow-sm)}
+  .winwrap svg{width:16px;height:16px;flex:none}
+  .winwrap input[type=range]{width:130px;margin:0;accent-color:var(--brand);cursor:pointer}
+  .winwrap input[type=range]:focus{outline:none}
+  .winlab{display:flex;flex-direction:column;justify-content:center;line-height:1.2;min-width:132px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .winlab b{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .winlab small{font-size:11px;font-weight:600;color:var(--muted)}
+  .winwrap:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+  .winwrap.busy{opacity:.55;pointer-events:none}
+  @media(max-width:560px){.winwrap input[type=range]{width:96px}.winlab{min-width:0}}
+  /* The date range: the window pill opens a calendar of the collected days,
+     a first and a last day chosen as when booking dates. */
+  .winbox{position:relative;flex:none}
+  .winbox.busy{opacity:.55;pointer-events:none}
+  button.winwrap{font:inherit;cursor:pointer;text-align:left}
+  button.winwrap:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--line))}
+  button.winwrap .winchev{width:14px;height:14px;color:var(--muted);transition:transform .15s}
+  button.winwrap[aria-expanded="true"] .winchev{transform:rotate(180deg)}
+  .calpop{position:absolute;top:calc(100% + 8px);right:0;z-index:70;width:max-content;max-width:calc(100vw - 24px);
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+  .calhead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;margin-bottom:14px}
+  .calpre .pgtab{font-size:12.5px;padding:6px 12px}
+  .calnav{display:flex;gap:6px}
+  .calnav .iconbtn{width:32px;height:32px}
+  .calnav .iconbtn:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+  .calmonths{display:flex;gap:24px}
+  .calmh{font-size:13px;font-weight:750;margin:0 0 8px 6px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,36px);row-gap:2px}
+  .caldow{font-size:10.5px;font-weight:800;color:var(--faint);text-align:center;padding:2px 0 6px;letter-spacing:.04em}
+  .calday{position:relative;height:38px;padding:0;border:0;background:none;font:inherit;font-size:12.5px;font-weight:600;
+    color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums;display:grid;place-items:center}
+  .calday .n{display:grid;place-items:center;width:30px;height:30px;border-radius:999px;transition:background .12s}
+  .calday:disabled{color:var(--faint);opacity:.5;cursor:default}
+  .calday:not(:disabled):hover .n{box-shadow:inset 0 0 0 1.5px var(--brand)}
+  .calday:focus-visible{outline:none}
+  .calday:focus-visible .n{box-shadow:0 0 0 2px var(--brand)}
+  .calday.inr{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+  .calday.st{border-radius:999px 0 0 999px}
+  .calday.en{border-radius:0 999px 999px 0}
+  .calday.st.en{border-radius:999px}
+  .calday.st .n,.calday.en .n{background:var(--btn-bg);color:#fff;box-shadow:var(--btn-shadow)}
+  .calday.last .n{font-weight:800}
+  .calfoot{display:flex;align-items:center;flex-wrap:wrap;gap:10px 12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .calsel{flex:1 1 220px;font-size:13px;font-weight:650;color:var(--ink)}
+  .sbtn.quiet{background:none;color:var(--ink-2);border-color:var(--line);box-shadow:none}
+  .sbtn.quiet:hover{color:var(--ink);filter:none;background:var(--chip)}
+  .sbtn[disabled]{opacity:.5;cursor:default;filter:none}
+  @media(max-width:600px){.calpop{left:0;right:auto;width:calc(100vw - 32px);max-width:none;padding:14px}
+    .calm{flex:1;min-width:0}.calgrid{grid-template-columns:repeat(7,minmax(0,1fr))}.calday{height:40px}}
+  .iconbtn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink-2);display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow-sm);
+    transition:transform .08s,box-shadow .15s,border-color .15s}
+  .iconbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .iconbtn svg{width:18px;height:18px}
+  .iconbtn .moon{display:none}
+  html[data-theme="dark"] .iconbtn .sun{display:none}
+  html[data-theme="dark"] .iconbtn .moon{display:block}
+

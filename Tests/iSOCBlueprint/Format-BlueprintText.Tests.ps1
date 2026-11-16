@@ -117,7 +117,8 @@ Describe 'API names in words' {
     }
 
     It 'matches the dashboard''s region and SKU names' {
-        $html = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html') -Raw
+        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard')
         foreach ($k in 'uksouth', 'westeurope', 'eastus2', 'australiacentral2') {
             $html.Contains("${k}:'$(Get-BlueprintRegionName $k)'") | Should -BeTrue -Because $k
         }

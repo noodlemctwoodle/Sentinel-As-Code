@@ -111,7 +111,7 @@ function Write-SiteBundle {
     # the data (a rule name, finding evidence, a feed title) can close the
     # <script type="application/json"> block it is embedded in.
     $modelJson = $model | ConvertTo-Json -Depth 24 -Compress -EscapeHandling EscapeHtml
-    $template = Get-Content -LiteralPath (Join-Path $siteRoot 'templates/sharepoint-dashboard.html') -Raw -Encoding utf8
+    $template = Get-SiteDashboardTemplate -Root (Join-Path $siteRoot 'templates/dashboard')
     # The chart web part's renderers, bundled by WebParts/Build-DashboardCharts.ps1,
     # draw the diagrams the dashboard does not draw itself.
     $chartBundlePath = Join-Path $siteRoot 'templates/dashboard-charts.js'

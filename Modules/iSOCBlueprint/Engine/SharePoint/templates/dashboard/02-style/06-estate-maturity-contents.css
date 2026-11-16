@@ -1,0 +1,127 @@
+  /* ---------- estate rings, maturity, contents ---------- */
+  .posture.rings{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .outcome.ringcard{background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+  .outcome.ringcard::before{display:none}
+  .outcome.ringcard h3{color:var(--muted)}
+  .outcome.ringcard .big{font-size:24px}
+  .outcome.ringcard .unit,.outcome.ringcard .s{color:var(--muted);opacity:1}
+  .outcome.ringcard .s{border-top-color:var(--line-2)}
+  .outcome.ringcard .oic{background:var(--chip);border-color:var(--line-2)}
+  .outcome.ringcard .oic svg{color:var(--muted)}
+  .ring.tone::before{background:conic-gradient(var(--rc,var(--brand)) calc(var(--p,0)*1%),var(--ring-track) 0)}
+  .ring.tone span{color:var(--ink)}
+  .estate{display:block;width:100%;height:auto;max-width:1200px;margin:0 auto}
+  .flowbox.estatebox{background:var(--panel-soft)}
+  /* On the dark screen the flow sits straight on the card, as the alert lifecycle does. */
+  html[data-theme="dark"] .flowbox.estatebox{background:transparent;border-color:transparent}
+  .mat-band{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:14px 0 10px}
+  /* The maturity card fills its height: the areas list, then the button at its foot. */
+  #maturityCard{display:flex;flex-direction:column}
+  #maturityCard>.btn{margin-top:auto;align-self:flex-start}
+  /* Quick wins fill to the maturity card's height, the button level with its. */
+  #quickWinsCard{display:flex;flex-direction:column}
+  #quickWins,#quickWins>.morewrap{flex:1;display:flex;flex-direction:column}
+  #quickWins .qw{margin-bottom:14px}
+  #quickWins .qwfoot{margin-top:auto;align-self:flex-start}
+  .flowgrid.filling{align-items:start}
+  .mat-areas{display:flex;flex-direction:column;gap:4px;margin:16px 0 14px}
+  .mat-areas .mah{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:0 6px 4px}
+  .mat-areas .mau{font-size:11.5px;color:var(--faint);margin:4px 6px 0}
+  .ma{display:grid;grid-template-columns:minmax(0,1fr) 40% 34px;align-items:center;gap:12px;font-size:12px;cursor:pointer;padding:4px 6px;border-radius:7px;transition:background .12s}
+  .ma:hover,.ma:focus-visible{background:var(--chip);outline:none}
+  .ma .man{color:var(--ink-2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ma .mab{position:relative;height:7px;border-radius:99px;background:var(--line-2)}
+  .ma .mab i{position:absolute;left:0;top:0;bottom:0;width:var(--w);border-radius:99px;background:linear-gradient(90deg,var(--brand),var(--accent))}
+  .ma.below .mab i{background:linear-gradient(90deg,#d97706,#f59e0b)}
+  .ma .mab b{position:absolute;top:-3px;bottom:-3px;left:var(--t);width:2px;border-radius:2px;background:var(--amber)}
+  .ma .mav{text-align:right;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ma.below .mav{color:var(--amber)}
+  .mat-band .lvl{text-align:center;font-size:10.5px;font-weight:700;color:var(--faint);padding:8px 4px;border-radius:9px;
+    background:var(--chip);border:1px solid var(--line-2);line-height:1.2}
+  .mat-band .lvl b{display:block;font-size:15px;color:var(--ink-2)}
+  .mat-band .lvl.on{background:color-mix(in srgb,var(--brand) 14%,var(--panel));border-color:color-mix(in srgb,var(--brand) 45%,var(--line));color:var(--brand-ink)}
+  .mat-band .lvl.on b{color:var(--brand-ink)}
+  .mat-band .lvl.target{outline:2px dashed color-mix(in srgb,var(--amber) 70%,transparent);outline-offset:-2px}
+  .meter{height:10px;border-radius:999px;background:var(--line-2);overflow:visible;position:relative;margin-top:6px}
+  .meter .mf{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--accent));width:var(--w,0%);transition:width .6s cubic-bezier(.22,.8,.3,1)}
+  .meter .mt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--amber);left:var(--t,60%)}
+  .matbig{font-size:34px;font-weight:850;letter-spacing:-.02em;line-height:1;margin-top:4px}
+  .matbig small{font-size:14px;font-weight:700;color:var(--muted);margin-left:6px}
+  .matcap{color:var(--muted);font-size:12.5px;margin-top:10px}
+  .btn{margin-top:14px}
+  .qw{display:flex;flex-direction:column;gap:9px}
+  .qw .qwi{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;background:var(--panel-soft)}
+  .qw .qwi[role="button"]{cursor:pointer;transition:border-color .15s}
+  .qw .qwi[role="button"]:hover,.qw .qwi[role="button"]:focus-visible{border-color:color-mix(in srgb,var(--brand) 45%,var(--line));outline:none}
+  /* A criterion picked from the roadmap or a quick win flashes once. */
+  .fcard.flash{animation:critflash 1.8s ease-out}
+  @keyframes critflash{0%,35%{box-shadow:0 0 0 3px var(--brand)}100%{box-shadow:0 0 0 3px transparent}}
+  .critfind{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .critfind .flabel{margin:0 2px 0 0}
+
+  .qw .qwn{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green);font-weight:800;font-size:12px}
+  .qw .qwt{font-weight:700;font-size:13px}
+  .qw .qwg{color:var(--muted);font-size:12px;margin-top:2px}
+  .qw .qwl{font-size:11px;font-weight:700;color:var(--faint);white-space:nowrap}
+  /* One grid for every area row (rows are display:contents) so the score
+     and confidence columns line up across rows whatever the badge width. */
+  .areabars{display:grid;grid-template-columns:minmax(170px,28%) 1fr auto auto;align-items:center;gap:10px 12px}
+  /* On a phone the name takes its own row, so the bar keeps its width. */
+  @media(max-width:560px){.areabars{grid-template-columns:1fr auto auto;row-gap:6px}.abar .al{grid-column:1/-1;margin-top:6px}}
+  .abar{display:contents}
+  .abar .al{font-size:12.5px;font-weight:650;color:var(--ink-2)}
+  .abar .at{height:12px;border-radius:999px;background:var(--line-2);position:relative;overflow:visible}
+  .abar .af{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--c1,var(--brand)),var(--c2,var(--accent)));width:var(--w,0%)}
+  .abar .am{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--amber);left:var(--t,60%)}
+  .abar .av{font-size:12.5px;font-weight:800;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  .matbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--muted);white-space:nowrap;min-width:92px;text-align:center}
+  .cid{white-space:nowrap}
+  /* Long text (evidence, remediation, guidance) is clamped to three lines so
+     rows stay uniform; Expand shows everything, as a list when the text is a
+     semicolon-separated list. Nothing is cut: the full text is always in
+     the DOM. */
+  .ltx .ltx-body{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+  .ltx.open .ltx-body{display:block;-webkit-line-clamp:unset;overflow:visible}
+  .ltx .ltx-list{display:none;margin:4px 0 0;padding-left:18px}
+  .ltx .ltx-list li{margin:2px 0;overflow-wrap:anywhere}
+  .ltx.open.aslist .ltx-body{display:none}
+  .ltx.open.aslist .ltx-list{display:block}
+  .ltx .ltx-btn{display:none;margin-top:6px}
+  .ltx.clamped .ltx-btn{display:inline-flex}
+  .matbadge.good{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
+  .matbadge.moderate{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
+  .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:750;color:#fff}
+  .st.Met{background:var(--green)} .st.Gap{background:var(--red)} .st.Unknown{background:var(--slate)} .st.Warn{background:var(--amber)} .st.Info{background:var(--brand)}
+  .trend{width:100%;height:auto;display:block}
+  .csfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--gap)}
+  .csfc{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--panel-soft)}
+  .csfc h4{margin:0 0 8px;font-size:12.5px;font-weight:750}
+  .csfc .dms{width:110px;height:110px} .csfc .dms .dmshole{width:68px;height:68px} .csfc .dms .dmsv{font-size:16px}
+  /* A chip list that can open: the chips wrap on the left, the chevron
+     holds the top right and does not move when the list opens. */
+  .oppl,.cellchips{display:flex;align-items:flex-start;gap:8px}
+  .chipl{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+  .oppl>.morechev,.cellchips>.morechev{flex:none}
+  /* Lists show their first few entries; "Show all" reveals the rest. Nothing
+     is dropped from the model, so the dashboard reports everything. */
+  [hidden]{display:none !important}
+  .morebtn{margin-top:10px}
+  /* In a table, Show all is a chevron (.morechev) at the top right: of a
+     cell's chips, or in the table's header row when it opens further rows,
+     so it stays put as the list opens. It turns over when open; Show all N
+     and Show fewer are its tooltip and accessible name. */
+  .morechev svg{transition:transform .2s}
+  .morechev[aria-expanded="true"] svg{transform:rotate(180deg)}
+  table.tbl thead th .morechev{float:right;margin:-8px 0 -8px 10px}
+  .morechev.tfoot{display:flex;margin:10px auto 0}
+  .phead > .cardchev{flex:none;margin-left:auto}
+  .cardchev.abs{position:absolute;top:14px;right:14px;z-index:2}
+  .has-cardchev{position:relative} .has-cardchev > h3{padding-right:44px}
+  .flowfilter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+  .fchip{font:inherit;font-size:12px;font-weight:650;padding:6px 11px;border-radius:999px;border:1px solid var(--line);
+    background:var(--chip);color:var(--ink-2);cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+  .fchip span{color:var(--muted);font-weight:500}
+  .fchip.active{background:var(--btn-bg);border-color:transparent;color:#fff;box-shadow:var(--btn-shadow)}
+  .fchip.active span{color:rgba(255,255,255,.85)}
+  table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+

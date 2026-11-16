@@ -1,0 +1,111 @@
+  /* ---------- flow ---------- */
+  .flowbox{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--canvas);
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 23px,var(--grid-line) 23px,var(--grid-line) 24px);
+    padding:6px}
+  svg.sankey{display:block;margin:0 auto}
+  .flowwrap{display:grid;grid-template-columns:1fr;gap:4px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+  .zoom{display:flex;align-items:center;gap:6px;color:var(--muted);background:var(--chip);
+    border:1px solid var(--line);border-radius:11px;padding:4px}
+  .zoom #zoomPct{min-width:46px;text-align:center;font-weight:700;font-size:12.5px;color:var(--ink-2)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:14px;
+    justify-content:center}
+  .docchart .legend.top{justify-content:flex-start;margin:4px 0 12px}
+  .legend span{display:inline-flex;align-items:center}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:6px}
+  .legend i.dash{width:18px;height:0;border-radius:0;border-top:3px dashed var(--red);background:none;vertical-align:middle}
+  /* Estate flow interaction: hover a family to spotlight its strands,
+     click a family, the pool, a ring or an incidents box. */
+  svg.estate .es-src,svg.estate .es-pool,svg.estate [data-ring],svg.estate [data-inc]{cursor:pointer}
+  svg.estate.es-dim .es-strand{opacity:.16;transition:opacity .15s}
+  svg.estate.es-dim .es-strand.es-hot{opacity:1}
+  svg.estate.es-dim .es-src{opacity:.45}
+  svg.estate.es-dim .es-src.es-hot{opacity:1}
+  /* Motion: beads run along the strands read by a detection rule, the band
+     between the rings and the incident branches, faster for more data (the
+     alert lifecycle's lcflow); the dashed "no detection rule" strands keep
+     their dashes, which creep towards the pool; each ring's arc draws in
+     once. Beads take the strand's colour on light and near-white on dark. */
+  svg.estate .es-beads{fill:none;stroke-linecap:round;stroke-opacity:.9;pointer-events:none;animation:lcflow linear infinite}
+  html[data-theme="dark"] svg.estate .es-beads{stroke:#e6fffb;stroke-opacity:.5}
+  svg.estate .es-unc{animation:esdash 2.8s linear infinite}
+  @keyframes esdash{to{stroke-dashoffset:-38}}
+  svg.estate.es-dim .es-beads{opacity:.12;transition:opacity .15s}
+  svg.estate.es-dim .es-beads.es-hot{opacity:1}
+  svg.estate .es-arc{transition:stroke-dasharray 1.2s cubic-bezier(.22,.8,.3,1)}
+  /* Data flow: beads along the middle of each Sankey ribbon, as above. */
+  svg.sankey .sk-beads{fill:none;stroke-linecap:round;stroke-opacity:.85;pointer-events:none;animation:lcflow linear infinite}
+  /* ---------- detection matrix (Data flow tab) ---------- */
+  .dm-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 2fr;border:1px solid var(--line);border-radius:14px;margin:0 0 14px;overflow:hidden}
+  .dm-sm{padding:12px 16px;border-left:1px solid var(--line)} .dm-sm:first-child{border-left:0}
+  .dm-sm .k{font-size:11px;color:var(--faint);font-weight:700} .dm-sm .v{font-size:22px;font-weight:800;margin-top:2px;color:var(--ink)} .dm-sm .s{font-size:11.5px;color:var(--muted)}
+  @media(max-width:900px){.dm-summary{grid-template-columns:repeat(2,minmax(0,1fr))} .dm-sm{border-left:0;border-top:1px solid var(--line)}}
+  .dm-vbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line-2);margin:8px 0 6px}
+  .dm-vbar i,.dm-bar i{display:block;height:100%}
+  .dm-vleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted)} .dm-vleg span{display:inline-flex;align-items:center;gap:5px} .dm-vleg i{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .dm-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+  .dm-tools input{flex:1 1 240px;font:inherit;font-size:12.5px;padding:7px 11px;border:1px solid var(--line);border-radius:9px;background:var(--canvas);color:var(--ink)}
+  .dm-grp{display:inline-flex;flex-wrap:wrap;gap:4px;padding:3px;border-radius:12px;background:var(--chip);border:1px solid var(--line)}
+  .dm-grp .fchip:not(.active){border-color:transparent;background:transparent}
+  .dm-grp .fchip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dm-scroll{overflow:auto;max-height:680px;border:1px solid var(--line);border-radius:14px;background:var(--canvas)}
+  table.dm{border-collapse:separate;border-spacing:0;min-width:100%}
+  .dm th,.dm td{padding:0;font-size:12.5px;white-space:nowrap}
+  .dm thead th{position:sticky;top:0;z-index:3;background:var(--panel-soft);color:var(--faint);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;vertical-align:bottom;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .dm thead th.dm-fcol{width:84px;min-width:84px;padding:12px 6px 10px;text-align:center;letter-spacing:0;text-transform:none;font-size:11.5px;font-weight:650;color:var(--ink-2);white-space:normal;line-height:1.3}
+  .dm thead th.dm-fcol i{display:block;width:10px;height:10px;border-radius:50%;margin:0 auto 6px}
+  .dm thead th.dm-fcol small{display:block;color:var(--faint);font-weight:500;font-size:10.5px;margin-top:2px}
+  /* Every family name sits in a two-line box, so dots, names and counts line up across columns. */
+  .dm thead th.dm-fcol .dm-fn{display:flex;align-items:center;justify-content:center;min-height:2.6em}
+  .dm thead th.dm-tl{padding:0}
+  .dm-tlab{position:relative}
+  .dm-tlab span{position:absolute;bottom:12px;transform-origin:left bottom;transform:rotate(-64deg);font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);white-space:nowrap}
+  .dm-tlab span i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dm .dm-rn{position:sticky;left:0;z-index:2;background:var(--panel-soft);min-width:356px;max-width:356px;border-right:1px solid var(--line);white-space:normal}
+  .dm thead th.dm-rn{z-index:4;padding-left:16px}
+  .dm td.dm-rn{padding:7px 12px 7px 16px}
+  .dm-name{display:flex;align-items:center;gap:9px}
+  .dm-src{flex:none;width:32px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:9.5px;font-weight:800;letter-spacing:.04em}
+  .dm-src.S{background:color-mix(in srgb,#4f5bd5 18%,transparent);color:#4f5bd5} .dm-src.X{background:color-mix(in srgb,#2b8c9e 20%,transparent);color:#1f7a8a}
+  html[data-theme="dark"] .dm-src.S{color:#a5b4fc} html[data-theme="dark"] .dm-src.X{color:#67e8f9}
+  .dm tbody tr{cursor:pointer}
+  .dm .dm-open{all:unset;display:block;cursor:pointer;border-radius:4px}
+  .dm .dm-open:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .dm tbody tr:hover .dm-open b{text-decoration:underline;text-underline-offset:2px}
+  .dm-rtxt{min-width:0} .dm-rtxt b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;line-height:1.35;color:var(--ink)}
+  .dm-rtxt small{display:block;color:var(--faint);font-size:10.5px;margin-top:1px}
+  .dm td{border-top:1px solid var(--line-2);vertical-align:middle}
+  .dm td.dm-c{text-align:center;width:40px;min-width:40px}
+  .dm.dm-fam td.dm-c{width:84px;min-width:84px}
+  .dm td.dm-c i{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10.5px;font-weight:800;font-style:normal;line-height:1;font-variant-numeric:tabular-nums;vertical-align:middle}
+  /* The glow only on the dark screen; on light it blurs the dot and its number. */
+  html[data-theme="dark"] .dm td.dm-c i{box-shadow:0 0 9px var(--g)}
+  .dm td.dm-c i.one{width:11px;height:11px}
+  .dm .dm-h{padding-left:12px;padding-right:12px;text-align:left}
+  .dm td.dm-v{padding:0 12px;min-width:192px}
+  .dm .dm-n{padding-right:12px;text-align:right;min-width:136px}
+  .dm td.dm-n{color:var(--muted);font-size:11.5px;padding-right:16px}
+  .dm thead .morechev{margin-left:8px;vertical-align:middle}
+  .dm tbody tr:hover td{background:color-mix(in srgb,var(--brand) 6%,transparent)} .dm tbody tr:hover td.dm-rn{background:var(--chip)}
+  .dm td.dm-hot{background:color-mix(in srgb,var(--brand) 10%,transparent)!important}
+  .dm-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:750}
+  .dm-pill.Working{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+  .dm-pill.Silent{background:color-mix(in srgb,var(--slate) 16%,transparent);color:var(--muted)}
+  .dm-pill.Failing{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+  .dm-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line-2)}
+  .dm tfoot td{position:sticky;bottom:0;z-index:2;background:var(--panel-soft);border-top:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:700;padding:8px 0;text-align:center}
+  .dm tfoot td.dm-rn{text-align:left;padding-left:16px;z-index:3}
+  /* Ingest and billing flow: hovering a family spotlights its strands and tables. */
+  svg.sankey.ib-dim .ib-strand,svg.sankey.ib-dim .sk-beads,svg.sankey.ib-dim .ib-tbl,svg.sankey.ib-dim .ib-src{opacity:.18;transition:opacity .15s}
+  svg.sankey.ib-dim .ib-hot{opacity:1}
+  html[data-theme="dark"] svg.sankey .sk-beads{stroke:#e6fffb;stroke-opacity:.5}
+  .esdetail{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel-soft);padding:14px 16px}
+  .esdetail .esd-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-bottom:8px}
+  .esdetail .esd-head h3{margin:0;font-size:15px;font-weight:800}
+  .esdetail .esd-head .note{margin:0;flex:1 1 auto}
+  /* Panels inside a grid row keep no stacked-block margin, or the row
+     would carry twice the spacing of its neighbours. */
+  .flowgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin:var(--gap) 0}
+  .flowgrid>.panel{margin:0}
+  @media(max-width:860px){.flowgrid{grid-template-columns:1fr}}
+

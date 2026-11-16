@@ -1,0 +1,94 @@
+  /* ---------- section cards ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:var(--gap)}
+  .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow-sm);padding:16px 16px 15px;display:flex;flex-direction:column;gap:9px;
+    overflow:hidden;transition:transform .13s,box-shadow .2s,border-color .15s}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--brand),var(--accent))}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--brand) 30%,var(--line))}
+  .card .chead{display:flex;align-items:center;gap:10px}
+  .card .cic{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+    color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent)}
+  .card .cic svg{width:18px;height:18px}
+  .card .num{font-size:10.5px;font-weight:800;color:var(--faint);letter-spacing:.08em}
+  .card .t{font-weight:750;font-size:14.5px;line-height:1.28;letter-spacing:-.01em}
+  .card .m{color:var(--ink-2);font-size:12.5px}
+  .card .f{color:var(--brand-ink);font-size:12px;font-weight:650;margin-top:auto;display:inline-flex;align-items:center;gap:5px}
+  .card .f svg{width:14px;height:14px;flex:none}
+  .famhead{grid-column:1/-1;margin:14px 2px 0;font-size:12px;font-weight:800;color:var(--faint);
+    text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:9px}
+  .famhead::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* ---------- filters ---------- */
+  .filters{display:flex;align-items:center;gap:10px;margin:var(--gap) 0 0;flex-wrap:wrap}
+  select{font:inherit;font-weight:600;padding:9px 12px;border:1px solid var(--line);border-radius:11px;
+    background:var(--panel);color:var(--ink);box-shadow:var(--shadow-sm);cursor:pointer}
+  .chip{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);cursor:pointer;font-weight:650;font-size:12.5px;box-shadow:var(--shadow-sm);
+    transition:transform .1s,border-color .15s,color .15s,background .15s}
+  .chip:hover{transform:translateY(-1px);color:var(--ink)}
+  .chip.active{background:color-mix(in srgb,var(--brand) 12%,var(--panel));border-color:color-mix(in srgb,var(--brand) 40%,var(--line));color:var(--brand-ink)}
+
+  /* ---------- tables ---------- */
+  table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+  table.tbl th,table.tbl td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  table.tbl thead th{color:var(--faint);font-weight:750;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    position:sticky;top:60px;background:var(--panel);z-index:1}
+  table.tbl tbody tr{transition:background .12s}
+  table.tbl tbody tr:hover{background:color-mix(in srgb,var(--brand) 5%,transparent)}
+  table.tbl tbody tr:last-child td{border-bottom:0}
+  .tablewrap{padding:6px 8px}
+  /* Cards shared by the Assessment tab's findings view, the Overview findings and the
+     maturity criteria: one card per item with a status-coloured edge, the
+     pill, id and title on the first line, chips beneath, then Evidence and
+     Remediation (or Guidance) side by side. */
+  .fcards{display:flex;flex-direction:column;gap:12px}
+  /* Every card is the same height when collapsed: the title row, chip row
+     and impact line reserve their space, each text block reserves four
+     lines, and the Expand slot is always present (invisible when the text
+     fits), so Expand sits in the same place on every card. */
+  .fcard{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px 18px 14px;box-shadow:var(--shadow-sm)}
+  .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:28px}
+  .fc-id{font-weight:800;font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .fc-title{font-weight:750;font-size:15px;color:var(--ink);line-height:1.35;flex:1 1 320px;min-width:0}
+  .fc-actions{margin-left:auto;display:flex;gap:8px;align-items:center;white-space:nowrap}
+  .fc-link{min-height:20px;margin-top:6px;font-size:12px;font-weight:700}
+  .fc-link a{color:var(--brand-ink);cursor:pointer;text-decoration:none}
+  .fc-link a:hover{text-decoration:underline}
+  .fc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;min-height:22px}
+  .fchip{font-size:11px;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--chip);border:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap}
+  .fc-impact{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5;min-height:1.5em}
+  .fc-body{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px 28px;margin-top:10px}
+  @media(max-width:900px){.fc-body{grid-template-columns:1fr}}
+  .fc-block{font-size:13px;color:var(--ink-2);line-height:1.55;min-width:0}
+  .fc-block .flabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:4px}
+  .fc-block .ltx .ltx-body{-webkit-line-clamp:3;min-height:calc(1.55em * 3)}
+  .fc-block .ltx .ltx-btn{display:none}
+  /* One toggle per card: a chevron at the far right of the title row, in
+     the same place on every card, visible only when a block is clamped;
+     it opens both blocks, and clicking clamped text does the same. */
+  .fc-expand{visibility:hidden}
+  .fcard.has-more .fc-expand,.fcard.open .fc-expand{visibility:visible}
+  .fcard.open .fc-expand{transform:rotate(180deg)}
+  .fcard.has-more .fc-block .ltx.clamped .ltx-body{cursor:pointer}
+  table.tbl th.num{text-align:right}
+  .sev{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;color:#fff;letter-spacing:.01em}
+  .sev.Critical{background:var(--red)} .sev.Error{background:var(--orange)} .sev.Warning{background:var(--amber)}
+  .sev.Info,.sev.Informational{background:var(--slate)}
+  /* Alert and incident severity in the Defender XDR colours. */
+  .sev.High{background:#ff4d1f;color:#0b1220} .sev.Medium{background:#ffaa00;color:#0b1220} .sev.Low{background:#fff100;color:#0b1220}
+  .note{color:var(--muted);font-size:12.5px}
+
+  .foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line)}
+  /* The footer's privacy notice: full width so its line does not wrap, an
+     amber tint, a lock in an icon chip, a bold title; no edge bar. */
+  .privnote{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:14px;
+    background:color-mix(in srgb,var(--red) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--red) 38%,var(--line))}
+  .privicon{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--red);
+    background:color-mix(in srgb,var(--red) 18%,transparent)}
+  .privicon svg{width:19px;height:19px}
+  .privt{font-weight:750;font-size:13.5px;color:var(--ink)}
+  .privs{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:2px}
+  .hidden{display:none !important}
+
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}

@@ -200,7 +200,8 @@ Describe 'The site names the window on every card' {
     }
 
     It 'the dashboard reads it once and labels from it' {
-        $html = Get-Content (Join-Path $script:engine 'SharePoint/templates/sharepoint-dashboard.html') -Raw
+        . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:engine 'SharePoint/templates/dashboard')
         $html.Contains("const days=(M.window&&+M.window.days>0)? +M.window.days : 30;") | Should -BeTrue
         $html.Contains("const paintWindow=()=>document.querySelectorAll('[data-win]')") | Should -BeTrue
         ([regex]::Matches($html, 'data-win="')).Count | Should -BeGreaterOrEqual 6

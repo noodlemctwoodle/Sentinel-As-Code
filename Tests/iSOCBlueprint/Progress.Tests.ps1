@@ -29,7 +29,8 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
     . (Join-Path $sp 'Private/Get-SacProgress.ps1')
-    $script:html = Get-Content (Join-Path $sp 'templates/sharepoint-dashboard.html') -Raw
+    . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+    $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
     $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1') -Raw)) -join "`n"
     $script:sacSharePoint = (Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
 

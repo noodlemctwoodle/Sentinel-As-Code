@@ -2386,7 +2386,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
 Describe 'Dashboard figures and labels' {
     BeforeAll {
-        $script:dash = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html') -Raw
+        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $script:dash = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard')
     }
 
     It 'writes the data flow''s ring and incident figures with thousands separators' {

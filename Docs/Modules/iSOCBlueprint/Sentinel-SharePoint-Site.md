@@ -152,7 +152,7 @@ with the dashboard template and the web part source:
 | `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
 | `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
 | `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
-| [`templates/sharepoint-dashboard.html`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
+| [`templates/dashboard/`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/dashboard) | The dashboard template the build fills in, kept as numbered parts (head, style, body, script, end) that `Get-SiteDashboardTemplate` joins; see the folder's README. |
 | [`Modules/iSOCBlueprint/WebParts/`](../../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Modules/iSOCBlueprint/WebParts/README.md). |
 | `Private/` | Section families, section-to-page conversion, the sync planners (loaded from `Private/SyncPlan`, one function per file) and the PnP wrappers. |
 

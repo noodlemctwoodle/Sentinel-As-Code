@@ -31,7 +31,8 @@ BeforeAll {
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) + (Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw)) -join "`n"
-    $script:html = Get-Content (Join-Path $script:engine 'SharePoint/templates/sharepoint-dashboard.html') -Raw
+    . (Join-Path $script:engine '../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+    $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:engine 'SharePoint/templates/dashboard')
     $script:buildScript = Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1'
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
 
