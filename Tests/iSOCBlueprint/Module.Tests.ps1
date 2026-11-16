@@ -33,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.4.0
+    Version:      0.4.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -45,7 +45,7 @@ BeforeDiscovery {
     $commands = @($manifest.FunctionsToExport | ForEach-Object { @{ Name = $_ } })
     $ownFiles = @(
         Get-Item -LiteralPath (Join-Path $moduleRoot 'iSOCBlueprint.psm1')
-        Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private'), (Join-Path $moduleRoot 'Engine/Private/Vendor') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private') -Filter '*.ps1' -File -Recurse
     ) | ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
     # Every script the module ships, engine included: one that does not
     # parse fails only when a run reaches it.

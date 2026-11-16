@@ -158,7 +158,7 @@ The renderer
 ([`Invoke-iSOCBlueprintRender`](../../../Modules/iSOCBlueprint/Private/Render/Invoke-iSOCBlueprintRender.ps1))
 composes each section, then
 [`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Private/Section/ConvertTo-BlueprintSection.ps1)
-(loaded through `Engine/Private/ConvertTo-BlueprintSection.ps1`, with its helpers under
+(with its helpers under
 `Modules/iSOCBlueprint/Private/Section`) parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
 and runs, and
 [`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Private/Mermaid/ConvertFrom-BlueprintMermaid.ps1)

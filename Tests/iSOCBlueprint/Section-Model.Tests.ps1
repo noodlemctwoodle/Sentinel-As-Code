@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.2
+    Version:      0.2.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (renderer)
 #>
@@ -31,9 +31,8 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
-    $private = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private'
-    . (Join-Path $private 'ConvertFrom-BlueprintMermaid.ps1')
-    . (Join-Path $private 'ConvertTo-BlueprintSection.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Mermaid, Section)
     $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section.schema.json'
     $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json'
 

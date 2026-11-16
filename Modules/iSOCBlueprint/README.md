@@ -113,19 +113,19 @@ Private/             the Blueprint as functions, one folder per concern; path de
     Issues/  Helpers/                sorting a failed capture and its notes, then wrapping and file counts
   Word/              the Word report conversion, one function per file (Export-iSOCBlueprintWord calls it)
     Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
-  Mermaid/           the Mermaid chart parser, one function per file (loaded by Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
+  Mermaid/           the Mermaid chart parser, one function per file
   Cost/              the cost estimate, one function per file (loaded with the module)
     Get-SentinelCostEstimate.ps1   entry point
     Steps/  Helpers/                 one step per part of the estimate, then JSON reading and the price lookups
-  Section/           the Markdown-to-section-model converter, one function per file (loaded by Engine/Private/ConvertTo-BlueprintSection.ps1)
+  Section/           the Markdown-to-section-model converter, one function per file
     ConvertTo-BlueprintSection.ps1   entry point
     Parsing/  Inline/  Data/         the token walk and table chunking, text runs and links, shared values
     Parsers/  Helpers/
   Publish/           the site publish, one function per file (Publish-iSOCBlueprintSite calls it)
     Steps/  Helpers/                 load, connect, the eight stages, then the state record
-  PageSegments/      a section as SharePoint page segments, one function per file (loaded by Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1)
+  PageSegments/      a section as SharePoint page segments, one function per file
     Names/  Html/  Tables/  Charts/  Data/
-  SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)
+  SharePoint/        the site publisher's PnP functions, one per file
     Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
   Lookup/            shared lookups the renderer, gap checks, maturity and site build read: connectors, tables, templates, ATT&CK, hunting, finding-to-criterion links
   Azure/             REST calls (Invoke-SentinelRest), retail prices and the Defender custom detections reader
@@ -141,9 +141,9 @@ Private/             the Blueprint as functions, one folder per concern; path de
   WhatsNew/          the What's new reader, one function per file (loaded with the module)
     Get-WhatsNew.ps1                 entry point
     Parsing/  Helpers/  Data/        one page's Markdown to items, then slugs, links, status and deadlines, and the two pages read
-  Format/            the text formatters for counts, GB, money, dates, plurals and names, one function per file (loaded by Engine/Private/Format-BlueprintText.ps1)
+  Format/            the text formatters for counts, GB, money, dates, plurals and names, one function per file
     Numbers/  Text/  Names/  Data/       number and amount formats, dates and words, region and SKU names, then the values they share
-  SyncPlan/          the publisher's planning functions, one per file (loaded by Engine/SharePoint/Private/Get-SacSyncPlan.ps1)
+  SyncPlan/          the publisher's planning functions, one per file
     Pages/  Findings/  Navigation/  Assets/   what to create, update, resolve, retire or prune
   Site/              the SharePoint site build (joins the dashboard template's parts from Engine/SharePoint/templates/dashboard), one function per file (New-iSOCBlueprintSite calls it)
     Invoke-iSOCBlueprintSiteBuild.ps1  entry point
@@ -156,12 +156,10 @@ Private/             the Blueprint as functions, one folder per concern; path de
     Checks/<Area>/                   one Test-* check per rule, by rule-id prefix
     Helpers/                         finding shape, property reads, window, converters
     Data/                            values the checks share
-Engine/              the static files the functions read, and the loaders still to go
-  Private/                                loaders for the split areas (the helper files moved to the module's Private/)
+Engine/              the static files the functions read
   Private/Resources/                      rules, criteria, catalogues, page 99
-  Private/Vendor/                         KQL helpers copied from Sentinel.Common
   Report/                                 the Word reference document and the page-number helper
-  SharePoint/                             the dashboard templates, and loaders
+  SharePoint/templates/                   the dashboard templates
   Schemas/                                section model JSON schemas
 WebParts/            SPFx solution for the dashboard and chart web parts
 MIGRATION.md         where each file came from
@@ -176,9 +174,8 @@ scripts they replaced did. A step that cannot go on throws; no function calls
 `exit`, which would end the caller's session. `-WhatIf` and `-Confirm` reach
 the functions through the preference variables.
 
-`Engine/` no longer holds a script: what is left is the static files the
-functions read (resources, schemas, the dashboard templates, the Word reference
-document) and the loaders the tests still use.
+`Engine/` holds no code: what is left is the static files the functions read
+(resources, schemas, the dashboard templates, the Word reference document).
 
 The SharePoint web parts, the dashboard and the chart, are an SPFx solution
 (TypeScript, built with npm) in [`WebParts/`](WebParts/README.md). They sit

@@ -394,9 +394,10 @@ and `InModuleScope` instead of the extractor.
 ### The Blueprint suites source differently
 
 The Blueprint suites under [`Tests/iSOCBlueprint/`](../../Tests/iSOCBlueprint)
-do not go through the AST-extraction helper. They dot-source specific files
-of the module's engine directly (including files under
-`Modules/iSOCBlueprint/Engine/Private/`) and drive them against a fixed JSON
+do not go through the AST-extraction helper. They dot-source the module's
+private areas directly (through
+[`_helpers/Get-iSOCBlueprintAreaLoader.ps1`](../../Tests/iSOCBlueprint/_helpers/Get-iSOCBlueprintAreaLoader.ps1))
+and drive them against a fixed JSON
 fixture corpus rather than mocking Azure. The module's own suites
 (`Migration-Map`, `Vendored`, `Module`, `Module-Standalone`, `Pipelines`)
 are described in the validate table above.
@@ -447,12 +448,12 @@ are described in the validate table above.
   and classifies a hand-built set of five tables with and without lake
   enrolment; no fixture, no Azure modules.
 - [`Section-Model.Tests.ps1`](../../Tests/iSOCBlueprint/Section-Model.Tests.ps1)
-  dot-sources the section model helpers under [`Modules/iSOCBlueprint/Engine/Private/`](../../Modules/iSOCBlueprint/Engine/Private),
+  dot-sources the section model helpers ([`Private/Mermaid`](../../Modules/iSOCBlueprint/Private/Mermaid) and [`Private/Section`](../../Modules/iSOCBlueprint/Private/Section)),
   converts small inputs directly, then renders the fixture with both output
   formats and with `-OutputFormat Json` and validates every `sections/*.json`
   against [`Modules/iSOCBlueprint/Engine/Schemas/`](../../Modules/iSOCBlueprint/Engine/Schemas).
 - [`SharePoint-Site.Tests.ps1`](../../Tests/iSOCBlueprint/SharePoint-Site.Tests.ps1)
-  dot-sources the helpers under [`Modules/iSOCBlueprint/Engine/SharePoint/Private/`](../../Modules/iSOCBlueprint/Engine/SharePoint/Private) (the publisher's SharePoint functions are one per file under [`Modules/iSOCBlueprint/Private/SharePoint`](../../Modules/iSOCBlueprint/Private/SharePoint), loaded by `SacSharePoint.ps1`)
+  dot-sources the page segment, sync plan and SharePoint helpers ([`Private/PageSegments`](../../Modules/iSOCBlueprint/Private/PageSegments), [`Private/SyncPlan`](../../Modules/iSOCBlueprint/Private/SyncPlan) and [`Private/SharePoint`](../../Modules/iSOCBlueprint/Private/SharePoint))
   and runs [`New-iSOCBlueprintSite`](../../Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1)
   (which builds with the functions under [`Modules/iSOCBlueprint/Private/Site`](../../Modules/iSOCBlueprint/Private/Site))
   offline against the rendered fixture. The publisher's decisions live in pure

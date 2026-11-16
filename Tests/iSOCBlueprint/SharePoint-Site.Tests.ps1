@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.13.3
+    Version:      0.13.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -37,13 +37,9 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
-    $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
-    . (Join-Path $sp '../../Private/SiteShared/Get-SectionFamily.ps1')
-    . (Join-Path $sp 'Private/ConvertTo-SharePointPageSegments.ps1')
-    . (Join-Path $sp 'Private/Get-SacSyncPlan.ps1')
-    . (Join-Path $sp 'Private/SacSharePoint.ps1')
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1')
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area PageSegments, SyncPlan, SharePoint, Mermaid, Section)
 
     # Pages are built from the section model; these tests write the section
     # as Markdown for readability and convert it the way the renderer does.

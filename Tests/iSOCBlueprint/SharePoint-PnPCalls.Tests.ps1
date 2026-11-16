@@ -48,7 +48,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.3.3
+    Version:      0.3.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, PnP.PowerShell (pinned version)
 #>
@@ -59,10 +59,7 @@ BeforeDiscovery {
     $script:pnpVersion = if ($pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') { $Matches['v'] } else { '' }
     $script:pnpAvailable = [bool]($script:pnpVersion -and (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
     $script:inCi = [bool]($env:TF_BUILD -or $env:GITHUB_ACTIONS)
-    $sp = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
     $script:scriptFiles = @(
-        Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
-        Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
@@ -84,17 +81,13 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
         # The scripts' own functions, and the Blueprint helpers the build
         # script uses, defined in a throwaway module so Get-Command sees
         # their parameters. Only definitions are evaluated, no script body.
-        $sp = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
         $sources = @(
-            Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
-            Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteSetup') -Filter '*.ps1' -File -Recurse
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteShared') -Filter '*.ps1' -File
             Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup') -Filter '*.ps1' -File
-            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private') -Filter '*.ps1' -File
         )
         $definitions = foreach ($file in $sources) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)

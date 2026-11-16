@@ -218,8 +218,7 @@ than no reference, because it implies the contract was checked.
 ### Variants
 
 **Files that define functions rather than run** (`Modules/**/*.psm1`,
-`Modules/iSOCBlueprint/Public/*.ps1`, `Modules/iSOCBlueprint/Private/*.ps1`,
-`Modules/iSOCBlueprint/Engine/Private/*.ps1`): the file-level block
+`Modules/iSOCBlueprint/Public/*.ps1`, `Modules/iSOCBlueprint/Private/**/*.ps1`): the file-level block
 describes the file and carries `.NOTES`. Per-parameter and per-example
 detail lives on each function's own help block, not the file's. Put a
 comment line between the file block and the first `function`: with only

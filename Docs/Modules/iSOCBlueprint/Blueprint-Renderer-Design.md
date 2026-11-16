@@ -229,8 +229,7 @@ External helpers used by the renderer:
 - `Get-SentinelGap` + the gap checks (`Private/Gap`, loaded by `GapChecks.ps1`), also exporter-side; produces
   `_raw/gap-analysis.json`.
 - The `Format-Blueprint*` helpers,
-  [`Modules/iSOCBlueprint/Private/Format`](../../../Modules/iSOCBlueprint/Private/Format) (one function per file, loaded by
-  `Engine/Private/Format-BlueprintText.ps1`),
+  [`Modules/iSOCBlueprint/Private/Format`](../../../Modules/iSOCBlueprint/Private/Format) (one function per file, loaded with the module),
   shared with the gap checks and the maturity evidence: see
   [Writing figures](#writing-figures).
 
@@ -467,7 +466,7 @@ uses its header text.
 
 The report pages, the findings and the dashboard write a figure one way,
 so a number reads the same wherever it appears. The page text and the
-findings use the helpers in `Private/Format` (loaded by `Engine/Private/Format-BlueprintText.ps1`); the
+findings use the helpers in `Private/Format` (loaded with the module); the
 dashboard's `fmtN`, `fmtGb`, `fmtMoney` and `fmtDate` follow the same rules:
 
 | What | Written | Helper |
@@ -563,12 +562,12 @@ assets root).
 | [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
 | [`Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1`](../../../Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
-| [`Modules/iSOCBlueprint/Private/SyncPlan`](../../../Modules/iSOCBlueprint/Private/SyncPlan) (loaded by `Engine/SharePoint/Private/Get-SacSyncPlan.ps1`) | The site publisher's planning functions: pages, findings, navigation and asset pruning |
+| [`Modules/iSOCBlueprint/Private/SyncPlan`](../../../Modules/iSOCBlueprint/Private/SyncPlan) | The site publisher's planning functions: pages, findings, navigation and asset pruning |
 | [`Modules/iSOCBlueprint/Private/CaptureSummary`](../../../Modules/iSOCBlueprint/Private/CaptureSummary) | The collector's capture summary, sorting failed captures into permission refusals and errors |
 | [`Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1`](../../../Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1) | The summary `New-iSOCBlueprint` prints when a run ends |
 | [`Tests/iSOCBlueprint/Run-Summary.Tests.ps1`](../../../Tests/iSOCBlueprint/Run-Summary.Tests.ps1) | What a run prints as it ends: the three outcomes, their colours and the summaries (29 tests) |
 | [`Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1`](../../../Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1) | The bookmarks capture's fallback to the HuntingBookmark table (9 tests) |
-| [`Modules/iSOCBlueprint/Private/Format`](../../../Modules/iSOCBlueprint/Private/Format) (loaded by `Engine/Private/Format-BlueprintText.ps1`) | Counts, GB, money, dates, plurals and API names written as the dashboard writes them, for the pages, the findings and the maturity evidence |
+| [`Modules/iSOCBlueprint/Private/Format`](../../../Modules/iSOCBlueprint/Private/Format) | Counts, GB, money, dates, plurals and API names written as the dashboard writes them, for the pages, the findings and the maturity evidence |
 | [`Tests/iSOCBlueprint/Format-BlueprintText.Tests.ps1`](../../../Tests/iSOCBlueprint/Format-BlueprintText.Tests.ps1) | The formatting helpers and their parity with the dashboard's region and SKU names (14 tests) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-HuntingActivity.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-HuntingActivity.ps1) | Hunts and bookmarks created or changed within the lookback, for SAC-HNT-01 and the maturity metric `bookmarksRecent` |
 | [`Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1`](../../../Tests/iSOCBlueprint/Hunting-Activity.Tests.ps1) | Recent hunting activity: the helper, SAC-HNT-01 and `bookmarksRecent` (14 tests) |
