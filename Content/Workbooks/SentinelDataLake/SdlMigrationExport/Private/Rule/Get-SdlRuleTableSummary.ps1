@@ -26,9 +26,9 @@ function Get-SdlRuleTableSummary {
         Summarises the rule references per table.
 
     .DESCRIPTION
-        Counts the distinct enabled rules per table, split into direct
-        references and references through a workspace function, with
-        the rule kinds and up to five rule names.
+        Counts the distinct enabled rules per table by ARM rule ID, split
+        into direct references and references through a workspace
+        function, with the rule kinds and up to five rule names.
 
     .PARAMETER Reference
         Rows from Get-SdlRuleReference.
@@ -44,18 +44,21 @@ function Get-SdlRuleTableSummary {
         [object[]]$Reference = @()
     )
 
+    # Rules are counted by ARM rule ID: display names are not unique, so two
+    # rules sharing a name are still two detection dependencies.
     $summary = foreach ($group in ($Reference | Group-Object -Property 'Table')) {
         $rows = @($group.Group)
-        $allNames = @($rows.RuleName | Sort-Object -Unique)
-        $direct = @($rows | Where-Object -FilterScript { $_.Via -eq 'Direct' } | ForEach-Object -Process { $_.RuleName } | Sort-Object -Unique)
-        $viaFunction = @($rows | Where-Object -FilterScript { $_.Via -like 'Function *' } | ForEach-Object -Process { $_.RuleName } | Sort-Object -Unique)
+        $allIds = @($rows.RuleId | Sort-Object -Unique)
+        $direct = @($rows | Where-Object -FilterScript { $_.Via -eq 'Direct' } | ForEach-Object -Process { $_.RuleId } | Sort-Object -Unique)
+        $viaFunction = @($rows | Where-Object -FilterScript { $_.Via -like 'Function *' } | ForEach-Object -Process { $_.RuleId } | Sort-Object -Unique)
+        $names = @($rows.RuleName | Sort-Object -Unique)
         [pscustomobject]@{
             Table                = $group.Name
-            EnabledRuleCount     = $allNames.Count
+            EnabledRuleCount     = $allIds.Count
             DirectRuleCount      = $direct.Count
             ViaFunctionRuleCount = $viaFunction.Count
             RuleKinds            = (@($rows.Kind | Sort-Object -Unique) -join ', ')
-            TopRuleNames         = (($allNames | Select-Object -First 5) -join '; ')
+            TopRuleNames         = (($names | Select-Object -First 5) -join '; ')
         }
     }
     $summary | Sort-Object -Property 'EnabledRuleCount' -Descending

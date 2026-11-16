@@ -41,7 +41,7 @@ function Get-SdlRuleReference {
         The table names to look for.
 
     .OUTPUTS
-        [pscustomobject] Table, RuleName, Kind, Severity and Via.
+        [pscustomobject] Table, RuleId, RuleName, Kind, Severity and Via.
     #>
     [CmdletBinding(PositionalBinding = $false)]
     [OutputType([pscustomobject])]
@@ -86,6 +86,7 @@ function Get-SdlRuleReference {
         foreach ($route in $routes) {
             [pscustomobject]@{
                 Table    = $route.Table
+                RuleId   = $body.Rule.RuleId
                 RuleName = $body.Rule.RuleName
                 Kind     = $body.Rule.Kind
                 Severity = $body.Rule.Severity

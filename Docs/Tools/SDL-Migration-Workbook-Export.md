@@ -91,7 +91,7 @@ written in this order:
 | Sheet | Backing variable | Contents |
 | --- | --- | --- |
 | Migration Report | `$migrationReport` | Per-table classification: billable GB/month, Analytics vs Lake monthly cost, monthly saving, saving %, category, plan, ingestion mode, recommendation, status |
-| Per-Table Rule Refs | `$perTableRuleSummary` | For each table, the count of enabled analytic rules that reference it (`EnabledRuleCount`, split into `DirectRuleCount` and `ViaFunctionRuleCount`), the rule kinds, and up to five example rule names |
+| Per-Table Rule Refs | `$perTableRuleSummary` | For each table, the count of enabled analytic rules that reference it, counted by ARM rule ID so rules sharing a display name are not merged (`EnabledRuleCount`, split into `DirectRuleCount` and `ViaFunctionRuleCount`), the rule kinds, and up to five example rule names |
 | Exclusions | `$exclusionsRows` | Tables that cannot move to Lake (not supported, UEBA, Sentinel feature dependency, system table, Classic V1, Auxiliary plan, Basic plan) with a plain-English reason. Read off the Migration Report, so the two always agree |
 | Deprecation Warnings | `$deprecationRows` | Microsoft-announced table retirements (for example the legacy `ThreatIntelligenceIndicator` table) with replacement and urgency |
 | Classic V1 Tables | `$classicV1Rows` | `_CL` tables still on the legacy MMA / HTTP Data Collector ingestion path, enriched with billable GB/month |

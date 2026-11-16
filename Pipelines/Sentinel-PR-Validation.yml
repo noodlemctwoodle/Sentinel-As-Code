@@ -39,6 +39,11 @@ pr:
     include:
       - Content/AnalyticalRules
       - Content/HuntingQueries
+      # PowerShell outside Modules/Deploy/Tools/Tests lives here; the
+      # PSScriptAnalyzer lint (Tests/Test-PSScriptAnalyzer.Tests.ps1) must
+      # see changes to it.
+      - Content/Workbooks
+      - Content/CodelessConnectors
       - Modules
       - Deploy
       - Tools
@@ -56,6 +61,11 @@ trigger:
     include:
       - Content/AnalyticalRules
       - Content/HuntingQueries
+      # PowerShell outside Modules/Deploy/Tools/Tests lives here; the
+      # PSScriptAnalyzer lint (Tests/Test-PSScriptAnalyzer.Tests.ps1) must
+      # see changes to it.
+      - Content/Workbooks
+      - Content/CodelessConnectors
       - Modules
       - Deploy
       - Tools

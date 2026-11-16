@@ -50,6 +50,7 @@ function Get-SdlRuleInventory {
         $tactics = Get-SdlPropertyValue -InputObject $properties -Name 'tactics'
         $techniques = Get-SdlPropertyValue -InputObject $properties -Name 'techniques'
         [pscustomobject]@{
+            RuleId         = $rule.name
             RuleName       = if ($name) { $name } else { $rule.name }
             Kind           = $rule.kind
             Enabled        = Get-SdlPropertyValue -InputObject $properties -Name 'enabled'

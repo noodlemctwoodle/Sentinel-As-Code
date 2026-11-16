@@ -580,3 +580,18 @@ Describe 'Regression cases' {
         }
     }
 }
+
+Describe 'Rule counting' {
+    It 'counts two enabled rules that share a display name as two' {
+        $rules = @(
+            [pscustomobject]@{ RuleId = 'id-1'; RuleName = 'Same name'; Kind = 'Scheduled'; Severity = 'High'; QueryText = 'SecurityEvent | take 1' },
+            [pscustomobject]@{ RuleId = 'id-2'; RuleName = 'Same name'; Kind = 'Scheduled'; Severity = 'Low'; QueryText = 'SecurityEvent | take 2' }
+        )
+        $bodies = @(Get-SdlRuleBody -Rule $rules)
+        $references = @(Get-SdlRuleReference -FunctionReach @{} -RuleBody $bodies -TableUniverse @('SecurityEvent'))
+        $summary = @(Get-SdlRuleTableSummary -Reference $references)
+        $summary[0].EnabledRuleCount | Should -Be 2
+        $summary[0].DirectRuleCount | Should -Be 2
+        $summary[0].TopRuleNames | Should -Be 'Same name'
+    }
+}
