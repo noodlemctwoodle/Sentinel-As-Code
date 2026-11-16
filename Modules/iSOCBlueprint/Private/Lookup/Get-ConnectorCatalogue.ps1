@@ -9,10 +9,10 @@
     Resources/connector-catalogue.json lists every Microsoft Sentinel data
     connector with the tables it writes and the Content Hub solution that
     ships it (copied from the Sentinel as Code Toolkit by
-    Update-ConnectorCatalogue.ps1). The renderer and the gap engine use it
-    to name the connector behind a table, to tell a connected connector
-    that is receiving data from one that has gone quiet, and to point a
-    table at the solution that ships it.
+    Update-iSOCBlueprintConnectorCatalogue). The renderer and the gap
+    engine use it to name the connector behind a table, to tell a connected
+    connector that is receiving data from one that has gone quiet, and to
+    point a table at the solution that ships it.
 
     A connector's tables come from its own mapping where Microsoft
     publishes one, otherwise from every table its solution's content uses,

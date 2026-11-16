@@ -6,7 +6,7 @@
     Markdown report with images.
 
 .DESCRIPTION
-    Runs Engine/Convert-MermaidToImage.ps1.
+    Calls Invoke-iSOCBlueprintChartImage.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprintChartImage.ps1
@@ -100,7 +100,7 @@ function ConvertTo-iSOCBlueprintChartImage {
     $params = @{ Root = $root; Format = $Format }
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'Theme', 'Background', 'Width', 'Scale' -Rename @{ AssetsDirectory = 'AssetsDir' }
 
-    $null = Invoke-iSOCBlueprintEngine -Script 'Convert-MermaidToImage.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+    $null = Invoke-iSOCBlueprintChartImage @params
 
     [pscustomobject]@{
         PSTypeName = 'iSOCBlueprint.ChartImages'

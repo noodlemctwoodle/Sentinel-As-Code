@@ -130,8 +130,12 @@ Private/             the engine runner, path defaults, prerequisite checks
   Azure/             REST calls (Invoke-SentinelRest), retail prices and the Defender custom detections reader
   Kql/               KQL table references, and Vendor/ with the two Sentinel.Common helpers it needs
   SiteShared/        what the site build and the publisher share: section families and the progress record
+  ChartImage/        the chart image step, Invoke-iSOCBlueprintChartImage, and the hash that names an image (loaded with the module)
+  ConnectorCatalogue/ the catalogue refresh, Invoke-iSOCBlueprintConnectorCatalogueUpdate (loaded with the module)
+  SiteSetup/         the one-time site set-up, Invoke-iSOCBlueprintSiteInitialize (loaded with the module)
   Run/               the steps of New-iSOCBlueprint, one function per file, sharing a run context
     Test-iSOCBlueprintRunRequest.ps1  Resolve-iSOCBlueprintRunFolder.ps1   check the request and the machine, then work out the folders
+    Assert-iSOCBlueprintPrerequisite.ps1   stop with the list of missing modules and tools for the steps named
     Invoke-iSOCBlueprintRun{Collect,Render,Word,Site}.ps1  Complete-iSOCBlueprintRun.ps1   the steps in order, then the summary and the result
   WhatsNew/          the What's new reader, one function per file (loaded with the module)
     Get-WhatsNew.ps1                 entry point
@@ -154,8 +158,6 @@ Private/             the engine runner, path defaults, prerequisite checks
 Engine/              the Blueprint itself, as scripts
   Export-SentinelInventory.ps1            collector command line (loads Private/Collector)
   Convert-SentinelInventoryToMarkdown.ps1 renderer command line (loads Private/Render)
-  Convert-MermaidToImage.ps1              chart images
-  Update-ConnectorCatalogue.ps1           catalogue refresh
   Private/                                loaders for the split areas (the helper files moved to the module's Private/)
   Private/Resources/                      rules, criteria, catalogues, page 99
   Private/Vendor/                         KQL helpers copied from Sentinel.Common
@@ -167,8 +169,11 @@ MIGRATION.md         where each file came from
 ```
 
 The public commands are thin: each maps its parameters onto one engine
-script, runs it and returns an object describing what it wrote. The engine
-scripts keep the layout and behaviour they had before the module.
+script, or onto a private function where the script has become one, runs it
+and returns an object describing what it wrote. The chart image step, the
+connector catalogue refresh and the site set-up are private functions; the
+rest are still scripts under `Engine/` with the layout and behaviour they
+had before the module.
 
 The SharePoint web parts, the dashboard and the chart, are an SPFx solution
 (TypeScript, built with npm) in [`WebParts/`](WebParts/README.md). They sit
@@ -192,16 +197,16 @@ repository. Before the old folder was removed, the module's output was
 compared with the old scripts' over the test fixture and a full pipeline run
 on the module passed.
 
-| Old script | Command |
+| Old script | Command (the three that are now functions are marked) |
 | --- | --- |
 | `Export-SentinelInventory.ps1` | `Export-iSOCBlueprintInventory` (`-OutputRoot` is `-OutputPath`) |
 | `Convert-SentinelInventoryToMarkdown.ps1` | `ConvertTo-iSOCBlueprint` (`-InputRoot` is `-Path`, `-OutputFormat` is `-Format`) |
-| `Convert-MermaidToImage.ps1` | `ConvertTo-iSOCBlueprintChartImage` (`-Root` is `-Path`) |
+| `Convert-MermaidToImage.ps1` | `ConvertTo-iSOCBlueprintChartImage` (`-Root` is `-Path`), now `Invoke-iSOCBlueprintChartImage` |
 | `Report/Convert-MarkdownToWord.ps1` | `Export-iSOCBlueprintWord` (`-Source` is `-Path`) |
 | `SharePoint/Build-SentinelDocsSite.ps1` | `New-iSOCBlueprintSite` (`-Source` is `-Path`, `-OutputRoot` is `-OutputPath`) |
 | `SharePoint/Publish-SentinelDocsSite.ps1` | `Publish-iSOCBlueprintSite` (`-Bundle` is `-Path`) |
-| `SharePoint/Initialize-SentinelDocsSite.ps1` | `Initialize-iSOCBlueprintSite` |
-| `Update-ConnectorCatalogue.ps1` | `Update-iSOCBlueprintConnectorCatalogue` |
+| `SharePoint/Initialize-SentinelDocsSite.ps1` | `Initialize-iSOCBlueprintSite`, now `Invoke-iSOCBlueprintSiteInitialize` |
+| `Update-ConnectorCatalogue.ps1` | `Update-iSOCBlueprintConnectorCatalogue`, now `Invoke-iSOCBlueprintConnectorCatalogueUpdate` |
 | `Report/Convert-FolderToWordReport.ps1` | Retired: a generic folder-to-Word dump that nothing called |
 
 ## Tests

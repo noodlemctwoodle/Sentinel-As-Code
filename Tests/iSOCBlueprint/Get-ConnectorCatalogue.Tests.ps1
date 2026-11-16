@@ -56,7 +56,7 @@ Describe 'The shipped connector catalogue' {
     BeforeAll { $script:doc = Get-Content -LiteralPath $script:resource -Raw | ConvertFrom-Json -Depth 8 }
 
     It 'records where it came from' {
-        $script:doc.'$comment' | Should -Match 'Update-ConnectorCatalogue.ps1'
+        $script:doc.'$comment' | Should -Match 'Update-iSOCBlueprintConnectorCatalogue'
         $script:doc.source | Should -Match 'Sentinel-As-Code-Toolkit'
         $script:doc.upstream | Should -Match 'Azure-Sentinel'
         $script:doc.license | Should -Match 'MIT'

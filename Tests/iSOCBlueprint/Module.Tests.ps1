@@ -157,14 +157,28 @@ Describe 'Prerequisites' {
         $listed | Should -Be $engine
     }
 
-    It 'matches the publisher and set-up scripts on PowerShell and PnP versions, for Publish' {
-        foreach ($relative in 'SharePoint/Publish-SentinelDocsSite.ps1', 'SharePoint/Initialize-SentinelDocsSite.ps1') {
-            $r = Get-ScriptRequirement $relative
-            $pnp = $r.RequiredModules | Where-Object Name -eq 'PnP.PowerShell'
-            ($script:requirements | Where-Object Name -eq 'PnP.PowerShell').MinimumVersion | Should -Be ([string]$pnp.Version)
-            $ps = $script:requirements | Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } | Sort-Object { [version]$_.MinimumVersion } | Select-Object -Last 1
-            [version]$ps.MinimumVersion | Should -Be ([version]('{0}.{1}' -f $r.RequiredPSVersion.Major, $r.RequiredPSVersion.Minor))
+    It 'matches the publisher script on PowerShell and PnP versions, for Publish' {
+        $r = Get-ScriptRequirement 'SharePoint/Publish-SentinelDocsSite.ps1'
+        $pnp = $r.RequiredModules | Where-Object Name -eq 'PnP.PowerShell'
+        ($script:requirements | Where-Object Name -eq 'PnP.PowerShell').MinimumVersion | Should -Be ([string]$pnp.Version)
+        $ps = $script:requirements | Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } | Sort-Object { [version]$_.MinimumVersion } | Select-Object -Last 1
+        [version]$ps.MinimumVersion | Should -Be ([version]('{0}.{1}' -f $r.RequiredPSVersion.Major, $r.RequiredPSVersion.Minor))
+    }
+
+    It 'stops a command that needs a missing module with the list of what is missing' {
+        Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
+            [pscustomobject]@{ Name = 'PnP.PowerShell'; Step = @('Publish'); Required = $true; Found = $false; Detail = 'Install-Module PnP.PowerShell' }
         }
+        { & (Get-Module iSOCBlueprint) { Assert-iSOCBlueprintPrerequisite -Step Publish } } | Should -Throw '*This command needs:*PnP.PowerShell (Publish)*'
+        { & (Get-Module iSOCBlueprint) { Assert-iSOCBlueprintPrerequisite -Step Publish -For run } } | Should -Throw 'This run needs:*'
+    }
+
+    It 'lets a command through when everything it needs is found' {
+        Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
+            [pscustomobject]@{ Name = 'x'; Step = @('Publish'); Required = $true; Found = $true; Detail = '' }
+            [pscustomobject]@{ Name = 'y'; Step = @('Publish'); Required = $false; Found = $false; Detail = '' }
+        }
+        { & (Get-Module iSOCBlueprint) { Assert-iSOCBlueprintPrerequisite -Step Publish } } | Should -Not -Throw
     }
 
     It 'returns one result per requirement with the documented properties' {
@@ -218,7 +232,7 @@ Describe 'Incident closure capture' {
 Describe 'SharePoint publisher name' {
     It 'defaults to the iSOC Blueprint name and renames an app found under an earlier one' {
         $setup = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Deploy/setup/Setup-SharePointPublisher.ps1') -Raw
-        $init = Get-Content -LiteralPath (Join-Path $script:engineRoot 'SharePoint/Initialize-SentinelDocsSite.ps1') -Raw
+        $init = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1') -Raw
         foreach ($s in $setup, $init) { $s | Should -Match "\`$PublisherAppName = 'iSOC Blueprint SharePoint publisher'" }
         $setup | Should -Match "foreach \(\`$legacyName in 'Sentinel Blueprint SharePoint publisher', 'Sentinel Documenter SharePoint publisher'\)"
     }
@@ -337,6 +351,9 @@ param([string] $Name)
 Describe 'Public commands map their parameters onto the engine' {
     BeforeAll {
         Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintChartImage { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSiteInitialize { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate { }
         Push-Location $TestDrive
         $script:cwd = (Get-Location).ProviderPath
     }
@@ -385,9 +402,9 @@ Describe 'Public commands map their parameters onto the engine' {
 
     It 'ConvertTo-iSOCBlueprintChartImage renames AssetsDirectory and leaves unset options to the script' {
         ConvertTo-iSOCBlueprintChartImage -AssetsDirectory img | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'Convert-MermaidToImage.ps1' -and $Parameters.Root -eq (Join-Path $script:cwd 'SecurityDocs') -and
-            $Parameters.AssetsDir -eq 'img' -and $Parameters.Format -eq 'png' -and -not $Parameters.ContainsKey('Width')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter {
+            $Root -eq (Join-Path $script:cwd 'SecurityDocs') -and
+            $AssetsDir -eq 'img' -and $Format -eq 'png' -and -not $PSBoundParameters.ContainsKey('Width')
         }
     }
 
@@ -426,15 +443,23 @@ Describe 'Public commands map their parameters onto the engine' {
 
     It 'Initialize-iSOCBlueprintSite passes the required values and only the optional ones given' {
         Initialize-iSOCBlueprintSite -SiteUrl https://x/sites/y -Owner o@x -PublisherAppId p -ClientId c -Tenant t | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'SharePoint/Initialize-SentinelDocsSite.ps1' -and $Parameters.Owner -eq 'o@x' -and
-            $Parameters.PublisherAppId -eq 'p' -and -not $Parameters.ContainsKey('Title') -and -not $Parameters.ContainsKey('AppPackagePath')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSiteInitialize -Times 1 -Exactly -ParameterFilter {
+            $Owner -eq 'o@x' -and $PublisherAppId -eq 'p' -and
+            -not $PSBoundParameters.ContainsKey('Title') -and -not $PSBoundParameters.ContainsKey('AppPackagePath')
         }
     }
 
     It 'Update-iSOCBlueprintConnectorCatalogue changes nothing under -WhatIf' {
         Update-iSOCBlueprintConnectorCatalogue -WhatIf | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 0 -Exactly -ParameterFilter { $Script -eq 'Update-ConnectorCatalogue.ps1' }
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate -Times 0 -Exactly
+    }
+
+    It 'Update-iSOCBlueprintConnectorCatalogue resolves a local source and writes to the shipped catalogue by default' {
+        Update-iSOCBlueprintConnectorCatalogue -Source toolkit/connectors.json | Out-Null
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate -Times 1 -Exactly -ParameterFilter {
+            $Source -eq (Join-Path $script:cwd 'toolkit/connectors.json') -and
+            $OutputPath -eq (Join-Path $script:moduleRoot 'Engine/Private/Resources/connector-catalogue.json')
+        }
     }
 }
 

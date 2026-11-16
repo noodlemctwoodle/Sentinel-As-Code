@@ -6,7 +6,7 @@
     SharePoint site.
 
 .DESCRIPTION
-    Runs Engine/SharePoint/Initialize-SentinelDocsSite.ps1.
+    Calls Invoke-iSOCBlueprintSiteInitialize.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/Initialize-iSOCBlueprintSite.ps1
@@ -19,7 +19,7 @@
     Permissions:  SharePoint administrator; delegated Sites.FullControl.All on the sign-in app
     Requires:     PowerShell 7.6+
 
-    The set-up script itself also requires PnP.PowerShell 3.4.1; see
+    The set-up itself also requires PnP.PowerShell 3.4.1; see
     Test-iSOCBlueprintPrerequisite -Step Publish.
 
     This file defines functions rather than running. Per-parameter and
@@ -88,7 +88,7 @@ function Initialize-iSOCBlueprintSite {
 
         Shows what the set-up would do. Drop -WhatIf to run it.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The engine script makes the ShouldProcess calls; -WhatIf and -Confirm are passed on to it.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Invoke-iSOCBlueprintSiteInitialize makes the ShouldProcess calls; -WhatIf and -Confirm reach it through the preference variables.')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
@@ -125,5 +125,5 @@ function Initialize-iSOCBlueprintSite {
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'Title', 'PublisherAppName', 'TenantAdminUrl'
     if ($AppPackagePath) { $params.AppPackagePath = Resolve-iSOCBlueprintPath -Path $AppPackagePath }
 
-    $null = Invoke-iSOCBlueprintEngine -Script 'SharePoint/Initialize-SentinelDocsSite.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+    $null = Invoke-iSOCBlueprintSiteInitialize @params
 }

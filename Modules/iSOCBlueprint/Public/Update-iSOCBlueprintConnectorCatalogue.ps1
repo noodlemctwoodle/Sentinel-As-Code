@@ -6,7 +6,8 @@
     catalogue the module ships.
 
 .DESCRIPTION
-    A maintainer task. Runs Engine/Update-ConnectorCatalogue.ps1.
+    A maintainer task. Reads the Toolkit's connectors.json and rewrites the catalogue the Blueprint ships
+    (Invoke-iSOCBlueprintConnectorCatalogueUpdate).
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/Update-iSOCBlueprintConnectorCatalogue.ps1
@@ -75,6 +76,6 @@ function Update-iSOCBlueprintConnectorCatalogue {
     if ($Source) {
         $params.Source = if ($Source -match '^https?://') { $Source } else { Resolve-iSOCBlueprintPath -Path $Source }
     }
-    $null = Invoke-iSOCBlueprintEngine -Script 'Update-ConnectorCatalogue.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+    $null = Invoke-iSOCBlueprintConnectorCatalogueUpdate @params
     Get-Item -LiteralPath $target
 }

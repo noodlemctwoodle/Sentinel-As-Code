@@ -50,7 +50,7 @@
                      published
 
     The site itself, its site collection app catalog and this identity's
-    access are created once by Initialize-SentinelDocsSite.ps1.
+    access are created once by Initialize-iSOCBlueprintSite.
 
     Authentication: pipelines pass -AccessToken, a SharePoint token for an
     app that holds Sites.Selected (FullControl) on this one site, obtained

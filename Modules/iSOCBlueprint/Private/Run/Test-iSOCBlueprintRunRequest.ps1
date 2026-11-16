@@ -53,9 +53,5 @@ function Test-iSOCBlueprintRunRequest {
     if ($format -contains 'SharePoint') { $steps.Add('Site') }
     if ($Run.SiteUrl) { $steps.Add('Publish') }
 
-    $missing = @(Test-iSOCBlueprintPrerequisite -Step $steps | Where-Object { $_.Required -and -not $_.Found })
-    if ($missing.Count -gt 0) {
-        $lines = $missing | ForEach-Object { "  - $($_.Name) ($($_.Step -join ', ')): $($_.Detail)" }
-        throw "This run needs:`n$($lines -join "`n")"
-    }
+    Assert-iSOCBlueprintPrerequisite -Step $steps -For 'run'
 }

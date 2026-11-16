@@ -238,7 +238,7 @@ Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(
     # file it does not load fails only there (as ConvertTo-SacChartFallbackHtml
     # once did in the publisher). The binding suite above loads every file
     # together and cannot see that.
-    It '<_> defines or imports every command it calls' -ForEach @('Publish-SentinelDocsSite.ps1', 'Initialize-SentinelDocsSite.ps1', 'Build-SentinelDocsSite.ps1') {
+    It '<_> defines or imports every command it calls' -ForEach @('Publish-SentinelDocsSite.ps1', 'Build-SentinelDocsSite.ps1') {
         if (-not $script:ready) { Set-ItResult -Skipped -Because "PnP.PowerShell $script:pinned is not installed"; return }
         $files = @(Get-SacLoadedFile -Path (Join-Path $script:spRoot $_) -Seen ([System.Collections.Generic.HashSet[string]]::new()))
         $defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -253,5 +253,22 @@ Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(
         }
         $missing = @($calls.Keys | Where-Object { -not $defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) } | Sort-Object | ForEach-Object { "$_ ($($calls[$_]))" })
         $missing | Should -BeNullOrEmpty -Because "$_ loads $(($files | ForEach-Object { Split-Path $_ -Leaf }) -join ', ')"
+    }
+
+    # The set-up is a function of the module, so its commands come from the
+    # module's own folders rather than from files it dot-sources.
+    It 'Invoke-iSOCBlueprintSiteInitialize calls only commands the module defines or PnP and PowerShell provide' {
+        if (-not $script:ready) { Set-ItResult -Skipped -Because "PnP.PowerShell $script:pinned is not installed"; return }
+        $moduleRoot = Split-Path -Parent (Split-Path -Parent $script:spRoot)
+        $defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private'), (Join-Path $moduleRoot 'Public') -Filter '*.ps1' -File -Recurse) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
+            foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) { [void]$defined.Add($d.Name) }
+        }
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $moduleRoot 'Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1'), [ref]$null, [ref]$null)
+        $missing = @($ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true) |
+            ForEach-Object { $_.GetCommandName() } | Where-Object { $_ } | Sort-Object -Unique |
+            Where-Object { -not $defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) })
+        $missing | Should -BeNullOrEmpty
     }
 }

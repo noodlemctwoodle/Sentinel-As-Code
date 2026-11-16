@@ -1,5 +1,5 @@
 {
-  "$comment": "Microsoft Sentinel data connectors and the tables each writes, used by the Blueprint to name the connector behind a table, to check connected connectors for silence (SAC-PLT-10) and to point tables at the Content Hub solution that ships them. Copied from the Sentinel as Code Toolkit by Update-ConnectorCatalogue.ps1; do not edit by hand.",
+  "$comment": "Microsoft Sentinel data connectors and the tables each writes, used by the Blueprint to name the connector behind a table, to check connected connectors for silence (SAC-PLT-10) and to point tables at the Content Hub solution that ships them. Copied from the Sentinel as Code Toolkit by Update-iSOCBlueprintConnectorCatalogue; do not edit by hand.",
   "version": "2026-07-09T15:25:28Z",
   "generatedAt": "2026-10-13T11:33:20Z",
   "source": "https://raw.githubusercontent.com/noodlemctwoodle/Sentinel-As-Code-Toolkit/main/data/connectors.json",

@@ -45,10 +45,10 @@ beneath it.
 | Source | Action | Destination | Edits | Notes |
 | --- | --- | --- | --- | --- |
 | `Tools/Blueprint/Blueprint.psd1` | Copy | `Modules/iSOCBlueprint/Engine/Blueprint.psd1` | E7 | Settings data; nothing reads it at run time |
-| `Tools/Blueprint/Convert-MermaidToImage.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1` | | `ConvertTo-iSOCBlueprintChartImage` |
+| `Tools/Blueprint/Convert-MermaidToImage.ps1` | Move | `Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1` | | Now a function, with its hash helper in `Get-MermaidHash.ps1`; `ConvertTo-iSOCBlueprintChartImage` |
 | `Tools/Blueprint/Convert-SentinelInventoryToMarkdown.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1` | E4, E5, E6 | `ConvertTo-iSOCBlueprint` |
 | `Tools/Blueprint/Export-SentinelInventory.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1` | E1, E2, E3 | `Export-iSOCBlueprintInventory` |
-| `Tools/Blueprint/Update-ConnectorCatalogue.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1` | | `Update-iSOCBlueprintConnectorCatalogue` |
+| `Tools/Blueprint/Update-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/ConnectorCatalogue/Invoke-iSOCBlueprintConnectorCatalogueUpdate.ps1` | | Now a function; `Update-iSOCBlueprintConnectorCatalogue` |
 | `Tools/Blueprint/Private/ConvertFrom-BlueprintMermaid.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1` | | |
 | `Tools/Blueprint/Private/ConvertTo-BlueprintSection.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1` | | |
 | `Tools/Blueprint/Private/GapChecks.ps1` | Retire | | | Split one check per file into `Private/Gap`, loaded with the module |
@@ -78,7 +78,7 @@ beneath it.
 | `Tools/Blueprint/Schemas/section-index.schema.json` | Copy | `Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json` | | |
 | `Tools/Blueprint/Schemas/section.schema.json` | Copy | `Modules/iSOCBlueprint/Engine/Schemas/section.schema.json` | | |
 | `Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1` | | `New-iSOCBlueprintSite` |
-| `Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1` | | `Initialize-iSOCBlueprintSite` |
+| `Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1` | | Now a function that checks the PnP module itself in place of `#Requires -Modules`; `Initialize-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1` | | `Publish-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/Get-SacSyncPlan.ps1` | Copy | `Modules/iSOCBlueprint/Engine/SharePoint/Private/Get-SacSyncPlan.ps1` | | |

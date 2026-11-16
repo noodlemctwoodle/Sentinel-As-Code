@@ -21,7 +21,7 @@ ADO-only image pre-render pass:
 ```
 Live workspace → Export-SentinelInventory.ps1            → _raw/*.json
 _raw/*.json    → Convert-SentinelInventoryToMarkdown.ps1 → 36 .md files
-*.md (ADO only)→ Convert-MermaidToImage.ps1              → assets/*.png + rewritten fences
+*.md (ADO only)→ Invoke-iSOCBlueprintChartImage           → assets/*.png + rewritten fences
 ```
 
 These are the scripts under `Modules/iSOCBlueprint/Engine/`; users reach them
@@ -35,7 +35,7 @@ section files (`00-overview.md` through `99-references.md`) plus
 `index.md`. Of the 35 numbered files, 34 are written by `Write-BlueprintSection`
 blocks; `99-references.md` is copied verbatim from the resource
 catalogue (`Copy-Item`) rather than generated. Stage 3
-(`Convert-MermaidToImage.ps1`) is described in
+(`Invoke-iSOCBlueprintChartImage`) is described in
 [Mermaid PNG pre-render (ADO only)](#mermaid-png-pre-render-ado-only)
 below.
 
@@ -496,7 +496,7 @@ proper lags the Mermaid spec and drops the experimental types the
 renderer emits (`xychart-beta`, `sankey-beta`), and ADO blocks inline SVG
 for security so an SVG `<img>` shows as a broken image.
 
-[`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1)
+[`Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1`](../../../Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1)
 is the ADO-only third stage that closes that gap. In the ADO pipeline
 ([`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml))
 it runs immediately after the renderer, gated behind the pipeline's
@@ -541,7 +541,7 @@ assets root).
 | [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Command-line entry point to the renderer: loads the files above and calls `Invoke-iSOCBlueprintRender` |
 | [`Tests/iSOCBlueprint/Structure.Tests.ps1`](../../../Tests/iSOCBlueprint/Structure.Tests.ps1) | Holds every module file to 300 lines |
 | [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) (loads [`Private/Collector`](../../../Modules/iSOCBlueprint/Private/Collector), one function per capture) | Stage 1, produces `_raw/*.json` |
-| [`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
+| [`Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1`](../../../Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
