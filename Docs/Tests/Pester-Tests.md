@@ -406,7 +406,8 @@ are described in the validate table above.
   expects, runs it, and asserts the rendered Markdown (plus an empty-state /
   busy-workspace safety pass).
 - [`Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1)
-  dot-sources [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1)
+  loads the gap engine [`Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1`](../../Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1)
+  and the checks under [`Private/Gap`](../../Modules/iSOCBlueprint/Private/Gap) (through the area loader in `Tests/iSOCBlueprint/_helpers`)
   and feeds it a deliberately-broken fixture so each gap-analysis rule fires.
 - [`Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1)
   dot-sources [`Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1`](../../Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1)
@@ -418,10 +419,9 @@ are described in the validate table above.
   `Sentinel.Common`'s, so it needs no Azure modules) and
   [`Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1`](../../Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1).
 - [`Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
-  dot-sources the gap engine and
-  [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
-  (which loads the functions under
-  [`Modules/iSOCBlueprint/Private/Maturity`](../../Modules/iSOCBlueprint/Private/Maturity)),
+  loads the gap engine and the functions under
+  [`Modules/iSOCBlueprint/Private/Maturity`](../../Modules/iSOCBlueprint/Private/Maturity)
+  (through the area loader in `Tests/iSOCBlueprint/_helpers`),
   runs both over the fixture, and writes synthetic criteria files to
   `TestDrive:` for the arithmetic cases.
 - [`Convert-MarkdownToWord.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1)

@@ -26,10 +26,11 @@
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:resources = Join-Path $script:engine 'Private/Resources'
-    . (Join-Path $script:engine 'Private/Get-SentinelCostEstimate.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Bundle Cost)
 
     # UK South prices as the Retail Prices API publishes them.
     $script:Simplified = @(

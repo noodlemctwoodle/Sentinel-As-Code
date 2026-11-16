@@ -34,13 +34,11 @@ function Invoke-GapAnalysisCapture {
     $rawOut = $Context.rawOut
     $engineRoot = $Context.engineRoot
 
-    . (Join-Path $engineRoot 'Private/Get-SentinelGap.ps1')
     $gapOutcomes = [System.Collections.Generic.List[object]]::new()
     $findings = Get-SentinelGap `
         -InputRoot $rawOut `
         -ResourcesRoot (Join-Path $engineRoot 'Private/Resources') `
         -RulesPath (Join-Path $engineRoot 'Private/Resources/best-practices.json') `
-        -GapChecksPath (Join-Path $engineRoot 'Private/GapChecks.ps1') `
         -OutcomeCollector $gapOutcomes
     Save-Json -FileName 'gap-analysis.json' -Data $findings
     # One record per rule (Fired / Passed / Errored / Undefined), so a

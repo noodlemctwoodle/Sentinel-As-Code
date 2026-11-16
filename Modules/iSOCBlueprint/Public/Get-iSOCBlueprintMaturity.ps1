@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Offline. Runs the gap analysis and then the maturity assessment
-    (Engine/Private/Get-SentinelMaturity.ps1 with maturity-criteria.json)
+    (Private/Maturity with maturity-criteria.json)
     and returns the assessment as one object.
 
 .NOTES
@@ -79,13 +79,10 @@ function Get-iSOCBlueprintMaturity {
         $raw = Resolve-iSOCBlueprintRawPath -Path $Path
         $engine = $script:iSOCBlueprintEngineRoot
         $resources = Join-Path $engine 'Private/Resources'
-        . (Join-Path $engine 'Private/Get-SentinelGap.ps1')
-        . (Join-Path $engine 'Private/Get-SentinelMaturity.ps1')
 
         $outcomes = [System.Collections.Generic.List[object]]::new()
         $null = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources `
             -RulesPath (Join-Path $resources 'best-practices.json') `
-            -GapChecksPath (Join-Path $engine 'Private/GapChecks.ps1') `
             -OutcomeCollector $outcomes
 
         Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $resources `

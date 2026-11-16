@@ -225,7 +225,7 @@ External helpers used by the renderer:
 
 - `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
-- `Get-SentinelCostEstimate` (`Private/Cost`, loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`), used by the **exporter** (not the renderer) to
+- `Get-SentinelCostEstimate` (`Private/Cost`), used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
 - `Get-SentinelGap` + the gap checks (`Private/Gap`, loaded by `GapChecks.ps1`), also exporter-side; produces
   `_raw/gap-analysis.json`.
@@ -548,8 +548,8 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1) (loads [`Private/Maturity`](../../../Modules/iSOCBlueprint/Private/Maturity)) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1) + [`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) (loads the one-per-file checks under [`Private/Gap`](../../../Modules/iSOCBlueprint/Private/Gap)) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
+| [`Modules/iSOCBlueprint/Private/Maturity`](../../../Modules/iSOCBlueprint/Private/Maturity) + [`Resources/maturity-criteria.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json) | Maturity engine, exporter consumes them to produce `maturity.json`, which section 91 renders |
+| [`Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1) + the one-per-file checks under [`Private/Gap`](../../../Modules/iSOCBlueprint/Private/Gap) | Gap engine, exporter consumes them to produce `gap-analysis.json` |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json) | 66-rule catalogue driving the gap engine |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/mitre-attack.json) | v18 ATT&CK catalogue (tactics + 216 techniques + 475 sub-techniques) |
 | [`Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json) | The Microsoft 365 E5 and Defender for Servers Plan 2 data grants, their allowances and the tables each covers |
@@ -565,7 +565,7 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1`](../../../Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | [`Modules/iSOCBlueprint/Private/SyncPlan`](../../../Modules/iSOCBlueprint/Private/SyncPlan) (loaded by `Engine/SharePoint/Private/Get-SacSyncPlan.ps1`) | The site publisher's planning functions: pages, findings, navigation and asset pruning |
-| [`Modules/iSOCBlueprint/Private/CaptureSummary`](../../../Modules/iSOCBlueprint/Private/CaptureSummary) (loaded by `Engine/Private/Write-CaptureSummary.ps1`) | The collector's capture summary, sorting failed captures into permission refusals and errors |
+| [`Modules/iSOCBlueprint/Private/CaptureSummary`](../../../Modules/iSOCBlueprint/Private/CaptureSummary) | The collector's capture summary, sorting failed captures into permission refusals and errors |
 | [`Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1`](../../../Modules/iSOCBlueprint/Private/Write-iSOCBlueprintRunSummary.ps1) | The summary `New-iSOCBlueprint` prints when a run ends |
 | [`Tests/iSOCBlueprint/Run-Summary.Tests.ps1`](../../../Tests/iSOCBlueprint/Run-Summary.Tests.ps1) | What a run prints as it ends: the three outcomes, their colours and the summaries (29 tests) |
 | [`Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1`](../../../Tests/iSOCBlueprint/Bookmarks-Capture.Tests.ps1) | The bookmarks capture's fallback to the HuntingBookmark table (9 tests) |

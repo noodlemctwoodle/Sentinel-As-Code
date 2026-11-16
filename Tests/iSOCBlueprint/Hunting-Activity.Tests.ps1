@@ -25,13 +25,13 @@
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private'
     $script:resourcesDir = Join-Path $script:engine 'Resources'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    . (Join-Path $script:engine '../../Private/Lookup/Get-HuntingActivity.ps1')
-    . (Join-Path $script:engine 'Get-SentinelGap.ps1')
-    . (Join-Path $script:engine 'Get-SentinelMaturity.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
+    . (Get-iSOCBlueprintAreaLoader -Bundle Maturity)
 
     $script:asOf = [datetime]::new(2026, 10, 15, 12, 0, 0, [System.DateTimeKind]::Utc)
     function New-Bookmark([int]$DaysAgo) {
@@ -64,7 +64,7 @@ BeforeAll {
     }
     function Get-Hnt01([string]$Dir) {
         $out = [System.Collections.Generic.List[object]]::new()
-        $findings = (Get-SentinelGap -InputRoot $Dir -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json') -GapChecksPath (Join-Path $script:engine 'GapChecks.ps1') -OutcomeCollector $out)
+        $findings = (Get-SentinelGap -InputRoot $Dir -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json') -OutcomeCollector $out)
         # Get-SentinelGap returns its list as one object; the pipe unrolls it.
         [pscustomobject]@{ Outcome = ($out | Where-Object Id -eq 'SAC-HNT-01').Outcome; Finding = ($findings | Where-Object Id -eq 'SAC-HNT-01') }
     }

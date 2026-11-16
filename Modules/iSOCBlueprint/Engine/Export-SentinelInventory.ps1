@@ -177,24 +177,17 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 
-. (Join-Path $PSScriptRoot '..' 'Private' 'Azure' 'Invoke-SentinelRest.ps1')
-. (Join-Path $PSScriptRoot '..' 'Private' 'Azure' 'Get-AzureRetailPrice.ps1')
-. (Join-Path $PSScriptRoot 'Private/Write-CaptureSummary.ps1')
-
-# Sentinel.Common's KQL identifier extractor sits behind the table-reference
-# captures. The module carries its own copy of the two functions used
-# (Private/Vendor), so it needs nothing from the repository around it.
-. (Join-Path $PSScriptRoot '..' 'Private' 'Kql' 'Vendor' 'SentinelCommon.Kql.ps1')
-. (Join-Path $PSScriptRoot '..' 'Private' 'Kql' 'Get-KqlTableReferences.ps1')
-. (Join-Path $PSScriptRoot '..' 'Private' 'Azure' 'Get-DefenderCustomDetections.ps1')
-. (Join-Path $PSScriptRoot '..' 'Private' 'Lookup' 'Get-SearchRestoreTable.ps1')
-
-# The collector and its captures (the module's own Private/Collector, one
-# folder up from here), defined in this scope.
-$collectorRoot = Join-Path $PSScriptRoot '..' 'Private' 'Collector'
-foreach ($collectorFile in Get-ChildItem -LiteralPath $collectorRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
-    . $collectorFile.FullName
+# The collector and everything its captures call (the module's own
+# Private folders, one folder up from here), defined in this scope. The REST
+# wrapper, the KQL helpers (with their vendored copy of Sentinel.Common's
+# identifier extractor) and the lookups come first, then the derived analyses
+# the last captures run, then the collector itself.
+foreach ($area in 'Azure', 'Kql', 'Lookup', 'Format', 'CaptureSummary', 'Cost', 'GapAnalysis', 'Gap', 'Maturity', 'WhatsNew', 'Collector') {
+    $areaRoot = Join-Path $PSScriptRoot '..' 'Private' $area
+    foreach ($areaFile in Get-ChildItem -LiteralPath $areaRoot -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
+        . $areaFile.FullName
+    }
 }
-Remove-Variable -Name collectorFile, collectorRoot -WhatIf:$false
+Remove-Variable -Name area, areaRoot, areaFile -WhatIf:$false
 
 Invoke-iSOCBlueprintCollect @PSBoundParameters -EngineRoot $PSScriptRoot

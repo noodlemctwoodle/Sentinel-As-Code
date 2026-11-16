@@ -5,7 +5,7 @@
     Get-iSOCBlueprintFinding: run the gap analysis over an inventory.
 
 .DESCRIPTION
-    Offline. Runs the engine's gap analysis (Engine/Private/Get-SentinelGap.ps1
+    Offline. Runs the engine's gap analysis (Private/GapAnalysis/Get-SentinelGap.ps1
     with the rules in best-practices.json) and returns the findings as
     objects.
 
@@ -77,12 +77,10 @@ function Get-iSOCBlueprintFinding {
         $raw = Resolve-iSOCBlueprintRawPath -Path $Path
         $engine = $script:iSOCBlueprintEngineRoot
         $resources = Join-Path $engine 'Private/Resources'
-        . (Join-Path $engine 'Private/Get-SentinelGap.ps1')
 
         $outcomes = [System.Collections.Generic.List[object]]::new()
         $findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources `
             -RulesPath (Join-Path $resources 'best-practices.json') `
-            -GapChecksPath (Join-Path $engine 'Private/GapChecks.ps1') `
             -OutcomeCollector $outcomes
 
         if ($Outcome) { $outcomes.ToArray() } else { $findings }

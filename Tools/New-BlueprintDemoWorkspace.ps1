@@ -1223,14 +1223,16 @@ Save-DemoJson 'rule-table-references.json' @(Get-RuleTableReferences -AlertRules
 Save-DemoJson 'template-table-references.json' @(Get-TemplateTableReferences -Templates $templatesForRefs -AlertRules $rulesForRefs)
 Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTableReferences -Detections $detectionsForRefs)
 
-. (Join-Path $engine 'Private/Get-SentinelCostEstimate.ps1')
+# The cost estimate, gap checks and maturity assessment (the module's own
+# Private folders), defined in this scope.
+foreach ($area in 'Lookup', 'Format', 'Cost', 'GapAnalysis', 'Gap', 'Maturity') {
+    foreach ($areaFile in Get-ChildItem -LiteralPath (Join-Path $engine '..' 'Private' $area) -Filter '*.ps1' -File -Recurse | Sort-Object FullName) { . $areaFile.FullName }
+}
 Save-DemoJson 'cost-estimate.json' (Get-SentinelCostEstimate -InputRoot $raw -ResourcesRoot $resources)
-. (Join-Path $engine 'Private/Get-SentinelGap.ps1')
 $outcomes = [System.Collections.Generic.List[object]]::new()
-$findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources -RulesPath (Join-Path $resources 'best-practices.json') -GapChecksPath (Join-Path $engine 'Private/GapChecks.ps1') -OutcomeCollector $outcomes
+$findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources -RulesPath (Join-Path $resources 'best-practices.json') -OutcomeCollector $outcomes
 Save-DemoJson 'gap-analysis.json' @($findings)
 Save-DemoJson 'gap-checks.json' $outcomes.ToArray()
-. (Join-Path $engine 'Private/Get-SentinelMaturity.ps1')
 Save-DemoJson 'maturity.json' (Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $resources -CriteriaPath (Join-Path $resources 'maturity-criteria.json') -GapOutcomes $outcomes.ToArray() -TargetLevel 3)
 
 # ---------------------------------------------------------------------------

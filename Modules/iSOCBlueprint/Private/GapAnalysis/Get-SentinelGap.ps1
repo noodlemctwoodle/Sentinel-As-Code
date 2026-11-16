@@ -9,11 +9,15 @@
 .DESCRIPTION
     Pure data-in/data-out, testable end-to-end with fixture files.
 
+    The check functions (Private/Gap) and the lookups they read
+    (Private/Lookup, Private/Format) are loaded with the module, or by the
+    caller when it runs this on its own; a rule whose check is not defined
+    is reported as Undefined.
+
     Usage:
         $findings = Get-SentinelGap -InputRoot './SecurityDocs/myws/_raw' `
                                     -ResourcesRoot './Modules/iSOCBlueprint/Engine/Private/Resources' `
-                                    -RulesPath './Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json' `
-                                    -GapChecksPath './Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
+                                    -RulesPath './Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json'
 
     Each finding is a [pscustomobject] with these fields:
         Id           : SAC-LOG-03
@@ -47,7 +51,7 @@
     nothing" (which may itself be the finding).
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1
+    File:         Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
@@ -59,12 +63,6 @@
     This file defines functions rather than running. Per-parameter detail
     lives on the function's own help block.
 #>
-
-# The inventory loads the connector catalogue, whichever checks file runs.
-. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-ConnectorCatalogue.ps1')
-# Template to Content Hub solution, so checks can leave out templates only a
-# deprecated solution ships.
-. (Join-Path $PSScriptRoot '..' '..' 'Private' 'Lookup' 'Get-TemplateSolution.ps1')
 
 function Get-SentinelGap {
     [CmdletBinding()]
@@ -78,9 +76,6 @@ function Get-SentinelGap {
         [Parameter(Mandatory = $true)]
         [string]$RulesPath,
 
-        [Parameter(Mandatory = $true)]
-        [string]$GapChecksPath,
-
         [Parameter(Mandatory = $false)]
         [System.Collections.Generic.List[object]]$OutcomeCollector
     )
@@ -89,12 +84,8 @@ function Get-SentinelGap {
     $ErrorActionPreference = 'Stop'
 
     if (-not (Test-Path $RulesPath))      { throw "Rules file not found: $RulesPath" }
-    if (-not (Test-Path $GapChecksPath))  { throw "GapChecks not found: $GapChecksPath" }
     if (-not (Test-Path $InputRoot))      { throw "Input root not found: $InputRoot" }
     if (-not (Test-Path $ResourcesRoot))  { throw "Resources root not found: $ResourcesRoot" }
-
-    # Dot-source the gap check functions into the current scope.
-    . $GapChecksPath
 
     $rules = (Get-Content $RulesPath -Raw | ConvertFrom-Json).rules
 
@@ -112,7 +103,7 @@ function Get-SentinelGap {
         $checkName = $rule.check
         $cmd = Get-Command -Name $checkName -CommandType Function -ErrorAction SilentlyContinue
         if (-not $cmd) {
-            Write-Warning "Get-SentinelGap: check '$checkName' (rule $($rule.id)) not defined in $GapChecksPath"
+            Write-Warning "Get-SentinelGap: check '$checkName' (rule $($rule.id)) not defined"
             & $recordOutcome $rule.id $checkName 'Undefined' "Check '$checkName' is not defined."
             continue
         }

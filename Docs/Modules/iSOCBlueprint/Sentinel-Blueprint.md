@@ -259,7 +259,7 @@ Beyond those headline pages the report groups into families:
   previewed and announced for retirement in Microsoft Sentinel and
   Microsoft Defender XDR over the last 12 months, retirements and calls to
   action first. The collector reads the two What's new pages on Microsoft
-  Learn as Markdown (`Private/WhatsNew`, loaded by `Engine/Private/Get-WhatsNew.ps1`, saved as
+  Learn as Markdown (`Private/WhatsNew`, saved as
   `_raw/whats-new.json`; the one capture that reads a public page rather
   than the tenant). The module's `Get-iSOCBlueprintWhatsNew` runs the same
   function on its own and, with `-Path`, refreshes an inventory's copy.
@@ -491,8 +491,7 @@ The findings on `90-gap-analysis.md` are produced by small `Test-*` functions,
 one per file under [`Modules/iSOCBlueprint/Private/Gap/Checks`](../../../Modules/iSOCBlueprint/Private/Gap/Checks)
 (a folder per rule-id prefix: `Logging` for `SAC-LOG-nn`, `Detection` for
 `SAC-DET-nn`, and so on) with their shared helpers in `Private/Gap/Helpers`.
-[`GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
-loads them all. The checks are dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
+The module loads them all. The checks are dispatched by the engine in [`Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1).
 The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
 a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
 reads `(ConvertFrom-Json).rules`. Each entry looks like:
@@ -689,8 +688,7 @@ absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
 
 After the gap engine, the collector runs
 [`Get-SentinelMaturity`](../../../Modules/iSOCBlueprint/Private/Maturity/Get-SentinelMaturity.ps1)
-(one function per file under `Modules/iSOCBlueprint/Private/Maturity`, loaded by
-[`Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1))
+(one function per file under `Modules/iSOCBlueprint/Private/Maturity`, loaded with the module)
 over the same `_raw/` folder and the per-rule outcomes, and writes
 `maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
 resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
@@ -710,7 +708,7 @@ Categories are informational: `Cost`, `Coverage`, `Operational`, `Identity`,
 ## How the cost estimator works
 
 The `84-cost-estimate.md` page is produced by
-[`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) (loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`).
+[`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) (loaded with the module).
 It is opinionated and the methodology is reproduced verbatim in the report so
 the reader can trust or push back on the number.
 

@@ -78,7 +78,7 @@ function Write-BlueprintGapAnalysisSection {
     Write-BlueprintSection '90-gap-analysis.md' (@"
 $(Format-Banner -Title "Gap Analysis")
 
-The gap engine compares the live workspace against the rule set in [Private/Resources/best-practices.json](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json). Each row is a Test-* function in [Private/GapChecks.ps1](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1), and adding a new rule is a two-line change.
+The gap engine compares the live workspace against the rule set in [Private/Resources/best-practices.json](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json). Each row is a Test-* function in [Private/Gap](https://github.com/noodlemctwoodle/Sentinel-As-Code/tree/main/Modules/iSOCBlueprint/Private/Gap), and adding a new rule is a two-line change.
 
 Findings and the [maturity assessment](91-maturity-assessment.md) are one assessment seen two ways: a finding says what is wrong now, a maturity criterion scores the capability it leaves missing. Each finding below says which criterion it decides and what closing it does to the overall score; a finding no criterion reads is a hygiene or cost check that does not move the score.
 

@@ -31,8 +31,5 @@ function Invoke-WhatsNewCapture {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)] [hashtable] $Context)
 
-    $engineRoot = $Context.engineRoot
-
-    . (Join-Path $engineRoot 'Private/Get-WhatsNew.ps1')
     Save-Json -FileName 'whats-new.json' -Data (Get-WhatsNew -Months 12)
 }

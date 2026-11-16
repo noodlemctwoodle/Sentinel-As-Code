@@ -34,7 +34,6 @@ function Invoke-CostEstimateCapture {
     $rawOut = $Context.rawOut
     $engineRoot = $Context.engineRoot
 
-    . (Join-Path $engineRoot 'Private/Get-SentinelCostEstimate.ps1')
     $est = Get-SentinelCostEstimate -InputRoot $rawOut -ResourcesRoot (Join-Path $engineRoot 'Private/Resources')
     Save-Json -FileName 'cost-estimate.json' -Data $est
 }

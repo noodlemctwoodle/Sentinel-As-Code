@@ -107,13 +107,13 @@ Private/             the engine runner, path defaults, prerequisite checks
     Invoke-iSOCBlueprintCollect.ps1  entry point
     Captures/<Area>/                 one Invoke-*Capture function per capture
     Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Try-Capture, capture order
-  CaptureSummary/    the collector's capture notes and end-of-run summary, one function per file (loaded by Engine/Private/Write-CaptureSummary.ps1)
+  CaptureSummary/    the collector's capture notes and end-of-run summary, one function per file (loaded with the module)
     Write-CaptureSummary.ps1         entry point
     Issues/  Helpers/                sorting a failed capture and its notes, then wrapping and file counts
   Word/              the Word report conversion, one function per file (loaded by Engine/Report/Convert-MarkdownToWord.ps1)
     Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
   Mermaid/           the Mermaid chart parser, one function per file (loaded by Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
-  Cost/              the cost estimate, one function per file (loaded by Engine/Private/Get-SentinelCostEstimate.ps1)
+  Cost/              the cost estimate, one function per file (loaded with the module)
     Get-SentinelCostEstimate.ps1   entry point
     Steps/  Helpers/                 one step per part of the estimate, then JSON reading and the price lookups
   Section/           the Markdown-to-section-model converter, one function per file (loaded by Engine/Private/ConvertTo-BlueprintSection.ps1)
@@ -133,7 +133,7 @@ Private/             the engine runner, path defaults, prerequisite checks
   Run/               the steps of New-iSOCBlueprint, one function per file, sharing a run context
     Test-iSOCBlueprintRunRequest.ps1  Resolve-iSOCBlueprintRunFolder.ps1   check the request and the machine, then work out the folders
     Invoke-iSOCBlueprintRun{Collect,Render,Word,Site}.ps1  Complete-iSOCBlueprintRun.ps1   the steps in order, then the summary and the result
-  WhatsNew/          the What's new reader, one function per file (loaded by Engine/Private/Get-WhatsNew.ps1)
+  WhatsNew/          the What's new reader, one function per file (loaded with the module)
     Get-WhatsNew.ps1                 entry point
     Parsing/  Helpers/  Data/        one page's Markdown to items, then slugs, links, status and deadlines, and the two pages read
   Format/            the text formatters for counts, GB, money, dates, plurals and names, one function per file (loaded by Engine/Private/Format-BlueprintText.ps1)
@@ -143,10 +143,11 @@ Private/             the engine runner, path defaults, prerequisite checks
   Site/              the SharePoint site build (joins the dashboard template's parts from Engine/SharePoint/templates/dashboard), one function per file (loaded by Engine/SharePoint/Build-SentinelDocsSite.ps1)
     Invoke-iSOCBlueprintSiteBuild.ps1  entry point
     Steps/  Helpers/  Data/            one step per part of the model, then the bundle writer
-  Maturity/          the maturity assessment, one function per file (loaded by Engine/Private/Get-SentinelMaturity.ps1)
+  Maturity/          the maturity assessment, one function per file (loaded with the module)
     Get-SentinelMaturity.ps1         entry point
     Metrics/  Criteria/  Reporting/  Helpers/  Data/
-  Gap/               the gap checks, one function per file (loaded by Engine/Private/GapChecks.ps1)
+  Gap/               the gap checks, one function per file (loaded with the module)
+  GapAnalysis/       the gap engine, Get-SentinelGap, which runs the checks over an inventory against the rule set
     Checks/<Area>/                   one Test-* check per rule, by rule-id prefix
     Helpers/                         finding shape, property reads, window, converters
     Data/                            values the checks share

@@ -273,7 +273,7 @@ node.
 
 ### `84-cost-estimate.md`, Sankey + cost split
 
-The cost calculator ([`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost), loaded by `Engine/Private/Get-SentinelCostEstimate.ps1`)
+The cost calculator ([`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost), loaded with the module)
 recognises the `DataLake` plan as one of the four ingestion buckets
 (Analytics / Basic / Auxiliary / DataLake). Unit prices come from the
 `cost-meters.json` catalogue ([`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json)),

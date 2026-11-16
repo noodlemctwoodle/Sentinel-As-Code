@@ -35,7 +35,6 @@ function Invoke-MaturityCapture {
     $TargetMaturityLevel = $Context.TargetMaturityLevel
     $engineRoot = $Context.engineRoot
 
-    . (Join-Path $engineRoot 'Private/Get-SentinelMaturity.ps1')
     $maturity = Get-SentinelMaturity `
         -InputRoot $rawOut `
         -ResourcesRoot (Join-Path $engineRoot 'Private/Resources') `

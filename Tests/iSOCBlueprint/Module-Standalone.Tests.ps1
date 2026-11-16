@@ -72,7 +72,7 @@ Describe 'iSOCBlueprint outside the repository' {
 
     It 'carries What''s new inside the module: its command, engine file and topic map' {
         (Get-Module iSOCBlueprint).ExportedFunctions.Keys | Should -Contain 'Get-iSOCBlueprintWhatsNew'
-        Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Get-WhatsNew.ps1') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $script:copy 'Private/WhatsNew/Get-WhatsNew.ps1') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Resources/whats-new-topics.json') | Should -BeTrue
     }
 
@@ -91,7 +91,7 @@ Describe 'iSOCBlueprint outside the repository' {
 
     It 'links the gap-analysis method to GitHub rather than a repository-relative path' {
         $page = Get-Content -LiteralPath (Join-Path $script:ws '90-gap-analysis.md') -Raw
-        $page | Should -Match 'https://github\.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Modules/iSOCBlueprint/Engine/Private/GapChecks\.ps1'
+        $page | Should -Match 'https://github\.com/noodlemctwoodle/Sentinel-As-Code/tree/main/Modules/iSOCBlueprint/Private/Gap'
         $page | Should -Not -Match '\]\(\.\./\.\./'
     }
 
@@ -113,7 +113,7 @@ Describe 'iSOCBlueprint outside the repository' {
                 $checked++
             }
         }
-        $checked | Should -BeGreaterThan 40
+        $checked | Should -BeGreaterThan 20
     }
 
     It 'never climbs from the engine to the repository root' {

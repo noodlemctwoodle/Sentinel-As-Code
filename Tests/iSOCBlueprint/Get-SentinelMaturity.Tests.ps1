@@ -35,18 +35,19 @@
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $script:repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
     $script:criteriaPath = Join-Path $script:resourcesDir 'maturity-criteria.json'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
 
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
+    . (Get-iSOCBlueprintAreaLoader -Bundle Maturity)
 
     $script:outcomes = [System.Collections.Generic.List[object]]::new()
     $null = Get-SentinelGap -InputRoot $script:fixtureRaw -ResourcesRoot $script:resourcesDir `
-        -RulesPath $script:rulesPath -GapChecksPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1') `
+        -RulesPath $script:rulesPath `
         -OutcomeCollector $script:outcomes
 
     $script:maturity = Get-SentinelMaturity -InputRoot $script:fixtureRaw -ResourcesRoot $script:resourcesDir `

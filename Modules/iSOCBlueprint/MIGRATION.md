@@ -51,16 +51,16 @@ beneath it.
 | `Tools/Blueprint/Update-ConnectorCatalogue.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1` | | `Update-iSOCBlueprintConnectorCatalogue` |
 | `Tools/Blueprint/Private/ConvertFrom-BlueprintMermaid.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1` | | |
 | `Tools/Blueprint/Private/ConvertTo-BlueprintSection.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1` | | |
-| `Tools/Blueprint/Private/GapChecks.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1` | | |
+| `Tools/Blueprint/Private/GapChecks.ps1` | Retire | | | Split one check per file into `Private/Gap`, loaded with the module |
 | `Tools/Blueprint/Private/Get-AzureRetailPrice.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-AzureRetailPrice.ps1` | | |
 | `Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1` | | |
 | `Tools/Blueprint/Private/Get-DefenderCustomDetections.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1` | | |
 | `Tools/Blueprint/Private/Get-EffectiveConnectors.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1` | | |
 | `Tools/Blueprint/Private/Get-FindingMaturityLink.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1` | | |
 | `Tools/Blueprint/Private/Get-KqlTableReferences.ps1` | Move | `Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1` | | Its KQL helpers come from the vendored copy |
-| `Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1` | | |
-| `Tools/Blueprint/Private/Get-SentinelGap.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1` | | `Get-iSOCBlueprintFinding` |
-| `Tools/Blueprint/Private/Get-SentinelMaturity.ps1` | Copy | `Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1` | | `Get-iSOCBlueprintMaturity` |
+| `Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1` | Retire | | | Split into steps and helpers in `Private/Cost`, loaded with the module |
+| `Tools/Blueprint/Private/Get-SentinelGap.ps1` | Move | `Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1` | | `Get-iSOCBlueprintFinding` |
+| `Tools/Blueprint/Private/Get-SentinelMaturity.ps1` | Retire | | | Split into `Private/Maturity`, loaded with the module; `Get-iSOCBlueprintMaturity` runs it |
 | `Tools/Blueprint/Private/Get-TableFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1` | | |
 | `Tools/Blueprint/Private/Get-TableTierProfile.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1` | | |
 | `Tools/Blueprint/Private/Invoke-SentinelRest.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1` | | |

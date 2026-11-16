@@ -25,6 +25,7 @@
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
     $script:resourcesDir = Join-Path $script:engine 'Private/Resources'
@@ -84,8 +85,7 @@ Describe 'The collector reads one lookback' {
 
 Describe 'The gap engine judges the window it was given' {
     BeforeAll {
-        . (Join-Path $script:engine 'Private/GapChecks.ps1')
-        . (Join-Path $script:engine 'Private/Get-SentinelGap.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
     }
 
     It 'reads 30 days and 7 from a run that carries no window' {
@@ -108,7 +108,7 @@ Describe 'The gap engine judges the window it was given' {
     It 'fills {lookback} and {recent} in titles and remediation, and the inventory carries the window' {
         $raw = New-WindowedFixture 14
         try {
-            $findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json') -GapChecksPath (Join-Path $script:engine 'Private/GapChecks.ps1')
+            $findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json')
             @($findings).Count | Should -BeGreaterThan 0
             ($findings | ConvertTo-Json -Depth 8) | Should -Not -Match '\{lookback\}|\{recent\}'
             (New-InventoryFromRaw -InputRoot $raw -ResourcesRoot $script:resourcesDir).Window.Days | Should -Be 14
@@ -125,8 +125,8 @@ Describe 'The gap engine judges the window it was given' {
 
 Describe 'The maturity assessment and the cost estimate follow the window' {
     BeforeAll {
-        . (Join-Path $script:engine 'Private/Get-SentinelMaturity.ps1')
-        . (Join-Path $script:engine 'Private/Get-SentinelCostEstimate.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Maturity)
+        . (Get-iSOCBlueprintAreaLoader -Bundle Cost)
     }
 
     It 'names the window in a criterion''s text' {

@@ -26,8 +26,9 @@
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-WhatsNew.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Bundle WhatsNew)
     $script:sentinelUrl = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new'
     $script:defenderUrl = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new'
     $script:sentinelMd = @(

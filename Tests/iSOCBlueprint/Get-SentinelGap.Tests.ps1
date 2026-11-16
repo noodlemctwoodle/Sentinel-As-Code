@@ -80,25 +80,20 @@ BeforeDiscovery {
     $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
     $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
-    $script:gapChecks    = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
-    $script:gapEngine    = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1'
 }
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
     $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-    $gapChecks    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
-    $gapEngine    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1'
-
-    . $gapEngine
+    . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
 
     $script:findings = Get-SentinelGap `
         -InputRoot     $fixtureRaw `
         -ResourcesRoot $resourcesDir `
-        -RulesPath     $rulesPath `
-        -GapChecksPath $gapChecks
+        -RulesPath     $rulesPath
 }
 
 Describe 'Sentinel gap-analysis engine' {
@@ -457,7 +452,7 @@ Describe 'Sentinel gap-analysis engine' {
 Describe 'Disabled-rules check names bulk changes and rules that still fired' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         function New-Rule($name, $title, $enabled, $modified) {
             [pscustomobject]@{ name = $name; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = $title; enabled = $enabled; lastModifiedUtc = $modified } }
         }
@@ -495,7 +490,7 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
 Describe 'Rule checks stay quiet on a workspace with no enabled Scheduled or NRT rules' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $script:quiet = [pscustomobject]@{
             AlertRules = @(
                 [pscustomobject]@{ name = 'off'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'Switched off'; enabled = $false } },
@@ -518,7 +513,7 @@ Describe 'Rule checks stay quiet on a workspace with no enabled Scheduled or NRT
 Describe 'No-detection check counts Defender custom detections as coverage' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $script:tables = @([pscustomobject]@{ DataType = 'DeviceProcessEvents'; BillableLast30d = 40 })
     }
 
@@ -598,8 +593,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
         $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
         $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
         $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-        $gapChecks    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
 
         # A copy of the fixture without the files the collector only writes
         # when its capture succeeds. "Not captured" must not read as "none".
@@ -611,7 +605,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
         }
         $script:absentOutcomes = [System.Collections.Generic.List[object]]::new()
         $script:absentFindings = Get-SentinelGap -InputRoot $script:trimmed -ResourcesRoot $resourcesDir `
-            -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $script:absentOutcomes
+            -RulesPath $rulesPath -OutcomeCollector $script:absentOutcomes
     }
 
     AfterAll {
@@ -627,7 +621,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
                 Remove-Item (Join-Path $dir $name) -Force -ErrorAction SilentlyContinue
             }
             $out = [System.Collections.Generic.List[object]]::new()
-            $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $out
+            $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -OutcomeCollector $out
             foreach ($id in 'SAC-COV-08', 'SAC-LOG-19', 'SAC-LOG-21', 'SAC-LOG-22', 'SAC-LOG-23', 'SAC-PLT-12') {
                 ($out | Where-Object Id -eq $id).Outcome | Should -Be 'Passed' -Because "$id has no input to judge"
             }
@@ -659,7 +653,7 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
             Remove-Item (Join-Path $dir 'bookmarks.json') -Force
             '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $dir 'bookmarks-count.json')
             $out = [System.Collections.Generic.List[object]]::new()
-            $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $out
+            $null = Get-SentinelGap -InputRoot $dir -ResourcesRoot $resourcesDir -RulesPath $rulesPath -OutcomeCollector $out
             ($out | Where-Object Id -eq 'SAC-HNT-01').Outcome | Should -Be 'Passed'
         } finally { Remove-Item $dir -Recurse -Force }
     }
@@ -672,23 +666,19 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
         $fixtureRaw   = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
         $resourcesDir = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
         $rulesPath    = Join-Path $resourcesDir 'best-practices.json'
-        $gapChecks    = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
 
         $script:ruleIds = @((Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | ForEach-Object id)
         $script:outcomes = [System.Collections.Generic.List[object]]::new()
         $script:withCollector = Get-SentinelGap -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir `
-            -RulesPath $rulesPath -GapChecksPath $gapChecks -OutcomeCollector $script:outcomes
+            -RulesPath $rulesPath -OutcomeCollector $script:outcomes
 
         # A rules file with one check that throws and one that does not exist,
         # to prove both are recorded rather than silently dropped.
         $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-outcomes-$(New-Guid)"
         New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
-        $badChecks = Join-Path $script:tempDir 'BadChecks.ps1'
-        Set-Content -Path $badChecks -Value @(
-            'function Test-Throws { param($Inventory) throw "boom" }'
-            'function Test-Quiet  { param($Inventory) return $null }'
-        )
+        function Test-Throws { param($Inventory) throw 'boom' }
+        function Test-Quiet  { param($Inventory) return $null }
         $badRules = Join-Path $script:tempDir 'rules.json'
         @{ rules = @(
                 @{ id = 'SAC-TST-01'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throws'; remediation = ''; learn = '' }
@@ -697,7 +687,7 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
             ) } | ConvertTo-Json -Depth 4 | Set-Content -Path $badRules
         $script:badOutcomes = [System.Collections.Generic.List[object]]::new()
         $null = Get-SentinelGap -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir -RulesPath $badRules `
-            -GapChecksPath $badChecks -OutcomeCollector $script:badOutcomes -WarningAction SilentlyContinue
+            -OutcomeCollector $script:badOutcomes -WarningAction SilentlyContinue
     }
 
     AfterAll {
@@ -738,8 +728,7 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
     It 'returns the same findings with or without a collector' {
         $plain = Get-SentinelGap -InputRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Tests/iSOCBlueprint/Fixtures/sample/_raw') `
             -ResourcesRoot (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources') `
-            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json') `
-            -GapChecksPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+            -RulesPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json')
         @($plain | ForEach-Object Id) | Should -Be @($withCollector | ForEach-Object Id)
     }
 }
@@ -747,7 +736,7 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
 Describe 'Rules ported from health check build 38' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         function New-Table([string] $Name, [int] $Analytics, [int] $Total, [string] $Plan = 'Analytics') {
             [pscustomobject]@{ name = $Name; properties = [pscustomobject]@{ plan = $Plan; retentionInDays = $Analytics; totalRetentionInDays = $Total } }
         }
@@ -841,7 +830,7 @@ Describe 'Rules ported from health check build 38' {
 Describe 'Gap evidence lists every item' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
     }
 
     It 'never cuts a list short with a "+ N more" suffix on the sample fixture' {
@@ -869,7 +858,7 @@ Describe 'Gap evidence lists every item' {
 Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $script:catalogue = Import-ConnectorCatalogue -Path (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/connector-catalogue.json')
         $script:inv = {
             param([object[]]$Connectors, [object[]]$Tables)
@@ -905,7 +894,7 @@ Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
 Describe 'Evidence never names something "?" or leaves a blank entry' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
     }
 
     It 'names a service principal Azure cannot resolve by its object id' {
@@ -939,7 +928,7 @@ Describe 'Evidence never names something "?" or leaves a blank entry' {
 Describe 'SAC-DET-15 flags stale watchlists that enabled rules still read' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $now = (Get-Date).ToUniversalTime()
         $wl = { param($alias, $days, $source) [pscustomobject]@{ properties = [pscustomobject]@{ displayName = "WL $alias"; watchlistAlias = $alias; source = $source; updated = $now.AddDays(-$days).ToString('o') } } }
         $rule = { param($name, $enabled, $q) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ displayName = $name; enabled = $enabled; query = $q } } }
@@ -982,7 +971,7 @@ Describe 'SAC-DET-15 flags stale watchlists that enabled rules still read' {
 Describe 'SAC-MON-05 reconciles with the dashboard total for data no detection reads' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $script:monInv = {
             param([object[]]$Tables, [object[]]$Refs = @())
             [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $Tables; RuleTableReferences = $Refs; TemplateTableReferences = @(); CustomDetectionRefs = @() }
@@ -1037,7 +1026,7 @@ Describe 'SAC-MON-05 reconciles with the dashboard total for data no detection r
 Describe 'SAC-DET-12 counts the rules that fired as the dashboard does' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $newRule = { param($id, $title, $kind = 'Scheduled', $enabled = $true) [pscustomobject]@{ name = $id; kind = $kind; properties = [pscustomobject]@{ displayName = $title; enabled = $enabled } } }
         $script:rules = @(
             (& $newRule 'aaaaaaaa-0000-0000-0000-000000000001' 'Fired by id')
@@ -1102,9 +1091,8 @@ Describe 'SAC-DET-12 counts the rules that fired as the dashboard does' {
 Describe 'Gap evidence writes counts, GB, dates and plurals as the dashboard does' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $script:gapChecksPath = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1'
         $script:gapSourceRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Gap'
-        . $script:gapChecksPath
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $customTable = { param($name) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'CustomLog' } } } }
         $script:orphanInv = { param([string[]]$Names) [pscustomobject]@{ WorkspaceTables = @($Names | ForEach-Object { & $customTable $_ }); TablesWithData = @([pscustomobject]@{ DataType = 'Other' }) } }
     }
