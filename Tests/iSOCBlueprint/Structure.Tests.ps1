@@ -34,7 +34,6 @@ BeforeDiscovery {
     $moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $limit = 300
     $legacy = @(
-        'Engine/SharePoint/Private/Get-SacSyncPlan.ps1'
         'Public/New-iSOCBlueprint.ps1'
         'Engine/Private/Format-BlueprintText.ps1'
         'Engine/Private/Get-WhatsNew.ps1'

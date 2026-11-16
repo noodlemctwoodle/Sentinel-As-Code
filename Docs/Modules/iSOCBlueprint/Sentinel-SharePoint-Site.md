@@ -154,7 +154,7 @@ with the dashboard template and the web part source:
 | `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
 | [`templates/sharepoint-dashboard.html`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
 | [`Modules/iSOCBlueprint/WebParts/`](../../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Modules/iSOCBlueprint/WebParts/README.md). |
-| `Private/` | Section families, section-to-page conversion, the sync planners and the PnP wrappers. |
+| `Private/` | Section families, section-to-page conversion, the sync planners (loaded from `Private/SyncPlan`, one function per file) and the PnP wrappers. |
 
 ### The bundle
 

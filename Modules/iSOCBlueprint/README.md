@@ -126,6 +126,8 @@ Private/             the engine runner, path defaults, prerequisite checks
     Names/  Html/  Tables/  Charts/  Data/
   SharePoint/        the site publisher's PnP functions, one per file (loaded by Engine/SharePoint/Private/SacSharePoint.ps1)
     Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
+  SyncPlan/          the publisher's planning functions, one per file (loaded by Engine/SharePoint/Private/Get-SacSyncPlan.ps1)
+    Pages/  Findings/  Navigation/  Assets/   what to create, update, resolve, retire or prune
   Site/              the SharePoint site build, one function per file (loaded by Engine/SharePoint/Build-SentinelDocsSite.ps1)
     Invoke-iSOCBlueprintSiteBuild.ps1  entry point
     Steps/  Helpers/  Data/            one step per part of the model, then the bundle writer
