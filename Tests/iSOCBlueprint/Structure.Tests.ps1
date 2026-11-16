@@ -7,10 +7,8 @@
 
 .DESCRIPTION
     A module file holds one concern and stays within 300 lines, as in
-    iSOCDeployments. The engine scripts that predate that rule are listed
-    below until each is split up; the list only ever shrinks. A file on it
-    that now fits must be taken off, and a file not on it that grows past the
-    limit fails.
+    iSOCDeployments. Every PowerShell file under the module is held to it; a
+    file that grows past the limit fails and is split up.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Structure.Tests.ps1
@@ -24,8 +22,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.2.0
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -33,32 +31,18 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $limit = 300
-    $legacy = @(
-        'Public/New-iSOCBlueprint.ps1'
-    )
     $files = @(
         Get-ChildItem -LiteralPath $moduleRoot -Filter '*.ps1' -File -Recurse |
             Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' } |
             ForEach-Object {
                 $relative = [System.IO.Path]::GetRelativePath($moduleRoot, $_.FullName).Replace('\', '/')
-                @{ Path = $relative; Lines = @(Get-Content -LiteralPath $_.FullName).Count; Limit = $limit; IsLegacy = $legacy -contains $relative }
+                @{ Path = $relative; Lines = @(Get-Content -LiteralPath $_.FullName).Count; Limit = $limit }
             }
     )
-    $current = @($files | Where-Object { -not $_.IsLegacy })
-    $listed = @($files | Where-Object { $_.IsLegacy })
-    $missing = @($legacy | Where-Object { $_ -notin $files.Path } | ForEach-Object { @{ Path = $_ } })
 }
 
 Describe 'Module file size' {
-    It '<Path> is <Lines> lines, within the <Limit> line limit' -ForEach $current {
+    It '<Path> is <Lines> lines, within the <Limit> line limit' -ForEach $files {
         $Lines | Should -BeLessOrEqual $Limit
-    }
-
-    It 'lists <Path> as over the limit only while it still is' -ForEach $listed {
-        $Lines | Should -BeGreaterThan $Limit -Because 'it now fits, so take it off the legacy list in this file'
-    }
-
-    It 'lists <Path> only while the file exists' -ForEach $missing {
-        $Path | Should -BeNullOrEmpty -Because 'the file is gone or renamed, so take it off the legacy list in this file'
     }
 }

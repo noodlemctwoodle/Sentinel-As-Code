@@ -539,7 +539,7 @@ assets root).
 |---|---|
 | [`Modules/iSOCBlueprint/Private/Render/`](../../../Modules/iSOCBlueprint/Private/Render) | The renderer this spec describes: `Invoke-iSOCBlueprintRender`, the inventory reader, the helpers and one folder per page |
 | [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Command-line entry point to the renderer: loads the files above and calls `Invoke-iSOCBlueprintRender` |
-| [`Tests/iSOCBlueprint/Structure.Tests.ps1`](../../../Tests/iSOCBlueprint/Structure.Tests.ps1) | Holds every module file to 300 lines, with a shrinking list of engine scripts not yet split |
+| [`Tests/iSOCBlueprint/Structure.Tests.ps1`](../../../Tests/iSOCBlueprint/Structure.Tests.ps1) | Holds every module file to 300 lines |
 | [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) (loads [`Private/Collector`](../../../Modules/iSOCBlueprint/Private/Collector), one function per capture) | Stage 1, produces `_raw/*.json` |
 | [`Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-MermaidToImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
