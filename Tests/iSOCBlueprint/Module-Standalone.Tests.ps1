@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.4
+    Version:      0.1.5
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (the renderer)
 #>
@@ -105,7 +105,8 @@ Describe 'iSOCBlueprint outside the repository' {
     It 'finds every file the module loads by a path relative to its own folder' {
         $rx = [regex]'Join-Path\s+(?:-Path\s+)?\$PSScriptRoot\s+(?:-ChildPath\s+)?[''"]([^''"$]+)[''"]'
         $checked = 0
-        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Include '*.ps1', '*.psm1' -File | Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
+        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Include '*.ps1', '*.psm1' -File |
+                Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
             foreach ($m in $rx.Matches((Get-Content -LiteralPath $file.FullName -Raw))) {
                 $relative = $m.Groups[1].Value
                 Test-Path -LiteralPath (Join-Path $file.DirectoryName $relative) | Should -BeTrue -Because "$($file.Name) loads $relative"
@@ -116,7 +117,8 @@ Describe 'iSOCBlueprint outside the repository' {
     }
 
     It 'never climbs from the module to the repository root' {
-        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Filter '*.ps1' -File | Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
+        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Filter '*.ps1' -File |
+                Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
             $text = Get-Content -LiteralPath $file.FullName -Raw
             $text | Should -Not -Match 'Split-Path -Parent \(Split-Path -Parent \$PSScriptRoot\)' -Because $file.Name
             $text | Should -Not -Match '\$PSScriptRoot\s+[''"]\.\./\.\./' -Because $file.Name

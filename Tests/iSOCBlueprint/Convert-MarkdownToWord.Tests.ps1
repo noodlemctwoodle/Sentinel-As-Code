@@ -19,7 +19,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -85,7 +85,8 @@ Describe 'Convert-FindingBullets' {
 
     It 'colours a plain severity word on a finding bullet' {
         $count = [ref]0
-        $out = Convert-FindingBullets -Text '- **Warning** [SAC-LOG-22](90-gap-analysis.md#sac-log-22) SecurityEvent duplicates - two agents' -TitleMap @{} -Count $count
+        $out = Convert-FindingBullets -Text '- **Warning** [SAC-LOG-22](90-gap-analysis.md#sac-log-22) SecurityEvent duplicates - two agents' -TitleMap @{} `
+            -Count $count
         $out | Should -Match '\[Warning\]\{custom-style="SevWarning"\}'
         $count.Value | Should -Be 1
     }

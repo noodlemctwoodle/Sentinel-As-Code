@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -30,9 +30,18 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $moduleRoot = Join-Path $script:repoRoot 'Modules/iSOCBlueprint'
     . (Get-iSOCBlueprintAreaLoader -Bundle CaptureSummary)
-    $script:collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
-    $script:renderer = (Get-ChildItem (Join-Path $moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
-    $script:siteBuild = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+    $script:collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
+    $script:renderer = (Get-ChildItem (Join-Path $moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+        "`n"
+    $script:siteBuild = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
     $script:fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:graph403 = "Microsoft Graph refused Defender custom detections to the Graph SDK session (Forbidden). To include them, Connect-MgGraph -Scopes 'CustomDetection.Read.All' with an account allowed to read custom detections, or grant CustomDetection.Read.All (application) to the pipeline identity."
     $script:http401 = 'Response status code does not indicate success: 401 (Unauthorized).'
@@ -42,15 +51,19 @@ Describe 'Sorting a failed capture' {
     It 'calls a refusal for want of permission a permission issue' {
         Get-CaptureIssueKind $script:graph403 | Should -Be 'Permission'
         Get-CaptureIssueKind $script:http401 | Should -Be 'Permission'
-        Get-CaptureIssueKind "The client 'x' with object id 'y' does not have authorization to perform action 'Microsoft.Authorization/roleAssignments/read' (AuthorizationFailed)" | Should -Be 'Permission'
+        Get-CaptureIssueKind "The client 'x' with object id 'y' does not have authorization to perform action 'Microsoft.Authorization/roleAssignments/read' (AuthorizationFailed)" |
+            Should -Be 'Permission'
     }
 
     It 'calls a table, column or endpoint the workspace does not have not available' {
         Get-CaptureIssueKind 'Response status code does not indicate success: 404 (Not Found).' | Should -Be 'NotAvailable'
-        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. 'where' operator: Failed to resolve table or column expression named 'ThreatIntelObjects'" | Should -Be 'NotAvailable'
-        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. The request had some invalid properties. A semantic error occurred. 'summarize' operator: Failed to resolve scalar expression named 'Source'" | Should -Be 'Error'
+        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. 'where' operator: Failed to resolve table or column expression named 'ThreatIntelObjects'" |
+            Should -Be 'NotAvailable'
+        Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'. The request had some invalid properties. A semantic error occurred. 'summarize' operator: Failed to resolve scalar expression named 'Source'" |
+            Should -Be 'Error'
         Get-CaptureIssueKind "Operation returned an invalid status code 'BadRequest'" | Should -Be 'NotAvailable'
-        Get-CaptureIssueKind 'HTTP 400: {"error":{"code":"NoRegisteredProviderFound","message":"No registered resource provider found"}}' | Should -Be 'NotAvailable'
+        Get-CaptureIssueKind 'HTTP 400: {"error":{"code":"NoRegisteredProviderFound","message":"No registered resource provider found"}}' |
+            Should -Be 'NotAvailable'
     }
 
     It 'calls a timeout, throttling or service error an error' {
@@ -62,14 +75,22 @@ Describe 'Sorting a failed capture' {
 
     It 'adds the service''s reason the query cmdlet keeps in the body' {
         $ex = [System.Exception]::new("Operation returned an invalid status code 'BadRequest'")
-        $ex | Add-Member -NotePropertyName Body -NotePropertyValue ([pscustomobject]@{ Error = [pscustomobject]@{ Message = 'The request had some invalid properties'; Details = @([pscustomobject]@{ Message = "Failed to resolve table expression named 'X'" }) } })
+        $ex |
+            Add-Member -NotePropertyName Body -NotePropertyValue ([pscustomobject]@{
+                Error = [pscustomobject]@{
+                    Message = 'The request had some invalid properties'
+                    Details = @([pscustomobject]@{ Message = "Failed to resolve table expression named 'X'" })
+                }
+            })
         $text = Get-CaptureErrorText ([System.Management.Automation.ErrorRecord]::new($ex, 'x', 'NotSpecified', $null))
-        $text | Should -Match '^Operation returned an invalid status code ''BadRequest''\. The request had some invalid properties\. Failed to resolve table expression named ''X''$'
+        $text |
+            Should -Match '^Operation returned an invalid status code ''BadRequest''\. The request had some invalid properties\. Failed to resolve table expression named ''X''$'
     }
 
     It 'reads the service''s code and message from a REST error and shortens ARM URLs' {
         Format-CaptureMessage 'HTTP 400: {"error":{"code":"BadRequest","message":"Bad \"thing\""}}' | Should -Be '400 BadRequest: Bad "thing"'
-        Format-CaptureMessage '404 Not Found: https://management.azure.com/subscriptions/0000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/pricings?api-version=2024-09-01' | Should -Be '404 Not Found: Microsoft.SecurityInsights/pricings'
+        Format-CaptureMessage '404 Not Found: https://management.azure.com/subscriptions/0000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/pricings?api-version=2024-09-01' |
+            Should -Be '404 Not Found: Microsoft.SecurityInsights/pricings'
     }
 
     It 'names the status the error carries' {
@@ -80,7 +101,8 @@ Describe 'Sorting a failed capture' {
     }
 
     It 'drops the HTTP client wording and doubled full stops' {
-        Format-CaptureMessage 'Graph refused it: Response status code does not indicate success: Forbidden (Forbidden).. Sign in again.' | Should -Be 'Graph refused it: Forbidden. Sign in again.'
+        Format-CaptureMessage 'Graph refused it: Response status code does not indicate success: Forbidden (Forbidden).. Sign in again.' |
+            Should -Be 'Graph refused it: Forbidden. Sign in again.'
     }
 
     It 'wraps a message under a hanging indent within the width' {
@@ -93,7 +115,10 @@ Describe 'Sorting a failed capture' {
 Describe 'A capture that could not read some of its items' {
     BeforeAll {
         $fails = @('Playbook-One', 'Playbook-Two') | ForEach-Object { [pscustomobject]@{ Name = $_; Message = $script:http401 } }
-        $script:partialOut = @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 12 -Failures $fails -WarningVariable partialWarn 6>&1)
+        $script:partialOut = @(
+            Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook',
+                'playbooks' -Total 12 -Failures $fails -WarningVariable partialWarn 6>&1
+        )
         $script:partial = @($script:partialOut | Where-Object { $_ -isnot [System.Management.Automation.InformationRecord] })
         $script:partialNote = @($script:partialOut | Where-Object { $_ -is [System.Management.Automation.InformationRecord] })
         $script:partialWarn = @($partialWarn)
@@ -102,7 +127,8 @@ Describe 'A capture that could not read some of its items' {
     It 'says it once, as a no-permission note rather than a warning' {
         $script:partialWarn.Count | Should -Be 0
         $script:partialNote.Count | Should -Be 1
-        [string]$script:partialNote[0].MessageData | Should -Be '  ↳ no permission: the run history of 2 of 12 playbooks (401 Unauthorized): Playbook-One, Playbook-Two.'
+        [string]$script:partialNote[0].MessageData |
+            Should -Be '  ↳ no permission: the run history of 2 of 12 playbooks (401 Unauthorized): Playbook-One, Playbook-Two.'
         $script:partialNote[0].MessageData.ForegroundColor | Should -Be 'Magenta'
     }
 
@@ -118,14 +144,19 @@ Describe 'A capture that could not read some of its items' {
             [pscustomobject]@{ Name = 'A'; Message = $script:http401 }
             [pscustomobject]@{ Name = 'B'; Message = 'The operation has timed out.' }
         )
-        $issues = @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 1 -Failures $mixed -WarningVariable mixedWarn -WarningAction SilentlyContinue 6>$null)
+        $issues = @(
+            Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook',
+                'playbooks' -Total 1 -Failures $mixed -WarningVariable mixedWarn -WarningAction SilentlyContinue 6>$null
+        )
         $issues.Count | Should -Be 2
-        ($issues | Where-Object Kind -eq 'Error').Message | Should -Match '^Could not read the run history of 1 of 1 playbook: B\. First error: The operation has timed out\.'
+        ($issues | Where-Object Kind -eq 'Error').Message |
+            Should -Match '^Could not read the run history of 1 of 1 playbook: B\. First error: The operation has timed out\.'
         @($mixedWarn).Count | Should -Be 1
     }
 
     It 'says nothing when every item was read' {
-        @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 4 -Failures @() 6>&1).Count | Should -Be 0
+        @(Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total 4 -Failures @() 6>&1).Count |
+            Should -Be 0
     }
 }
 
@@ -141,7 +172,9 @@ Describe 'The capture summary' {
         )
         $saved = $env:TF_BUILD
         $env:TF_BUILD = $null
-        $script:summary = (Write-CaptureSummary -RawRoot $script:sumRaw -Issues $issues -ExpectNonEmpty 'workspace.json' -ExpectIfActive 'watchlists.json', 'playbook-runs.json' 6>&1 | Out-String)
+        $script:summary = (Write-CaptureSummary -RawRoot $script:sumRaw -Issues $issues -ExpectNonEmpty 'workspace.json' -ExpectIfActive 'watchlists.json',
+            'playbook-runs.json' 6>&1 |
+            Out-String)
         $env:TF_BUILD = 'True'
         $script:summaryAdo = (Write-CaptureSummary -RawRoot $script:sumRaw -Issues $issues -ExpectNonEmpty 'workspace.json' 6>&1 | Out-String)
         $env:TF_BUILD = $saved
@@ -240,7 +273,9 @@ Describe 'The run summary New-iSOCBlueprint prints' {
     BeforeAll {
         Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
         $script:runDir = Join-Path ([System.IO.Path]::GetTempPath()) "bp-run-$(New-Guid)"
-        New-Item -ItemType Directory -Path (Join-Path $script:runDir '_raw'), (Join-Path $script:runDir 'sections'), (Join-Path $script:runDir 'sharepoint') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $script:runDir '_raw'), (Join-Path $script:runDir 'sections'),
+            (Join-Path $script:runDir 'sharepoint') -Force |
+            Out-Null
         @{ CaptureIssues = @(
             @{ Label = 'defender-custom-detections'; Kind = 'Permission'; Message = 'x' }
             @{ Label = 'playbook-runs'; Kind = 'Permission'; Message = 'y' }
@@ -256,7 +291,9 @@ Describe 'The run summary New-iSOCBlueprint prints' {
         '{}' | Set-Content (Join-Path $script:runDir 'sections/index.json')
         @{ sections = @(1, 2); summary = @{ findings = 7 } } | ConvertTo-Json | Set-Content (Join-Path $script:runDir 'sharepoint/site.json')
         $script:runText = & (Get-Module iSOCBlueprint) {
-            param($p) Write-iSOCBlueprintRunSummary -Path $p -Elapsed ([timespan]::FromSeconds(2475)) -Collected $true -SiteBundle (Join-Path $p 'sharepoint') 6>&1 | Out-String
+            param($p) Write-iSOCBlueprintRunSummary -Path $p -Elapsed ([timespan]::FromSeconds(2475)) -Collected $true -SiteBundle `
+                (Join-Path $p 'sharepoint') 6>&1 |
+                Out-String
         } $script:runDir
         $script:reusedText = & (Get-Module iSOCBlueprint) {
             param($p) Write-iSOCBlueprintRunSummary -Path $p -Elapsed ([timespan]::FromSeconds(12)) -Collected $false 6>&1 | Out-String
@@ -297,7 +334,8 @@ Describe 'The run summary New-iSOCBlueprint prints' {
 Describe 'Notes for an empty capture' {
     It 'drops the api-versions and regions ARM appends to an error' {
         $msg = "400 NoRegisteredProviderFound: No registered resource provider found for location 'eastus2' and API version '2024-10-01-preview' for type 'workspaces'. The supported api-versions are '2015-03-20, 2025-02-01'. The supported locations are 'eastus, uksouth'."
-        Format-CaptureMessage $msg | Should -Be "400 NoRegisteredProviderFound: No registered resource provider found for location 'eastus2' and API version '2024-10-01-preview' for type 'workspaces'."
+        Format-CaptureMessage $msg |
+            Should -Be "400 NoRegisteredProviderFound: No registered resource provider found for location 'eastus2' and API version '2024-10-01-preview' for type 'workspaces'."
     }
 
     It 'says why before it writes the empty file' {

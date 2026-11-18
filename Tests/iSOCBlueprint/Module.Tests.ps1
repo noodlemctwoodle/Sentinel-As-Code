@@ -33,7 +33,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.4.2
+    Version:      0.4.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -141,7 +141,9 @@ Describe 'Prerequisites' {
     }
 
     It 'lists the Az modules the collector needs, for Collect' {
-        $listed = @($script:requirements | Where-Object { $_.Kind -eq 'Module' -and $_.Required -and $_.Step -contains 'Collect' } | ForEach-Object Name | Sort-Object)
+        $listed = @(
+            $script:requirements | Where-Object { $_.Kind -eq 'Module' -and $_.Required -and $_.Step -contains 'Collect' } | ForEach-Object Name | Sort-Object
+        )
         $listed | Should -Be @('Az.Accounts', 'Az.LogicApp', 'Az.Monitor', 'Az.OperationalInsights', 'Az.Resources', 'Az.SecurityInsights')
     }
 
@@ -152,14 +154,27 @@ Describe 'Prerequisites' {
 
     It 'pins PowerShell 7.6 and PnP.PowerShell 3.4.1, for Publish' {
         ($script:requirements | Where-Object Name -eq 'PnP.PowerShell').MinimumVersion | Should -Be '3.4.1'
-        $ps = $script:requirements | Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } | Sort-Object { [version]$_.MinimumVersion } | Select-Object -Last 1
+        $ps = $script:requirements |
+            Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } |
+            Sort-Object { [version]$_.MinimumVersion } |
+            Select-Object -Last 1
         $ps.MinimumVersion | Should -Be '7.6'
     }
 
     It '<Command> checks the <Needs> prerequisites first' -ForEach @(
-        @{ Command = 'Export-iSOCBlueprintInventory'; Needs = 'Collect'; Splat = @{ ResourceGroup = 'rg'; WorkspaceName = 'ws' }; Worker = 'Invoke-iSOCBlueprintCollect' }
+        @{
+            Command = 'Export-iSOCBlueprintInventory'
+            Needs = 'Collect'
+            Splat = @{ ResourceGroup = 'rg'; WorkspaceName = 'ws' }
+            Worker = 'Invoke-iSOCBlueprintCollect'
+        }
         @{ Command = 'ConvertTo-iSOCBlueprint'; Needs = 'Render'; Splat = @{ WorkspaceName = 'ws' }; Worker = 'Invoke-iSOCBlueprintRender' }
-        @{ Command = 'Publish-iSOCBlueprintSite'; Needs = 'Publish'; Splat = @{ SiteUrl = 'https://x/sites/y'; Path = 'b'; AccessToken = 't' }; Worker = 'Invoke-iSOCBlueprintSitePublish' }
+        @{
+            Command = 'Publish-iSOCBlueprintSite'
+            Needs = 'Publish'
+            Splat = @{ SiteUrl = 'https://x/sites/y'; Path = 'b'; AccessToken = 't' }
+            Worker = 'Invoke-iSOCBlueprintSitePublish'
+        }
     ) {
         Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
             [pscustomobject]@{ Name = 'Missing.Module'; Step = @($Step); Required = $true; Found = $false; Detail = 'Install-Module Missing.Module' }
@@ -343,7 +358,9 @@ Describe 'Public commands map their parameters onto the workers' {
 
     It 'Export-iSOCBlueprintInventory writes to the workspace folder itself with -NoDateFolder' {
         $r = Export-iSOCBlueprintInventory -ResourceGroup rg -WorkspaceName ws -NoDateFolder
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect -Times 1 -Exactly -ParameterFilter { -not $PesterBoundParameters.ContainsKey('RunFolder') }
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect -Times 1 -Exactly -ParameterFilter {
+            -not $PesterBoundParameters.ContainsKey('RunFolder')
+        }
         $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws')
     }
 
@@ -462,16 +479,22 @@ Describe 'New-iSOCBlueprint' {
     }
 
     It 'renders the newest day with -SkipCollection' {
-        foreach ($d in '2026-10-01', '2026-10-03', '2026-10-02') { New-Item -ItemType Directory -Path (Join-Path $script:cwd "SecurityDocs/wsd/$d/_raw") -Force | Out-Null }
+        foreach ($d in '2026-10-01', '2026-10-03', '2026-10-02') {
+            New-Item -ItemType Directory -Path (Join-Path $script:cwd "SecurityDocs/wsd/$d/_raw") -Force | Out-Null
+        }
         $r = New-iSOCBlueprint -WorkspaceName wsd -SkipCollection -Format Json
         $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03')
-        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03') }
+        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter {
+            $Path -eq (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03')
+        }
     }
 
     It 'renders Markdown for Word and warns that charts need -ChartImages' {
         New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Word -WarningVariable warned -WarningAction SilentlyContinue | Out-Null
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { "$Format" -eq 'Markdown' }
-        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 1 -Exactly -ParameterFilter { $OutputPath -eq (Join-Path $script:cwd "SecurityDocs/ws/$($script:day)/ws.docx") }
+        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 1 -Exactly -ParameterFilter {
+            $OutputPath -eq (Join-Path $script:cwd "SecurityDocs/ws/$($script:day)/ws.docx")
+        }
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 0 -Exactly
         "$warned" | Should -Match 'ChartImages'
     }
@@ -479,7 +502,9 @@ Describe 'New-iSOCBlueprint' {
     It 'draws the charts before the Word report with -ChartImages' {
         New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Word -ChartImages | Out-Null
         # Chart images look one level down: the days under the workspace's folder.
-        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs/ws') }
+        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter {
+            $Path -eq (Join-Path $script:cwd 'SecurityDocs/ws')
+        }
     }
 
     It 'builds the SharePoint bundle without publishing when no site is given' {

@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -143,8 +143,13 @@ Describe 'Get-WhatsNew' {
 Describe 'whats-new-topics.json' {
     BeforeAll {
         $script:topics = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/whats-new-topics.json') -Raw | ConvertFrom-Json).topics)
-        $script:criteria = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id)
-        $script:renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $script:criteria = @(
+            (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id
+        )
+        $script:renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
     }
 
     It 'gives every topic a pattern that compiles, a report page the renderer writes and real criteria' {
@@ -157,7 +162,10 @@ Describe 'whats-new-topics.json' {
     }
 
     It 'is captured by the collector as a single-object file' {
-        $collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $collector | Should -Match 'function Invoke-WhatsNewCapture \{'
         $collector | Should -Match "Save-Json -FileName 'whats-new\.json' -Data \(Get-WhatsNew -Months 12\)"
         $collector | Should -Match "'whats-new\.json'\s*\)"

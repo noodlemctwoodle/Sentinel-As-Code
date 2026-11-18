@@ -18,7 +18,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -74,7 +74,11 @@ Describe 'Invoke-iSOCBlueprintConnectorCatalogueUpdate' {
     It 'refuses a file that is not the Toolkit connectors.json' {
         $bad = Join-Path $TestDrive 'bad.json'
         '{"x":1}' | Set-Content -LiteralPath $bad
-        { & $script:module { param($s, $t) Invoke-iSOCBlueprintConnectorCatalogueUpdate -Source $s -OutputPath $t 6> $null } $bad (Join-Path $TestDrive 'never.json') } |
+        {
+            & $script:module {
+                param($s, $t) Invoke-iSOCBlueprintConnectorCatalogueUpdate -Source $s -OutputPath $t 6> $null
+            } $bad (Join-Path $TestDrive 'never.json')
+        } |
             Should -Throw '*No tablesByConnector*'
         Test-Path (Join-Path $TestDrive 'never.json') | Should -BeFalse
     }

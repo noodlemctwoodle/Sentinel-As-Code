@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -59,9 +59,23 @@ BeforeAll {
         ConvertTo-Json -InputObject $wt -Depth 5 | Set-Content (Join-Path $dir 'workspace-tables.json')
         ConvertTo-Json -InputObject ([ordered]@{ properties = [ordered]@{ sku = $skuDoc } }) -Depth 5 | Set-Content (Join-Path $dir 'workspace.json')
         ConvertTo-Json -InputObject ([ordered]@{ LookbackDays = 30 }) | Set-Content (Join-Path $dir 'run-context.json')
-        ConvertTo-Json -InputObject ([ordered]@{ FetchedAtUtc = '2026-10-14T09:00:00Z'; Region = 'uksouth'; Prices = @($Prices | ForEach-Object { $_ + @{ currencyCode = 'GBP' } }) }) -Depth 5 | Set-Content (Join-Path $dir 'retail-prices.json')
+        ConvertTo-Json -InputObject ([ordered]@{
+            FetchedAtUtc = '2026-10-14T09:00:00Z'
+            Region = 'uksouth'
+            Prices = @($Prices | ForEach-Object { $_ + @{ currencyCode = 'GBP' } })
+        }) -Depth 5 |
+            Set-Content (Join-Path $dir 'retail-prices.json')
         if ($Lake) { ConvertTo-Json -InputObject @(@{ name = 'default' }) | Set-Content (Join-Path $dir 'sentinel-data-lake.json') }
-        if ($SentinelSku) { ConvertTo-Json -InputObject @([ordered]@{ name = 'SecurityInsights(ws)'; plan = [ordered]@{ product = 'OMSGallery/SecurityInsights' }; properties = [ordered]@{ sku = [ordered]@{ name = $SentinelSku } } }) -Depth 5 | Set-Content (Join-Path $dir 'solutions-installed.json') }
+        if ($SentinelSku) {
+            ConvertTo-Json -InputObject @(
+                [ordered]@{
+                    name = 'SecurityInsights(ws)'
+                    plan = [ordered]@{ product = 'OMSGallery/SecurityInsights' }
+                    properties = [ordered]@{ sku = [ordered]@{ name = $SentinelSku } }
+                }
+            ) -Depth 5 |
+                Set-Content (Join-Path $dir 'solutions-installed.json')
+        }
         try { Get-SentinelCostEstimate -InputRoot $dir -ResourcesRoot $script:resources } finally { Remove-Item $dir -Recurse -Force }
     }
     function Get-Row($Estimate, [string]$Table) { @($Estimate.AllTablesByCost | Where-Object Table -eq $Table)[0] }
@@ -91,14 +105,16 @@ Describe 'Pricing by plan' {
 
     It 'records how the workspace is billed, from the Sentinel solution''s SKU' {
         (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'Unified').BilledPricingModel | Should -Be 'Simplified'
-        (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'capacityreservation').BilledPricingModel | Should -Be 'Classic'
+        (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'capacityreservation').BilledPricingModel |
+            Should -Be 'Classic'
         (Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified).BilledPricingModel | Should -BeNullOrEmpty
     }
 
     It 'says when a workspace billed on classic pricing is priced at the simplified rate' {
         $classic = Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'PerGB2018'
         @($classic.Caveats) -join ' ' | Should -Match 'billed on classic pricing .* priced at the simplified rate'
-        @((Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'Unified').Caveats) -join ' ' | Should -Not -Match 'billed on classic pricing'
+        @((Invoke-Estimate @{ CommonSecurityLog = @(300, 'Analytics') } $script:Simplified -SentinelSku 'Unified').Caveats) -join ' ' |
+            Should -Not -Match 'billed on classic pricing'
     }
 
     It 'falls back to the classic Log Analytics and Sentinel pair without the simplified meter' {
@@ -162,7 +178,11 @@ Describe 'Commitment tiers' {
 
 Describe 'Data grants' {
     It 'prices the tables a grant may cover at list and reports them beside the total' {
-        $e = Invoke-Estimate @{ SecurityEvent = @(300, 'Analytics'); SigninLogs = @(30, 'Analytics'); CommonSecurityLog = @(300, 'Analytics') } $script:Simplified
+        $e = Invoke-Estimate @{
+            SecurityEvent = @(300, 'Analytics')
+            SigninLogs = @(30, 'Analytics')
+            CommonSecurityLog = @(300, 'Analytics')
+        } $script:Simplified
         (Get-Row $e 'SecurityEvent').MonthlyCost | Should -BeGreaterThan 0
         (Get-Row $e 'SecurityEvent').Benefit | Should -Be 'Defender for Servers P2'
         (Get-Row $e 'SigninLogs').Benefit | Should -Be 'Microsoft 365 E5'
@@ -193,8 +213,21 @@ Describe 'The currency it prices in' {
     }
 
     It 'guesses the currency from the region, USD where none fits' {
-        $cases = @{ uksouth = 'GBP'; ukwest = 'GBP'; westeurope = 'EUR'; northeurope = 'EUR'; swedencentral = 'EUR'; switzerlandnorth = 'CHF'; norwayeast = 'NOK'
-            eastus = 'USD'; southeastasia = 'USD'; canadacentral = 'CAD'; australiaeast = 'AUD'; japaneast = 'JPY'; centralindia = 'INR'; brazilsouth = 'BRL'; '' = 'USD' }
+        $cases = @{ uksouth = 'GBP'
+        ukwest = 'GBP'
+        westeurope = 'EUR'
+        northeurope = 'EUR'
+        swedencentral = 'EUR'
+        switzerlandnorth = 'CHF'
+        norwayeast = 'NOK'
+            eastus = 'USD'
+            southeastasia = 'USD'
+            canadacentral = 'CAD'
+            australiaeast = 'AUD'
+            japaneast = 'JPY'
+            centralindia = 'INR'
+            brazilsouth = 'BRL'
+            '' = 'USD' }
         foreach ($r in $cases.Keys) { Resolve-AzureRetailCurrency -Region $r | Should -Be $cases[$r] -Because $r }
     }
 
@@ -206,7 +239,11 @@ Describe 'The currency it prices in' {
     }
 
     It 'takes -Currency Auto by default, everywhere it is set, and records it' {
-        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent $script:moduleRoot)) 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $collector = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent $script:moduleRoot)) 'Modules/iSOCBlueprint/Private/Collector') `
+            -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $collector | Should -Match "\[ValidateSet\('Auto', 'USD'.*'TWD'\)\]\s+\[string\]\`$Currency = 'Auto'"
         $collector | Should -Match 'Currency\s+= \$Currency'
         $collector | Should -Match "\`$currencyCode = if \(\`$Currency -eq 'Auto'\) \{ Resolve-AzureRetailCurrency -Region \`$region \}"
@@ -224,19 +261,30 @@ Describe 'The currency it prices in' {
     }
 
     It 'says on the cost page which currency it used and why' {
-        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
         $renderer | Should -Match "taken from the workspace's region"
         $renderer | Should -Match 'as the run''s ``-Currency`` setting asked'
-        $est = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Cost') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $est = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Cost') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
         $est | Should -Match 'CurrencySource\s+= \$currencySource'
     }
 }
 
 Describe 'The dashboard''s billed split' {
     It 'splits billed in full from grant eligible, keyed on the grant' {
-        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent $script:moduleRoot)) 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $build = ((Get-ChildItem (Join-Path (Split-Path -Parent (Split-Path -Parent $script:moduleRoot)) 'Modules/iSOCBlueprint/Private/Site') -Filter `
+            '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $build | Should -Match "\`$bucketAgg = @\{ 'Billed' = 0\.0; 'Grant eligible' = 0\.0 \}"
-        $build | Should -Match "if \(\`$Row\.PSObject\.Properties\['Benefit'\]\) \{ return \`$\(if \(\[string\]\`$Row\.Benefit\) \{ 0\.0 \} else \{ \`$Gb \}\) \}"
+        $build |
+            Should -Match "if \(\`$Row\.PSObject\.Properties\['Benefit'\]\) \{ return \`$\(if \(\[string\]\`$Row\.Benefit\) \{ 0\.0 \} else \{ \`$Gb \}\) \}"
         . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
         $html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
         $html | Should -Match 'Billed vs data grant eligible'

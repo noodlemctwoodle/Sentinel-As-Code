@@ -26,7 +26,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -36,7 +36,11 @@ BeforeDiscovery {
     $root = Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard'
     $parts = @(
         Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object { $_.Extension -in '.html', '.css', '.js' } | ForEach-Object {
-            @{ Path = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/'); Lines = @(Get-Content -LiteralPath $_.FullName).Count; Limit = 300 }
+            @{
+                Path = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/')
+                Lines = @(Get-Content -LiteralPath $_.FullName).Count
+                Limit = 300
+            }
         }
     )
 }

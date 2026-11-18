@@ -20,7 +20,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.2.3
+    Version:      0.2.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -32,25 +32,50 @@ BeforeAll {
     . (Join-Path $sp '../../Private/SiteShared/Get-SacProgress.ps1')
     . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
-    $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
-    $script:sacSharePoint = (Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+    $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
+    $script:sacSharePoint = (Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+        "`n"
 
     # A model with just the parts the record reads.
     $script:model = [ordered]@{
         counts        = [ordered]@{ rulesEnabled = 3; rulesTotal = 4; connectors = 5 }
         cost          = [ordered]@{ monthlyTotal = 1234.5; currency = 'GBP' }
         findings      = [ordered]@{ total = 2; bySeverity = [ordered]@{ Critical = 1; Warning = 1 }
-            items = @([ordered]@{ id = 'SAC-LOG-03'; severity = 'Warning'; title = 'Daily cap' }, [ordered]@{ id = 'SAC-DET-01'; severity = 'Critical'; title = 'No rules' }) }
+            items = @(
+                [ordered]@{
+                    id = 'SAC-LOG-03'
+                    severity = 'Warning'
+                    title = 'Daily cap'
+                }, [ordered]@{ id = 'SAC-DET-01'; severity = 'Critical'; title = 'No rules' }
+            ) }
         mitre         = @(1, 2, 3)
         mitreCovered  = 2
         estate        = [ordered]@{ totalGb = 100.0; uncoveredGb = 40.0; customDetections = [ordered]@{ captured = $false; enabled = 9 }
             tables = @([ordered]@{ table = 'SigninLogs'; covered = $true }, [ordered]@{ table = 'Syslog'; covered = $false }) }
         maturity      = [ordered]@{ overall = [ordered]@{ score = 2.5; level = 2 }
             areas = @([ordered]@{ id = 'DET'; score = 2.0 })
-            criteria = @([ordered]@{ id = 'SAC-DET-01'; name = 'Rules'; status = 'Gap' }, [ordered]@{ id = 'SAC-LOG-01'; name = 'Logs'; status = 'Met' }, [ordered]@{ id = 'SAC-HNT-02'; name = 'Bookmarks'; status = 'Unknown' }) }
+            criteria = @(
+                [ordered]@{
+                    id = 'SAC-DET-01'
+                    name = 'Rules'
+                    status = 'Gap'
+                }, [ordered]@{ id = 'SAC-LOG-01'; name = 'Logs'; status = 'Met' }, [ordered]@{ id = 'SAC-HNT-02'; name = 'Bookmarks'; status = 'Unknown' }
+            ) }
         attack        = [ordered]@{
-            rules = @([ordered]@{ name = 'Rule A'; enabled = $true }, [ordered]@{ name = 'Rule B'; enabled = $false }, [ordered]@{ name = 'Rule A'; enabled = $true })
-            cells = @([ordered]@{ technique = 'T1078'; rules = @(0) }, [ordered]@{ technique = 'T1110'; rules = @(1) }, [ordered]@{ technique = 'T1059'; rules = @(1, 2) }) }
+            rules = @(
+                [ordered]@{ name = 'Rule A'; enabled = $true }, [ordered]@{ name = 'Rule B'; enabled = $false }, [ordered]@{ name = 'Rule A'; enabled = $true }
+            )
+            cells = @(
+                [ordered]@{
+                    technique = 'T1078'
+                    rules = @(0)
+                }, [ordered]@{ technique = 'T1110'; rules = @(1) }, [ordered]@{ technique = 'T1059'; rules = @(1, 2) }
+            ) }
         alertLifecycle = [ordered]@{ openBySeverity = [ordered]@{ High = 2; Medium = 3 }; mttrMinutes = 90.0 }
         usageDaily    = @([ordered]@{ billable = 10.0 }, [ordered]@{ billable = 20.0 })
         window        = [ordered]@{ days = 30 }
@@ -109,7 +134,9 @@ Describe 'A run''s progress record' {
 
 Describe 'The progress history' {
     It 'keeps one record a day, the later replacing the earlier, oldest first' {
-        $h = Merge-SacProgressHistory -History @{ entries = @((New-Rec '2026-10-14' 5), (New-Rec '2026-10-13' 7)) } -Records @((New-Rec '2026-10-14' 4), (New-Rec '2026-10-15' 3))
+        $h = Merge-SacProgressHistory -History @{
+            entries = @((New-Rec '2026-10-14' 5), (New-Rec '2026-10-13' 7))
+        } -Records @((New-Rec '2026-10-14' 4), (New-Rec '2026-10-15' 3))
         @($h.entries | ForEach-Object date) | Should -Be @('2026-10-13', '2026-10-14', '2026-10-15')
         ($h.entries | Where-Object date -eq '2026-10-14').metrics.findings | Should -Be 4
     }
@@ -170,11 +197,13 @@ Describe 'The site build''s progress files' {
 
 Describe 'The publisher keeps the history on the site' {
     It 'merges the bundle''s records with the site''s and saves them beside the dashboard' {
-        & (Get-Module iSOCBlueprint) { Get-Command Merge-SacProgressHistory, Read-SacProgressHistory, Save-SacProgressHistory -ErrorAction SilentlyContinue } | Should -HaveCount 3
+        & (Get-Module iSOCBlueprint) { Get-Command Merge-SacProgressHistory, Read-SacProgressHistory, Save-SacProgressHistory -ErrorAction SilentlyContinue } |
+            Should -HaveCount 3
         $script:publisher | Should -Match 'Merge-SacProgressHistory -History \(Read-SacProgressHistory\) -Records \$progressRecords'
         $script:publisher | Should -Match 'Save-SacProgressHistory -History \$progress'
         $script:sacSharePoint | Should -Match '\$script:SacProgressHistoryFile = ''progress-history\.json'''
-        $script:sacSharePoint | Should -Match "foreach \(\`$folder in '_state', 'dashboard'\) \{\s*if \(\`$PSCmdlet\.ShouldProcess\(""\`$script:SacAssetsLibraryUrl/\`$folder/\`$script:SacProgressHistoryFile"""
+        $script:sacSharePoint |
+            Should -Match "foreach \(\`$folder in '_state', 'dashboard'\) \{\s*if \(\`$PSCmdlet\.ShouldProcess\(""\`$script:SacAssetsLibraryUrl/\`$folder/\`$script:SacProgressHistoryFile"""
     }
 }
 
@@ -194,7 +223,8 @@ Describe 'The dashboard''s Progress tab' {
     It 'compares the runs kept at the start and the end of the chosen dates' {
         $script:html.Contains("SNAP.read('progress-history.json')") | Should -BeTrue
         $script:html.Contains('const end=runs.filter(r=>dayT(r.date)<=WIN.endT).pop()||null;') | Should -BeTrue
-        $script:html.Contains('return {end, base:before.filter(r=>dayT(r.date)<=WIN.startT).pop() || before.find(r=>dayT(r.date)>=WIN.startT) || null};') | Should -BeTrue
+        $script:html.Contains('return {end, base:before.filter(r=>dayT(r.date)<=WIN.startT).pop() || before.find(r=>dayT(r.date)>=WIN.startT) || null};') |
+            Should -BeTrue
         # Without daily series, the snapshot's run against the previous one.
         $script:html.Contains('if(WIN.endT==null){ const i=runs.indexOf(latest); return {end:latest, base:i>0? runs[i-1] : null}; }') | Should -BeTrue
         # The trends cover the runs between the two; the kept days go to the calendar.
@@ -247,7 +277,8 @@ Describe 'The dashboard''s Progress tab' {
 
     It 'keeps a tile''s value in line when its label wraps, and dates its window' {
         $script:html.Contains('.pgtiles .pill .k{line-height:1.35;min-height:2.7em}') | Should -BeTrue
-        $script:html.Contains("' Activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), whatever dates are chosen at the top.'") | Should -BeTrue
+        $script:html.Contains("' Activity and cost are each run\'s own collected window ('+WIN.words(+cur.windowDays||WIN.collected)+' here), whatever dates are chosen at the top.'") |
+            Should -BeTrue
         $script:html.Contains('const short=d=>fmtDate(d,{year:false});') | Should -BeTrue
     }
 

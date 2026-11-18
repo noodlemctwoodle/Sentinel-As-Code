@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.4
+    Version:      0.2.5
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (renderer)
 #>
@@ -374,7 +374,9 @@ Describe 'Renderer section model output' {
             New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
             Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $ws '_raw')
             $formats = if ($mode -eq 'Json') { @('Json') } else { @('Markdown', 'Json') }
-            ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-model' -Path $ws -OutputPath $ws -ResourcesPath $resources -Format $formats -InformationAction SilentlyContinue | Out-Null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-model' -Path $ws -OutputPath $ws -ResourcesPath $resources -Format $formats `
+                -InformationAction SilentlyContinue |
+                Out-Null
             $script:dirs[$mode] = $ws
         }
     }
@@ -407,7 +409,8 @@ Describe 'Renderer section model output' {
 
     It 'writes no Markdown with -OutputFormat Json, and the same sections' {
         @(Get-ChildItem $dirs.Json -Filter '*.md').Count | Should -Be 0
-        @(Get-ChildItem (Join-Path $dirs.Json 'sections') -Filter '*.json').Count | Should -Be @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json').Count
+        @(Get-ChildItem (Join-Path $dirs.Json 'sections') -Filter '*.json').Count |
+            Should -Be @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json').Count
     }
 
     It 'gives the incident lifecycle its graphic''s data, keeping the Mermaid for the export' {
@@ -432,7 +435,9 @@ Describe 'Renderer section model output' {
     }
 
     It 'gives each diagram with a purpose-built graphic its kind and data' {
-        $charts = { param($id) @((Get-Content (Join-Path $dirs.Both "sections/$id.json") -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' }) }
+        $charts = {
+            param($id) @((Get-Content (Join-Path $dirs.Both "sections/$id.json") -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' })
+        }
         $rk = @(& $charts '20-analytics-rules')[0]
         $rk.kind | Should -Be 'rule-kinds'
         @($rk.data.kinds.kind)[0..4] | Should -Be @('Scheduled', 'NRT', 'Fusion', 'MicrosoftSecurityIncidentCreation', 'ThreatIntelligence')
@@ -523,7 +528,10 @@ Describe 'Renderer section model output' {
     }
 
     It 'carries every Mermaid chart, and every bp:visual graphic, as a chart block' {
-        $fences = (Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid|^<!-- bp:visual ').Count } | Measure-Object -Sum).Sum
+        $fences = (Get-ChildItem $dirs.Both -Filter '*.md' |
+            Where-Object BaseName -ne 'index' |
+            ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid|^<!-- bp:visual ').Count } |
+            Measure-Object -Sum).Sum
         $charts = 0
         foreach ($f in Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -ne 'index.json') {
             $charts += ([regex]::Matches((Get-Content $f.FullName -Raw), '"type":\s*"chart"')).Count

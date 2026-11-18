@@ -17,7 +17,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -40,7 +40,10 @@ Describe 'Invoke-iSOCBlueprintSiteInitialize' {
             'Get-PnPEntraIDAppSitePermission', 'Set-PnPEntraIDAppSitePermission', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb') {
             Set-Item "function:global:$name" ([scriptblock]::Create("`$global:SiteInitCalls.Add('$name'); `$null"))
         }
-        Set-Item 'function:global:Get-PnPTenantAppCatalogUrl' { $global:SiteInitCalls.Add('Get-PnPTenantAppCatalogUrl'); 'https://contoso.sharepoint.com/sites/apps' }
+        Set-Item 'function:global:Get-PnPTenantAppCatalogUrl' {
+            $global:SiteInitCalls.Add('Get-PnPTenantAppCatalogUrl')
+            'https://contoso.sharepoint.com/sites/apps'
+        }
         Mock -ModuleName iSOCBlueprint Assert-iSOCBlueprintPrerequisite { }
         Mock -ModuleName iSOCBlueprint Publish-SacAppPackage { $global:SiteInitCalls.Add("Publish-SacAppPackage $Path") }
     }
@@ -48,7 +51,8 @@ Describe 'Invoke-iSOCBlueprintSiteInitialize' {
     AfterEach {
         Remove-Variable -Name SiteInitCalls -Scope Global -ErrorAction SilentlyContinue
         foreach ($name in 'Connect-PnPOnline', 'Get-PnPTenantSite', 'New-PnPSite', 'Add-PnPSiteCollectionAppCatalog', 'Get-PnPSiteCollectionAppCatalog',
-            'Get-PnPEntraIDAppSitePermission', 'Set-PnPEntraIDAppSitePermission', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb', 'Get-PnPTenantAppCatalogUrl') {
+            'Get-PnPEntraIDAppSitePermission', 'Set-PnPEntraIDAppSitePermission', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb',
+                    'Get-PnPTenantAppCatalogUrl') {
             Remove-Item "function:global:$name" -ErrorAction SilentlyContinue
         }
     }
@@ -56,7 +60,10 @@ Describe 'Invoke-iSOCBlueprintSiteInitialize' {
     It 'creates the site, adds the site app catalog, grants the publisher and sets the site up, in that order' {
         $a = $script:siteArgs
         & $script:module { param($a) Invoke-iSOCBlueprintSiteInitialize @a 6> $null } $a
-        $order = @($global:SiteInitCalls | Where-Object { $_ -in 'New-PnPSite', 'Add-PnPSiteCollectionAppCatalog', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb' })
+        $order = @(
+            $global:SiteInitCalls |
+                Where-Object { $_ -in 'New-PnPSite', 'Add-PnPSiteCollectionAppCatalog', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb' }
+        )
         $order | Should -Be @('New-PnPSite', 'Add-PnPSiteCollectionAppCatalog', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb')
     }
 

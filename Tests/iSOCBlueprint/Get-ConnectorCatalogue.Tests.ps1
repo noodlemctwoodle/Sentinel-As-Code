@@ -21,7 +21,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -34,11 +34,39 @@ BeforeAll {
     @{
         version    = '2026-07-09T15:25:28Z'
         connectors = @(
-            @{ id = 'AzureActiveDirectory'; title = 'Microsoft Entra ID'; publisher = 'Microsoft'; solution = 'Microsoft Entra ID'; deprecated = $false; tables = @('AuditLogs', 'SigninLogs') }
-            @{ id = 'Office365'; title = 'Microsoft 365'; publisher = 'Microsoft'; solution = 'Microsoft 365'; deprecated = $false; tables = @('OfficeActivity') }
-            @{ id = 'AzureDevOpsAuditLogs'; title = 'Azure DevOps Audit Logs'; publisher = 'Microsoft'; solution = 'AzureDevOpsAuditing'; deprecated = $false; tables = @('ADOAuditLogs_CL', 'SigninLogs') }
+            @{
+                id = 'AzureActiveDirectory'
+                title = 'Microsoft Entra ID'
+                publisher = 'Microsoft'
+                solution = 'Microsoft Entra ID'
+                deprecated = $false
+                tables = @('AuditLogs', 'SigninLogs')
+            }
+            @{
+                id = 'Office365'
+                title = 'Microsoft 365'
+                publisher = 'Microsoft'
+                solution = 'Microsoft 365'
+                deprecated = $false
+                tables = @('OfficeActivity')
+            }
+            @{
+                id = 'AzureDevOpsAuditLogs'
+                title = 'Azure DevOps Audit Logs'
+                publisher = 'Microsoft'
+                solution = 'AzureDevOpsAuditing'
+                deprecated = $false
+                tables = @('ADOAuditLogs_CL', 'SigninLogs')
+            }
             @{ id = 'OldAgent'; title = 'Old agent'; publisher = 'Vendor'; solution = 'Vendor Solution'; deprecated = $true; tables = @('CommonSecurityLog') }
-            @{ id = 'CefAma'; title = 'CEF via AMA'; publisher = 'Microsoft'; solution = 'Common Event Format'; deprecated = $false; tables = @('CommonSecurityLog') }
+            @{
+                id = 'CefAma'
+                title = 'CEF via AMA'
+                publisher = 'Microsoft'
+                solution = 'Common Event Format'
+                deprecated = $false
+                tables = @('CommonSecurityLog')
+            }
             @{ id = 'VendorA'; title = 'Vendor A'; publisher = 'A'; solution = 'Vendor A'; deprecated = $false; tables = @('CommonSecurityLog') }
             @{ id = 'VendorB'; title = 'Vendor B'; publisher = 'B'; solution = 'Vendor B'; deprecated = $false; tables = @('CommonSecurityLog') }
             @{ id = 'Empty'; title = 'No mapping'; publisher = 'X'; solution = 'X'; deprecated = $false; tables = @() }
@@ -84,11 +112,16 @@ Describe 'The shipped connector catalogue' {
 Describe 'Get-WorkspaceConnectorId' {
 
     It 'uses the kind of a classic connector' {
-        Get-WorkspaceConnectorId -Connector ([pscustomobject]@{ kind = 'Office365'; properties = [pscustomobject]@{ dataTypes = @{} } }) | Should -Be 'Office365'
+        Get-WorkspaceConnectorId -Connector ([pscustomobject]@{ kind = 'Office365'; properties = [pscustomobject]@{ dataTypes = @{} } }) |
+            Should -Be 'Office365'
     }
 
     It 'uses the connector definition of a codeless connector' {
-        Get-WorkspaceConnectorId -Connector ([pscustomobject]@{ kind = 'RestApiPoller'; properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' } }) | Should -Be 'AzureDevOpsAuditLogs'
+        Get-WorkspaceConnectorId -Connector ([pscustomobject]@{
+            kind = 'RestApiPoller'
+            properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' }
+        }) |
+            Should -Be 'AzureDevOpsAuditLogs'
     }
 }
 
@@ -145,7 +178,8 @@ Describe 'Get-TableConnectorLabel and Get-TableSolutionLabel' {
     }
 
     It 'names up to three candidates, marking the connected ones' {
-        Get-TableConnectorLabel -Catalogue $script:cat -Table 'SigninLogs' -ConnectedIds @('AzureDevOpsAuditLogs') | Should -Be 'Azure DevOps Audit Logs (connected); Microsoft Entra ID'
+        Get-TableConnectorLabel -Catalogue $script:cat -Table 'SigninLogs' -ConnectedIds @('AzureDevOpsAuditLogs') |
+            Should -Be 'Azure DevOps Audit Logs (connected); Microsoft Entra ID'
     }
 
     It 'calls a table more connectors list shared, and a table it does not know blank' {
@@ -154,8 +188,10 @@ Describe 'Get-TableConnectorLabel and Get-TableSolutionLabel' {
     }
 
     It 'names the solutions that ship a table and marks the installed ones' {
-        Get-TableSolutionLabel -Catalogue $script:cat -Table 'SigninLogs' -InstalledSolutions @('microsoft entra id') | Should -Be 'AzureDevOpsAuditing; Microsoft Entra ID (installed)'
-        Get-TableSolutionLabel -Catalogue $script:cat -Table 'CommonSecurityLog' -InstalledSolutions @('Common Event Format') | Should -Be 'Shared by 4 solutions; installed: Common Event Format'
+        Get-TableSolutionLabel -Catalogue $script:cat -Table 'SigninLogs' -InstalledSolutions @('microsoft entra id') |
+            Should -Be 'AzureDevOpsAuditing; Microsoft Entra ID (installed)'
+        Get-TableSolutionLabel -Catalogue $script:cat -Table 'CommonSecurityLog' -InstalledSolutions @('Common Event Format') |
+            Should -Be 'Shared by 4 solutions; installed: Common Event Format'
         Get-TableSolutionLabel -Catalogue $script:cat -Table 'Nope_CL' | Should -Be ''
     }
 }

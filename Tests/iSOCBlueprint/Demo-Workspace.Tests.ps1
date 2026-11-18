@@ -23,7 +23,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.7
+    Version:      0.1.8
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml
 #>
@@ -36,7 +36,8 @@ BeforeAll {
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-demo-" + [guid]::NewGuid())
     $script:asOf = [datetime]::SpecifyKind([datetime]'2026-10-14T09:00:00', 'Utc')
     $script:days = 30
-    $script:result = & $script:tool -OutputPath (Join-Path $script:outDir 'sentinel-blog-uks-law') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf -Seed 7 -Build 6> $null 3> $null
+    $script:result = & $script:tool -OutputPath (Join-Path $script:outDir 'sentinel-blog-uks-law') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf `
+        -Seed 7 -Build 6> $null 3> $null
     $script:raw = $script:result.Raw
     function Read-Demo([string]$Name) { Get-Content -LiteralPath (Join-Path $script:raw $Name) -Raw | ConvertFrom-Json -Depth 64 }
 }
@@ -47,7 +48,10 @@ AfterAll {
 
 Describe 'The demo workspace generator' {
     It 'writes every capture the collector writes' {
-        $collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         # Three are written only in a case the demo does not have: a
         # dedicated cluster, and a bookmark list too large to fetch (its count,
         # and the list read from the HuntingBookmark table instead).
@@ -75,7 +79,9 @@ Describe 'The demo workspace generator' {
     It 'puts the workspace on the commitment tier nearest its Analytics ingest, and prices by it' {
         $ws = Read-Demo 'workspace.json'
         $ws.properties.sku.name | Should -Be 'CapacityReservation'
-        $rungs = @((Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data/commitment-tiers.json') -Raw | ConvertFrom-Json).rungsGbPerDay)
+        $rungs = @(
+            (Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data/commitment-tiers.json') -Raw | ConvertFrom-Json).rungsGbPerDay
+        )
         $rungs | Should -Contain ([int]$ws.properties.sku.capacityReservationLevel)
         $script:result.Summary.CommitmentTierGb | Should -Be ([int]$ws.properties.sku.capacityReservationLevel)
         @((Read-Demo 'retail-prices.json').Prices.meterName) | Should -Contain 'Analytics Logs Data Ingestion'
@@ -99,7 +105,12 @@ Describe 'The demo workspace generator' {
         $rules = @(Read-Demo 'alert-rules.json')
         $templates = @(Read-Demo 'alert-rule-templates.json')
         $templates.Count | Should -Be $community.Count
-        $fromTemplate = @($rules | Where-Object { $_.properties.PSObject.Properties['alertRuleTemplateName'] -and $_.properties.alertRuleTemplateName -and $_.kind -eq 'Scheduled' })
+        $fromTemplate = @(
+            $rules |
+                Where-Object {
+                    $_.properties.PSObject.Properties['alertRuleTemplateName'] -and $_.properties.alertRuleTemplateName -and $_.kind -eq 'Scheduled'
+                }
+        )
         $rules.Count | Should -Be ($files.Count - $community.Count + $fromTemplate.Count + 2)
         foreach ($f in @($files | Where-Object { $_.FullName -notmatch '[/\\]Community[/\\]' } | Select-Object -First 10)) {
             $id = ([string]((Get-Content $f.FullName -Raw | ConvertFrom-Yaml)['id'])).ToLowerInvariant()
@@ -110,7 +121,8 @@ Describe 'The demo workspace generator' {
 
     It 'carries the repository''s hunting queries, detections, watchlists, workbooks, automation and summary rules' {
         @(Read-Demo 'hunting-queries.json').Count | Should -Be @(Get-ChildItem (Join-Path $script:content 'HuntingQueries') -Recurse -Filter '*.yaml').Count
-        @(Read-Demo 'defender-custom-detections.json').Count | Should -Be @(Get-ChildItem (Join-Path $script:content 'DefenderCustomDetections') -Recurse -Filter '*.yaml').Count
+        @(Read-Demo 'defender-custom-detections.json').Count |
+            Should -Be @(Get-ChildItem (Join-Path $script:content 'DefenderCustomDetections') -Recurse -Filter '*.yaml').Count
         @(Read-Demo 'watchlists.json').Count | Should -Be @(Get-ChildItem (Join-Path $script:content 'Watchlists') -Recurse -Filter 'watchlist.json').Count
         @(Read-Demo 'workbooks-saved.json').Count | Should -Be @(Get-ChildItem (Join-Path $script:content 'Workbooks') -Recurse -Filter 'metadata.json').Count
         @(Read-Demo 'summary-rules.json').Count | Should -Be @(Get-ChildItem (Join-Path $script:content 'SummaryRules') -Filter '*.json').Count
@@ -132,12 +144,14 @@ Describe 'The demo workspace generator' {
         $tables = @(Read-Demo 'tables-with-data.json')
         $usage = (@(Read-Demo 'daily-table-usage.json') | Measure-Object -Property GB -Sum).Sum
         [math]::Round($usage, 0) | Should -Be ([math]::Round((@($tables | ForEach-Object { [double]$_.BillableLast30d }) | Measure-Object -Sum).Sum, 0))
-        (@(Read-Demo 'daily-alerts.json') | Measure-Object -Property Alerts -Sum).Sum | Should -Be (@(Read-Demo 'analytics-rule-volumes.json') | Measure-Object -Property Alerts -Sum).Sum
+        (@(Read-Demo 'daily-alerts.json') | Measure-Object -Property Alerts -Sum).Sum |
+            Should -Be (@(Read-Demo 'analytics-rule-volumes.json') | Measure-Object -Property Alerts -Sum).Sum
         $summary = @(Read-Demo 'incidents-summary.json')[0]
         $daily = @(Read-Demo 'daily-incidents.json')
         ($daily | Measure-Object -Property Incidents -Sum).Sum | Should -Be $summary.Count
         (@($daily | Where-Object Status -eq 'Closed') | Measure-Object -Property Incidents -Sum).Sum | Should -Be $summary.Closed
-        (@(Read-Demo 'daily-health.json') | Measure-Object -Property LogCount -Sum).Sum | Should -Be (@(Read-Demo 'sentinel-health-summary.json') | Measure-Object -Property LogCount -Sum).Sum
+        (@(Read-Demo 'daily-health.json') | Measure-Object -Property LogCount -Sum).Sum |
+            Should -Be (@(Read-Demo 'sentinel-health-summary.json') | Measure-Object -Property LogCount -Sum).Sum
         foreach ($p in @(Read-Demo 'playbook-runs.json')) { (@($p.Daily) | Measure-Object -Property Runs -Sum).Sum + 0 | Should -Be $p.Runs7d }
         $rc = Read-Demo 'run-context.json'
         $rc.LookbackDays | Should -Be $script:days
@@ -155,7 +169,8 @@ Describe 'The demo workspace generator' {
     }
 
     It 'writes the same inventory for the same seed and date' {
-        $again = & $script:tool -OutputPath (Join-Path $script:outDir 'again') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf -Seed 7 6> $null 3> $null
+        $again = & $script:tool -OutputPath (Join-Path $script:outDir 'again') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf -Seed `
+            7 6> $null 3> $null
         foreach ($f in 'tables-with-data.json', 'analytics-rule-volumes.json', 'incidents-summary.json', 'playbook-runs.json', 'alert-rules.json') {
             (Get-Content (Join-Path $again.Raw $f) -Raw) | Should -BeExactly (Get-Content (Join-Path $script:raw $f) -Raw) -Because $f
         }
@@ -193,7 +208,13 @@ Describe 'The demo workspace generator' {
         $news = Read-Demo 'whats-new.json'
         @($news.Items).Count | Should -BeGreaterThan 0
         @($news.Items | Where-Object { [string]$_.Summary -match 'Fixture item' }).Count | Should -Be 0
-        @($news.Items | Where-Object { [string]$_.Title -match '(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}' }).Count | Should -Be 0
+        @(
+            $news.Items |
+                Where-Object {
+                    [string]$_.Title -match '(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}'
+                }
+        ).Count |
+            Should -Be 0
         # The first run is 90 days back, so each baseline (90 days included) has a run.
         ([datetime]$model.progress.date - [datetime]@($progress.entries)[0].date).Days | Should -Be 90
         # Not all of it better: areas climb at their own pace and one slips;

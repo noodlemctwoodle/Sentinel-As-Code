@@ -24,7 +24,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -48,7 +48,8 @@ Describe 'Assert-TokenFresh' {
 
     It 'stops a stage once the token has been in use past the limit, naming the stage and the age' {
         $script:ConnectedAt = (Get-Date).AddMinutes(-61)
-        { Assert-TokenFresh -Step 'assets' } | Should -Throw -ExpectedMessage "Stopping before 'assets': the access token has been in use for 61 minutes (limit 50)*"
+        { Assert-TokenFresh -Step 'assets' } |
+            Should -Throw -ExpectedMessage "Stopping before 'assets': the access token has been in use for 61 minutes (limit 50)*"
     }
 
     It 'uses the limit it was given' {

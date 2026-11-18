@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.13.5
+    Version:      0.13.6
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -66,7 +66,10 @@ BeforeAll {
 Describe 'Get-SectionFamily' {
 
     It 'maps every section the renderer writes to a named family' {
-        $renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
         $numbers = [regex]::Matches($renderer, "'(\d{2})-[a-z0-9-]+\.md'") | ForEach-Object { [int]$_.Groups[1].Value } | Sort-Object -Unique
         $numbers.Count | Should -BeGreaterThan 20
         foreach ($n in $numbers) {
@@ -273,7 +276,8 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $r.Tables[0].file | Should -Be '20-analytics-rules-table.csv'
             $r.Tables[0].rows | Should -Be 7
             $r.Tables[0].csv | Should -Be ("Name,Count`r`n" + ((1..7 | ForEach-Object { "r$_,$_" }) -join "`r`n") + "`r`n")
-            $html | Should -Match 'Every row is in <a href="~site/BlueprintAssets/tables/20-analytics-rules-table\.csv">this table as a CSV file</a>, which opens in Excel'
+            $html |
+                Should -Match 'Every row is in <a href="~site/BlueprintAssets/tables/20-analytics-rules-table\.csv">this table as a CSV file</a>, which opens in Excel'
             $r.Warnings -join ' ' | Should -Match 'every row is in tables/20-analytics-rules-table\.csv'
         }
     }
@@ -302,13 +306,16 @@ Describe 'Cut tables as CSV files' {
     }
 
     It 'names the file from the section and the heading, unique within the section' {
-        Get-SacTableFileName -Id '21-rule-performance' -Heading 'Rule effectiveness (last 90d)' | Should -Be '21-rule-performance-rule-effectiveness-last-90d.csv'
-        Get-SacTableFileName -Id '21-rule-performance' -Heading 'Rule effectiveness (last 90d)' -Taken '21-rule-performance-rule-effectiveness-last-90d.csv' | Should -Be '21-rule-performance-rule-effectiveness-last-90d-2.csv'
+        Get-SacTableFileName -Id '21-rule-performance' -Heading 'Rule effectiveness (last 90d)' |
+            Should -Be '21-rule-performance-rule-effectiveness-last-90d.csv'
+        Get-SacTableFileName -Id '21-rule-performance' -Heading 'Rule effectiveness (last 90d)' -Taken '21-rule-performance-rule-effectiveness-last-90d.csv' |
+            Should -Be '21-rule-performance-rule-effectiveness-last-90d-2.csv'
         Get-SacTableFileName -Id '15-incidents' -Heading '' | Should -Be '15-incidents-table.csv'
     }
 
     It 'writes each cell as its text, with formatting and line breaks dropped' {
-        Get-SacRunsText -Runs @([pscustomobject]@{ text = 'Bold'; bold = $true }, [pscustomobject]@{ break = $true }, [pscustomobject]@{ text = 'next' }) | Should -Be 'Bold next'
+        Get-SacRunsText -Runs @([pscustomobject]@{ text = 'Bold'; bold = $true }, [pscustomobject]@{ break = $true }, [pscustomobject]@{ text = 'next' }) |
+            Should -Be 'Bold next'
     }
 
     It 'links to the folder the publisher keeps in the assets library' {
@@ -317,7 +324,10 @@ Describe 'Cut tables as CSV files' {
     }
 
     It 'has the publisher upload every CSV the bundle lists, and prune the rest' {
-        $publisher = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $publisher = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $publisher | Should -Match 'Send-SacFile -Path \$csvPath -Folder ''tables'''
         $publisher | Should -Match 'Get-AssetPrunePlan -DesiredFiles \$siteTables -ExistingFiles \(Get-SacFolderFileNames -Folder ''tables''\)'
         $publisher | Should -Match 'Remove-PnPFile -SiteRelativeUrl "\$script:SacAssetsLibraryUrl/tables/\$file" -Force -Recycle'
@@ -380,15 +390,24 @@ Describe 'ConvertTo-SacChartFallbackHtml' {
     }
 
     It 'writes every sankey link and every xy label, joining the series' {
-        $sankey = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'sankey'; data = @{ links = @(@{ source = 'A'; target = 'B'; value = 2 }, @{ source = 'B'; target = 'C'; value = 1 }) } }
+        $sankey = ConvertTo-SacChartFallbackHtml -Chart @{
+            kind = 'sankey'
+            data = @{ links = @(@{ source = 'A'; target = 'B'; value = 2 }, @{ source = 'B'; target = 'C'; value = 1 }) }
+        }
         ([regex]::Matches($sankey, '<tr>')).Count | Should -Be 2
         $sankey | Should -Match '<td>A to B</td><td>2</td>'
-        $xy = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'xy'; data = @{ xAxis = @{ labels = @('Mon', 'Tue') }; series = @(@{ values = @(1, 2) }, @{ values = @(5, 6) }) } }
+        $xy = ConvertTo-SacChartFallbackHtml -Chart @{
+            kind = 'xy'
+            data = @{ xAxis = @{ labels = @('Mon', 'Tue') }; series = @(@{ values = @(1, 2) }, @{ values = @(5, 6) }) }
+        }
         $xy | Should -Match '<td>Tue</td><td>2 / 6</td>'
     }
 
     It 'tabulates the incident lifecycle''s stages, leaving out a figure the capture lacks' {
-        $html = ConvertTo-SacChartFallbackHtml -Chart @{ kind = 'incident-lifecycle'; data = @{ raised = 40; new = 5; active = 3; closed = 32; unacknowledged = $null } }
+        $html = ConvertTo-SacChartFallbackHtml -Chart @{
+            kind = 'incident-lifecycle'
+            data = @{ raised = 40; new = 5; active = 3; closed = 32; unacknowledged = $null }
+        }
         $html | Should -Match '<tr><td>Raised</td><td>40</td></tr>'
         $html | Should -Match '<tr><td>Closed</td><td>32</td></tr>'
         ([regex]::Matches($html, '<tr>')).Count | Should -Be 4
@@ -430,7 +449,17 @@ Describe 'Get-PageSyncPlan' {
 Describe 'Get-FindingSyncPlan' {
     BeforeAll {
         $script:now = [datetime]::SpecifyKind([datetime]'2026-10-08T06:00:00', [System.DateTimeKind]::Utc)
-        function F($id, $sev = 'Warning') { [pscustomobject]@{ id = $id; title = "t $id"; severity = $sev; category = 'Cost'; evidence = 'e'; remediation = 'r'; learn = 'https://learn.microsoft.com/x' } }
+        function F($id, $sev = 'Warning') {
+            [pscustomobject]@{
+                id = $id
+                title = "t $id"
+                severity = $sev
+                category = 'Cost'
+                evidence = 'e'
+                remediation = 'r'
+                learn = 'https://learn.microsoft.com/x'
+            }
+        }
         function E($item, $id, $status) { [pscustomobject]@{ ItemId = $item; FindingId = $id; Status = $status } }
         function C($id, $o) { [pscustomobject]@{ Id = $id; Outcome = $o } }
         function Plan($current, $existing, $checks, $available = $true) {
@@ -537,7 +566,13 @@ Describe 'Get-NavigationPlan' {
     It 'produces a signature that matches the same tree read back from SharePoint' {
         $readBack = @(
             [pscustomobject]@{ Title = 'Dashboard'; Url = '/sites/isoc/SitePages/Dashboard.aspx'; Children = @() }
-            [pscustomobject]@{ Title = 'Overview'; Url = 'http://linkless.header/'; Children = @([pscustomobject]@{ Title = 'Overview'; Url = 'https://contoso.sharepoint.com/sites/isoc/SitePages/sac-00-overview.aspx'; Children = @() }) }
+            [pscustomobject]@{
+                Title = 'Overview'
+                Url = 'http://linkless.header/'
+                Children = @(
+                    [pscustomobject]@{ Title = 'Overview'; Url = 'https://contoso.sharepoint.com/sites/isoc/SitePages/sac-00-overview.aspx'; Children = @() }
+                )
+            }
             [pscustomobject]@{ Title = 'Detection'; Url = 'http://linkless.header/'; Children = @(
                     [pscustomobject]@{ Title = 'Rules'; Url = '/sites/isoc/SitePages/sac-20-rules.aspx'; Children = @() }
                     [pscustomobject]@{ Title = 'MITRE'; Url = '/sites/isoc/SitePages/sac-25-mitre.aspx'; Children = @() }) }
@@ -655,7 +690,13 @@ Describe 'Add-SacMaturityHistoryEntry' {
 
     BeforeAll {
         function New-HistoryEntry([string]$Built, [double]$Score) {
-            @{ publishedUtc = "$Built"; bundleBuiltUtc = $Built; targetLevel = 3; overall = @{ score = $Score; level = [int][math]::Floor($Score) }; areas = @() }
+            @{
+                publishedUtc = "$Built"
+                bundleBuiltUtc = $Built
+                targetLevel = 3
+                overall = @{ score = $Score; level = [int][math]::Floor($Score) }
+                areas = @()
+            }
         }
     }
 
@@ -778,19 +819,29 @@ Describe 'Publish-SacDashboardPage' {
         Mock Get-PnPPage { $null }
         Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'BlueprintAssets/dashboard/index.html'
         Should -Invoke Add-PnPPageSection -Times 1 -Exactly -ParameterFilter { $SectionTemplate -eq 'OneColumnFullWidth' }
-        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { [object]::ReferenceEquals($Component, $script:dashboardComponent) -and $Section -eq 1 }
+        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter {
+            [object]::ReferenceEquals($Component, $script:dashboardComponent) -and $Section -eq 1
+        }
         Should -Invoke Set-PnPHomePage -Times 1 -Exactly
     }
 
     It 'stores isFullWidth with the web part, so PnP can save the page again later' {
         Mock Get-PnPPage { $null }
         Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'BlueprintAssets/dashboard/index.html'
-        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { $WebPartProperties.isFullWidth -eq $true -and $WebPartProperties.fileRelativeUrl -eq 'BlueprintAssets/dashboard/index.html' }
+        Should -Invoke Add-PnPPageWebPart -Times 1 -Exactly -ParameterFilter {
+            $WebPartProperties.isFullWidth -eq $true -and $WebPartProperties.fileRelativeUrl -eq 'BlueprintAssets/dashboard/index.html'
+        }
     }
 
     It 'rebuilds a page whose dashboard web part was placed without isFullWidth' {
         Mock Get-PnPPage { [pscustomobject]@{ Sections = @([pscustomobject]@{ Type = 'OneColumnFullWidth' }) } }
-        Mock Get-PnPPageComponent { [pscustomobject]@{ WebPartId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'; InstanceId = 'i1'; PropertiesJson = '{"fileRelativeUrl":"BlueprintAssets/dashboard/index.html"}' } }
+        Mock Get-PnPPageComponent {
+            [pscustomobject]@{
+                WebPartId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'
+                InstanceId = 'i1'
+                PropertiesJson = '{"fileRelativeUrl":"BlueprintAssets/dashboard/index.html"}'
+            }
+        }
         Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'BlueprintAssets/dashboard/index.html'
         Should -Invoke Remove-PnPPage -Times 1 -Exactly -ParameterFilter { $Identity -eq 'sac-dashboard' -and $Recycle -and $Force }
         Should -Invoke Add-PnPPage -Times 1 -Exactly
@@ -801,11 +852,19 @@ Describe 'Publish-SacDashboardPage' {
 
     It 'updates a web part that already carries isFullWidth in place' {
         Mock Get-PnPPage { [pscustomobject]@{ Sections = @([pscustomobject]@{ Type = 'OneColumnFullWidth' }) } }
-        Mock Get-PnPPageComponent { [pscustomobject]@{ WebPartId = '{A2FD5AA3-01C5-431E-8C98-66F76C89803A}'; InstanceId = 'i1'; PropertiesJson = '{"fileRelativeUrl":"old.html","isFullWidth":true}' } }
+        Mock Get-PnPPageComponent {
+            [pscustomobject]@{
+                WebPartId = '{A2FD5AA3-01C5-431E-8C98-66F76C89803A}'
+                InstanceId = 'i1'
+                PropertiesJson = '{"fileRelativeUrl":"old.html","isFullWidth":true}'
+            }
+        }
         Publish-SacDashboardPage -PageName 'sac-dashboard' -Title 'iSOC Blueprint' -FileRelativeUrl 'BlueprintAssets/dashboard/index.html'
         Should -Invoke Remove-PnPPage -Times 0 -Exactly
         Should -Invoke Add-PnPPageWebPart -Times 0 -Exactly
-        Should -Invoke Set-PnPPageWebPart -Times 1 -Exactly -ParameterFilter { $Identity -eq 'i1' -and $PropertiesJson -match '"isFullWidth":true' -and $PropertiesJson -match 'BlueprintAssets/dashboard/index.html' }
+        Should -Invoke Set-PnPPageWebPart -Times 1 -Exactly -ParameterFilter {
+            $Identity -eq 'i1' -and $PropertiesJson -match '"isFullWidth":true' -and $PropertiesJson -match 'BlueprintAssets/dashboard/index.html'
+        }
     }
 
     It 'reuses the full-width section a failed run left behind instead of adding another' {
@@ -854,7 +913,15 @@ Describe 'Get-SacCatalogApp' {
     It 'reads the catalog item id, product id and validity, without braces and in lower case' {
         Mock Invoke-PnPSPRestMethod {
             [pscustomobject]@{ value = @(
-                    [pscustomobject]@{ ID = '{AAAA0000-0000-0000-0000-000000000001}'; ProductId = '{7F7EB9C2-A720-45F1-AB47-7772DA011E1D}'; Title = 'isoc-blueprint-client-side-solution'; AppCatalogVersion = '1.2.0.0'; CanUpgrade = $false; IsValidAppPackage = $false; ErrorMessage = 'duplicate' }
+                    [pscustomobject]@{
+                        ID = '{AAAA0000-0000-0000-0000-000000000001}'
+                        ProductId = '{7F7EB9C2-A720-45F1-AB47-7772DA011E1D}'
+                        Title = 'isoc-blueprint-client-side-solution'
+                        AppCatalogVersion = '1.2.0.0'
+                        CanUpgrade = $false
+                        IsValidAppPackage = $false
+                        ErrorMessage = 'duplicate'
+                    }
                 ) }
         }
         $app = @(Get-SacCatalogApp)[0]
@@ -895,7 +962,8 @@ Describe 'Publish-SacSectionPage' {
             $page | Add-Member ScriptMethod ClearPage { $this.Controls.Clear() }
             $page | Add-Member ScriptMethod AddSection { param($Template, $Order, $Zone) }
             $page | Add-Member ScriptMethod AvailablePageComponents { param($Name) $this.Lookups++; $this.Components }
-            $page | Add-Member ScriptMethod NewWebPart { param($Component) [pscustomobject]@{ Kind = 'webpart'; Component = $Component; PropertiesJson = $null } }
+            $page |
+                Add-Member ScriptMethod NewWebPart { param($Component) [pscustomobject]@{ Kind = 'webpart'; Component = $Component; PropertiesJson = $null } }
             $page | Add-Member ScriptMethod NewTextPart { param($Html) [pscustomobject]@{ Kind = 'text'; Html = $Html } }
             $page | Add-Member ScriptMethod AddControl { param($Control, $Column, $Order, $Zone) $this.Controls.Add($Control) }
             $page | Add-Member ScriptMethod Save { param($Name) $Name }
@@ -908,8 +976,22 @@ Describe 'Publish-SacSectionPage' {
             title    = 'MITRE coverage'
             segments = @(
                 [pscustomobject]@{ type = 'html'; html = '<p><a href="~site/SitePages/sac-20-analytics-rules.aspx">Rules</a></p>' }
-                [pscustomobject]@{ type = 'chart'; chart = [pscustomobject]@{ kind = 'pie'; title = 'By tactic'; data = [pscustomobject]@{ slices = @([pscustomobject]@{ label = 'Execution'; value = 4 }) } } }
-                [pscustomobject]@{ type = 'chart'; chart = [pscustomobject]@{ kind = 'flowchart'; title = 'Flow'; data = [pscustomobject]@{ nodes = @([pscustomobject]@{ id = 'a'; label = 'A'; href = '~site/SitePages/sac-00-overview.aspx' }) } } }
+                [pscustomobject]@{
+                    type = 'chart'
+                    chart = [pscustomobject]@{
+                        kind = 'pie'
+                        title = 'By tactic'
+                        data = [pscustomobject]@{ slices = @([pscustomobject]@{ label = 'Execution'; value = 4 }) }
+                    }
+                }
+                [pscustomobject]@{
+                    type = 'chart'
+                    chart = [pscustomobject]@{
+                        kind = 'flowchart'
+                        title = 'Flow'
+                        data = [pscustomobject]@{ nodes = @([pscustomobject]@{ id = 'a'; label = 'A'; href = '~site/SitePages/sac-00-overview.aspx' }) }
+                    }
+                }
             )
         }
     }
@@ -1027,7 +1109,9 @@ Describe 'Invoke-SacCreateList' {
     It 'carries on when the create call timed out but the list exists afterwards' {
         $script:looks = 0
         Mock Get-PnPList { $script:looks++; if ($script:looks -ge 2) { [pscustomobject]@{ Title = 'Blueprint Assets' } } }
-        $list = Invoke-SacCreateList -Url 'BlueprintAssets' -Create { throw 'The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing.' }
+        $list = Invoke-SacCreateList -Url 'BlueprintAssets' -Create {
+            throw 'The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing.'
+        }
         $list.Title | Should -Be 'Blueprint Assets'
         Should -Invoke Write-Host -Times 1 -ParameterFilter { "$Object" -match 'but it exists' }
     }
@@ -1048,7 +1132,15 @@ Describe 'Publish-SacAppPackage' {
         })
         $script:productId = '7f7eb9c2-a720-45f1-ab47-7772da011e1d'
         function New-CatalogApp([string] $Id, [string] $Title, [string] $Version, [bool] $Valid = $true, [string] $ProductId = $script:productId) {
-            [pscustomobject]@{ Id = $Id; ProductId = $ProductId; Title = $Title; Version = $Version; CanUpgrade = $false; Valid = $Valid; Error = $(if ($Valid) { '' } else { 'A package with this id already exists' }) }
+            [pscustomobject]@{
+                Id = $Id
+                ProductId = $ProductId
+                Title = $Title
+                Version = $Version
+                CanUpgrade = $false
+                Valid = $Valid
+                Error = $(if ($Valid) { '' } else { 'A package with this id already exists' })
+            }
         }
         $script:oldApp = New-CatalogApp 'old-item' 'old-name-client-side-solution' '1.1.0.0'
         $script:failedNew = New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.2.0.0' -Valid $false
@@ -1125,7 +1217,16 @@ Describe 'Site navigation' {
                 [pscustomobject]@{ Id = 1; Title = 'Home'; Url = '/sites/isoc-blueprint/SitePages/sac-dashboard.aspx' }
                 [pscustomobject]@{ Id = 2; Title = 'Detection'; Url = 'http://linkless.header/' }
             }
-            Mock Get-PnPNavigationNode -ParameterFilter { $Id -eq 1 } { [pscustomobject]@{ Id = 1; Title = 'Home'; Url = 'https://contoso.sharepoint.com/sites/isoc-blueprint/SitePages/sac-dashboard.aspx'; Children = @() } }
+            Mock Get-PnPNavigationNode -ParameterFilter {
+                $Id -eq 1
+            } {
+                [pscustomobject]@{
+                    Id = 1
+                    Title = 'Home'
+                    Url = 'https://contoso.sharepoint.com/sites/isoc-blueprint/SitePages/sac-dashboard.aspx'
+                    Children = @()
+                }
+            }
             Mock Get-PnPNavigationNode -ParameterFilter { $Id -eq 2 } {
                 [pscustomobject]@{ Id = 2; Title = 'Detection'; Url = 'http://linkless.header/'; Children = @(
                         [pscustomobject]@{ Title = 'Analytics rules'; Url = '/sites/isoc-blueprint/SitePages/sac-20-analytics-rules.aspx' }
@@ -1134,7 +1235,9 @@ Describe 'Site navigation' {
             $script:navRead = Get-SacNavigation -WebServerRelativeUrl $script:web
         }
         It 'reads nodes, not the printed -Tree text' { Should -Invoke Get-PnPNavigationNode -Scope Context -Times 0 -ParameterFilter { $Tree.IsPresent } }
-        It 'loads each top-level node by id to get its children' { Should -Invoke Get-PnPNavigationNode -Scope Context -Times 2 -Exactly -ParameterFilter { $Id } }
+        It 'loads each top-level node by id to get its children' {
+            Should -Invoke Get-PnPNavigationNode -Scope Context -Times 2 -Exactly -ParameterFilter { $Id }
+        }
         It 'returns the planner shape with site-relative links and headings' {
             @($script:navRead).Count | Should -Be 2
             $script:navRead[0].title | Should -Be 'Home'
@@ -1152,7 +1255,11 @@ Describe 'Site navigation' {
             Mock Add-PnPNavigationNode { [pscustomobject]@{ Id = 100 } }
             $nodes = @(
                 [ordered]@{ title = 'Home'; url = '~site/SitePages/sac-dashboard.aspx'; children = @() },
-                [ordered]@{ title = 'Detection'; url = $null; children = @([ordered]@{ title = 'Analytics rules'; url = '~site/SitePages/sac-20-analytics-rules.aspx' }) }
+                [ordered]@{
+                    title = 'Detection'
+                    url = $null
+                    children = @([ordered]@{ title = 'Analytics rules'; url = '~site/SitePages/sac-20-analytics-rules.aspx' })
+                }
             )
             Set-SacNavigation -Nodes $nodes -WebServerRelativeUrl $script:web
         }
@@ -1160,8 +1267,12 @@ Describe 'Site navigation' {
             Should -Invoke Remove-PnPNavigationNode -Scope Context -Times 2 -Exactly -ParameterFilter { $Identity -in 7, 8 -and $Force }
         }
         It 'adds headings as linkless nodes and resolves page links' {
-            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter { $Title -eq 'Detection' -and $Url -eq 'http://linkless.header/' }
-            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter { $Title -eq 'Home' -and $Url -eq '/sites/isoc-blueprint/SitePages/sac-dashboard.aspx' }
+            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter {
+                $Title -eq 'Detection' -and $Url -eq 'http://linkless.header/'
+            }
+            Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter {
+                $Title -eq 'Home' -and $Url -eq '/sites/isoc-blueprint/SitePages/sac-dashboard.aspx'
+            }
         }
         It 'attaches children to the node it just added' {
             Should -Invoke Add-PnPNavigationNode -Scope Context -Times 1 -Exactly -ParameterFilter { $Title -eq 'Analytics rules' -and $Parent -eq 100 }
@@ -1228,8 +1339,11 @@ Describe 'Detection outcomes and template solutions in the site build' {
     }
 
     It 'words an older snapshot''s "?" for an unnamed principal in the findings' {
-        $f = @($script:doFindings.items) + @($script:doFindings) | Where-Object { $_ -and $_.PSObject.Properties['id'] -and $_.id -eq $script:doGapId } | Select-Object -First 1
-        $f.evidence | Should -Be '3 service principal(s) hold Owner or Contributor at workspace scope: Unnamed (no name in this snapshot); App one; Unnamed (no name in this snapshot).'
+        $f = @($script:doFindings.items) + @($script:doFindings) |
+            Where-Object { $_ -and $_.PSObject.Properties['id'] -and $_.id -eq $script:doGapId } |
+            Select-Object -First 1
+        $f.evidence |
+            Should -Be '3 service principal(s) hold Owner or Contributor at workspace scope: Unnamed (no name in this snapshot); App one; Unnamed (no name in this snapshot).'
     }
 
     It 'maps every table the rules read to its source family, for the matrix''s columns' {
@@ -1250,7 +1364,8 @@ Describe 'Detection outcomes and template solutions in the site build' {
         $script:doHtml | Should -Match '<div class="dm-scroll morewrap" id="dmBox">'
         # Filters: source, health with All, and family or table columns; a search box.
         $script:doHtml.Contains("chip('health','all','All',base.length,!st.health)") | Should -BeTrue
-        $script:doHtml.Contains("chip('mode','family','By source family',null,st.mode==='family')+chip('mode','table','Every table',null,st.mode==='table')") | Should -BeTrue
+        $script:doHtml.Contains("chip('mode','family','By source family',null,st.mode==='family')+chip('mode','table','Every table',null,st.mode==='table')") |
+            Should -BeTrue
         $script:doHtml | Should -Match 'id="dmQ"'
         # A numbered bubble's ink is whichever of white or near-black contrasts more; the glow is dark-only.
         $script:doHtml.Contains("const inkOn=hex=>{ const L=lum(hex); return 1.05/(L+0.05) >= (L+0.05)/0.0567 ? '#ffffff' : '#0b1220'; };") | Should -BeTrue
@@ -1260,7 +1375,8 @@ Describe 'Detection outcomes and template solutions in the site build' {
         # Every table's angled names get the room the longest needs.
         $script:doHtml.Contains("const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;") | Should -BeTrue
         # The last names lean past the last column: a spacer column of that width keeps them clear of Health.
-        $script:doHtml.Contains("const over=st.mode==='table'? Math.max(0,Math.ceil(Math.max(...cols.map((c,i)=>i*40+33+c.label.length*6.9*Math.cos(64*Math.PI/180)))-cols.length*40)) : 0;") | Should -BeTrue
+        $script:doHtml.Contains("const over=st.mode==='table'? Math.max(0,Math.ceil(Math.max(...cols.map((c,i)=>i*40+33+c.label.length*6.9*Math.cos(64*Math.PI/180)))-cols.length*40)) : 0;") |
+            Should -BeTrue
         $script:doHtml.Contains('colspan="''+(cols.length+(over?1:0))+''"') | Should -BeTrue
         $script:doHtml.Contains('h+=spacer;') | Should -BeTrue
         # Tables on screen together with the same columns share measured widths, so they line up.
@@ -1469,7 +1585,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.detectionOpportunities[0].table | Should -Be 'FirewallLogs_CL'
         ($model.detectionOpportunities | Where-Object table -eq 'OfficeActivity').templates[0].name | Should -Be 'Data exfiltration'
         # A template only a deprecated Content Hub solution ships is left out, as on the report page.
-        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $build.Contains("-not (Test-TemplateRetired -Map `$tplSolutions -TemplateId ([string]`$_.TemplateId))") | Should -BeTrue
         @($model.effectiveness).Count | Should -Be 2
         # Lists are carried in full; the dashboard shows the first few with a
@@ -1493,7 +1612,9 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.dataLake.tiers.AnalyticsOnly | Should -Be 0
         $model.dataLake.tiers.LakeOnly | Should -Be 0
         $model.dataLake.extendedCount | Should -Be 0
-        $model.dataLake.operationalTables | Should -Be ($model.dataLake.tiers.MirroredOnly + $model.dataLake.tiers.MirroredExtended + $model.dataLake.tiers.LakeOnly + $model.dataLake.tiers.AnalyticsOnly)
+        $model.dataLake.operationalTables |
+            Should -Be ($model.dataLake.tiers.MirroredOnly + $model.dataLake.tiers.MirroredExtended + $model.dataLake.tiers.LakeOnly +
+            $model.dataLake.tiers.AnalyticsOnly)
         $html | Should -Match 'id="dataLakePanel"'
     }
 
@@ -1631,7 +1752,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'shows the estate flow on the Data flow tab, above the ingest and billing flow, and no gap analysis button' {
-        $html | Should -Match '(?s)<section data-view="flow" class="hidden">\s*<div class="panel">\s*<div class="phead"><div>\s*<h2>Estate flow</h2>.*?<h2>Ingest &amp; billing flow</h2>'
+        $html |
+            Should -Match '(?s)<section data-view="flow" class="hidden">\s*<div class="panel">\s*<div class="phead"><div>\s*<h2>Estate flow</h2>.*?<h2>Ingest &amp; billing flow</h2>'
         $html | Should -Not -Match '(?s)<section data-view="overview">.*?<h2>Estate flow</h2>.*?</section>\s*<!-- DATA FLOW -->'
         $html | Should -Not -Match 'id="gapBtn"'
         # The estate strip gives Defender XDR's alerts a tile of their own.
@@ -1815,7 +1937,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'const DOC_TAB_SMALL=20, DOC_TABLE_MIN=200, DOC_STRIP=76, lastDocTab=\{\};'
         $html | Should -Match 'function layoutDoc\(\)\{'
         # Fits: one page, tables grow into the space. Taller: tabs.
-        $html | Should -Match 'if\(end\(\)<=limit\+1 \|\| secEls\.length<2\)\{ alignTables\(body\); fitTables\(body, limit, end\); contain\(body, limit, end\); realign\(body\); return done\(\); \}'
+        $html |
+            Should -Match 'if\(end\(\)<=limit\+1 \|\| secEls\.length<2\)\{ alignTables\(body\); fitTables\(body, limit, end\); contain\(body, limit, end\); realign\(body\); return done\(\); \}'
         # A big section starts a tab; a small one joins while it fits.
         $html | Should -Match 'if\(!cur \|\| \(it\.big && cur\.items\.length\) \|\| cur\.h\+it\.h>cap\)\{'
         $html | Should -Match "t\.full=t\.items\[0\]\.big\? t\.items\[0\]\.label : \(i===0\? 'Overview' : t\.items\[0\]\.label\);"
@@ -1856,7 +1979,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'keeps a page''s description under its title, above any tabs' {
-        $html | Should -Match 'if\(intro\.length && intro\[0\]\.t===''p'' && !kvTiles\(intro\[0\]\.html\) && !refLinks\(intro\[0\]\.html\)\)\{ desc=''<p class="docdesc">'''
+        $html |
+            Should -Match 'if\(intro\.length && intro\[0\]\.t===''p'' && !kvTiles\(intro\[0\]\.html\) && !refLinks\(intro\[0\]\.html\)\)\{ desc=''<p class="docdesc">'''
         $html | Should -Match '\.kvc\{[^}]*overflow-wrap:anywhere\}'
     }
 
@@ -1867,7 +1991,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '\.cellchips \.tagpill\.inst\{'
         $html | Should -Match "t\.installed===true\?' \(installed\)'"
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
-        @($model.detectionOpportunities | ForEach-Object { $_.templates } | Where-Object { $_ }) | ForEach-Object { $_.PSObject.Properties.Name | Should -Contain 'solution' }
+        @($model.detectionOpportunities | ForEach-Object { $_.templates } | Where-Object { $_ }) |
+            ForEach-Object { $_.PSObject.Properties.Name | Should -Contain 'solution' }
     }
 
     It 'opens the rest of a table, or of a cell''s chips, with a chevron held at the top right' {
@@ -1978,7 +2103,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $ov = @($model.sections | Where-Object { $_.num -eq 0 })[0]
         @($ov.blocks | Where-Object { $_.t -eq 'table' -and (@($_.headers) -join ' ') -match 'Rating' }).Count | Should -Be 0
         $html | Should -Match 'function renderIncidentLifecycle\(data, theme\)'
-        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology', 'renderCostBreakdown', 'renderAccess', 'renderLake', 'renderEstate', 'renderRunway', 'renderWorkspaceAge') {
+        foreach ($fn in 'renderMeters', 'renderRuleKinds', 'renderResponseChain', 'renderTopology', 'renderCostBreakdown', 'renderAccess', 'renderLake',
+                'renderEstate', 'renderRunway', 'renderWorkspaceAge') {
             $html | Should -Match ('function ' + $fn + '\(data, theme\)')
         }
     }
@@ -1995,7 +2121,8 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("if(b.t==='p') return kvTiles(b.html) || refLinks(b.html) || '<p>'+b.html+'</p>';") | Should -BeTrue
         $html.Contains("if(b.t==='ul') return refLinks((b.items||[]).join(' · ')) ||") | Should -BeTrue
         # A lead-in (See, Reference:) and the separators between links are all a links-only paragraph may hold.
-        $html.Contains(".replace(/^(see also|see|references?|docs|further reading|read more)\s*:?/i,'').replace(/\band\b|&middot;|[·,;.:\s]/gi,'');") | Should -BeTrue
+        $html.Contains(".replace(/^(see also|see|references?|docs|further reading|read more)\s*:?/i,'').replace(/\band\b|&middot;|[·,;.:\s]/gi,'');") |
+            Should -BeTrue
         $html.Contains("const head=heading || (items.every(x=>x.learn)? 'Microsoft Learn' : 'Further reading');") | Should -BeTrue
         $html | Should -Match '\.refl\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(300px,1fr\)\);gap:8px\}'
         $html | Should -Not -Match '\.refa\{[^}]*border-left'
@@ -2003,14 +2130,16 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'opens a matrix rule in Rule Performance, filtered to it' {
         # The rule name is a button, and the row passes its alert and incident counts.
-        $html.Contains('<button type="button" class="dm-open" data-rule="''+esc(r.name)+''" data-alerts="''+n0(r.alerts)+''" data-incidents="''+inc+''"') | Should -BeTrue
+        $html.Contains('<button type="button" class="dm-open" data-rule="''+esc(r.name)+''" data-alerts="''+n0(r.alerts)+''" data-incidents="''+inc+''"') |
+            Should -BeTrue
         $html.Contains("window.openRuleReport(b.dataset.rule, {alerts:+b.dataset.alerts||0, incidents:+b.dataset.incidents||0})") | Should -BeTrue
         $html.Contains('window.openRuleReport = function(name, counts){') | Should -BeTrue
         $html.Contains("const sec=secs.find(x=>/^rule performance$/i.test(cleanTitle(x.title||'')));") | Should -BeTrue
         # Each table is filtered to the rule; the incidents table wins when it lists it.
         $html.Contains("if(inp){ inp.value='`"'+want+'`"'; docFilter(t.id); }") | Should -BeTrue
         $html.Contains('if(hit && (!best || (inc && !best.inc))) best={t, tr:hit, inc};') | Should -BeTrue
-        $html.Contains("note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');") | Should -BeTrue
+        $html.Contains("note.innerHTML='<span>Rule Performance for <b>'+esc(want)+'</b>.'+esc(why)+'</span>'+sbtn('Show every rule','data-unpin-rule');") |
+            Should -BeTrue
         $html | Should -Match 'Select a rule to open it in Rule Performance\.'
     }
 
@@ -2029,8 +2158,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'puts a card''s single table chevron in the card''s top-right corner' {
-        $html.Contains("const card=ch.closest('.ipanel, .panel'); if(!card || card.querySelectorAll('table thead .morechev').length!==1) return;") | Should -BeTrue
-        $html.Contains("if(head) head.appendChild(ch); else { ch.classList.add('abs'); card.classList.add('has-cardchev'); card.appendChild(ch); }") | Should -BeTrue
+        $html.Contains("const card=ch.closest('.ipanel, .panel'); if(!card || card.querySelectorAll('table thead .morechev').length!==1) return;") |
+            Should -BeTrue
+        $html.Contains("if(head) head.appendChild(ch); else { ch.classList.add('abs'); card.classList.add('has-cardchev'); card.appendChild(ch); }") |
+            Should -BeTrue
         $html.Contains("const wrap=b.dataset.wrap? document.getElementById(b.dataset.wrap) : b.closest('.morewrap');") | Should -BeTrue
         $html.Contains('new MutationObserver(()=>{ if(liftQueued) return;') | Should -BeTrue
     }
@@ -2072,8 +2203,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'gives a flowchart node an in-dashboard link to its section or finding' {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Sections/ConvertTo-DashboardChartData.ps1'), [ref]$null, [ref]$null)
-        . ([scriptblock]::Create($ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertTo-DashboardChartData' }, $true).Extent.Text))
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Sections/ConvertTo-DashboardChartData.ps1'),
+            [ref]$null, [ref]$null)
+        . ([scriptblock]::Create($ast.Find({
+            param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertTo-DashboardChartData'
+        }, $true).Extent.Text))
         $chart = @{ kind = 'flowchart'; data = @{ nodes = @(
                     @{ id = 'a'; label = 'Gap'; href = '90-gap-analysis.md'; target = @{ kind = 'section'; section = '90-gap-analysis' } }
                     @{ id = 'b'; label = 'F'; href = '90-gap-analysis.md#sac-gov-05'; target = @{ kind = 'finding'; id = 'SAC-GOV-05' } }
@@ -2088,7 +2222,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match 'M\.whatsNew'
         $html | Should -Not -Match 'class="wnitem"'
         $html.Contains("'Generally available':'Met','Preview':'Info','Retiring':'Gap','Action needed':'Warn'") | Should -BeTrue
-        $build = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $build = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $build | Should -Not -Match 'Invoke-RestMethod|Invoke-WebRequest'
         $model = Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
         $wn = @($model.sections | Where-Object { $_.num -eq 3 })
@@ -2103,7 +2240,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $ov = @($model.sections | Where-Object { $_.num -eq 0 })[0]
         $fc = @($ov.blocks | Where-Object { $_.t -eq 'chart' -and $_.kind -eq 'finding-cards' })[0]
         foreach ($c in @($fc.data.cards)) { $c.href | Should -Be ('/#sac-finding-' + $c.id) }
-        $page = ConvertTo-SacChartData -Chart ([pscustomobject]@{ kind = 'finding-cards'; data = [pscustomobject]@{ cards = @([pscustomobject]@{ id = 'SAC-LOG-03'; href = '90-gap-analysis.md#sac-log-03' }) } }) -FindingsListUrl 'Lists/SentinelFindings'
+        $page = ConvertTo-SacChartData -Chart ([pscustomobject]@{
+            kind = 'finding-cards'
+            data = [pscustomobject]@{ cards = @([pscustomobject]@{ id = 'SAC-LOG-03'; href = '90-gap-analysis.md#sac-log-03' }) }
+        }) -FindingsListUrl 'Lists/SentinelFindings'
         $page.cards[0].href | Should -Be '~site/Lists/SentinelFindings/AllItems.aspx?FilterField1=FindingId&FilterValue1=SAC-LOG-03'
         # The web part resolves ~site/ links against its own site.
         $html | Should -Match 'function setSiteUrl\(url\)'
@@ -2154,7 +2294,10 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $wp.IndexOf('.sacSnapshot = snapshot') | Should -BeLessThan $wp.IndexOf('.eval(extracted.script)')
         $wp | Should -Match 'read: \(file: string\): Promise<string> => this\._fetchHtml\(folder \+'
         # The publisher keeps the day's copy and prunes past -HistoryDays.
-        $pub = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+        $pub = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+            "`n"
         $pub | Should -Match '\[int\]\$HistoryDays = 90'
         $pub | Should -Match 'Send-SacSnapshot -Path \(Join-Path \$Bundle ''index\.html''\) -FileName \$snapFile'
         $pub | Should -Match '\$siteIndex = Read-SacSnapshotIndex'
@@ -2205,7 +2348,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $script:SacSectionTitles = @{ '90-gap-analysis' = 'Gap Analysis'; '84-cost-estimate' = 'Estimated Monthly Cost' }
         try {
             $runs = @(
-                [pscustomobject]@{ text = '90-gap-analysis.md'; href = '90-gap-analysis.md'; target = [pscustomobject]@{ kind = 'section'; section = '90-gap-analysis' } }
+                [pscustomobject]@{
+                    text = '90-gap-analysis.md'
+                    href = '90-gap-analysis.md'
+                    target = [pscustomobject]@{ kind = 'section'; section = '90-gap-analysis' }
+                }
                 [pscustomobject]@{ text = ' lists every one; see ' }
                 [pscustomobject]@{ text = '84-cost-estimate.md'; code = $true }
                 [pscustomobject]@{ text = ' and 12-soc-optimization.md, not docs/84-cost-estimate.md' }
@@ -2410,7 +2557,8 @@ Describe 'Dashboard figures and labels' {
     It 'says which window a re-scoped or fixed figure covers' {
         # The cost tile follows the slider and says so; the TI card does not and says so.
         $script:dash.Contains("s:cost? 'projected from '+WIN.span() : ''") | Should -BeTrue
-        $script:dash.Contains("(WIN.days!==WIN.collected||WIN.ago>0)? ', over the collected '+WIN.cw()+': the dates chosen at the top do not re-scope this card'") | Should -BeTrue
+        $script:dash.Contains("(WIN.days!==WIN.collected||WIN.ago>0)? ', over the collected '+WIN.cw()+': the dates chosen at the top do not re-scope this card'") |
+            Should -BeTrue
     }
 
     It 'writes figures, money, dates and names in one style' {
@@ -2425,7 +2573,8 @@ Describe 'Dashboard figures and labels' {
     }
 
     It 'sorts report tables by date and by amount in any currency' {
-        $script:dash.Contains('const SORT_DATE=/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})(?: (\d{2}):(\d{2}))?(?: UTC)?$/;') | Should -BeTrue
+        $script:dash.Contains('const SORT_DATE=/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})(?: (\d{2}):(\d{2}))?(?: UTC)?$/;') |
+            Should -BeTrue
         $script:dash.Contains('const NUM_PREFIX=/^-?\s*(?:[A-Z]{2,3}\$|[A-Z]{3} |[£$€¥₹₩]|<)\s*/;') | Should -BeTrue
     }
 
@@ -2450,7 +2599,8 @@ Describe 'Dashboard figures and labels' {
         $script:dash | Should -Match '<button type="button" class="hkpi" data-go="maturity"'
         $script:dash | Should -Match '<button type="button" class="hkpi" data-go="findings"'
         $script:dash.Contains("+hMat.level<+hTarget? 'var(--amber)' : 'var(--brand)'") | Should -BeTrue
-        $script:dash.Contains("heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && !b.disabled && activateTab) activateTab(b.dataset.go); });") | Should -BeTrue
+        $script:dash.Contains("heroFacts.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b && !b.disabled && activateTab) activateTab(b.dataset.go); });") |
+            Should -BeTrue
         $script:dash | Should -Not -Match 'class="fact '
     }
 

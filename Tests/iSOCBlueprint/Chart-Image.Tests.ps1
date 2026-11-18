@@ -17,7 +17,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -67,7 +67,8 @@ Describe 'Invoke-iSOCBlueprintChartImage' {
         Set-Content -LiteralPath (Join-Path $script:root 'ws/b.md') -Value 'no charts'
     }
 
-    It 'rewrites a chart as an image reference, shares one image between identical charts and leaves a failed chart in place' -Skip:(-not $IsLinux -and -not $IsMacOS) {
+    It 'rewrites a chart as an image reference, shares one image between identical charts and leaves a failed chart in place' -Skip:(-not $IsLinux -and
+            -not $IsMacOS) {
         $log = Invoke-Step -Root $script:root
         $md = Get-Content -LiteralPath (Join-Path $script:root 'ws/a.md') -Raw
         ([regex]::Matches($md, '!\[Diagram\]\(assets/[0-9a-f]{12}\.png\)')).Count | Should -Be 2
@@ -110,7 +111,8 @@ Describe 'Get-MermaidHash' {
     It 'is the first 12 hex characters of the SHA-256 of the text, in lower case' {
         $hash = & $script:module { Get-MermaidHash 'flowchart LR' }
         $hash | Should -Match '^[0-9a-f]{12}$'
-        $expected = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes('flowchart LR'))).Replace('-', '').Substring(0, 12).ToLower()
+        $expected = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes('flowchart LR'))).Replace('-',
+            '').Substring(0, 12).ToLower()
         $hash | Should -Be $expected
     }
 }

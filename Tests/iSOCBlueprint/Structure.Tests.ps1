@@ -11,7 +11,8 @@
     iSOCDeployments. Every PowerShell file under the module is held to it; a
     file that grows past the limit fails and is split up.
 
-    A line of code stays within 160 characters. The rule is for code: a line
+    A line of code stays within 160 characters, in the module and in its
+    tests (Tests/iSOCBlueprint). The rule is for code: a line
     that is long because of a string it carries (report prose, a message, help
     text inside a here-string) is left whole, since wrapping it would change
     the text or break a search for it. A line is measured after each
@@ -31,7 +32,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.3.1
+    Version:      0.3.2
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -65,9 +66,16 @@ Describe 'Module line length' {
             'Private/Render/Sections/DataConnectors/Write-BlueprintDataConnectorsSection.ps1'                = 200
             'Private/Render/Sections/AutomationRulesPlaybooks/Write-BlueprintAutomationRulesPlaybooksSection.ps1' = 200
         }
-        $script:offenders = foreach ($file in Get-ChildItem -LiteralPath $moduleRoot -Filter '*.ps1' -File -Recurse | Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
+        $testsRoot = Join-Path $repoRoot 'Tests/iSOCBlueprint'
+        $checked = @(
+            Get-ChildItem -LiteralPath $moduleRoot -Filter '*.ps1' -File -Recurse |
+                Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }
+            Get-ChildItem -LiteralPath $testsRoot -Filter '*.ps1' -File -Recurse
+        )
+        $script:offenders = foreach ($file in $checked) {
             $text = [System.IO.File]::ReadAllText($file.FullName)
-            $relative = [System.IO.Path]::GetRelativePath($moduleRoot, $file.FullName).Replace('\', '/')
+            $base = if ($file.FullName.StartsWith($moduleRoot)) { $moduleRoot } else { $repoRoot }
+            $relative = [System.IO.Path]::GetRelativePath($base, $file.FullName).Replace('\', '/')
             $max = if ($looser.ContainsKey($relative)) { $looser[$relative] } else { $limit }
             $lines = $text -split "`n"
             if (-not ($lines | Where-Object { $_.TrimEnd("`r").Length -gt $max })) { continue }
@@ -79,7 +87,9 @@ Describe 'Module line length' {
                 $first = $token.Extent.StartLineNumber
                 $last = $token.Extent.EndLineNumber
                 if ($token.Kind -ne 'NewLine' -and $last -gt $first) { foreach ($i in ($first + 1)..$last) { [void]$inside.Add($i) } }
-                if ($token.Kind -in 'StringLiteral', 'StringExpandable' -and $last -eq $first) { $stringChars[$first] = [int]$stringChars[$first] + $token.Extent.Text.Length }
+                if ($token.Kind -in 'StringLiteral', 'StringExpandable' -and $last -eq $first) {
+                    $stringChars[$first] = [int]$stringChars[$first] + $token.Extent.Text.Length
+                }
             }
             for ($n = 1; $n -le $lines.Count; $n++) {
                 $length = $lines[$n - 1].TrimEnd("`r").Length

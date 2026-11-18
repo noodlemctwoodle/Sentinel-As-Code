@@ -70,7 +70,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.4.2
+    Version:      0.4.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -454,14 +454,24 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         function New-Rule($name, $title, $enabled, $modified) {
-            [pscustomobject]@{ name = $name; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = $title; enabled = $enabled; lastModifiedUtc = $modified } }
+            [pscustomobject]@{
+                name = $name
+                kind = 'Scheduled'
+                properties = [pscustomobject]@{ displayName = $title; enabled = $enabled; lastModifiedUtc = $modified }
+            }
         }
         $rules = @(1..12 | ForEach-Object { New-Rule ("r$_") "Rule $_" $false '2026-08-31T10:00:00Z' })
         $rules += New-Rule 'r13' 'Still firing' $false '2026-09-19T08:00:00Z'
         $rules += New-Rule 'r14' 'Kept on' $true '2026-01-01T00:00:00Z'
         $script:inv = [pscustomobject]@{
             AlertRules = $rules
-            RulesFired = @([pscustomobject]@{ AlertRuleId = 'R13'; AlertName = 'Still firing'; Alerts = 382 }, [pscustomobject]@{ AlertRuleId = 'r14'; AlertName = 'Kept on'; Alerts = 5 })
+            RulesFired = @(
+                [pscustomobject]@{
+                    AlertRuleId = 'R13'
+                    AlertName = 'Still firing'
+                    Alerts = 382
+                }, [pscustomobject]@{ AlertRuleId = 'r14'; AlertName = 'Kept on'; Alerts = 5 }
+            )
         }
         $script:f = Test-RulesDisabledOrFailing -Inventory $script:inv
     }
@@ -480,7 +490,10 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
     }
 
     It 'stays quiet about bulk changes when the disabled set is small' {
-        $small = [pscustomobject]@{ AlertRules = @((New-Rule 'a' 'A' $false '2026-08-31T10:00:00Z'), (New-Rule 'b' 'B' $false '2026-08-31T10:00:00Z')); RulesFired = @() }
+        $small = [pscustomobject]@{
+            AlertRules = @((New-Rule 'a' 'A' $false '2026-08-31T10:00:00Z'), (New-Rule 'b' 'B' $false '2026-08-31T10:00:00Z'))
+            RulesFired = @()
+        }
         $r = Test-RulesDisabledOrFailing -Inventory $small
         $r.Detail.BulkDay | Should -BeNullOrEmpty
         $r.Evidence | Should -Not -Match 'bulk change'
@@ -494,7 +507,11 @@ Describe 'Rule checks stay quiet on a workspace with no enabled Scheduled or NRT
         $script:quiet = [pscustomobject]@{
             AlertRules = @(
                 [pscustomobject]@{ name = 'off'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'Switched off'; enabled = $false } },
-                [pscustomobject]@{ name = 'fusion'; kind = 'Fusion'; properties = [pscustomobject]@{ displayName = 'Advanced Multistage Attack Detection'; enabled = $true } }
+                [pscustomobject]@{
+                    name = 'fusion'
+                    kind = 'Fusion'
+                    properties = [pscustomobject]@{ displayName = 'Advanced Multistage Attack Detection'; enabled = $true }
+                }
             )
         }
     }
@@ -518,33 +535,71 @@ Describe 'No-detection check counts Defender custom detections as coverage' {
     }
 
     It 'fires when nothing reads a high-volume table' {
-        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @(); CustomDetectionRefs = @() }
+        $inv = [pscustomobject]@{
+            RawFiles = @('rule-table-references.json')
+            TablesWithData = $script:tables
+            RuleTableReferences = @()
+            TemplateTableReferences = @()
+            CustomDetectionRefs = @()
+        }
         (Test-HighVolumeTableWithoutDetection -Inventory $inv).Evidence | Should -Match 'DeviceProcessEvents 40\.00 GB'
     }
 
     It 'stays quiet when an enabled custom detection reads the table' {
-        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @();
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json')
+        TablesWithData = $script:tables
+        RuleTableReferences = @()
+        TemplateTableReferences = @();
             CustomDetectionRefs = @([pscustomobject]@{ RuleId = 'cd-1'; RuleName = 'LSASS'; Enabled = $true; Tables = @('DeviceProcessEvents') }) }
         Test-HighVolumeTableWithoutDetection -Inventory $inv | Should -BeNullOrEmpty
     }
 
     It 'never suggests a template only a deprecated Content Hub solution ships' {
         $d = { param($ids) [pscustomobject]@{ criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule' } }) } }
-        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); CustomDetectionRefs = @()
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json')
+        TablesWithData = $script:tables
+        RuleTableReferences = @()
+        CustomDetectionRefs = @()
             TemplateTableReferences = @(
-                [pscustomobject]@{ TemplateId = 'old-1'; DisplayName = 'TI map old'; Deprecated = $false; AlreadyDeployed = $false; Tables = @('DeviceProcessEvents'); Severity = 'High' }
-                [pscustomobject]@{ TemplateId = 'new-1'; DisplayName = 'Process injection'; Deprecated = $false; AlreadyDeployed = $false; Tables = @('DeviceProcessEvents'); Severity = 'Medium' })
+                [pscustomobject]@{
+                    TemplateId = 'old-1'
+                    DisplayName = 'TI map old'
+                    Deprecated = $false
+                    AlreadyDeployed = $false
+                    Tables = @('DeviceProcessEvents')
+                    Severity = 'High'
+                }
+                [pscustomobject]@{
+                    TemplateId = 'new-1'
+                    DisplayName = 'Process injection'
+                    Deprecated = $false
+                    AlreadyDeployed = $false
+                    Tables = @('DeviceProcessEvents')
+                    Severity = 'Medium'
+                })
             ContentPackages = @()
             ContentProductPackages = @(
-                [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ti'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = (& $d @('old-1')) } }
-                [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ep'; displayName = 'Endpoint'; isDeprecated = 'false'; dependencies = (& $d @('new-1')) } }) }
+                [pscustomobject]@{
+                    properties = [pscustomobject]@{
+                        contentId = 'ti'
+                        displayName = 'Threat Intelligence'
+                        isDeprecated = 'true'
+                        dependencies = (& $d @('old-1'))
+                    }
+                }
+                [pscustomobject]@{
+                    properties = [pscustomobject]@{ contentId = 'ep'; displayName = 'Endpoint'; isDeprecated = 'false'; dependencies = (& $d @('new-1')) }
+                }) }
         $f = Test-HighVolumeTableWithoutDetection -Inventory $inv
         $f.Evidence | Should -Match 'Process injection'
         $f.Evidence | Should -Not -Match 'TI map old'
     }
 
     It 'ignores a disabled custom detection' {
-        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $script:tables; RuleTableReferences = @(); TemplateTableReferences = @();
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json')
+        TablesWithData = $script:tables
+        RuleTableReferences = @()
+        TemplateTableReferences = @();
             CustomDetectionRefs = @([pscustomobject]@{ RuleId = 'cd-1'; RuleName = 'LSASS'; Enabled = $false; Tables = @('DeviceProcessEvents') }) }
         (Test-HighVolumeTableWithoutDetection -Inventory $inv).Evidence | Should -Match 'no enabled Sentinel rule or Defender custom detection'
     }
@@ -569,7 +624,8 @@ Describe 'Sentinel gap-analysis rule catalogue' {
         $added = @('SAC-COV-08', 'SAC-DET-15', 'SAC-LOG-19', 'SAC-LOG-20', 'SAC-LOG-21', 'SAC-LOG-22', 'SAC-LOG-23', 'SAC-PLT-12')
         $withLegacy = @($script:catalogue.rules | Where-Object { $_.PSObject.Properties['legacyId'] })
         @($withLegacy | ForEach-Object id | Where-Object { $_ -in $added }).Count | Should -Be 0
-        @($script:catalogue.rules | Where-Object { -not $_.PSObject.Properties['legacyId'] } | ForEach-Object id | Sort-Object) | Should -Be ($added | Sort-Object)
+        @($script:catalogue.rules | Where-Object { -not $_.PSObject.Properties['legacyId'] } | ForEach-Object id | Sort-Object) |
+            Should -Be ($added | Sort-Object)
         $legacy = @($withLegacy | ForEach-Object { $_.legacyId })
         ($legacy | Sort-Object -Unique).Count | Should -Be 59
         foreach ($l in $legacy) { $l | Should -Match '^SENT-\d{3}$' }
@@ -600,7 +656,8 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
         $script:trimmed = Join-Path ([System.IO.Path]::GetTempPath()) "gap-absent-$(New-Guid)"
         New-Item -ItemType Directory -Path $script:trimmed -Force | Out-Null
         Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $script:trimmed
-        foreach ($name in 'rule-table-references.json', 'template-table-references.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json', 'rule-health.json', 'azure-diagnostics-categories.json') {
+        foreach ($name in 'rule-table-references.json', 'template-table-references.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json',
+                'rule-health.json', 'azure-diagnostics-categories.json') {
             Remove-Item (Join-Path $script:trimmed $name) -Force
         }
         $script:absentOutcomes = [System.Collections.Generic.List[object]]::new()
@@ -617,7 +674,8 @@ Describe 'Sentinel gap-analysis engine: absent captures stay quiet' {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         try {
             Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
-            foreach ($name in 'security-event-duplicates.json', 'cef-in-syslog.json', 'la-query-logs.json', 'summary-rules.json', 'table-query-usage.json', 'ueba-data-presence.json') {
+            foreach ($name in 'security-event-duplicates.json', 'cef-in-syslog.json', 'la-query-logs.json', 'summary-rules.json', 'table-query-usage.json',
+                    'ueba-data-presence.json') {
                 Remove-Item (Join-Path $dir $name) -Force -ErrorAction SilentlyContinue
             }
             $out = [System.Collections.Generic.List[object]]::new()
@@ -751,7 +809,9 @@ Describe 'Rules ported from health check build 38' {
         }
         It 'stays quiet with a provider configured, or with IdentityInfo rows' {
             $withProvider = [pscustomobject]@{ RawFiles = @('settings.json', 'ueba-data-presence.json')
-                Settings = [pscustomobject]@{ EntityAnalytics = [pscustomobject]@{ properties = [pscustomobject]@{ entityProviders = @('AzureActiveDirectory') } } }
+                Settings = [pscustomobject]@{
+                    EntityAnalytics = [pscustomobject]@{ properties = [pscustomobject]@{ entityProviders = @('AzureActiveDirectory') } }
+                }
                 UebaDataPresence = @() }
             Test-EntityAnalyticsEnabled -Inventory $withProvider | Should -BeNullOrEmpty
             $withRows = [pscustomobject]@{ RawFiles = @('settings.json', 'ueba-data-presence.json'); Settings = [pscustomobject]@{ EntityAnalytics = $null }
@@ -763,20 +823,38 @@ Describe 'Rules ported from health check build 38' {
     Context 'SAC-LOG-19 summary rules' {
         It 'fires with no summary rules and a table at 50 GB or more, summing per-solution rows' {
             $inv = [pscustomobject]@{ RawFiles = @('summary-rules.json'); SummaryRules = @()
-                TablesWithData = @([pscustomobject]@{ DataType = 'CommonSecurityLog'; BillableLast30d = 30 }, [pscustomobject]@{ DataType = 'CommonSecurityLog'; BillableLast30d = 25 }, [pscustomobject]@{ DataType = 'Syslog'; BillableLast30d = 5 }) }
+                TablesWithData = @(
+                    [pscustomobject]@{
+                        DataType = 'CommonSecurityLog'
+                        BillableLast30d = 30
+                    }, [pscustomobject]@{ DataType = 'CommonSecurityLog'; BillableLast30d = 25 }, [pscustomobject]@{ DataType = 'Syslog'; BillableLast30d = 5 }
+                ) }
             $f = Test-SummaryRulesInUse -Inventory $inv
             $f.Evidence | Should -Match 'CommonSecurityLog \(55\.00 GB\)'
             $f.Evidence | Should -Not -Match 'Syslog'
         }
         It 'stays quiet when a summary rule exists or nothing is high volume' {
-            Test-SummaryRulesInUse -Inventory ([pscustomobject]@{ RawFiles = @('summary-rules.json'); SummaryRules = @([pscustomobject]@{ name = 'r' }); TablesWithData = @([pscustomobject]@{ DataType = 'T'; BillableLast30d = 500 }) }) | Should -BeNullOrEmpty
-            Test-SummaryRulesInUse -Inventory ([pscustomobject]@{ RawFiles = @('summary-rules.json'); SummaryRules = @(); TablesWithData = @([pscustomobject]@{ DataType = 'T'; BillableLast30d = 4 }) }) | Should -BeNullOrEmpty
+            Test-SummaryRulesInUse -Inventory ([pscustomobject]@{
+                RawFiles = @('summary-rules.json')
+                SummaryRules = @([pscustomobject]@{ name = 'r' })
+                TablesWithData = @([pscustomobject]@{ DataType = 'T'; BillableLast30d = 500 })
+            }) |
+                Should -BeNullOrEmpty
+            Test-SummaryRulesInUse -Inventory ([pscustomobject]@{
+                RawFiles = @('summary-rules.json')
+                SummaryRules = @()
+                TablesWithData = @([pscustomobject]@{ DataType = 'T'; BillableLast30d = 4 })
+            }) |
+                Should -BeNullOrEmpty
         }
     }
 
     Context 'SAC-LOG-20 retention order' {
         It 'fires when analytics retention exceeds total retention, and only then' {
-            $inv = [pscustomobject]@{ RawFiles = @('workspace-tables.json'); WorkspaceTables = @((New-Table 'Bad' 180 90), (New-Table 'Good' 90 365), (New-Table 'Equal' 30 30)) }
+            $inv = [pscustomobject]@{
+                RawFiles = @('workspace-tables.json')
+                WorkspaceTables = @((New-Table 'Bad' 180 90), (New-Table 'Good' 90 365), (New-Table 'Equal' 30 30))
+            }
             $f = Test-RetentionOrder -Inventory $inv
             $f.Evidence | Should -Match 'Bad \(analytics 180 days, total 90 days\)'
             @($f.Detail.Tables).Count | Should -Be 1
@@ -799,9 +877,18 @@ Describe 'Rules ported from health check build 38' {
             $f.Evidence | Should -Not -Match 'Short'
         }
         It 'counts an enabled rule, a summary rule, a search job or an audited query as use' {
-            $inv = & $script:lakeInv -Refs @([pscustomobject]@{ Enabled = $true; Tables = @('LongTable') }) -Usage @([pscustomobject]@{ Table = 'LakeOnly'; Queries = 3 })
+            $inv = & $script:lakeInv -Refs @(
+                [pscustomobject]@{ Enabled = $true; Tables = @('LongTable') }
+            ) -Usage @([pscustomobject]@{ Table = 'LakeOnly'; Queries = 3 })
             Test-LongRetentionUsage -Inventory $inv | Should -BeNullOrEmpty
-            $inv = & $script:lakeInv -Summary @([pscustomobject]@{ properties = [pscustomobject]@{ ruleDefinition = [pscustomobject]@{ query = 'LongTable | summarize count()' } } }) -Extra @([pscustomobject]@{ name = 'LakeOnly_SRCH'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30 } })
+            $inv = & $script:lakeInv -Summary @(
+                [pscustomobject]@{ properties = [pscustomobject]@{ ruleDefinition = [pscustomobject]@{ query = 'LongTable | summarize count()' } } }
+            ) -Extra @(
+                [pscustomobject]@{
+                    name = 'LakeOnly_SRCH'
+                    properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30 }
+                }
+            )
             Test-LongRetentionUsage -Inventory $inv | Should -BeNullOrEmpty
         }
         It 'ignores a disabled rule' {
@@ -813,8 +900,13 @@ Describe 'Rules ported from health check build 38' {
     Context 'SAC-PLT-12 query auditing' {
         It 'fires when LAQueryLogs is empty or missing from the capture, and stays quiet with queries' {
             (Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @() })).Evidence | Should -Match 'not enabled'
-            (Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @([pscustomobject]@{ QueryCount = 0 }) })).Evidence | Should -Match 'not enabled'
-            Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @([pscustomobject]@{ QueryCount = 12 }) }) | Should -BeNullOrEmpty
+            (Test-QueryAuditing -Inventory ([pscustomobject]@{
+                RawFiles = @('la-query-logs.json')
+                LaQueryLogs = @([pscustomobject]@{ QueryCount = 0 })
+            })).Evidence |
+                Should -Match 'not enabled'
+            Test-QueryAuditing -Inventory ([pscustomobject]@{ RawFiles = @('la-query-logs.json'); LaQueryLogs = @([pscustomobject]@{ QueryCount = 12 }) }) |
+                Should -BeNullOrEmpty
         }
     }
 
@@ -839,15 +931,31 @@ Describe 'Gap evidence lists every item' {
 
     It 'names all nine unmapped rules, not the first five' {
         $rules = @(1..9 | ForEach-Object {
-            [pscustomobject]@{ name = "r$_"; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = "Unmapped rule $_"; enabled = $true; entityMappings = @() } }
+            [pscustomobject]@{
+                name = "r$_"
+                kind = 'Scheduled'
+                properties = [pscustomobject]@{ displayName = "Unmapped rule $_"; enabled = $true; entityMappings = @() }
+            }
         })
         $evidence = (Test-RuleEntityMappingsPresent -Inventory ([pscustomobject]@{ AlertRules = $rules })).Evidence
         foreach ($n in 1..9) { $evidence | Should -Match "Unmapped rule $n\b" }
     }
 
     It 'suggests every undeployed template for an uncovered table, not the first three' {
-        $templates = @(1..5 | ForEach-Object { [pscustomobject]@{ DisplayName = "Template $_"; Severity = 'Medium'; Tables = @('DeviceProcessEvents'); Deprecated = $false; AlreadyDeployed = $false } })
-        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = @([pscustomobject]@{ DataType = 'DeviceProcessEvents'; BillableLast30d = 40 })
+        $templates = @(
+            1..5 |
+                ForEach-Object {
+                    [pscustomobject]@{
+                        DisplayName = "Template $_"
+                        Severity = 'Medium'
+                        Tables = @('DeviceProcessEvents')
+                        Deprecated = $false
+                        AlreadyDeployed = $false
+                    }
+                }
+        )
+        $inv = [pscustomobject]@{ RawFiles = @('rule-table-references.json')
+        TablesWithData = @([pscustomobject]@{ DataType = 'DeviceProcessEvents'; BillableLast30d = 40 })
             RuleTableReferences = @(); TemplateTableReferences = $templates; CustomDetectionRefs = @() }
         $f = Test-HighVolumeTableWithoutDetection -Inventory $inv
         @($f.Detail.Tables[0].SuggestedTemplates).Count | Should -Be 5
@@ -867,7 +975,9 @@ Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
     }
 
     It 'does not flag a free table that received data (OfficeActivity bills nothing)' {
-        $inv = & $script:inv @([pscustomobject]@{ kind = 'Office365'; properties = [pscustomobject]@{} }) @([pscustomobject]@{ DataType = 'OfficeActivity'; BillableLast24h = 0; BillableLast7d = 0; IngestedLast7d = 40 })
+        $inv = & $script:inv @(
+            [pscustomobject]@{ kind = 'Office365'; properties = [pscustomobject]@{} }
+        ) @([pscustomobject]@{ DataType = 'OfficeActivity'; BillableLast24h = 0; BillableLast7d = 0; IngestedLast7d = 40 })
         Test-ConnectorTableMismatch -Inventory $inv | Should -BeNullOrEmpty
     }
 
@@ -880,7 +990,8 @@ Describe 'SAC-PLT-10 connected connectors that deliver nothing' {
 
     It 'treats data in any one of a connector''s catalogue tables as delivering' {
         $ado = [pscustomobject]@{ kind = 'RestApiPoller'; properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' } }
-        Test-ConnectorTableMismatch -Inventory (& $script:inv @($ado) @([pscustomobject]@{ DataType = 'ADOAuditLogs_CL'; IngestedLast7d = 0.2 })) | Should -BeNullOrEmpty
+        Test-ConnectorTableMismatch -Inventory (& $script:inv @($ado) @([pscustomobject]@{ DataType = 'ADOAuditLogs_CL'; IngestedLast7d = 0.2 })) |
+            Should -BeNullOrEmpty
     }
 
     It 'still checks the core tables of the named connectors one by one' {
@@ -899,12 +1010,23 @@ Describe 'Evidence never names something "?" or leaves a blank entry' {
 
     It 'names a service principal Azure cannot resolve by its object id' {
         $inv = [pscustomobject]@{ RbacWorkspace = @(
-                [pscustomobject]@{ DisplayName = 'ci-deployer-sp'; ObjectType = 'ServicePrincipal'; RoleDefinitionName = 'Contributor'; ObjectId = '11111111-1111-1111-1111-111111111111' }
-                [pscustomobject]@{ DisplayName = ''; ObjectType = 'ServicePrincipal'; RoleDefinitionName = 'Owner'; ObjectId = '22222222-2222-2222-2222-222222222222' }
+                [pscustomobject]@{
+                    DisplayName = 'ci-deployer-sp'
+                    ObjectType = 'ServicePrincipal'
+                    RoleDefinitionName = 'Contributor'
+                    ObjectId = '11111111-1111-1111-1111-111111111111'
+                }
+                [pscustomobject]@{
+                    DisplayName = ''
+                    ObjectType = 'ServicePrincipal'
+                    RoleDefinitionName = 'Owner'
+                    ObjectId = '22222222-2222-2222-2222-222222222222'
+                }
                 [pscustomobject]@{ DisplayName = $null; ObjectType = 'ServicePrincipal'; RoleDefinitionName = 'Contributor' }
             ) }
         $f = Test-ServicePrincipalOverPrivileged -Inventory $inv
-        $f.Evidence | Should -Match 'ci-deployer-sp; Unnamed service principal, object id 22222222-2222-2222-2222-222222222222 \(deleted or not readable\); Unnamed service principal\.'
+        $f.Evidence |
+            Should -Match 'ci-deployer-sp; Unnamed service principal, object id 22222222-2222-2222-2222-222222222222 \(deleted or not readable\); Unnamed service principal\.'
         $f.Evidence | Should -Not -Match '\?'
     }
 
@@ -930,8 +1052,19 @@ Describe 'SAC-DET-15 flags stale watchlists that enabled rules still read' {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $now = (Get-Date).ToUniversalTime()
-        $wl = { param($alias, $days, $source) [pscustomobject]@{ properties = [pscustomobject]@{ displayName = "WL $alias"; watchlistAlias = $alias; source = $source; updated = $now.AddDays(-$days).ToString('o') } } }
-        $rule = { param($name, $enabled, $q) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ displayName = $name; enabled = $enabled; query = $q } } }
+        $wl = {
+            param($alias, $days, $source) [pscustomobject]@{
+                properties = [pscustomobject]@{
+                    displayName = "WL $alias"
+                    watchlistAlias = $alias
+                    source = $source
+                    updated = $now.AddDays(-$days).ToString('o')
+                }
+            }
+        }
+        $rule = {
+            param($name, $enabled, $q) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ displayName = $name; enabled = $enabled; query = $q } }
+        }
         $script:inv = [pscustomobject]@{
             Watchlists = @(
                 (& $wl 'vips' 400 'vips.csv')
@@ -952,7 +1085,8 @@ Describe 'SAC-DET-15 flags stale watchlists that enabled rules still read' {
 
     It 'names each stale watchlist an enabled rule reads, oldest first' {
         $f = Test-WatchlistsStale -Inventory $script:inv
-        $f.Evidence | Should -Match '^2 watchlists read by enabled analytics rules have not been updated in 90 days or more: WL vips \(400 days, 1 rule\); WL assets \(120 days, 1 rule\)\.$'
+        $f.Evidence |
+            Should -Match '^2 watchlists read by enabled analytics rules have not been updated in 90 days or more: WL vips \(400 days, 1 rule\); WL assets \(120 days, 1 rule\)\.$'
     }
 
     It 'leaves out fresh, Content Hub and only-disabled-rule watchlists' {
@@ -974,7 +1108,13 @@ Describe 'SAC-MON-05 reconciles with the dashboard total for data no detection r
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         $script:monInv = {
             param([object[]]$Tables, [object[]]$Refs = @())
-            [pscustomobject]@{ RawFiles = @('rule-table-references.json'); TablesWithData = $Tables; RuleTableReferences = $Refs; TemplateTableReferences = @(); CustomDetectionRefs = @() }
+            [pscustomobject]@{
+                RawFiles = @('rule-table-references.json')
+                TablesWithData = $Tables
+                RuleTableReferences = $Refs
+                TemplateTableReferences = @()
+                CustomDetectionRefs = @()
+            }
         }
         $script:monRow = { param($name, $gb) [pscustomobject]@{ DataType = $name; BillableLast30d = $gb } }
     }
@@ -989,11 +1129,15 @@ Describe 'SAC-MON-05 reconciles with the dashboard total for data no detection r
     It 'says what it covers and gives the all-tables total the dashboard shows' {
         $read = [pscustomobject]@{ Enabled = $true; Tables = @('Read') }
         $f = Test-HighVolumeTableWithoutDetection -Inventory (& $script:monInv @(
-                (& $script:monRow 'Big' 40), (& $script:monRow 'Small' 3), (& $script:monRow 'SecurityIncident' 2), (& $script:monRow 'Read' 100), (& $script:monRow 'Idle' 0)) @($read))
+                (& $script:monRow 'Big' 40), (& $script:monRow 'Small' 3), (& $script:monRow 'SecurityIncident' 2), (& $script:monRow 'Read' 100),
+                        (& $script:monRow 'Idle' 0)) @(
+                    $read
+                ))
         $f.Detail.Count | Should -Be 1
         $f.Detail.TotalGb30d | Should -Be 40
         $f.Detail.AllTablesGb30d | Should -Be 45
-        $f.Evidence | Should -Match '^1 table of 5 GB a month or more ingests 40\.00 GB in the last 30 days with no enabled Sentinel rule or Defender custom detection reading it, of 45\.00 GB in every table no detection reads \(the rest is in smaller tables or Sentinel''s own operational tables\): Big 40\.00 GB\.$'
+        $f.Evidence |
+            Should -Match '^1 table of 5 GB a month or more ingests 40\.00 GB in the last 30 days with no enabled Sentinel rule or Defender custom detection reading it, of 45\.00 GB in every table no detection reads \(the rest is in smaller tables or Sentinel''s own operational tables\): Big 40\.00 GB\.$'
     }
 
     It 'leaves the all-tables clause out when the two totals are equal' {
@@ -1027,7 +1171,13 @@ Describe 'SAC-DET-12 counts the rules that fired as the dashboard does' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
-        $newRule = { param($id, $title, $kind = 'Scheduled', $enabled = $true) [pscustomobject]@{ name = $id; kind = $kind; properties = [pscustomobject]@{ displayName = $title; enabled = $enabled } } }
+        $newRule = {
+            param($id, $title, $kind = 'Scheduled', $enabled = $true) [pscustomobject]@{
+                name = $id
+                kind = $kind
+                properties = [pscustomobject]@{ displayName = $title; enabled = $enabled }
+            }
+        }
         $script:rules = @(
             (& $newRule 'aaaaaaaa-0000-0000-0000-000000000001' 'Fired by id')
             (& $newRule 'aaaaaaaa-0000-0000-0000-000000000002' 'Fired by braced upper-case id')
@@ -1041,7 +1191,11 @@ Describe 'SAC-DET-12 counts the rules that fired as the dashboard does' {
         $script:fired = @(
             [pscustomobject]@{ AlertRuleId = 'aaaaaaaa-0000-0000-0000-000000000001'; AlertName = 'Fired by id'; Alerts = 5 }
             [pscustomobject]@{ AlertRuleId = '{AAAAAAAA-0000-0000-0000-000000000002}'; AlertName = 'Renamed since'; Alerts = 2 }
-            [pscustomobject]@{ AlertRuleId = '/subscriptions/s/providers/Microsoft.SecurityInsights/alertRules/aaaaaaaa-0000-0000-0000-000000000003'; AlertName = 'Renamed too'; Alerts = 1 }
+            [pscustomobject]@{
+                AlertRuleId = '/subscriptions/s/providers/Microsoft.SecurityInsights/alertRules/aaaaaaaa-0000-0000-0000-000000000003'
+                AlertName = 'Renamed too'
+                Alerts = 1
+            }
             [pscustomobject]@{ AlertRuleId = ''; AlertName = 'Fired by name only'; Alerts = 3 }
         )
         $script:volumes = @(
@@ -1051,15 +1205,26 @@ Describe 'SAC-DET-12 counts the rules that fired as the dashboard does' {
     }
 
     It 'lists the enabled Scheduled and NRT rules no fired row matches, by id or by name' {
-        $inv = [pscustomobject]@{ RawFiles = @('rules-fired.json'); AlertRules = $script:rules; RulesFired = $script:fired; AnalyticsRuleVolumes = $script:volumes }
+        $inv = [pscustomobject]@{
+            RawFiles = @('rules-fired.json')
+            AlertRules = $script:rules
+            RulesFired = $script:fired
+            AnalyticsRuleVolumes = $script:volumes
+        }
         $f = Test-DeadAnalyticsRule -Inventory $inv
         $f.Detail.Count | Should -Be 2
         $f.Detail.Enabled | Should -Be 6
-        $f.Evidence | Should -Match '^2 of 6 enabled Scheduled/NRT rules produced zero alerts in the last 30 days: Dead rule; Shares a name with a Defender alert\.$'
+        $f.Evidence |
+            Should -Match '^2 of 6 enabled Scheduled/NRT rules produced zero alerts in the last 30 days: Dead rule; Shares a name with a Defender alert\.$'
     }
 
     It 'adds up with the rules that fired, the way the dashboard ring reads' {
-        $inv = [pscustomobject]@{ RawFiles = @('rules-fired.json'); AlertRules = $script:rules; RulesFired = $script:fired; AnalyticsRuleVolumes = $script:volumes }
+        $inv = [pscustomobject]@{
+            RawFiles = @('rules-fired.json')
+            AlertRules = $script:rules
+            RulesFired = $script:fired
+            AnalyticsRuleVolumes = $script:volumes
+        }
         $f = Test-DeadAnalyticsRule -Inventory $inv
         ($f.Detail.Enabled - $f.Detail.Count) | Should -Be 4
     }
@@ -1077,8 +1242,15 @@ Describe 'SAC-DET-12 counts the rules that fired as the dashboard does' {
     }
 
     It 'stays quiet when there is no alert signal at all' {
-        Test-DeadAnalyticsRule -Inventory ([pscustomobject]@{ RawFiles = @('rules-fired.json'); AlertRules = $script:rules; RulesFired = @(); AnalyticsRuleVolumes = @() }) | Should -BeNullOrEmpty
-        Test-DeadAnalyticsRule -Inventory ([pscustomobject]@{ RawFiles = @(); AlertRules = $script:rules; RulesFired = @(); AnalyticsRuleVolumes = @() }) | Should -BeNullOrEmpty
+        Test-DeadAnalyticsRule -Inventory ([pscustomobject]@{
+            RawFiles = @('rules-fired.json')
+            AlertRules = $script:rules
+            RulesFired = @()
+            AnalyticsRuleVolumes = @()
+        }) |
+            Should -BeNullOrEmpty
+        Test-DeadAnalyticsRule -Inventory ([pscustomobject]@{ RawFiles = @(); AlertRules = $script:rules; RulesFired = @(); AnalyticsRuleVolumes = @() }) |
+            Should -BeNullOrEmpty
     }
 
     It 'stays quiet when every enabled rule fired' {
@@ -1093,8 +1265,15 @@ Describe 'Gap evidence writes counts, GB, dates and plurals as the dashboard doe
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         $script:gapSourceRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Gap'
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
-        $customTable = { param($name) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'CustomLog' } } } }
-        $script:orphanInv = { param([string[]]$Names) [pscustomobject]@{ WorkspaceTables = @($Names | ForEach-Object { & $customTable $_ }); TablesWithData = @([pscustomobject]@{ DataType = 'Other' }) } }
+        $customTable = {
+            param($name) [pscustomobject]@{ name = $name; properties = [pscustomobject]@{ schema = [pscustomobject]@{ tableType = 'CustomLog' } } }
+        }
+        $script:orphanInv = {
+            param([string[]]$Names) [pscustomobject]@{
+                WorkspaceTables = @($Names | ForEach-Object { & $customTable $_ })
+                TablesWithData = @([pscustomobject]@{ DataType = 'Other' })
+            }
+        }
     }
 
     It 'never writes a plural as (s) in a finding on the sample fixture' {
@@ -1124,9 +1303,14 @@ Describe 'Gap evidence writes counts, GB, dates and plurals as the dashboard doe
 
     It 'chooses the singular or the plural by the count' {
         (Test-OrphanTables -Inventory (& $script:orphanInv @('One_CL'))).Evidence | Should -Match '^1 table has a schema but no data in the last 30 days\.$'
-        (Test-OrphanTables -Inventory (& $script:orphanInv @('One_CL', 'Two_CL', 'Three_CL'))).Evidence | Should -Match '^3 tables have a schema but no data in the last 30 days\.$'
+        (Test-OrphanTables -Inventory (& $script:orphanInv @('One_CL', 'Two_CL', 'Three_CL'))).Evidence |
+            Should -Match '^3 tables have a schema but no data in the last 30 days\.$'
         $provider = { param($name) [pscustomobject]@{ ProviderNamespace = $name; RegistrationState = 'NotRegistered' } }
-        (Test-ResourceProvidersRegistered -Inventory ([pscustomobject]@{ ResourceProviders = @(& $provider 'Microsoft.Insights') })).Evidence | Should -Be 'Resource provider not registered: Microsoft.Insights.'
-        (Test-ResourceProvidersRegistered -Inventory ([pscustomobject]@{ ResourceProviders = @((& $provider 'Microsoft.Insights'), (& $provider 'Microsoft.SecurityInsights')) })).Evidence | Should -Be 'Resource providers not registered: Microsoft.Insights, Microsoft.SecurityInsights.'
+        (Test-ResourceProvidersRegistered -Inventory ([pscustomobject]@{ ResourceProviders = @(& $provider 'Microsoft.Insights') })).Evidence |
+            Should -Be 'Resource provider not registered: Microsoft.Insights.'
+        (Test-ResourceProvidersRegistered -Inventory ([pscustomobject]@{
+            ResourceProviders = @((& $provider 'Microsoft.Insights'), (& $provider 'Microsoft.SecurityInsights'))
+        })).Evidence |
+            Should -Be 'Resource providers not registered: Microsoft.Insights, Microsoft.SecurityInsights.'
     }
 }

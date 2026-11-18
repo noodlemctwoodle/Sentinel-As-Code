@@ -26,8 +26,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -59,7 +59,8 @@ Describe 'Resolve-KqlTableNames' {
     }
 
     It 'takes every operand of a comma-separated union' {
-        Resolve-KqlTableNames -Query "union withsource=T SecurityEvent, WindowsEvent, Event`n| where EventID == 4688" | Should -Be @('Event', 'SecurityEvent', 'WindowsEvent')
+        Resolve-KqlTableNames -Query "union withsource=T SecurityEvent, WindowsEvent, Event`n| where EventID == 4688" |
+            Should -Be @('Event', 'SecurityEvent', 'WindowsEvent')
     }
 
     It 'adds the first token of each connector data type' {

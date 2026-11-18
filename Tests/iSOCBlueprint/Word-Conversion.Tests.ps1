@@ -24,7 +24,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -77,7 +77,8 @@ Describe 'Export-iSOCBlueprintWord when it cannot go on' {
         }
 
         It 'throws when the reference document is missing' {
-            { Export-iSOCBlueprintWord -Path $script:folder -ReferenceDoc (Join-Path $TestDrive 'missing.docx') } | Should -Throw '*Reference document not found*'
+            { Export-iSOCBlueprintWord -Path $script:folder -ReferenceDoc (Join-Path $TestDrive 'missing.docx') } |
+                Should -Throw '*Reference document not found*'
         }
 
         It 'stops with a warning, and writes nothing, when the folder holds no Markdown' {

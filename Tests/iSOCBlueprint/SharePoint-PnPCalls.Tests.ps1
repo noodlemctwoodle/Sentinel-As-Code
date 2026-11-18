@@ -48,7 +48,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.3.4
+    Version:      0.3.5
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+, PnP.PowerShell (pinned version)
 #>
@@ -57,7 +57,8 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Blueprint.yml')
     $script:pnpVersion = if ($pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') { $Matches['v'] } else { '' }
-    $script:pnpAvailable = [bool]($script:pnpVersion -and (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
+    $script:pnpAvailable = [bool]($script:pnpVersion -and
+        (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
     $script:inCi = [bool]($env:TF_BUILD -or $env:GITHUB_ACTIONS)
     $script:scriptFiles = @(
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
@@ -93,7 +94,8 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
             $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) | ForEach-Object { $_.Extent.Text }
         }
-        $script:defsModule = New-Module -Name SacCallCheck -ScriptBlock ([scriptblock]::Create(($definitions -join "`n`n") + "`nExport-ModuleMember -Function *")) |
+        $script:defsModule = New-Module -Name SacCallCheck -ScriptBlock ([scriptblock]::Create(($definitions -join "`n`n") +
+            "`nExport-ModuleMember -Function *")) |
             Import-Module -PassThru -Force
 
         $common = [System.Management.Automation.Cmdlet]::CommonParameters + [System.Management.Automation.Cmdlet]::OptionalCommonParameters
@@ -180,7 +182,8 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
     }
 
     It 'has the pinned PnP.PowerShell installed' {
-        $script:pnpReady | Should -BeTrue -Because "the PR validation job installs PnP.PowerShell $script:pinnedPnP (pnpVersion in Pipelines/Sentinel-Blueprint.yml)"
+        $script:pnpReady |
+            Should -BeTrue -Because "the PR validation job installs PnP.PowerShell $script:pinnedPnP (pnpVersion in Pipelines/Sentinel-Blueprint.yml)"
     }
 
     It 'every call in <Name> binds' -ForEach $script:scriptFiles {
@@ -205,9 +208,12 @@ Describe 'Commands the SharePoint workers call are defined by the module' -Skip:
         # module, so a command is available to them when any file under
         # Private or Public defines it.
         $script:defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $script:moduleRoot 'Private'), (Join-Path $script:moduleRoot 'Public') -Filter '*.ps1' -File -Recurse) {
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $script:moduleRoot 'Private'),
+                (Join-Path $script:moduleRoot 'Public') -Filter '*.ps1' -File -Recurse) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
-            foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) { [void]$script:defined.Add($d.Name) }
+            foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
+                [void]$script:defined.Add($d.Name)
+            }
         }
     }
 
@@ -229,7 +235,12 @@ Describe 'Commands the SharePoint workers call are defined by the module' -Skip:
                 if ($n -and -not $calls.ContainsKey($n)) { $calls[$n] = "$($f.Name):$($c.Extent.StartLineNumber)" }
             }
         }
-        $missing = @($calls.Keys | Where-Object { -not $script:defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) } | Sort-Object | ForEach-Object { "$_ ($($calls[$_]))" })
+        $missing = @(
+            $calls.Keys |
+                Where-Object { -not $script:defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) } |
+                Sort-Object |
+                ForEach-Object { "$_ ($($calls[$_]))" }
+        )
         $missing | Should -BeNullOrEmpty
     }
 }

@@ -29,7 +29,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.3.2
+    Version:      0.3.3
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -75,7 +75,18 @@ BeforeAll {
     }
     function New-GapCriterion {
         param([string]$Id, [string]$Rule, [double]$Weight = 1, [string]$Effort = 'Low', [string]$Area = 'ONE')
-        return @{ id = $Id; area = $Area; kind = 'practice'; name = $Id; weight = $Weight; effort = $Effort; impact = 'i'; guidance = 'g'; csf = @('DE.AE-02'); source = @{ kind = 'gapRule'; rule = $Rule } }
+        return @{
+            id = $Id
+            area = $Area
+            kind = 'practice'
+            name = $Id
+            weight = $Weight
+            effort = $Effort
+            impact = 'i'
+            guidance = 'g'
+            csf = @('DE.AE-02')
+            source = @{ kind = 'gapRule'; rule = $Rule }
+        }
     }
     function New-Outcome {
         param([string]$Id, [string]$Outcome)
@@ -252,7 +263,8 @@ Describe 'Maturity assessment over the sample fixture' {
         $dir = Join-Path $TestDrive 'nan-mtta-raw'
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
-        '[{ "ClosedCount": "0", "AcknowledgedCount": "0", "MTTAMinutes": "NaN", "MTTRMinutes": "NaN" }]' | Set-Content (Join-Path $dir 'incidents-mttr.json') -Encoding UTF8
+        '[{ "ClosedCount": "0", "AcknowledgedCount": "0", "MTTAMinutes": "NaN", "MTTRMinutes": "NaN" }]' |
+            Set-Content (Join-Path $dir 'incidents-mttr.json') -Encoding UTF8
         (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).mttaMinutes | Should -BeNullOrEmpty
         $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
         $c = $m.areas.criteria | Where-Object id -eq 'SAC-INC-03'
@@ -277,7 +289,9 @@ Describe 'Maturity assessment over the sample fixture' {
 Describe 'Maturity scoring with synthetic criteria' {
 
     It 'scores two Met of three equal criteria as 3.33, level 3' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08')) `
+        $m = Invoke-Synthetic -Criteria @(
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08')
+        ) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Passed'), (New-Outcome 'SAC-LOG-08' 'Fired'))
         $one = $m.areas | Where-Object id -eq 'ONE'
         $one.score | Should -Be 3.33
@@ -293,7 +307,10 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'leaves Errored, Undefined and missing outcomes out of the denominator' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08'), (New-GapCriterion 'SAC-ONE-04' 'SAC-COV-07')) `
+        $m = Invoke-Synthetic -Criteria @(
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08'),
+                (New-GapCriterion 'SAC-ONE-04' 'SAC-COV-07')
+        ) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Errored'), (New-Outcome 'SAC-LOG-08' 'Undefined'))
         $one = $m.areas | Where-Object id -eq 'ONE'
         $one.score | Should -Be 5
@@ -322,7 +339,9 @@ Describe 'Maturity scoring with synthetic criteria' {
     }
 
     It 'reports the areas below target with the gap to close' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-TWO-01' 'SAC-LOG-08' -Area 'TWO')) `
+        $m = Invoke-Synthetic -Criteria @(
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-TWO-01' 'SAC-LOG-08' -Area 'TWO')
+        ) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed')) -Target 4
         $m.targetMet | Should -BeFalse
         $m.areasBelowTarget.Count | Should -Be 1
@@ -346,7 +365,9 @@ Describe 'Maturity scoring with synthetic criteria' {
             (New-GapCriterion 'SAC-ONE-05' 'SAC-COV-05')
         )
         $ruleIds = @('SAC-LOG-03', 'SAC-LOG-07', 'SAC-LOG-08', 'SAC-COV-07', 'SAC-COV-05')
-        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..5 | ForEach-Object { New-Outcome $ruleIds[$_ - 1] $(if ($_ -eq 5) { 'Passed' } else { 'Fired' }) })
+        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(
+            1..5 | ForEach-Object { New-Outcome $ruleIds[$_ - 1] $(if ($_ -eq 5) { 'Passed' } else { 'Fired' }) }
+        )
         @($m.roadmap | ForEach-Object criterionId) | Should -Be @('SAC-ONE-01', 'SAC-ONE-03', 'SAC-ONE-04', 'SAC-ONE-02')
         $m.roadmap[0].areaLift | Should -Be 1.36
         $m.roadmap[-1].projectedScore | Should -Be 5
@@ -367,7 +388,9 @@ Describe 'Maturity scoring with synthetic criteria' {
             (& $mk 'SAC-ONE-05' 'anyOf' @('SAC-LOG-07', 'SAC-GOV-06')),   # Fired + missing  -> Unknown
             (& $mk 'SAC-ONE-06' 'anyOf' @('SAC-LOG-07', 'SAC-COV-07'))    # Fired + Fired    -> Gap
         )
-        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed'), (New-Outcome 'SAC-COV-07' 'Fired'))
+        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(
+            (New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed'), (New-Outcome 'SAC-COV-07' 'Fired')
+        )
         $by = @{}
         foreach ($c in ($m.areas | Where-Object id -eq 'ONE').criteria) { $by[$c.id] = $c.status }
         $by['SAC-ONE-01'] | Should -Be 'Gap'
@@ -477,7 +500,11 @@ Describe 'Get-FindingMaturityLink' {
     It 'maps every gap rule a criterion reads, through allOf and anyOf' {
         $criteria = (Get-Content $script:criteriaPath -Raw | ConvertFrom-Json -Depth 16).criteria
         $expected = [System.Collections.Generic.HashSet[string]]::new()
-        $walk = { param($s) if ($s.kind -eq 'gapRule') { [void]$expected.Add($s.rule) } elseif ($s.kind -in 'allOf', 'anyOf') { foreach ($x in $s.sources) { & $walk $x } } }
+        $walk = {
+            param($s) if ($s.kind -eq 'gapRule') {
+                [void]$expected.Add($s.rule)
+            } elseif ($s.kind -in 'allOf', 'anyOf') { foreach ($x in $s.sources) { & $walk $x } }
+        }
         foreach ($c in $criteria) { & $walk $c.source }
         @($script:links.Keys | Sort-Object) | Should -Be @($expected | Sort-Object)
     }
@@ -552,6 +579,7 @@ Describe 'Maturity evidence text' {
         $doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
         ($doc.criteria | Where-Object id -eq 'SAC-DET-01').evidence.met = '{metric} enabled rule(s).'
         $metricNames = @((New-MaturityMetrics -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
-        { Test-MaturityCriteriaDocument -Document $doc -MetricNames $metricNames } | Should -Throw -ExpectedMessage '*SAC-DET-01 evidence writes a plural as (s)*'
+        { Test-MaturityCriteriaDocument -Document $doc -MetricNames $metricNames } |
+            Should -Throw -ExpectedMessage '*SAC-DET-01 evidence writes a plural as (s)*'
     }
 }

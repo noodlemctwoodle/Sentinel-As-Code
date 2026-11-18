@@ -21,7 +21,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-16
     Requires:     PowerShell 7.6+, Pester 5+
 #>
@@ -31,7 +31,10 @@ BeforeAll {
     Import-Module (Join-Path $repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join "`n"
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
     . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
@@ -86,12 +89,14 @@ Describe 'The collector counts the daily series' {
             $m.Groups[1].Value | Should -Match 'ago\(daily\)' -Because $name
             $m.Groups[1].Value | Should -Match 'DaysAgo = toint\(\(now\(\) - TimeGenerated\) / 1d\)' -Because $name
             $m.Groups[1].Value | Should -Not -Match 'ago\(lookback\)|ago\(\d+d\)' -Because $name
-            $m.Groups[1].Value | Should -Match "Skip-Capture -FileName '$name\.json' -ErrorRecord \`$_" -Because "$name writes an empty file, and says why, when the query fails"
+            $m.Groups[1].Value |
+                Should -Match "Skip-Capture -FileName '$name\.json' -ErrorRecord \`$_" -Because "$name writes an empty file, and says why, when the query fails"
         }
     }
 
     It 'counts each alert once, on the day it was first seen' {
-        $script:collector | Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName, AlertRuleId\) by SystemAlertId'
+        $script:collector |
+            Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName, AlertRuleId\) by SystemAlertId'
     }
 
     It 'counts playbook runs per day ago within the daily span' {
@@ -206,7 +211,10 @@ Describe 'The build carries the daily series' {
         $m.estate.rulesFired | Should -Be 1
         $m.estate.rings.alerts.max | Should -Be 1
         $m.estate.rings.alerts.pct | Should -Be 100
-        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse | Sort-Object FullName | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
         $renderer | Should -Match 'RulesFired\s+= \$firedEnabled'
     }
 }
@@ -234,12 +242,16 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
 
     It 'rebuilds the model before anything renders, for any days within the span' {
         $script:html | Should -Match 'function applyWindow\(M, D, N, R, S\)'
-        $script:html.Contains('const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ const k=+e[0]-S; if(k>=0 && k<n) s+=(+e[i]||0); }); return s; };') | Should -BeTrue
-        $script:html.Contains('if(want>=1 && (n!==WIN.collected || ago>0)){ WIN.days=n; WIN.ago=ago; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago); }') | Should -BeTrue
+        $script:html.Contains('const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ const k=+e[0]-S; if(k>=0 && k<n) s+=(+e[i]||0); }); return s; };') |
+            Should -BeTrue
+        $script:html.Contains('if(want>=1 && (n!==WIN.collected || ago>0)){ WIN.days=n; WIN.ago=ago; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago); }') |
+            Should -BeTrue
         $script:html.IndexOf('applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago)') | Should -BeLessThan $script:html.IndexOf('// ---- glance stat tiles ----')
         # Cost and the flow only when the estimate priced every table.
         $script:html | Should -Match 'if\(M\.cost && D\.costed\)\{'
-        foreach ($field in 'M\.flow=\{nodes, links\}', 'M\.flowTables=', 'E\.sources=', 'E\.productAlerts=', 'M\.topRules=', 'M\.health=\{', 'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=', 'L\.mttrMinutes=', 'M\.usageDaily=') {
+        foreach ($field in 'M\.flow=\{nodes, links\}', 'M\.flowTables=', 'E\.sources=', 'E\.productAlerts=', 'M\.topRules=', 'M\.health=\{',
+                'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=',
+                        'L\.mttrMinutes=', 'M\.usageDaily=') {
             $script:html | Should -Match $field
         }
         # Sentences name the window: the last N days, or the N days to a date.
