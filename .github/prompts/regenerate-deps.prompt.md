@@ -30,11 +30,15 @@ from current content, then validate and explain the result.
 2. **Verify against the now-on-disk file:**
 
    ```powershell
-   Import-Module ./Modules/iSOCDeployments; Test-iSOCDependencyManifest
+   Import-Module ./Modules/iSOCDeployments
+   $result = Test-iSOCDependencyManifest
+   $result.HasDrift
    ```
 
-   Should exit 0. If it exits 1, that's a script bug — report
-   diff lines and stop.
+   `Test-iSOCDependencyManifest` does not set an exit code; it returns a
+   result. `HasDrift` should be `$false` and `Exists` `$true`. If
+   `HasDrift` is `$true`, that's a bug in discovery or in the
+   regeneration - report `$result.Diff` and stop.
 
 3. **Run the cross-reference tests:**
 
