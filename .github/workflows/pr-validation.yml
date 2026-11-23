@@ -184,12 +184,21 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Ensure Bicep CLI is available
+      # Use the Bicep CLI already on the runner. When the runner has none,
+      # install it with the Azure CLI and put it on the PATH. az bicep
+      # install does nothing when bicep is already on the PATH, so the
+      # CLI's own folder cannot be assumed to exist.
+      - name: Put the Bicep CLI on the PATH
         shell: bash
         run: |
-          # The runner has az pre-installed; ensure the Bicep extension is current.
-          az bicep install
-          az bicep version
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
 
       - name: Build every .bicep file
         shell: bash
@@ -198,11 +207,11 @@ jobs:
           shopt -s globstar nullglob
 
           failed=0
-          # The playbooks in one run of the CLI az bicep install put in
-          # ~/.azure/bin: starting it costs more than building a playbook.
+          # The playbooks in one run of the standalone CLI: starting it costs
+          # more than building a playbook.
           out_dir="$(mktemp -d)"
           echo "::group::bicep build Content/Playbooks/**/*.bicep"
-          if ! output=$("$HOME/.azure/bin/bicep" build --pattern "$PWD/Content/Playbooks/**/*.bicep" --outdir "$out_dir" 2>&1); then
+          if ! output=$(bicep build --pattern "$PWD/Content/Playbooks/**/*.bicep" --outdir "$out_dir" 2>&1); then
               echo "$output"
               echo "::error::One or more playbooks failed to build."
               failed=1
@@ -539,27 +548,28 @@ jobs:
   # ---------------------------------------------------------------------------
   # C4: Dependency manifest drift gate
   # ---------------------------------------------------------------------------
-  # Runs Tools/Build-DependencyManifest.ps1 -Mode Verify, which walks every
-  # Content/AnalyticalRules/**.yaml + Content/HuntingQueries/**.yaml, runs the discovery
-  # extractors from Modules/Sentinel.Common, and compares the discovered
+  # Runs Test-iSOCDependencyManifest (Modules/iSOCDeployments), which walks
+  # every Content/AnalyticalRules/**.yaml + Content/HuntingQueries/**.yaml,
+  # runs the module's discovery extractors, and compares the discovered
   # manifest against the on-disk dependencies.json. Any drift fails the gate.
   #
-  # Why this matters: dependencies.json is the input to Deploy-CustomContent.ps1's
+  # Why this matters: dependencies.json is the input to Deploy-iSOCContent's
   # internal-dependency ordering. A rule whose manifest entry is stale or
   # missing will deploy with an incorrect dependency graph, which can cause
   # the deploy to attempt to create a rule before its parser, watchlist, or
   # external function exists in the workspace.
   #
-  # Authors fix drift by running the script locally and committing the
+  # Authors fix drift by running the command locally and committing the
   # regenerated manifest:
   #
-  #   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+  #   Import-Module ./Modules/iSOCDeployments
+  #   Update-iSOCDependencyManifest
   #   git add dependencies.json && git commit
   #
   # Or by waiting for the daily Update workflow (see
   # sentinel-dependency-update.yml) to open an auto-PR.
   #
-  # Offline — no Azure auth needed; the script reads YAML/JSON only.
+  # Offline - no Azure auth needed; the command reads YAML/JSON only.
   dependency-manifest:
     name: dependency-manifest
     runs-on: ubuntu-latest
@@ -580,9 +590,10 @@ jobs:
       - name: Verify dependency manifest matches discovery
         shell: pwsh
         run: |
-          ./Tools/Build-DependencyManifest.ps1 -Mode Verify
-          if ($LASTEXITCODE -ne 0) {
+          Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1 -Force
+          $result = Test-iSOCDependencyManifest -RepoPath $PWD.Path
+          if (-not $result.Exists -or $result.HasDrift) {
               Write-Host '##[error]dependencies.json is out of sync with content.'
-              Write-Host '##[error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
+              Write-Host '##[error]Fix: run Update-iSOCDependencyManifest locally and commit the result.'
               exit 1
           }
