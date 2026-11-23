@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-WhatsNewSlug
+    The anchor Microsoft Learn gives a heading.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/WhatsNew/Helpers/ConvertTo-WhatsNewSlug.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, What's new reading
     Requires:     PowerShell 7.6+
@@ -26,6 +26,12 @@ function ConvertTo-WhatsNewSlug {
     .SYNOPSIS
         The anchor Microsoft Learn gives a heading: lower case, anything but
         letters, digits, spaces and hyphens dropped, each space a hyphen.
+
+    .PARAMETER Text
+        The heading text.
+
+    .OUTPUTS
+        [string]
     #>
     [CmdletBinding()]
     [OutputType([string])]

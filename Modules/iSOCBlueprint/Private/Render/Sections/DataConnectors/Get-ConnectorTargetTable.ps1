@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,9 +24,25 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-ConnectorTargetTable {
-    # Map (Kind, dataType) -> Log Analytics table the connector writes to.
-    # Returns $null when no known mapping exists; the renderer then leaves the
-    # activity columns blank for that data type rather than guessing wrong.
+    <#
+    .SYNOPSIS
+        Name the table a connector kind and data type writes to.
+
+    .DESCRIPTION
+        Maps (Kind, dataType) to the Log Analytics table the connector writes to.
+        Returns $null when no known mapping exists; the renderer then leaves the
+        activity columns blank for that data type rather than guessing wrong.
+
+    .PARAMETER Kind
+        The connector kind.
+
+    .PARAMETER DataType
+        The data type name, matched without regard to case.
+
+    .OUTPUTS
+        [string], or $null.
+    #>
+    [CmdletBinding()]
     param([string]$Kind, [string]$DataType)
     $dt = if ($DataType) { $DataType.ToLowerInvariant() } else { '' }
     switch ("$Kind/$dt") {

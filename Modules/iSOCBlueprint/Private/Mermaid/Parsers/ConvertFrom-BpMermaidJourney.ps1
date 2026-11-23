@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidJourney
+    Parse the body of a Mermaid user journey into sections of scored tasks.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidJourney.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,24 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidJourney {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid user journey into sections of scored
+        tasks.
+
+    .DESCRIPTION
+        A task line is a label, a colon, a whole-number score and, after a
+        second colon, comma-separated actors. A task before any section line
+        goes in a section with a $null name.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .OUTPUTS
+        [ordered] kind ('journey'), the chart's title and data: sections
+        (name and tasks, each with label, score and actors).
+    #>
+    [CmdletBinding()]
     param([string[]] $Body)
     $title = $null
     $sections = [System.Collections.Generic.List[object]]::new()

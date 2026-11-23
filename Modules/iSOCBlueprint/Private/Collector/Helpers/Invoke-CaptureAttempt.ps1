@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
@@ -22,6 +22,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Invoke-CaptureAttempt {
+    <#
+    .SYNOPSIS
+        Run one capture, recording a failure instead of stopping the run.
+
+    .DESCRIPTION
+        Writes the label as an information message and runs the action. When
+        the action throws, the error is classified, written as a note in the
+        outcome's colour, and added to the script-scope CaptureErrors list for
+        the summary at the end. Nothing is rethrown.
+
+    .PARAMETER Label
+        The capture's name, shown in the progress line and the summary.
+
+    .PARAMETER Action
+        The script block that performs the capture.
+    #>
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string]$Label,
         [Parameter(Mandatory)] [scriptblock]$Action

@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -24,8 +24,25 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# A KQL dynamic bag (ByClassification) as an ordered name -> count map.
 function Get-BuildBag {
+    <#
+    .SYNOPSIS
+        A KQL dynamic bag as an ordered name to number map.
+
+    .DESCRIPTION
+        The bag, such as ByClassification, may arrive as an object or as JSON
+        text. Each of its properties becomes an entry whose value is the
+        property parsed as a [long] through ConvertTo-BuildNumber. A null value,
+        blank text, text that is not valid JSON and a JSON null all give an
+        empty map.
+
+    .PARAMETER Value
+        The bag: an object, or JSON text of one.
+
+    .OUTPUTS
+        [ordered] A dictionary of name to [long].
+    #>
+    [CmdletBinding()]
     param($Value)
     $bag = [ordered]@{}
     if ($null -eq $Value) { return $bag }

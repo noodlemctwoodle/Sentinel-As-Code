@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -27,8 +27,20 @@
 function Read-SiteRaw {
     <#
     .SYNOPSIS
-        Read one _raw/<name> JSON file into an object, or $null if absent,
-        empty or unparseable.
+        Read one _raw JSON file as an object, or $null when it is absent, empty
+        or unparseable.
+
+    .DESCRIPTION
+        The file is read from the raw folder held in $script:RawRoot. A file
+        that does not parse also writes a warning through Write-SiteLog. A
+        run-context.json from before the Documenter was renamed Blueprint has
+        its DocumenterVersion also exposed as BlueprintVersion.
+
+    .PARAMETER Name
+        The file name within the raw folder, such as run-context.json.
+
+    .OUTPUTS
+        The parsed object, or $null.
     #>
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string] $Name)

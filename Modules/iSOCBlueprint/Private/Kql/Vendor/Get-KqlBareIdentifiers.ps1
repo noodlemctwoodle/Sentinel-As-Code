@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Extract bare identifiers that look like table or function references in a KQL query — anything...
+    Extract bare identifiers that look like table or function references in a KQL query.
 
 .DESCRIPTION
     Copied unchanged from Modules/Sentinel.Common/Sentinel.Common.psm1, which retired in release
@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -25,27 +25,30 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-KqlBareIdentifiers {
-<#
-.SYNOPSIS
-    Extract bare identifiers that look like table or function references
-    in a KQL query — anything that appears at a position where a data
-    source is expected (start of a query, after `union`, after `let X =`,
-    after `from`, after `|` followed by a data-producing operator like
-    `union`, `lookup`, `mv-apply`).
+    <#
+    .SYNOPSIS
+        Extract bare identifiers that look like table or function references
+        in a KQL query: anything that appears at a position where a data
+        source is expected (start of a query, after `union`, after `let X =`,
+        after `from`, after `|` followed by a data-producing operator like
+        `union`, `lookup`, `mv-apply`).
 
-.DESCRIPTION
-    Heuristic regex-based extraction. Caller classifies each identifier
-    as table-vs-function via the known-functions / known-tables lookups.
+    .DESCRIPTION
+        Heuristic regex-based extraction. Caller classifies each identifier
+        as table-vs-function via the known-functions / known-tables lookups.
 
-    Exclusions baked in: KQL keywords, known operators, single-character
-    names (almost certainly let-variable references), let-bound locals,
-    lambda parameters, and any identifier appearing inside a string
-    literal (e.g. "POP" / "SMTP" in dynamic([...]) blocks must NOT be
-    confused with table references).
+        Exclusions baked in: KQL keywords, known operators, single-character
+        names (almost certainly let-variable references), let-bound locals,
+        lambda parameters, and any identifier appearing inside a string
+        literal (e.g. "POP" / "SMTP" in dynamic([...]) blocks must NOT be
+        confused with table references).
 
-.OUTPUTS
-    String[] of distinct candidate identifiers.
-#>
+    .PARAMETER Query
+        The KQL query text. A blank query gives an empty array.
+
+    .OUTPUTS
+        String[] of distinct candidate identifiers.
+    #>
     [CmdletBinding()]
     [OutputType([string[]])]
     param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Query)

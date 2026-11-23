@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    New-InventoryFromRaw, a helper of Get-SentinelGap.
+    Build the inventory the gap checks read from a run's raw JSON files
 
 .DESCRIPTION
     One of the helpers beside Get-SentinelGap.ps1, which describes the whole.
@@ -13,7 +13,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -24,6 +24,35 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function New-InventoryFromRaw {
+    <#
+    .SYNOPSIS
+        Build the inventory the gap checks read, from a run's raw JSON files and
+        the reference data.
+
+    .DESCRIPTION
+        Each property holds the parsed content of one JSON file under
+        InputRoot, or of a reference file under ResourcesRoot. The properties
+        read with Read-JsonArray are always arrays, empty for a missing or empty
+        file; the others hold the parsed JSON, wrapped in an array for most, and
+        Read-Json gives $null for a missing or empty file. RawFiles lists the
+        JSON files that exist, so a check can tell a capture that did not run
+        from one that found nothing. Window holds Days (the look-back),
+        RecentDays and AsOfUtc (the run's start time), read from
+        run-context.json. Days defaults to 30, RecentDays to 7 or to Days when
+        that is smaller, and AsOfUtc to the current time. ConnectorCatalogue
+        comes from Import-ConnectorCatalogue.
+
+    .PARAMETER InputRoot
+        The folder holding the run's raw JSON files (the _raw folder).
+
+    .PARAMETER ResourcesRoot
+        The folder holding the reference data files: mitre-attack.json,
+        sentinel-benefit-tables.json, commitment-tiers.json and
+        connector-catalogue.json.
+
+    .OUTPUTS
+        [pscustomobject] The inventory.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

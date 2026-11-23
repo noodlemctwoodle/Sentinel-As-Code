@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -40,6 +40,7 @@ function Split-BpLongTable {
     .OUTPUTS
         [string] The Markdown, with long tables cut.
     #>
+    [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)] [AllowEmptyString()] [string] $Markdown)
 

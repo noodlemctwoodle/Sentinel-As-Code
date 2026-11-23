@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Get-WhatsNewDeadline
+    The latest date a retirement or call to action names.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/WhatsNew/Helpers/Get-WhatsNewDeadline.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, What's new reading
     Requires:     PowerShell 7.6+
@@ -27,6 +27,13 @@ function Get-WhatsNewDeadline {
         The date a retirement or call to action names, as yyyy-MM-dd, or
         yyyy-MM when it names only a month; the latest when it names more
         than one. $null when it names none.
+
+    .PARAMETER Text
+        The text to search for dates written as a month and year, or a month,
+        day and year.
+
+    .OUTPUTS
+        [string]
     #>
     [CmdletBinding()]
     [OutputType([string])]

@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,13 +23,30 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# A page's reference links all sit at its foot, so a reader knows where to
-# look. A paragraph or list that holds only external links (the Microsoft
-# Learn pointers under a section, a finding's "Reference:", "See A and B.")
-# moves out of the page into one References list at the end, each link
-# once, in the order the page first gives it. A finding's reference names
-# the finding. Links inside a sentence or a table stay where they are.
-function Move-BlueprintReferenceLinks([string]$Markdown) {
+function Move-BlueprintReferenceLinks {
+    <#
+    .SYNOPSIS
+        Move a page's reference links to its foot.
+
+    .DESCRIPTION
+        A page's reference links all sit at its foot, so a reader knows where to
+        look. A block of text outside a code fence that holds nothing but links to
+        http or https pages (alone, in a bullet list, or led by words such as "See
+        also" or "References") is removed from where it stands. The links are
+        gathered into a "## References" list at the foot, one entry per distinct URL
+        in the order the page first gives it; an entry that came from under a
+        finding heading is prefixed with the finding id. Links inside a sentence or
+        a table stay where they are, as do blocks that start as a table, block quote
+        or HTML. The page is returned unchanged when no block qualifies.
+
+    .PARAMETER Markdown
+        The page Markdown.
+
+    .OUTPUTS
+        [string] of Markdown.
+    #>
+    [CmdletBinding()]
+    param([string]$Markdown)
     $nl = [Environment]::NewLine
     $linkRx = '\[((?:[^\[\]]|\[[^\]]*\])+)\]\((https?://[^)\s]+)\)'
     $isLinksOnly = {
@@ -60,7 +77,9 @@ function Move-BlueprintReferenceLinks([string]$Markdown) {
         $block = $lines[$i..($j - 1)]
         $links = $null
         if ($block[0] -notmatch '^\s*[|>]|^\s*<') {
-            $items = if (@($block | Where-Object { $_ -notmatch '^\s*[-*]\s' }).Count -eq 0) { @($block | ForEach-Object { $_ -replace '^\s*[-*]\s+', '' }) } else { @($block -join ' ') }
+            $items = if (@($block | Where-Object { $_ -notmatch '^\s*[-*]\s' }).Count -eq 0) {
+                @($block | ForEach-Object { $_ -replace '^\s*[-*]\s+', '' })
+            } else { @($block -join ' ') }
             $all = [System.Collections.Generic.List[object]]::new()
             foreach ($it in $items) { $got = & $isLinksOnly $it; if ($null -eq $got) { $all = $null; break }; $all.AddRange([object[]]$got) }
             $links = $all

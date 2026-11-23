@@ -24,34 +24,13 @@
 
     Read-only by design: only GET requests. The collector should never mutate the tenant.
 
-.PARAMETER Path
-    The resource path or full URL to call. If a path is given (starting with /) the
-    Invoke-AzRestMethod default ARM endpoint is used. If a fully qualified URL is given
-    it is passed through (e.g. an ARM paginator nextLink).
-
-.PARAMETER ApiVersion
-    The api-version to embed in the query string when not already present.
-
-.PARAMETER ThrowOn404
-    Treat 404 as a hard error rather than the empty-collection signal.
-
-.PARAMETER MaxAttempts
-    Maximum retry attempts (default 5). Each retry waits 2^(attempt-1) seconds plus jitter.
-
-.OUTPUTS
-    [PSCustomObject[]], the flattened 'value' collection, or for endpoints that return a
-    single object, the object itself wrapped in a single-element array.
-
-.EXAMPLE
-    Invoke-SentinelRest -Path '/subscriptions/.../providers/Microsoft.SecurityInsights/dataConnectorDefinitions' -ApiVersion '2024-09-01'
-
 .NOTES
     File:           Modules/iSOCBlueprint/Private/Azure/Invoke-SentinelRest.ps1
     Repository:     Sentinel-As-Code
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.3
+    Version:        0.1.4
     Last Updated:   2026-11-23
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.6+, Az.Accounts
@@ -83,6 +62,51 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Invoke-SentinelRest {
+    <#
+    .SYNOPSIS
+        Call a Sentinel or Azure Resource Manager REST path with GET, following
+        nextLink pages and retrying throttled calls.
+
+    .DESCRIPTION
+        Only GET requests are made. The api-version is added to the query string
+        when the path has none and ApiVersion is given. An absolute URL on an
+        ARM management host (public, US Government, China or Germany clouds) has
+        its host removed and goes through Invoke-AzRestMethod with the active Az
+        context; any other absolute URL is fetched anonymously with
+        Invoke-RestMethod. A 404 returns an empty array unless ThrowOn404 is
+        set, and any other status of 400 or above is an error. An error whose
+        message mentions 429, 503, 504, 408, TooManyRequests or a timeout is
+        retried with exponential backoff and jitter, up to MaxAttempts. The
+        value array of each page is added to the result and nextLink is
+        followed; a response with no value property is added as it is.
+
+    .PARAMETER Path
+        The resource path or full URL to call. If a path is given (starting with
+        /) the Invoke-AzRestMethod default ARM endpoint is used. If a fully
+        qualified URL is given it is passed through (e.g. an ARM paginator
+        nextLink).
+
+    .PARAMETER ApiVersion
+        The api-version to embed in the query string when not already present.
+
+    .PARAMETER ThrowOn404
+        Treat 404 as a hard error rather than the empty-collection signal.
+
+    .PARAMETER MaxAttempts
+        Maximum attempts per request (default 5, from 1 to 10). After a failed
+        attempt the wait before the next is 2^(attempt-1) seconds plus up to a
+        second of jitter.
+
+    .OUTPUTS
+        [PSCustomObject[]], the flattened 'value' collection, or for endpoints
+        that return a single object, the object itself wrapped in a
+        single-element array.
+
+    .EXAMPLE
+        Invoke-SentinelRest `
+            -Path '/subscriptions/.../providers/Microsoft.SecurityInsights/dataConnectorDefinitions' `
+            -ApiVersion '2024-09-01'
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, Position = 0)]

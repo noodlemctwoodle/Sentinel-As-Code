@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-DET-14, Analytics rule runs are failing (SentinelHealth, last 7 days)
 # ------------------------------------------------------------
 function Test-AnalyticsRuleRunFailures {
+    <#
+    .SYNOPSIS
+        Gap check SAC-DET-14: Analytics rule runs are failing (SentinelHealth, last 7 days)
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (@($Inventory.RuleHealth).Count -eq 0) { return $null }
     $failing = @($Inventory.RuleHealth | Where-Object {

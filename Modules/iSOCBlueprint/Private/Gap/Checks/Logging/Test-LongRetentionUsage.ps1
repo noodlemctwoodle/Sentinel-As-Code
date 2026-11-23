@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-LOG-21, Long-term retention with no usage evidence
 # ------------------------------------------------------------
 function Test-LongRetentionUsage {
+    <#
+    .SYNOPSIS
+        Gap check SAC-LOG-21: Long-term retention with no usage evidence
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     # Audited queries are one of the four signals; without them every table
     # would look unused, so the check needs that capture and the rule map.

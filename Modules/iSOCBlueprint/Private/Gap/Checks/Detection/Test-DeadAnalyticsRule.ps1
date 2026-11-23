@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-DET-12, Enabled rule with zero alerts in the lookback
 # ------------------------------------------------------------
 function Test-DeadAnalyticsRule {
+    <#
+    .SYNOPSIS
+        Gap check SAC-DET-12: Enabled rule with zero alerts in the lookback
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $rules = @(Get-GapEnabledQueryRule $Inventory)
     if ($rules.Count -eq 0) { return $null }

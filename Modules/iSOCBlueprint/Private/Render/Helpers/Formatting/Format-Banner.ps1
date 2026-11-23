@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,6 +24,22 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-Banner {
+    <#
+    .SYNOPSIS
+        Write the title, workspace line and generated stamp that open a page.
+
+    .DESCRIPTION
+        The workspace name comes from $script:WorkspaceName. The generated time
+        (UTC, through Format-DateUtc) and the Blueprint version come from
+        run-context.json; the time is blank when that file is not in the snapshot.
+
+    .PARAMETER Title
+        The page title, written as the level-one heading.
+
+    .OUTPUTS
+        [string] of Markdown: the heading, then a block quote line.
+    #>
+    [CmdletBinding()]
     param([string]$Title)
     $run = Read-BlueprintRaw 'run-context.json'
     $started = if ($run) { Format-DateUtc $run.StartedAtUtc } else { '' }

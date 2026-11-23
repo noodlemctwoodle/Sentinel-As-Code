@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,8 +24,24 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-BlueprintEstateFamilyTable {
-    # One row per source family: tables, GB, how many of those tables a
-    # detection reads, and the first-party alerts raised beside the family.
+    <#
+    .SYNOPSIS
+        Render the estate model as a table of source families.
+
+    .DESCRIPTION
+        One row per source family: tables, GB, how many of those tables a detection
+        reads, and the first-party alerts raised beside the family. A family that
+        has first-party alerts but no table of its own still gets a row. The table
+        is followed by a line giving the Defender XDR custom detections, or saying
+        they were not captured.
+
+    .PARAMETER Estate
+        The estate model from New-BlueprintEstateModel.
+
+    .OUTPUTS
+        [string] of Markdown.
+    #>
+    [CmdletBinding()]
     param($Estate)
     $alertsByFamily = @{}
     foreach ($p in @($Estate.ProductAlerts)) {

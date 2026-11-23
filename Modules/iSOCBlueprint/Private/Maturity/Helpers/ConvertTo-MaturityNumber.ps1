@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
@@ -24,8 +24,18 @@
 function ConvertTo-MaturityNumber {
     <#
     .SYNOPSIS
-        Parse a number that may arrive as a string (KQL cells) or a typed
-        value (fixtures). Returns 0 when it cannot be parsed.
+        Parse a number that may arrive as a string (KQL cells) or a typed value
+        (fixtures).
+
+    .DESCRIPTION
+        Null and a value that cannot be parsed give 0.0. A boolean gives 1.0 for
+        true and 0.0 for false. Text is parsed with the invariant culture.
+
+    .PARAMETER Value
+        The number, or the text or boolean to convert.
+
+    .OUTPUTS
+        [double] The number.
     #>
     [CmdletBinding()]
     param([Parameter(Mandatory = $false)] [AllowNull()] $Value)

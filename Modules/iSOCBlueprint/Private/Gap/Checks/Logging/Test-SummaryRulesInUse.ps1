@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-LOG-19, Summary rules not in use while high-volume tables are ingested
 # ------------------------------------------------------------
 function Test-SummaryRulesInUse {
+    <#
+    .SYNOPSIS
+        Gap check SAC-LOG-19: Summary rules not in use while high-volume tables are ingested
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'summary-rules.json') { return $null }
     if (@($Inventory.SummaryRules | Where-Object { $null -ne $_ }).Count -gt 0) { return $null }

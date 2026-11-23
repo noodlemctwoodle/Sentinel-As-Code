@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-TI-02, Enabled rule queries the retired ThreatIntelligenceIndicator table
 # ------------------------------------------------------------
 function Test-RulesOnLegacyThreatIntelTable {
+    <#
+    .SYNOPSIS
+        Gap check SAC-TI-02: Enabled rule queries the retired ThreatIntelligenceIndicator table
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (@($Inventory.RuleTableReferences).Count -eq 0) { return $null }
     $hits = @($Inventory.RuleTableReferences | Where-Object {

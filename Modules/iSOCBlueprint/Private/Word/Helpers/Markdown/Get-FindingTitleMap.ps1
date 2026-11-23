@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -27,10 +27,21 @@
 function Get-FindingTitleMap {
     <#
     .SYNOPSIS
-        Build a map of finding ID -> canonical title from gap-analysis
-        headings like '### [SAC-PLT-02](#sac-plt-02) - Custom log table ...',
-        so the dense overview bullets can be split into title + body
-        without guessing at internal dashes.
+        Build a map of finding ID to canonical title from gap-analysis headings,
+        so the dense overview bullets can be split into title and body.
+
+    .DESCRIPTION
+        The headings are shaped like '### [SAC-PLT-02](#sac-plt-02) - Custom log
+        table ...'. Reading the titles from the headings means the bullets need
+        not be split by guessing at internal dashes. When an ID has more than
+        one heading, the first one found wins.
+
+    .PARAMETER Texts
+        The Markdown texts of the files to search for headings. Empty texts are
+        skipped.
+
+    .OUTPUTS
+        [hashtable] Finding ID to title.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]

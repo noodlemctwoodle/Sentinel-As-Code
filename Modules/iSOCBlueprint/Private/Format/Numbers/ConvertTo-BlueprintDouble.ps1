@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-BlueprintDouble
+    Convert a number or numeric string to a double, or $null when it is neither
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Format/Numbers/ConvertTo-BlueprintDouble.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Blueprint text formatting
     Requires:     PowerShell 7.6+
@@ -24,8 +24,19 @@
 function ConvertTo-BlueprintDouble {
     <#
     .SYNOPSIS
-        A number from a number or a numeric string (invariant culture), or
-        $null when it is neither.
+        Convert a number or numeric string to a double, or $null when it is
+        neither.
+
+    .DESCRIPTION
+        A double, int, long, decimal or single is returned as a double. Any
+        other value is trimmed as a string and parsed with the invariant
+        culture; an empty or unparseable string gives $null.
+
+    .PARAMETER Value
+        The number or numeric string. $null gives $null.
+
+    .OUTPUTS
+        [double] The number, or $null.
     #>
     [CmdletBinding()]
     param([AllowNull()] $Value)

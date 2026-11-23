@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidState
+    Parse the body of a Mermaid state diagram into its states, transitions and notes.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidState.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,26 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidState {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid state diagram into its states,
+        transitions and notes.
+
+    .DESCRIPTION
+        A "state Name {" line opens a composite state; states, transitions
+        and notes until the matching "}" have it as their parent. A note
+        without text on its line runs to an "end note" line. The [*] marker
+        is not added as a state.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .OUTPUTS
+        [ordered] kind ('state'), title ($null) and data: states (id, label
+        and parent), transitions (from, to, parent and label) and notes
+        (state, position and text).
+    #>
+    [CmdletBinding()]
     param([string[]] $Body)
     $transitions = [System.Collections.Generic.List[object]]::new()
     $notes = [System.Collections.Generic.List[object]]::new()
@@ -37,11 +57,18 @@ function ConvertFrom-BpMermaidState {
         if (-not $t) { continue }
         $parent = if ($parents.Count) { $parents[$parents.Count - 1] } else { $null }
         if ($t -match '^note\s+(?<pos>right|left)\s+of\s+(?<state>[^:]+?)(?:\s*:\s*(?<text>.*))?$') {
-            $n = [ordered]@{ state = $Matches['state'].Trim(); position = $Matches['pos']; text = $(if ($Matches['text']) { ConvertTo-BpMermaidText $Matches['text'] } else { '' }) }
+            $n = [ordered]@{
+                state = $Matches['state'].Trim()
+                position = $Matches['pos']
+                text = $(if ($Matches['text']) { ConvertTo-BpMermaidText $Matches['text'] } else { '' })
+            }
             if ($Matches['text']) { $notes.Add($n) } else { $note = $n }
             continue
         }
-        if ($t -match '^state\s+"(?<label>[^"]*)"\s+as\s+(?<id>\S+)') { $states[$Matches['id']] = [ordered]@{ id = $Matches['id']; label = $Matches['label']; parent = $parent }; continue }
+        if ($t -match '^state\s+"(?<label>[^"]*)"\s+as\s+(?<id>\S+)') {
+            $states[$Matches['id']] = [ordered]@{ id = $Matches['id']; label = $Matches['label']; parent = $parent }
+            continue
+        }
         if ($t -match '^state\s+(?<id>\S+)\s*\{\s*$') {
             if (-not $states.Contains($Matches['id'])) { $states[$Matches['id']] = [ordered]@{ id = $Matches['id']; label = $Matches['id']; parent = $parent } }
             $parents.Add($Matches['id']); continue

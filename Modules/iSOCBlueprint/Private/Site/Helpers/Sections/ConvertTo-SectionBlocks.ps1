@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -28,11 +28,27 @@ function ConvertTo-SectionBlocks {
     <#
     .SYNOPSIS
         Turn one section from the section model into the dashboard's render
-        blocks: headings, prose, notes (callouts), lists, tables, and the pie
-        and xy charts, which the dashboard draws from their data. The other
-        chart kinds (the chart web part draws them on the section's page),
-        code and rules are left out.
+        blocks.
+
+    .DESCRIPTION
+        Headings, paragraphs, lists, tables, notes (callouts) and charts become
+        blocks. Code, rules and any other block type are left out, and so is a
+        block marked inGraphic, which a graphic on the page shows in full. A
+        chart is added only when it has data: pie and xy charts keep their data
+        as it is, and every other kind has its data converted by
+        ConvertTo-DashboardChartData and carries its source. A chart whose title
+        repeats the heading above it is added with no title. A note takes its
+        first paragraph as its title when more blocks follow it and it reads as
+        a short lead line; its tone is info unless it names one.
+
+    .PARAMETER Section
+        One section from the section model; its blocks are read.
+
+    .OUTPUTS
+        [object[]] The blocks, each an ordered dictionary whose t is h, p, ul,
+        chart, table or note.
     #>
+    [CmdletBinding()]
     param($Section)
 
     $blocks = [System.Collections.Generic.List[object]]::new()

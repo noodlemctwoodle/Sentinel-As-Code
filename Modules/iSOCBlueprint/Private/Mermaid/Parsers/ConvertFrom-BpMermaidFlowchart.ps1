@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidFlowchart
+    Parse the body of a Mermaid flowchart or graph into its groups, nodes and edges.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidFlowchart.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,32 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidFlowchart {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid flowchart or graph into its groups, nodes
+        and edges.
+
+    .DESCRIPTION
+        A subgraph becomes a group, and a node or group inside another has it
+        as its parent. classDef, class, style and click lines set a node's
+        fill, stroke, colour, class, href and tooltip; a node's own fill,
+        stroke or colour wins over the one its class defines. direction and
+        linkStyle lines are skipped.
+
+    .PARAMETER Header
+        The diagram's first line. It names the direction ("flowchart LR");
+        TB when it names none.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .OUTPUTS
+        [ordered] kind ('flowchart'), title ($null) and data: direction,
+        groups (id, label and parent), nodes (id, label, group, class, fill,
+        stroke, color, href and tooltip) and edges (from, to, label, style
+        and arrow). An edge's style is solid, dotted or thick.
+    #>
+    [CmdletBinding()]
     param([string] $Header, [string[]] $Body)
     $direction = if ($Header -match '^(?:flowchart|graph)\s+(\w+)') { $Matches[1] } else { 'TB' }
     $groups = [System.Collections.Generic.List[object]]::new()
@@ -51,7 +77,11 @@ function ConvertFrom-BpMermaidFlowchart {
         if (-not $t) { continue }
         if ($t -match '^subgraph\s+(?<id>[^\s\[]+)\s*(?:\[(?<label>.*)\])?\s*$') {
             $label = if ($Matches['label']) { ConvertTo-BpMermaidText $Matches['label'] } else { ConvertTo-BpMermaidText $Matches['id'] }
-            $groups.Add([ordered]@{ id = $Matches['id']; label = $label; parent = $(if ($groupStack.Count) { $groupStack[$groupStack.Count - 1] } else { $null }) })
+            $groups.Add([ordered]@{
+                id = $Matches['id']
+                label = $label
+                parent = $(if ($groupStack.Count) { $groupStack[$groupStack.Count - 1] } else { $null })
+            })
             $groupStack.Add($Matches['id'])
             continue
         }
@@ -71,7 +101,9 @@ function ConvertFrom-BpMermaidFlowchart {
         if ($t -match '^style\s+(?<id>\S+)\s+(?<props>.+)$') {
             $styled = $Matches['id']
             if ($nodes.Contains($styled)) {
-                foreach ($kv in $Matches['props'] -split ',') { if ($kv -match '^\s*(fill|stroke|color)\s*:\s*(.+?)\s*$') { $nodes[$styled][$Matches[1]] = $Matches[2] } }
+                foreach ($kv in $Matches['props'] -split ',') {
+                    if ($kv -match '^\s*(fill|stroke|color)\s*:\s*(.+?)\s*$') { $nodes[$styled][$Matches[1]] = $Matches[2] }
+                }
             }
             continue
         }

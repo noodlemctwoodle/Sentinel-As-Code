@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -25,6 +25,9 @@ function Save-SacPublishState {
     <#
     .SYNOPSIS
         Write the publish state file into the assets library.
+
+    .PARAMETER State
+        The publish state, written as JSON to the publish state file in _state/.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)] [hashtable] $State)

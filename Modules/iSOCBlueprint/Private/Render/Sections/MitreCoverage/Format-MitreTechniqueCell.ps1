@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,6 +24,27 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-MitreTechniqueCell {
+    <#
+    .SYNOPSIS
+        Format a MITRE technique for a table cell.
+
+    .DESCRIPTION
+        Returns an empty string when Id is empty. Otherwise a Markdown link to the
+        technique page on attack.mitre.org. The link text is the id followed by the
+        name when the name is in the calling section's $techNameById, and the id
+        alone when it is not.
+
+    .PARAMETER Id
+        The technique id.
+
+    .PARAMETER Sub
+        True for a sub-technique id, whose dot becomes a slash in the link. Defaults
+        to $false.
+
+    .OUTPUTS
+        [string] of Markdown.
+    #>
+    [CmdletBinding()]
     param([string]$Id, [bool]$Sub = $false)
     if (-not $Id) { return '' }
     $name = $techNameById[$Id]

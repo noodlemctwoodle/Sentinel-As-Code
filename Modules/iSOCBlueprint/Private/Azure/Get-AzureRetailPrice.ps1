@@ -15,54 +15,68 @@
 
     Pagination: the API returns 1000 items per page; follow NextPageLink until exhausted.
 
-.PARAMETER Region
-    The Azure ARM region name of the Sentinel workspace (e.g. 'uksouth').
-
-.PARAMETER OutputRoot
-    Folder where retail-prices.json should be written. Typically the workspace _raw root.
-
-.PARAMETER CurrencyCode
-    The currency to price in, one the Retail Prices API supports. Defaults
-    to USD, the API's own default. Resolve-AzureRetailCurrency picks one
-    from the region when the run asks for Auto.
-
-.PARAMETER CurrencySource
-    Where the currency came from ('Region' or 'Parameter'), recorded with
-    the prices so the report can say. Defaults to 'Parameter'.
-
-.PARAMETER ServiceNames
-    Service names to filter on. Defaults to the two Sentinel-relevant services:
-    'Sentinel' (the simplified analysis, Basic, Auxiliary and data lake meters
-    and every commitment tier's daily price) and 'Log Analytics' (the classic
-    ingestion meters). The Retail Prices API names the service 'Sentinel';
-    'Microsoft Sentinel' matches nothing. Override to extend the cost
-    calculator (e.g. include 'Storage' for archive).
-
-.OUTPUTS
-    [pscustomobject] with FetchedAtUtc, Region, Currency, CurrencySource,
-    Services, and a Prices array holding the union of all returned price
-    rows.
-
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Azure/Get-AzureRetailPrice.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.3.2
+    Version:      0.3.3
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     Endpoint:
         https://prices.azure.com/api/retail/prices
-
-.LINK
-    https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
 #>
 
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-AzureRetailPrice {
+    <#
+    .SYNOPSIS
+        Fetch the Sentinel and Log Analytics meter prices for a region from the
+        Azure Retail Prices API, cached on disk for the day.
+
+    .DESCRIPTION
+        The cache file is retail-prices-<Region>-<CurrencyCode>-<yyyy-MM-dd>.json
+        under OutputRoot, which is created when missing; when it exists its
+        content is returned without a request. Otherwise each service is read
+        page by page, following NextPageLink. A page that fails is reported as
+        a warning and ends that service's paging, keeping what was collected so
+        far.
+
+    .PARAMETER Region
+        The Azure ARM region name of the Sentinel workspace (e.g. 'uksouth').
+
+    .PARAMETER OutputRoot
+        The folder the day's cache file is written to. Typically the workspace
+        _raw root.
+
+    .PARAMETER CurrencyCode
+        The currency to price in, one the Retail Prices API supports. Defaults
+        to USD, the API's own default. Resolve-AzureRetailCurrency picks one
+        from the region when the run asks for Auto.
+
+    .PARAMETER CurrencySource
+        Where the currency came from ('Region' or 'Parameter'), recorded with
+        the prices so the report can say. Defaults to 'Parameter'.
+
+    .PARAMETER ServiceNames
+        Service names to filter on. Defaults to the two Sentinel-relevant
+        services: 'Sentinel' (the simplified analysis, Basic, Auxiliary and
+        data lake meters and every commitment tier's daily price) and 'Log
+        Analytics' (the classic ingestion meters). The Retail Prices API names
+        the service 'Sentinel'; 'Microsoft Sentinel' matches nothing. Override
+        to extend the cost calculator (e.g. include 'Storage' for archive).
+
+    .OUTPUTS
+        [pscustomobject] with FetchedAtUtc, Region, Currency, CurrencySource,
+        Services, and a Prices array holding the union of all returned price
+        rows.
+
+    .LINK
+        https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

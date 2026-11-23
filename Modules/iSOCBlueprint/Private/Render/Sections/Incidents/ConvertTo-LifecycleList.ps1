@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,14 +23,31 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# The incident lifecycle as data for the SharePoint graphic (the chart web
-# part's incident-lifecycle visual): the window's incidents at their
-# current status, how the closed ones got there (acknowledged first, or
-# closed straight from New), the response times, how they were classified
-# and who closed them. It rides in the Mermaid block on a %% line, which
-# Mermaid ignores and ConvertFrom-BlueprintMermaid reads; a figure the
-# capture lacks is null and the graphic leaves it out.
 function ConvertTo-LifecycleList {
+    <#
+    .SYNOPSIS
+        Turn the incident lifecycle into data for the SharePoint graphic.
+
+    .DESCRIPTION
+        Keys whose count is zero or less are left out. With Order, the keys named
+        there come first in that order, then any others alphabetically; without it
+        the largest count comes first, then by name. A null or empty bag gives an
+        empty array.
+
+    .PARAMETER Bag
+        A map of key to count.
+
+    .PARAMETER Order
+        The keys to list first, in this order.
+
+    .PARAMETER Labels
+        A map of key to display label. A key with no entry uses the key as its
+        label.
+
+    .OUTPUTS
+        An array (kept as an array when empty) of ordered maps with label and count.
+    #>
+    [CmdletBinding()]
     param([System.Collections.IDictionary]$Bag, [string[]]$Order, [hashtable]$Labels)
     if (-not $Bag -or -not $Bag.Count) { return ,@() }
     $keys = @($Bag.Keys | ForEach-Object { [string]$_ })

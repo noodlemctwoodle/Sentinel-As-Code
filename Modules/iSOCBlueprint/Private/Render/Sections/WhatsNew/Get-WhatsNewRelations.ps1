@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,10 +23,28 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# What an item touches here: each matching topic's page, then each of its
-# criteria with this workspace's status; a criterion whose finding fired
-# links to the finding. Semicolon-separated, so the site shows them as chips.
 function Get-WhatsNewRelations {
+    <#
+    .SYNOPSIS
+        Work out what a What's new item touches in this workspace.
+
+    .DESCRIPTION
+        What an item touches here: each matching topic's page, then each of its
+        criteria with this workspace's status. The item's title and summary are
+        matched against the topics in $wnTopics (set by the calling section). Each
+        matching topic adds a link to its section page, then each criterion the
+        topic names (once) as its id and current status, in lower case, or 'not
+        assessed' when the criterion is unknown. The id is shown in square brackets
+        when its finding fired in this run, so it links to the finding. The parts
+        are joined with semicolons, so the site shows them as chips.
+
+    .PARAMETER Item
+        The What's new item, read for its Title and Summary.
+
+    .OUTPUTS
+        [string]: empty when nothing matches.
+    #>
+    [CmdletBinding()]
     param($Item)
     $text = "$($Item.Title) $($Item.Summary)"
     $parts = [System.Collections.Generic.List[string]]::new()

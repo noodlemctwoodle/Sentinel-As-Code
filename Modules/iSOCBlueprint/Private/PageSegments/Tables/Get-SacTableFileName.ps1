@@ -12,7 +12,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
@@ -29,6 +29,14 @@ function Get-SacTableFileName {
         The CSV file name for a cut table: the section id and the heading
         above the table, lower case, letters, digits and hyphens only, with
         -2, -3 and so on when the section has more than one under a heading.
+
+    .PARAMETER Id
+        The section id, which starts the name.
+
+    .PARAMETER Heading
+        The heading above the table. Its first 60 characters at most go
+        into the name, which uses "table" when the heading has no letters
+        or digits.
 
     .PARAMETER Taken
         File names already given out in this section.

@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,6 +24,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-ConnectorDataTypes {
+    <#
+    .SYNOPSIS
+        Return a connector's data types.
+
+    .DESCRIPTION
+        RestApiPoller and Push connectors carry a single data type string in
+        properties.dataType. Other kinds list the names in the properties.dataTypes
+        map, joined with a comma and a space. An empty string is returned when there
+        are none.
+
+    .PARAMETER Connector
+        The data connector resource.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
     param([psobject]$Connector)
     # RestApiPoller / Push schema: single string at properties.dataType.
     if ($Connector.kind -in @('RestApiPoller','Push')) {

@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -19,10 +19,32 @@
     lives on the function's own help block.
 #>
 
-# Helper, returns a property if it exists, else default. Sentinel/LA REST occasionally
-# returns objects with subtly different property shapes between API versions; this lets
-# checks stay tolerant.
+# Keeps the file help above from being read as the help of the function below.
 function Get-PropOrDefault {
+    <#
+    .SYNOPSIS
+        Read a property by dotted path from an object or hashtable, or return a default when any step is missing.
+
+    .DESCRIPTION
+        Sentinel and Log Analytics REST calls occasionally return objects with
+        subtly different property shapes between API versions; this lets checks
+        stay tolerant. The default is also returned when the object is $null,
+        when a step along the path is $null, and when the value found is $null.
+
+    .PARAMETER Object
+        The object or hashtable to read from.
+
+    .PARAMETER Path
+        The property names to follow, separated by dots, such as
+        properties.displayName. Each step reads a hashtable key or a property.
+
+    .PARAMETER Default
+        What to return when the path cannot be followed or ends in $null.
+        $null when omitted.
+
+    .OUTPUTS
+        The value found at the path, else the default.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)] [object]$Object,

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Capture reporting
     Requires:     PowerShell 7.6+
@@ -26,6 +26,9 @@ function Get-CaptureStatusText {
     .SYNOPSIS
         The HTTP status a capture's error names, as "401 Unauthorized" or
         "Forbidden"; $null when it names none.
+
+    .PARAMETER Message
+        The capture's error message.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -33,6 +36,8 @@ function Get-CaptureStatusText {
 
     if ($Message -match '\b(\d{3})\s*\(([A-Za-z ]+)\)') { return "$($Matches[1]) $($Matches[2])" }
     if ($Message -match 'does not indicate success: (\w+)') { return $Matches[1] }
-    if ($Message -match '\b(Forbidden|Unauthori[sz]ed|AuthorizationFailed|AuthorizationPermissionMismatch|Authorization_RequestDenied|AccessDenied)\b') { return $Matches[1] }
+    if ($Message -match '\b(Forbidden|Unauthori[sz]ed|AuthorizationFailed|AuthorizationPermissionMismatch|Authorization_RequestDenied|AccessDenied)\b') {
+        return $Matches[1]
+    }
     $null
 }

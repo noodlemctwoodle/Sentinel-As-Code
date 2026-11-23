@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Capture reporting
     Requires:     PowerShell 7.6+
@@ -25,6 +25,13 @@ function Format-WrappedText {
     <#
     .SYNOPSIS
         Text wrapped to a width under a hanging indent, one string a line.
+
+    .PARAMETER Text
+        The text to wrap. Runs of whitespace separate its words.
+
+    .PARAMETER Indent
+        The number of spaces put before every line, which also narrows the
+        room for text. 0 when omitted.
 
     .PARAMETER Width
         The full line width, indent included. 0 takes the console's, or 120

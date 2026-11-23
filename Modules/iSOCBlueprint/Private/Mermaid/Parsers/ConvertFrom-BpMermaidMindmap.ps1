@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidMindmap
+    Parse the body of a Mermaid mindmap into a tree of nodes.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidMindmap.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidMindmap {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid mindmap into a tree of nodes.
+
+    .DESCRIPTION
+        A line is the child of the nearest earlier line indented less than
+        it; the first line is the root. Blank lines and lines starting with
+        :: are skipped.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .OUTPUTS
+        [ordered] kind ('mindmap'), title ($null) and data: root, a node with
+        text and children.
+    #>
+    [CmdletBinding()]
     param([string[]] $Body)
     $root = $null
     $stack = [System.Collections.Generic.List[object]]::new()

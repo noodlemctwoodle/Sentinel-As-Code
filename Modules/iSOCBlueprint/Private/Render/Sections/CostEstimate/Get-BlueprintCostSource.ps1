@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -28,6 +28,21 @@
 # is testable in isolation.
 # ---------------------------------------------------------------------
 function Get-BlueprintCostSource {
+    <#
+    .SYNOPSIS
+        Name the Microsoft service a table's ingestion cost belongs to.
+
+    .DESCRIPTION
+        The table name is matched against known name patterns, and any table ending
+        _CL is 'Custom (CCF / DCR)'. A table that matches none is 'Other'.
+
+    .PARAMETER Table
+        The table name.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
     param([string]$Table)
     switch -Regex ($Table) {
         '^ThreatIntel'                                             { return 'Microsoft Defender TI' }

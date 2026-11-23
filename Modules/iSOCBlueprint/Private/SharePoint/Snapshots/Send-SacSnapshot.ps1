@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -25,6 +25,12 @@ function Send-SacSnapshot {
     <#
     .SYNOPSIS
         Upload the dashboard as one day's snapshot, history/<date>.html.
+
+    .PARAMETER Path
+        The local dashboard file to upload.
+
+    .PARAMETER FileName
+        The name the file is given in the snapshot folder.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

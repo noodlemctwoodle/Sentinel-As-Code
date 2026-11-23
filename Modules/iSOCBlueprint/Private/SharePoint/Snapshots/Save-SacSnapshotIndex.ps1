@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -26,6 +26,10 @@ function Save-SacSnapshotIndex {
     .SYNOPSIS
         Write the snapshot list beside the snapshots, where the dashboard
         reads it.
+
+    .PARAMETER Index
+        The snapshot index: a hashtable whose entries are written as JSON, under
+        an entries property, to the snapshot index file in the snapshot folder.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)] [hashtable] $Index)

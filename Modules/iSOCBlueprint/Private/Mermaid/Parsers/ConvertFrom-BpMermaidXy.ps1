@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidXy
+    Parse the body of a Mermaid xy chart into its axes and series.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidXy.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,24 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidXy {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid xy chart into its axes and series.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .PARAMETER FullLabels
+        The full x-axis labels, read from an x-labels comment. They replace
+        the axis's labels when there are as many of them; otherwise, or when
+        omitted, the labels on the x-axis line stay.
+
+    .OUTPUTS
+        [ordered] kind ('xy'), the chart's title and data: xAxis (title and
+        labels), yAxis (title, min and max) and series (kind, name and
+        values; the kind is bar or line).
+    #>
+    [CmdletBinding()]
     param([string[]] $Body, [string[]] $FullLabels)
     $title = $null
     $x = [ordered]@{ title = $null; labels = @() }

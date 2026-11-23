@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -25,7 +25,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-SectionListItems {
-    # A list's items, nested lists flattened in reading order.
+    <#
+    .SYNOPSIS
+        The items of a section's list block, with nested lists flattened in
+        reading order.
+
+    .DESCRIPTION
+        Each item is written as HTML through ConvertTo-SectionRunsHtml, and the
+        items of a list nested in an item follow that item.
+
+    .PARAMETER List
+        A list block of the section model, whose items each hold text and
+        optional nested blocks.
+
+    .OUTPUTS
+        [string] The HTML of each item, in reading order.
+    #>
+    [CmdletBinding()]
     param($List)
     foreach ($item in @($List.items)) {
         ConvertTo-SectionRunsHtml @($item.text)

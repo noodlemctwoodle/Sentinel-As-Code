@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -25,6 +25,21 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Write-WordLog {
+    <#
+    .SYNOPSIS
+        Write a progress line in the colour of its level.
+
+    .DESCRIPTION
+        The line is written with Write-Host. A Section line is preceded by a
+        blank line and written in cyan; Warning is yellow, Error red and Success
+        green. Info is written in the default colour.
+
+    .PARAMETER Message
+        The line to write.
+
+    .PARAMETER Level
+        Info, Section, Warning, Error or Success. Info when omitted.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $Message,

@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -27,16 +27,30 @@
 function Convert-FindingBullets {
     <#
     .SYNOPSIS
-        Rewrite dense finding bullets into a bold severity/ID/title lead
-        line plus a description paragraph beneath.
+        Rewrite dense finding bullets into a bold severity/ID/title lead line
+        plus a description paragraph beneath.
 
     .DESCRIPTION
-        Only lines shaped like '- **<sev>** [<ID>](<link>) <rest>' (where
-        <ID> is e.g. SAC-PLT-02) are touched - everything else is returned
-        verbatim. The title is split from the description using the title
-        map where the ID is known, otherwise on the first ' - ' break.
-        Returns the rewritten text; increments $Count by the number of
-        bullets changed.
+        Only lines shaped like '- **<sev>** [<ID>](<link>) <rest>' (where <ID>
+        is e.g. SAC-PLT-02) are touched; everything else is returned verbatim.
+        The title is split from the description using the title map where the ID
+        is known, otherwise on the first ' - ' break. The severity word is
+        styled with a severity character style when it is a known one. The text
+        is returned rewritten, and Count is increased by the number of bullets
+        that matched.
+
+    .PARAMETER Text
+        The Markdown to rewrite.
+
+    .PARAMETER TitleMap
+        A hashtable of finding ID to its canonical title, as Get-FindingTitleMap
+        builds it.
+
+    .PARAMETER Count
+        A [ref] to a counter, increased by the number of bullets that matched.
+
+    .OUTPUTS
+        [string] The rewritten text.
     #>
     [CmdletBinding()]
     [OutputType([string])]

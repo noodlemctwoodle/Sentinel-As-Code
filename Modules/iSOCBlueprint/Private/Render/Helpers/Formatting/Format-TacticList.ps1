@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,6 +23,22 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-function Format-TacticList($Tactics, [string]$Separator = ', ') {
+function Format-TacticList {
+    <#
+    .SYNOPSIS
+        Join MITRE tactic names for display.
+
+    .PARAMETER Tactics
+        The tactic names. Empty entries are skipped; each is shown through
+        Format-TacticName.
+
+    .PARAMETER Separator
+        The text placed between names. Defaults to a comma and a space.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
+    param($Tactics, [string]$Separator = ', ')
     return (@($Tactics | Where-Object { $_ } | ForEach-Object { Format-TacticName ([string]$_) }) -join $Separator)
 }

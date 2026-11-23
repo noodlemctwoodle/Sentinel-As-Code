@@ -39,31 +39,13 @@
        data but no captured ingestion mechanism explains it, an operator
        should know.
 
-.PARAMETER ClassicConnectors
-    Parsed array from `_raw/data-connectors-classic.json`.
-
-.PARAMETER CcfDefinitions
-    Parsed array from `_raw/data-connector-definitions.json`.
-
-.PARAMETER Dcrs
-    Parsed array from `_raw/dcrs.json`.
-
-.PARAMETER DiagnosticSettings
-    Parsed array from `_raw/diagnostic-settings.json`.
-
-.PARAMETER TablesWithData
-    Parsed array from `_raw/tables-with-data.json`.
-
-.OUTPUTS
-    [pscustomobject[]] with columns: Source, Identifier, Table, Last24hGB, LastIngested.
-
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.3
+    Version:      0.1.4
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -74,6 +56,45 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-EffectiveConnectors {
+    <#
+    .SYNOPSIS
+        Synthesise an "effective connectors" view from the captured inventory.
+
+    .DESCRIPTION
+        Joins the classic connectors, CCF connector definitions, DCR data flows,
+        diagnostic settings and active tables into one list with a row per
+        ingestion source. A table is claimed by the first source that names it:
+        later DCR, diagnostic-settings and active-table sightings of a claimed
+        table are skipped, and CCF definitions are listed by name and claim no
+        table. An unclaimed table with BillableLast24h above zero is listed as
+        Active-table, with its inferred product family as the identifier.
+        Last24hGB and LastIngested are filled from TablesWithData where the
+        table is found there. The file help above gives the full account.
+
+    .PARAMETER ClassicConnectors
+        The parsed array from _raw/data-connectors-classic.json.
+
+    .PARAMETER CcfDefinitions
+        The parsed array from _raw/data-connector-definitions.json.
+
+    .PARAMETER Dcrs
+        The parsed array from _raw/dcrs.json.
+
+    .PARAMETER DiagnosticSettings
+        The parsed array from _raw/diagnostic-settings.json.
+
+    .PARAMETER TablesWithData
+        The parsed array from _raw/tables-with-data.json.
+
+    .PARAMETER WorkspaceResourceId
+        When given, DCRs and their data flows are limited to those whose
+        destinations include a Log Analytics destination with this workspace
+        resource ID, compared ignoring case. Without it every DCR counts.
+
+    .OUTPUTS
+        [pscustomobject[]] with the columns Source, Identifier, Table, Last24hGB
+        and LastIngested.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)] [object[]]$ClassicConnectors = @(),

@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-SacBlocksHtml
+    HTML for page blocks that stay inside one Text web part: headings, paragraphs, lists, notes, tables and code.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/PageSegments/Html/ConvertTo-SacBlocksHtml.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
@@ -22,9 +22,49 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertTo-SacBlocksHtml {
-    # HTML for blocks that stay inside one Text web part (lists, notes, tables).
-    # A table cut at MaxTableRows is added whole to Tables as CSV, named from
-    # the heading above it.
+    <#
+    .SYNOPSIS
+        HTML for page blocks that stay inside one Text web part: headings,
+        paragraphs, lists, notes, tables and code.
+
+    .DESCRIPTION
+        Heading levels 1 and 2 become h2, level 3 h3 and deeper levels h4.
+        Lists and notes (as a blockquote) convert their nested blocks the
+        same way. A table cut at MaxTableRows is added whole to Tables as
+        CSV, named from the heading above it. A chart block is not shown and
+        adds a warning.
+
+    .PARAMETER Blocks
+        The blocks to convert. Null entries and block types not listed above
+        are skipped.
+
+    .PARAMETER FindingsListUrl
+        Passed to ConvertTo-SacRunsHtml and ConvertTo-SacTableHtml for the
+        links in text runs and cells.
+
+    .PARAMETER MaxTableRows
+        The number of rows a table shows. A longer table is cut, and a
+        warning is added.
+
+    .PARAMETER Id
+        The section id, used in warnings and in the CSV file name.
+
+    .PARAMETER Warnings
+        The list that receives a warning for each cut table and each chart
+        left out.
+
+    .PARAMETER Tables
+        The list that receives an entry (file, heading, rows and csv) for
+        each table cut at MaxTableRows. When $null, no CSV is kept.
+
+    .PARAMETER Heading
+        The heading above the blocks, which names a cut table's CSV file.
+        Empty when omitted.
+
+    .OUTPUTS
+        [string] The HTML.
+    #>
+    [CmdletBinding()]
     param([object[]] $Blocks, [string] $FindingsListUrl, [int] $MaxTableRows, [string] $Id, [System.Collections.Generic.List[string]] $Warnings,
         [System.Collections.Generic.List[object]] $Tables, [string] $Heading = '')
     $sb = [System.Text.StringBuilder]::new()

@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -155,12 +155,12 @@ Billable GB per day, and free GB (the Sentinel benefit and other non-billable da
     foreach ($r in $rules) {
         $q = $r.properties.query
         if (-not $q) { continue }
-        $matches = $rxWatchlistRef.Matches([string]$q)
-        if ($matches.Count -eq 0) { continue }
+        $references = $rxWatchlistRef.Matches([string]$q)
+        if ($references.Count -eq 0) { continue }
         $ruleName = $r.properties.displayName
         $ruleId   = $r.name
         $aliases  = New-Object System.Collections.Generic.HashSet[string]
-        foreach ($m in $matches) { [void]$aliases.Add($m.Groups[1].Value) }
+        foreach ($m in $references) { [void]$aliases.Add($m.Groups[1].Value) }
         $watchlistsByRuleId[$ruleId] = @($aliases)
         foreach ($a in $aliases) {
             if (-not $rulesByWatchlistAlias.ContainsKey($a)) { $rulesByWatchlistAlias[$a] = New-Object System.Collections.Generic.List[string] }

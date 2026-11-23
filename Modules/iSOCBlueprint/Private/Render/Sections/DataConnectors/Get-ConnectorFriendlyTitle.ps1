@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -33,6 +33,31 @@
 # state into a single overall state column, and lists the data-type names in
 # their own column.
 function Get-ConnectorFriendlyTitle {
+    <#
+    .SYNOPSIS
+        Return the display title of a connector.
+
+    .DESCRIPTION
+        Kinds with a known product name return it. GenericUI and StaticUI return the
+        connector UI title, or the kind when it has none. RestApiPoller and Push
+        look up the connectorDefinitionName in CcfTitleByName and return the title
+        followed by the kind in brackets, the definition name itself when it has no
+        title, or the kind when it has no definition name. Any other kind is
+        returned as it is.
+
+    .PARAMETER Kind
+        The connector kind.
+
+    .PARAMETER Connector
+        The connector resource. It is read for the UI title and the definition name.
+
+    .PARAMETER CcfTitleByName
+        A map of CCF definition name to title. Defaults to an empty map.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
     param([string]$Kind, [psobject]$Connector, [hashtable]$CcfTitleByName = @{})
     switch ($Kind) {
         'AzureActiveDirectory'                         { 'Microsoft Entra ID' }

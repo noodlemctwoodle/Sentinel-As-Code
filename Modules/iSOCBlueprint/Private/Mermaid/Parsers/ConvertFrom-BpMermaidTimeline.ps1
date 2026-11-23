@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidTimeline
+    Parse the body of a Mermaid timeline into its periods and their events.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidTimeline.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,24 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidTimeline {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid timeline into its periods and their
+        events.
+
+    .DESCRIPTION
+        A period line is a label followed by events, separated by " : ". A
+        line starting with a colon adds events to the period before it. A
+        section line sets the section of the periods that follow.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .OUTPUTS
+        [ordered] kind ('timeline'), the chart's title and data: periods
+        (label, section and events).
+    #>
+    [CmdletBinding()]
     param([string[]] $Body)
     $title = $null
     $section = $null

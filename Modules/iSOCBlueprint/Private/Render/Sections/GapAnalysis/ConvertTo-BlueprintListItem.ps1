@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,15 +23,25 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# Evidence + Learn link formatters for the detailed remediation cards
-# below. Evidence text from gap rules can be very long with semicolon-
-# separated lists (e.g. 657 disabled rule names). Cramming that into a
-# narrow table cell is unreadable. The detail-card form splits long
-# semicolon lists into bullet items and renders short evidence inline.
-# A list item that starts with a Markdown block marker (a rule named
-# "* Detection ..." or "1. Test") would open a nested list, a heading or a
-# quote and leave its own bullet empty; a backslash keeps it as text.
 function ConvertTo-BlueprintListItem {
+    <#
+    .SYNOPSIS
+        Escape text that would otherwise start a Markdown list item.
+
+    .DESCRIPTION
+        A list item that starts with a Markdown block marker (a rule named "*
+        Detection ..." or "1. Test") would open a nested list, a heading or a quote
+        and leave its own bullet empty; a backslash keeps it as text. A leading *,
+        +, -, # or > followed by a space or the end of the text, or a leading number
+        followed by . or ) in the same way, is escaped.
+
+    .PARAMETER Text
+        The text to escape.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
     param([string]$Text)
     return (($Text -replace '^([*+\-#>])(?=\s|$)', '\$1') -replace '^(\d+)([.)])(?=\s|$)', '$1\$2')
 }

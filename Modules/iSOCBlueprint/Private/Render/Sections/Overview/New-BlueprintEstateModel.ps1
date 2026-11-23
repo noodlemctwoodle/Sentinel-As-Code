@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,10 +23,28 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# Source families -> ingestion -> detection -> alerts -> incidents: the
-# numbers behind the estate flow on 00 and 01 and the pipeline table. Null
-# safe; every input may be empty.
 function New-BlueprintEstateModel {
+    <#
+    .SYNOPSIS
+        Build the estate model: families, ingestion, detection, alerts and
+        incidents.
+
+    .DESCRIPTION
+        Source families to ingestion to detection to alerts to incidents: the
+        numbers behind the estate flow on pages 00 and 01 and the pipeline table.
+        Null safe; every input may be empty. Reads its inputs from the calling
+        section's variables (tables with data, rule table references, enabled rules,
+        rule volumes, custom detections and the incident summary) rather than from
+        parameters. The model counts tables seen, active and covered by a detection,
+        the GB behind each, rules enabled and fired, alerts, first-party alerts by
+        family and incidents.
+
+    .OUTPUTS
+        [pscustomobject] with Sources, ProductAlerts and the table, GB, rule, alert
+        and incident counts.
+    #>
+    [CmdletBinding()]
+    param()
     $enabledRefs = @($ruleTableRefs | Where-Object { $_.Enabled -eq $true })
     $referenced = @{}
     foreach ($r in $enabledRefs) { foreach ($t in @($r.Tables)) { if ($t) { $referenced[[string]$t] = $true } } }

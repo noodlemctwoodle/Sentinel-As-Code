@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,7 +23,27 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-function Format-BlueprintFindingMaturity([string]$Id) {
+function Format-BlueprintFindingMaturity {
+    <#
+    .SYNOPSIS
+        Show the maturity criteria linked to a finding.
+
+    .DESCRIPTION
+        Reads the finding-to-criteria map $findingMaturity from the calling section.
+        A finding with no criterion is described as not scored. Otherwise each
+        criterion is described with its link, name, area, current status and the
+        lift to the overall score that closing the finding (or all of the findings
+        behind a shared criterion) brings, and the descriptions are joined with
+        semicolons.
+
+    .PARAMETER Id
+        The finding id.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
+    param([string]$Id)
     $links = if ($findingMaturity.ContainsKey($Id)) { @($findingMaturity[$Id]) } else { @() }
     if ($links.Count -eq 0) { return 'not scored. This is a hygiene or cost check; it does not move the maturity score.' }
     return ((@($links | ForEach-Object {

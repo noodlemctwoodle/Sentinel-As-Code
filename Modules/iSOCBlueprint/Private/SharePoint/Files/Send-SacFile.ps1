@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -25,6 +25,12 @@ function Send-SacFile {
     <#
     .SYNOPSIS
         Upload one local file into a folder of the assets library.
+
+    .PARAMETER Path
+        The local file to upload.
+
+    .PARAMETER Folder
+        The folder of the assets library to upload it into.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

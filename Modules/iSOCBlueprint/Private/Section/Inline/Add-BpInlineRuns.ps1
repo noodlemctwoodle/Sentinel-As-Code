@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Add-BpInlineRuns
+    Walk a chain of Markdig inline nodes and append the runs they produce to a list
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Section/Inline/Add-BpInlineRuns.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -22,6 +22,34 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Add-BpInlineRuns {
+    <#
+    .SYNOPSIS
+        Walk a chain of Markdig inline nodes and append the runs they produce to
+        a list.
+
+    .DESCRIPTION
+        Follows NextSibling from the first inline, so one call covers a whole
+        sibling chain, and calls itself for the children of emphasis and link
+        nodes. Literal text and inline code become text runs. Emphasis sets
+        strike for '~', bold for two or more delimiters and italic otherwise. A
+        link sets href; an image adds its text with no href. A hard line break
+        and an HTML br tag add a break entry, and a soft line break adds a
+        space. HTML entities add their transcoded text. Any other node is walked
+        through its children when it has any, and is otherwise added as its own
+        string.
+
+    .PARAMETER Inline
+        The first inline of the chain to walk. When it is $null nothing is added.
+
+    .PARAMETER Format
+        The formatting the runs inherit: a hashtable that may hold bold, italic,
+        code, strike and href. A nested node works on its own copy, so the
+        caller's table is not changed.
+
+    .PARAMETER Out
+        The list that receives the runs, which are ordered dictionaries.
+    #>
+    [CmdletBinding()]
     param([object] $Inline, [hashtable] $Format, [System.Collections.Generic.List[object]] $Out)
     for ($i = $Inline; $null -ne $i; $i = $i.NextSibling) {
         switch ($i.GetType().Name) {

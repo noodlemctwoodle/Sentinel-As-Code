@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Get-SacRunsText
+    The plain text of a list of text runs, for a CSV cell.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/PageSegments/Html/Get-SacRunsText.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
@@ -26,6 +26,10 @@ function Get-SacRunsText {
     .SYNOPSIS
         The plain text of a list of text runs, for a CSV cell: a section
         link shows its section's title, a line break becomes a space.
+
+    .PARAMETER Runs
+        The text runs: objects with text, and optionally a section link
+        (href and target) or a break. Null entries are skipped.
     #>
     [CmdletBinding()]
     [OutputType([string])]

@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
@@ -28,10 +28,20 @@ function Format-MaturityEvidence {
         {singular|plural} choices in an evidence template.
 
     .DESCRIPTION
-        {metric} reads as a count (1,512) and a fraction to one place
-        (95.5); {metric:gb} as GB to two places (176,702.70); {metric:1dp}
-        to one place whatever the value (240.0). {rule|rules} picks the
-        singular when the metric is one and the plural otherwise.
+        {metric} reads as a count (1,512) and a fraction to one place (95.5);
+        {metric:gb} as GB to two places (176,702.70); {metric:1dp} to one place
+        whatever the value (240.0). {rule|rules} picks the singular when the
+        metric is one and the plural otherwise. A boolean metric reads as yes or
+        no, and a null one as unknown. An empty template gives $null.
+
+    .PARAMETER Template
+        The evidence text holding the tokens. Null or empty gives $null.
+
+    .PARAMETER Metric
+        The metric value the tokens read: a number, a boolean or null.
+
+    .OUTPUTS
+        [string] The filled text, or $null.
     #>
     [CmdletBinding()]
     param(

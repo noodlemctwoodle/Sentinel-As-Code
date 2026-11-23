@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-BpTable
+    Convert a Markdig pipe table into a table block
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Section/Parsing/ConvertTo-BpTable.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -22,6 +22,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertTo-BpTable {
+    <#
+    .SYNOPSIS
+        Convert a Markdig pipe table into a table block.
+
+    .DESCRIPTION
+        The columns come from the header row. Each has its text as runs
+        (ConvertTo-BpCellRuns) and its alignment as a lower-case string, or
+        $null when the column has none. The other rows become arrays of cells,
+        each cell an array of runs.
+
+    .PARAMETER Table
+        The Markdig table, enumerated as its rows.
+
+    .OUTPUTS
+        An ordered dictionary with type 'table', columns and rows.
+    #>
+    [CmdletBinding()]
     param([object] $Table)
     $rows = @($Table)
     $header = $rows | Where-Object { $_.IsHeader } | Select-Object -First 1

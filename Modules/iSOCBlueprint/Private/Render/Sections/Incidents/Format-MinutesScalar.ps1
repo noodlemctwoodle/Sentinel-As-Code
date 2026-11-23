@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,6 +24,25 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-MinutesScalar {
+    <#
+    .SYNOPSIS
+        Format a minutes figure, treating NaN as no data.
+
+    .DESCRIPTION
+        Returns 'n/a' for a null, blank, NaN or null-text value and for anything
+        that does not parse as a number. Otherwise the number to one decimal place
+        followed by ' min'.
+
+    .PARAMETER Value
+        The minutes figure, as a number or text.
+
+    .PARAMETER CountAcknowledged
+        Accepted but not used.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
     param($Value, $CountAcknowledged)
     # KQL returns the literal string "NaN" when an aggregate had no rows to
     # average over (e.g. avg(int(null)) across zero rows), and Save-Json

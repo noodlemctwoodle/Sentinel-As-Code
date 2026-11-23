@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,7 +23,27 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-function Format-DatesInText([string]$Text) {
+function Format-DatesInText {
+    <#
+    .SYNOPSIS
+        Rewrite the ISO dates in a piece of text the way the report writes dates.
+
+    .DESCRIPTION
+        Text between backticks is left as it is. Elsewhere an ISO date (yyyy-MM-dd,
+        optionally followed by a time and a UTC marker) is passed to
+        Format-BlueprintDate, with -Time when a time is present, unless its month or
+        day is out of range. A day followed by a long month name is rewritten with
+        the short month name from $script:ShortMonth. Empty text is returned as it
+        is.
+
+    .PARAMETER Text
+        The text to rewrite.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
+    param([string]$Text)
     if (-not $Text) { return $Text }
     $parts = [regex]::Split($Text, '(`[^`]*`)')
     $isoRx = '(?<![\w.:/-])(\d{4})-(\d{2})-(\d{2})(?<time>[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]00:?00)?)?(?![\w:-])'

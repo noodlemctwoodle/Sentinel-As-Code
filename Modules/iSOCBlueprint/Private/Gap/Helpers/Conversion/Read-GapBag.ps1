@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -19,8 +19,24 @@
     lives on the function's own help block.
 #>
 
-# A KQL dynamic bag (ByClassification and friends) as a name -> int map.
+# Keeps the file help above from being read as the help of the function below.
 function Read-GapBag {
+    <#
+    .SYNOPSIS
+        A KQL dynamic bag (ByClassification and friends) as a name to integer map.
+
+    .DESCRIPTION
+        The bag may arrive as a dictionary, as an object or as JSON text, and
+        each value is read with ConvertTo-GapInt. $null, blank text and text
+        that is not valid JSON give an empty map.
+
+    .PARAMETER Value
+        The bag to read.
+
+    .OUTPUTS
+        [hashtable] Name to integer.
+    #>
+    [CmdletBinding()]
     param([object]$Value)
     $bag = @{}
     if ($null -eq $Value) { return $bag }

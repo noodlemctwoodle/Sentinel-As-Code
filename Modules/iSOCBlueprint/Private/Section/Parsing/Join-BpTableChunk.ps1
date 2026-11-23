@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -33,6 +33,7 @@ function Join-BpTableChunk {
         The blocks, with each table followed by a seam and another table
         merged into one, and the seams removed.
     #>
+    [CmdletBinding()]
     param([object[]] $Blocks)
 
     $out = [System.Collections.Generic.List[object]]::new()

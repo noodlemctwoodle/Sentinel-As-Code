@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,9 +23,25 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-# A KQL dynamic bag (ByClassification and friends) as an ordered name ->
-# count map, whether it arrived as JSON text or as an object.
 function ConvertTo-BlueprintBag {
+    <#
+    .SYNOPSIS
+        Read a KQL dynamic bag as an ordered name-to-count map.
+
+    .DESCRIPTION
+        A KQL dynamic bag (ByClassification and friends) as an ordered name to count
+        map, whether it arrived as JSON text or as an object. Text is parsed as JSON
+        first. Each property becomes an entry whose value is a [long] from
+        ConvertTo-BlueprintNumber. A null, blank or unparseable value gives an empty
+        map.
+
+    .PARAMETER Value
+        An object, or JSON text, holding the bag.
+
+    .OUTPUTS
+        [ordered] map of name to [long].
+    #>
+    [CmdletBinding()]
     param($Value)
     $bag = [ordered]@{}
     if ($null -eq $Value) { return $bag }

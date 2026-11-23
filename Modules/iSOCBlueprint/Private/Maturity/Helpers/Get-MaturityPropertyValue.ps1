@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
@@ -25,7 +25,24 @@ function Get-MaturityPropertyValue {
     <#
     .SYNOPSIS
         Read a dotted property path that may be absent, without tripping
-        StrictMode. Hashtables and PSObjects both work.
+        StrictMode.
+
+    .DESCRIPTION
+        The path is split on dots and followed through hashtables and objects
+        alike. The default is returned when the object is null, a step of the
+        path is missing or null, or the value found is null.
+
+    .PARAMETER Object
+        The hashtable or object to read.
+
+    .PARAMETER Path
+        The property path, with dots between the steps.
+
+    .PARAMETER Default
+        The value returned when the path gives nothing. Null when omitted.
+
+    .OUTPUTS
+        The value at the path, or Default.
     #>
     [CmdletBinding()]
     param(

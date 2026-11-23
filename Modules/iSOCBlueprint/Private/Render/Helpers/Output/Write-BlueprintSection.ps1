@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,7 +23,30 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-function Write-BlueprintSection([string]$FileName, [string]$Body) {
+function Write-BlueprintSection {
+    <#
+    .SYNOPSIS
+        Write one report section as Markdown and as the section model.
+
+    .DESCRIPTION
+        The body has its window placeholders resolved (Resolve-BlueprintWindowText),
+        gets the page description from $script:SectionDescriptions under the title
+        and workspace line, and has finding ids outside code fences linked to the
+        gap analysis page. Reference links are moved to the foot
+        (Move-BlueprintReferenceLinks) except on index.md. The Markdown is written
+        under $script:OutputRoot when $script:WriteMarkdown is set, and the section
+        model is written through Write-BlueprintSectionModel when $script:WriteJson
+        is set.
+
+    .PARAMETER FileName
+        The page file name, such as 90-gap-analysis.md. It decides the description
+        and which finding ids are linked.
+
+    .PARAMETER Body
+        The page Markdown.
+    #>
+    [CmdletBinding()]
+    param([string]$FileName, [string]$Body)
     $target = Join-Path $script:OutputRoot $FileName
     $body = $Body.TrimEnd() + [Environment]::NewLine
     # The window the KQL captures read, named where a page says {lookback}

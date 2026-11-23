@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Strip KQL line and block comments from a query string before regex extraction so commented-out...
+    Strip KQL line and block comments from a query string.
 
 .DESCRIPTION
     Copied unchanged from Modules/Sentinel.Common/Sentinel.Common.psm1, which retired in release
@@ -14,7 +14,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -25,12 +25,15 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Remove-KqlComments {
-<#
-.SYNOPSIS
-    Strip KQL line and block comments from a query string before regex
-    extraction so commented-out _GetWatchlist / externaldata calls do
-    not produce false positives in the manifest.
-#>
+    <#
+    .SYNOPSIS
+        Strip KQL line and block comments from a query string before regex
+        extraction so commented-out _GetWatchlist / externaldata calls do
+        not produce false positives in the manifest.
+
+    .PARAMETER Query
+        The KQL query text.
+    #>
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string]$Query)
 

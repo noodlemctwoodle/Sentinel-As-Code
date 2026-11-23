@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -19,8 +19,23 @@
     lives on the function's own help block.
 #>
 
-# Billable GB in 30 days per table, summed over the per-solution rows.
+# Keeps the file help above from being read as the help of the function below.
 function Get-GapTableVolume30d {
+    <#
+    .SYNOPSIS
+        Billable GB over the lookback per table, summed across the per-solution rows.
+
+    .DESCRIPTION
+        Each TablesWithData row adds its Get-GapBillable30d figure to the entry
+        for its DataType. Null rows and rows without a DataType are skipped.
+
+    .PARAMETER Inventory
+        The gap inventory; its TablesWithData rows are read.
+
+    .OUTPUTS
+        [hashtable] DataType to billable GB.
+    #>
+    [CmdletBinding()]
     param([object]$Inventory)
     $gb = @{}
     foreach ($row in @($Inventory.TablesWithData)) {

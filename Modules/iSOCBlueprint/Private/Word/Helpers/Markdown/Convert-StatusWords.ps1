@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+
 
@@ -27,11 +27,23 @@
 function Convert-StatusWords {
     <#
     .SYNOPSIS
-        Colour status words through a character style: a table cell under
-        a status column (Severity, Status, Coverage, Rating) whose whole
-        text is a known status, and the value after '**Severity:**' on the
-        finding cards. Cells in any other column are left alone, so a
-        'None' elsewhere stays plain.
+        Colour the status, severity and rating words in table columns and on
+        finding cards through a character style.
+
+    .DESCRIPTION
+        A table cell under a status column (Severity, Status, Coverage, Rating)
+        whose whole text is a known status is styled, and so is the value after
+        '**Severity:**' on the finding cards. Cells in any other column are left
+        alone, so a 'None' elsewhere stays plain.
+
+    .PARAMETER Text
+        The Markdown to colour. It may be empty.
+
+    .PARAMETER Count
+        A [ref] to a counter, increased by the number of words styled.
+
+    .OUTPUTS
+        [string] The text with the words styled.
     #>
     [CmdletBinding()]
     [OutputType([string])]

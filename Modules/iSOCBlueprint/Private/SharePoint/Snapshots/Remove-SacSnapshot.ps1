@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -26,6 +26,12 @@ function Remove-SacSnapshot {
     .SYNOPSIS
         Move one day's snapshot that has dropped out of the window to the
         site's recycle bin.
+
+    .DESCRIPTION
+        Errors from the removal are not reported.
+
+    .PARAMETER FileName
+        The name of the snapshot file in the snapshot folder.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)] [string] $FileName)

@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-BpBlockList
+    Convert Markdig blocks into the section model's block dictionaries
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Section/Parsing/ConvertTo-BpBlockList.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -22,6 +22,42 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertTo-BpBlockList {
+    <#
+    .SYNOPSIS
+        Convert Markdig blocks into the section model's block dictionaries.
+
+    .DESCRIPTION
+        Each block is written to the pipeline as an ordered dictionary whose
+        type is heading, paragraph, note, list, table, chart, code, rule, html
+        or tableContinues. The first level-1 heading is not emitted while
+        Context has no title: it is stored there as the title. An anchor
+        paragraph or HTML anchor is held in Context and becomes the anchor of
+        the next heading, which otherwise takes a slug of its text. A quote
+        that comes before any content and begins with "Workspace" is the
+        metadata banner and is dropped. HTML comments are read as markers: the
+        seam Split-BpLongTable leaves, the shown-in-graphic marker (the next
+        paragraph, list or table gets inGraphic), a tone (the next note gets
+        it) and a visual comment holding chart JSON, which becomes a chart. A
+        mermaid fence becomes a chart through ConvertFrom-BlueprintMermaid and
+        any other fence a code block. Link reference definitions are dropped,
+        and a block of an unrecognised kind is kept as a paragraph of its text.
+        Quotes and list items are converted by calling this function again with
+        a fresh context.
+
+    .PARAMETER Blocks
+        The Markdig blocks to convert: the document, or a container block,
+        enumerated.
+
+    .PARAMETER Context
+        The running state, updated in place: title (set from the first level-1
+        heading), anchor (an anchor waiting for the next heading), content
+        (true once a content block has been emitted), and inGraphic and tone
+        (markers waiting for the next block they apply to).
+
+    .OUTPUTS
+        One ordered dictionary per block that is emitted.
+    #>
+    [CmdletBinding()]
     param([object] $Blocks, [hashtable] $Context)
     foreach ($b in $Blocks) {
         $type = $b.GetType().Name

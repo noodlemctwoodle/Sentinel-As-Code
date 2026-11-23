@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,8 +24,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-BlueprintEstateRingsTable {
-    # The four pipeline stages as in-use / of / share, with a rating so the
-    # reader does not have to do the division: 80%+ strong, 65%+ fair.
+    <#
+    .SYNOPSIS
+        Render the estate pipeline stages as in-use, of and share.
+
+    .DESCRIPTION
+        The four pipeline stages as in-use / of / share, with a rating so the reader
+        does not have to do the division: 80% and above is Strong, 65% and above is
+        Fair, and anything lower is Weak. A stage with nothing to measure against
+        shows n/a for share and rating.
+
+    .PARAMETER Estate
+        The estate model from New-BlueprintEstateModel.
+
+    .OUTPUTS
+        [string] of Markdown.
+    #>
+    [CmdletBinding()]
     param($Estate)
     function _Row([string]$Stage, [int]$Value, [int]$Of) {
         if ($Of -le 0) { return "| $Stage | $(Format-BlueprintCount $Value) | $(Format-BlueprintCount $Of) | _n/a_ | _n/a_ |" }

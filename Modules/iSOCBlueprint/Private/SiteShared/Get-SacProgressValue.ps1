@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Get-SacProgressValue, a helper of Get-SacProgress.
+    A property of a dictionary or an object, or $null.
 
 .DESCRIPTION
     Split from Get-SacProgress.ps1 so each file holds one function.
@@ -13,7 +13,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,12 @@ function Get-SacProgressValue {
     .SYNOPSIS
         A property of a dictionary or an object, or $null; a dotted path
         walks down ('maturity.overall.score').
+
+    .PARAMETER Object
+        The dictionary or object to read from. $null gives $null.
+
+    .PARAMETER Path
+        The property name, or dotted property names to walk down.
     #>
     [CmdletBinding()]
     param([AllowNull()] $Object, [Parameter(Mandatory)] [string] $Path)

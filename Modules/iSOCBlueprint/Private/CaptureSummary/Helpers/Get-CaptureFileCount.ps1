@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Capture reporting
     Requires:     PowerShell 7.6+
@@ -26,6 +26,9 @@ function Get-CaptureFileCount {
     .SYNOPSIS
         Items in one _raw file: rows for an array file, 1 or 0 for a single
         object. $null when the file is missing, -1 when it does not parse.
+
+    .PARAMETER Path
+        The _raw JSON file to count.
     #>
     [CmdletBinding()]
     param([string] $Path)

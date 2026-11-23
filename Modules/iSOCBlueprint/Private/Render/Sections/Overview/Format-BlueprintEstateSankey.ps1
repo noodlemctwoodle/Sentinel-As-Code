@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,8 +24,24 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-BlueprintEstateSankey {
-    # sankey-beta reads CSV rows: source,target,value. Labels are quoted so
-    # a family name with a comma cannot split a row; values are GB.
+    <#
+    .SYNOPSIS
+        Render the estate model as sankey rows.
+
+    .DESCRIPTION
+        sankey-beta reads CSV rows: source, target, value. Labels are quoted so a
+        family name with a comma cannot split a row; values are GB. The block also
+        carries the estate as data for the SharePoint graphic (every family's GB and
+        the part a detection reads, and the four stages as in use of a whole).
+        Returns _Nothing to draw._ when there are no rows.
+
+    .PARAMETER Estate
+        The estate model from New-BlueprintEstateModel.
+
+    .OUTPUTS
+        [string]: a fenced mermaid block.
+    #>
+    [CmdletBinding()]
     param($Estate)
     function _Gb([double]$v) {
         if ($v -le 0) { return $null }

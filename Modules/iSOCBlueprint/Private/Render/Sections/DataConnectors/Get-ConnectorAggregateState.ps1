@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,6 +24,25 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-ConnectorAggregateState {
+    <#
+    .SYNOPSIS
+        Roll a connector's data types up to one state.
+
+    .DESCRIPTION
+        RestApiPoller and Push connectors carry no dataTypes map: they are enabled
+        when both properties.dataType and properties.dcrConfig are present, partial
+        when one is, and unknown when neither is. For other kinds the state is
+        enabled when every data type is enabled, disabled when every one is
+        disabled, partial when some are enabled, and unknown otherwise (including
+        when there are no data types).
+
+    .PARAMETER Connector
+        The data connector resource.
+
+    .OUTPUTS
+        [string]: 'enabled', 'disabled', 'partial' or 'unknown'.
+    #>
+    [CmdletBinding()]
     param([psobject]$Connector)
     # RestApiPoller / Push connectors don't carry a dataTypes map. Treat the
     # presence of a dataType + dcrConfig as 'enabled' for that kind.

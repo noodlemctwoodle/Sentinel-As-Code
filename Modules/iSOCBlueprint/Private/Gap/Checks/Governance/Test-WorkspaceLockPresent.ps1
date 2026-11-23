@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-GOV-03, No deletion-protection lock on the workspace
 # ------------------------------------------------------------
 function Test-WorkspaceLockPresent {
+    <#
+    .SYNOPSIS
+        Gap check SAC-GOV-03: No deletion-protection lock on the workspace
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $locks = @($Inventory.WorkspaceLocks)
     $relevant = @($locks | Where-Object {

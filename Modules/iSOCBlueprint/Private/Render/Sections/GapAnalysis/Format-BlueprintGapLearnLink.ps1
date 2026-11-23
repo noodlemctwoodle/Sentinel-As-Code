@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -24,6 +24,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Format-BlueprintGapLearnLink {
+    <#
+    .SYNOPSIS
+        Format a finding's Learn link for its remediation card.
+
+    .DESCRIPTION
+        Returns _(no reference)_ when there is no URL. Otherwise a Markdown link
+        whose text is the last path segment of the URL with hyphens as spaces, in
+        title case, followed by (Microsoft Learn). The text is Microsoft Learn when
+        the path has no segment or the URL does not parse.
+
+    .PARAMETER Url
+        The Learn page URL.
+
+    .OUTPUTS
+        [string] of Markdown.
+    #>
+    [CmdletBinding()]
     param([string]$Url)
     if (-not $Url) { return '_(no reference)_' }
     # Use a friendly title rather than a bare URL. Extract the last URL

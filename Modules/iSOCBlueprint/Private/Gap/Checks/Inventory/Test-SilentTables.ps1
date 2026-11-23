@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-INV-01, Silent tables (data in the lookback, none in the recent window)
 # ------------------------------------------------------------
 function Test-SilentTables {
+    <#
+    .SYNOPSIS
+        Gap check SAC-INV-01: Silent tables (data in the lookback, none in the recent window)
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     if (-not $Inventory.TablesWithData) { return $null }
     $silent = @($Inventory.TablesWithData | Where-Object {

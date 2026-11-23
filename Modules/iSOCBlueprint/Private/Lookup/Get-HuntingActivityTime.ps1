@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Get-HuntingActivityTime, a helper of Get-HuntingActivity.
+    The latest of the named date properties on an object, in UTC.
 
 .DESCRIPTION
     One of the helpers beside Get-HuntingActivity.ps1, which describes the whole.
@@ -13,7 +13,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
+    Version:      0.1.1
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -26,8 +26,22 @@
 function Get-HuntingActivityTime {
     <#
     .SYNOPSIS
-        The latest of the named date properties on an object (UTC), or
-        $null when it has none that parse.
+        The latest of the named date properties on an object (UTC), or $null
+        when it has none that parse.
+
+    .DESCRIPTION
+        A property that is a datetime is converted to UTC; any other value is
+        parsed with the invariant culture and read as UTC. A property that is
+        absent, empty or not a date is skipped.
+
+    .PARAMETER Object
+        The object to read. Null gives $null.
+
+    .PARAMETER Names
+        The names of the date properties to read.
+
+    .OUTPUTS
+        [datetime] The latest time, in UTC, or $null.
     #>
     [CmdletBinding()]
     param(

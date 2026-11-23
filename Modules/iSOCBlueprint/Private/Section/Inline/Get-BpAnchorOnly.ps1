@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Get-BpAnchorOnly
+    Return the id of a paragraph that holds only an HTML anchor, which marks the next heading
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Section/Inline/Get-BpAnchorOnly.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -22,7 +22,24 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-BpAnchorOnly {
-    # A paragraph that is only <a id="x"></a> marks the next heading.
+    <#
+    .SYNOPSIS
+        Return the id of a paragraph that holds only an HTML anchor, which marks
+        the next heading.
+
+    .DESCRIPTION
+        A paragraph that is only <a id="x"></a> names the anchor of the heading
+        that follows it. The paragraph may also hold whitespace-only text and
+        line breaks. Anything else, or no anchor, gives $null.
+
+    .PARAMETER Container
+        The Markdig container inline of a paragraph. When it is $null the result
+        is $null.
+
+    .OUTPUTS
+        [string] The anchor id, or $null.
+    #>
+    [CmdletBinding()]
     param([object] $Container)
     if ($null -eq $Container) { return $null }
     $id = $null

@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -26,6 +26,22 @@
 
 # Keeps the file help above from being read as the help of the function below.
 function ConvertTo-GapBool {
+    <#
+    .SYNOPSIS
+        A KQL result cell or flag as a boolean.
+
+    .DESCRIPTION
+        $null is $false and a [bool] is returned as it is. Anything else is
+        $true only when its trimmed text is "true", compared without regard
+        to case.
+
+    .PARAMETER Value
+        The cell or flag to read.
+
+    .OUTPUTS
+        [bool]
+    #>
+    [CmdletBinding()]
     param([object]$Value)
     if ($null -eq $Value) { return $false }
     if ($Value -is [bool]) { return $Value }

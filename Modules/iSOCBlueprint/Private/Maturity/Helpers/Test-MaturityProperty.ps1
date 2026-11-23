@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
@@ -24,8 +24,21 @@
 function Test-MaturityProperty {
     <#
     .SYNOPSIS
-        True when the object carries the named member, even with a null
-        value. Safe under StrictMode on empty objects and primitives.
+        True when the object carries the named member, even with a null value.
+
+    .DESCRIPTION
+        Safe under StrictMode on empty objects and primitives. A hashtable is
+        tested for the key, and any other object for a member of that name. Null
+        is false.
+
+    .PARAMETER Object
+        The hashtable or object to test.
+
+    .PARAMETER Name
+        The member or key name.
+
+    .OUTPUTS
+        [bool] True when the member is there.
     #>
     [CmdletBinding()]
     [OutputType([bool])]

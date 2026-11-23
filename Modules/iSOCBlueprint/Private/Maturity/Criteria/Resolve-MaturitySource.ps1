@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.2
+    Version:      0.1.3
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
@@ -26,6 +26,35 @@ function Resolve-MaturitySource {
     .SYNOPSIS
         Resolve one source (recursively for allOf / anyOf) to Met, Gap or
         Unknown, with the metric value and the rule evidence that decided it.
+
+    .DESCRIPTION
+        A gapRule source is Met when its rule passed, a Gap when it fired (with
+        the rule's evidence) and Unknown when the rule was not evaluated in the
+        run. A metric source compares the metric's value with the expected value
+        using its op (gt, ge, eq, lt or le); a boolean expected value is
+        compared for equality, an unrecognised op is a Gap, and a metric with no
+        value is Unknown. An allOf source is a Gap if any part is a Gap,
+        otherwise Unknown if any part is Unknown, otherwise Met. An anyOf source
+        is Met if any part is Met, otherwise Unknown if any part is Unknown,
+        otherwise Gap. Any other kind throws.
+
+    .PARAMETER Source
+        The source to resolve: an object with a kind of gapRule, metric, allOf
+        or anyOf and the fields that kind reads (rule; path, op and value;
+        sources).
+
+    .PARAMETER Metrics
+        The run's metric values, looked up by a metric source's path.
+
+    .PARAMETER OutcomeById
+        A hashtable of gap rule id to its outcome in the run, Passed or Fired.
+
+    .PARAMETER EvidenceById
+        A hashtable of gap rule id to the evidence text of a fired rule.
+
+    .OUTPUTS
+        [pscustomobject] with Status (Met, Gap or Unknown), Metric, Rule and
+        Evidence.
     #>
     [CmdletBinding()]
     param(

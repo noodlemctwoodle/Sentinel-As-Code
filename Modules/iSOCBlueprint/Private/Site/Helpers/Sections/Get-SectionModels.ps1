@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -27,11 +27,24 @@
 function Get-SectionModels {
     <#
     .SYNOPSIS
-        The run's sections from the section model (sections/index.json and
-        sections/<id>.json), in reading order. A snapshot rendered before
-        the section model existed has only NN-name.md files; those are
-        converted on the fly with the same converter the renderer uses.
+        The sections of a run, in reading order, from its section model.
+
+    .DESCRIPTION
+        The sections come from sections/index.json and each sections/<id>.json
+        it lists. A listed file that is missing is skipped and noted in
+        $buildWarnings, which the function reads from the calling scope. A
+        snapshot rendered before the section model existed has only NN-name.md
+        files; those are converted on the fly with ConvertTo-BlueprintSection,
+        the converter the renderer uses, and a warning is added to
+        $buildWarnings.
+
+    .PARAMETER Source
+        The run's workspace folder, holding sections/ or the NN-name.md files.
+
+    .OUTPUTS
+        One section model per section, in reading order.
     #>
+    [CmdletBinding()]
     param([Parameter(Mandatory)] [string] $Source)
     $dir = Join-Path $Source 'sections'
     $indexPath = Join-Path $dir 'index.json'

@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Get-BpLinkTarget
+    Say what a link points at
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Section/Inline/Get-BpLinkTarget.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Section model conversion
     Requires:     PowerShell 7.6+
@@ -24,9 +24,25 @@
 function Get-BpLinkTarget {
     <#
     .SYNOPSIS
-        Say what a link points at: kind section (section, anchor), finding
-        (id), anchor (anchor, same page), external, or repo (path).
+        Say what a link points at.
+
+    .DESCRIPTION
+        Returns an ordered dictionary whose kind says what the link is:
+        finding for '#sac-xxx-nn', optionally after 90-gap-analysis.md, with id
+        set to the upper-case finding id; external for an http, https or mailto
+        link; anchor for '#name', with anchor set to the name; section for
+        '<nn>-<name>.md' or 'index.md', optionally with a leading './' and a
+        '#name' part, with section set to the file name without '.md' and
+        anchor set to the '#name' part or $null; and repo for anything else,
+        with path set to the link as written.
+
+    .PARAMETER Href
+        The link's destination as written in the Markdown.
+
+    .OUTPUTS
+        An ordered dictionary with kind and the entries that kind names.
     #>
+    [CmdletBinding()]
     param([string] $Href)
     if ($Href -match '^(?:90-gap-analysis\.md)?#(?<id>sac-[a-z]{2,4}-\d{2})$') { return [ordered]@{ kind = 'finding'; id = $Matches['id'].ToUpperInvariant() } }
     if ($Href -match '^(?:https?|mailto):') { return [ordered]@{ kind = 'external' } }

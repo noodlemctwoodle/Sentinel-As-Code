@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Capture reporting
     Requires:     PowerShell 7.6+
@@ -36,6 +36,9 @@ function Get-CaptureIssueKind {
         bare 400 with nothing more is NotAvailable: the collector's queries
         are parsed in its tests, so a refused query is almost always one
         that names a table this workspace lacks.
+
+    .PARAMETER Message
+        The capture's error message.
     #>
     [CmdletBinding()]
     [OutputType([string])]

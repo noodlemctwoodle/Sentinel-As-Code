@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-BpMermaidText
+    Clean Mermaid label text: drop wrapping double quotes and turn <br/> into a newline.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Helpers/ConvertTo-BpMermaidText.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,7 +22,23 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertTo-BpMermaidText {
-    # Mermaid label text: drop wrapping quotes, turn <br/> into a newline.
+    <#
+    .SYNOPSIS
+        Clean Mermaid label text: drop wrapping double quotes and turn <br/>
+        into a newline.
+
+    .DESCRIPTION
+        The text is trimmed first. One pair of double quotes is removed, and
+        only when the text both starts and ends with one. <br>, <br/> and
+        <br /> each become a newline.
+
+    .PARAMETER Text
+        The label text.
+
+    .OUTPUTS
+        [string] The cleaned label.
+    #>
+    [CmdletBinding()]
     param([AllowEmptyString()] [AllowNull()] [string] $Text)
     if ($null -eq $Text) { return $null }
     $t = $Text.Trim()

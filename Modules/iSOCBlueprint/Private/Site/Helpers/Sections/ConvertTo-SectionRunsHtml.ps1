@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -27,11 +27,25 @@
 function ConvertTo-SectionRunsHtml {
     <#
     .SYNOPSIS
-        Dashboard HTML for text runs: web links open in a new tab; links to
-        another section or to a finding become in-dashboard links (the
-        dashboard opens the section in its Report tab, or the finding in its
-        findings view). A link to an anchor on the same page shows as text.
+        A section's inline runs as dashboard HTML.
+
+    .DESCRIPTION
+        Web links open in a new tab. Links to another section or to a finding
+        become in-dashboard links: the dashboard opens the section in its Report
+        tab, or the finding in its findings view. A link to an anchor on the
+        same page shows as text. A link or mention by file name
+        (90-gap-analysis.md) shows the section's title, and a mention becomes a
+        link to it. A break run becomes a line break. Text is escaped before it
+        is wrapped in code, strike, italic and bold tags.
+
+    .PARAMETER Runs
+        The text runs: objects with text and any of href, target, break, code,
+        strike, italic and bold.
+
+    .OUTPUTS
+        [string] The HTML.
     #>
+    [CmdletBinding()]
     param([object[]] $Runs)
     $sb = [System.Text.StringBuilder]::new()
     foreach ($r in @($Runs)) {
@@ -43,7 +57,11 @@ function ConvertTo-SectionRunsHtml {
         if ($r.href -and [string]$r.target.kind -eq 'section') { $text = Get-SacSectionLinkText -Text $text -SectionId ([string]$r.target.section) }
         $fileOnly = (-not $r.href) -and $text -match '^\s*\d{2}-[a-z0-9-]+\.md\s*$'
         $h = ConvertTo-HtmlText $text
-        if (-not $r.href) { $h = ConvertTo-SacFileMentionHtml -Html $h -Link { param($id, $title) "<a class=`"xref`" href=`"#`" data-xsec=`"$([int]$id.Substring(0, 2))`">$title</a>" } }
+        if (-not $r.href) {
+            $h = ConvertTo-SacFileMentionHtml -Html $h -Link {
+                param($id, $title) "<a class=`"xref`" href=`"#`" data-xsec=`"$([int]$id.Substring(0, 2))`">$title</a>"
+            }
+        }
         if ($r.code -and -not $fileOnly) { $h = "<code>$h</code>" }
         if ($r.strike) { $h = "<s>$h</s>" }
         if ($r.italic) { $h = "<em>$h</em>" }

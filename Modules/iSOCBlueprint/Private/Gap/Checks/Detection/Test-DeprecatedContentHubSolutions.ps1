@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-DET-13, Installed solution deprecated or no longer in the catalogue
 # ------------------------------------------------------------
 function Test-DeprecatedContentHubSolutions {
+    <#
+    .SYNOPSIS
+        Gap check SAC-DET-13: Installed solution deprecated or no longer in the catalogue
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     $installed = @($Inventory.ContentPackages | Where-Object { $null -ne $_ })
     $catalogue = @($Inventory.ContentProductPackages | Where-Object { $null -ne $_ })

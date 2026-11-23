@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertFrom-BpMermaidGantt
+    Parse the body of a Mermaid gantt chart into its title, formats and sections of tasks.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/Mermaid/Parsers/ConvertFrom-BpMermaidGantt.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Mermaid chart parsing
     Requires:     PowerShell 7.6+
@@ -22,6 +22,28 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function ConvertFrom-BpMermaidGantt {
+    <#
+    .SYNOPSIS
+        Parse the body of a Mermaid gantt chart into its title, formats and
+        sections of tasks.
+
+    .DESCRIPTION
+        A task line is a label, a colon and comma-separated items. The items
+        done, active, crit and milestone are the task's tags. Of the others,
+        three or more are the id, start and length; two are the start and
+        length; one is the length. A task before any section line goes in a
+        section with a $null name. excludes, todayMarker, tickInterval,
+        weekday and includes lines are skipped.
+
+    .PARAMETER Body
+        The diagram's lines after its header line.
+
+    .OUTPUTS
+        [ordered] kind ('gantt'), the chart's title and data: dateFormat,
+        axisFormat and sections (name and tasks, each with label, tags, id,
+        start and length).
+    #>
+    [CmdletBinding()]
     param([string[]] $Body)
     $title = $null; $dateFormat = $null; $axisFormat = $null
     $sections = [System.Collections.Generic.List[object]]::new()

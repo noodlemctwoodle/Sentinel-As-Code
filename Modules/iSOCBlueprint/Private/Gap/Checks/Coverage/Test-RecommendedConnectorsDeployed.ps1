@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -28,6 +28,17 @@
 # SAC-COV-07, Recommended connectors not deployed
 # ------------------------------------------------------------
 function Test-RecommendedConnectorsDeployed {
+    <#
+    .SYNOPSIS
+        Gap check SAC-COV-07: Recommended connectors not deployed
+
+    .PARAMETER Inventory
+        The inventory Get-SentinelGap builds from the raw files.
+
+    .OUTPUTS
+        $null when the rule passes; otherwise the finding New-Finding returns, with its
+        Evidence and Detail.
+    #>
     [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
     # $Inventory.DataConnectors can be $null when the workspace has no classic
     # connectors at all (some tenants run pure CCF). Coerce to an empty array

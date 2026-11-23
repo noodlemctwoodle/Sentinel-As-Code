@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -23,9 +23,28 @@
 
 # Keeps the file help above from being read as the help of the function below.
 
-function Get-BlueprintEmptyMessage([string]$Name, [string]$Empty = '_None._') {
-    # A capture added after a snapshot was taken leaves no file. Its section
-    # says so, rather than claiming the workspace has nothing.
+function Get-BlueprintEmptyMessage {
+    <#
+    .SYNOPSIS
+        Return the text for a section whose capture is missing or empty.
+
+    .DESCRIPTION
+        A capture added after a snapshot was taken leaves no file. Its section says
+        so, rather than claiming the workspace has nothing. Returns Empty when the
+        file exists under $script:RawRoot, otherwise _Not captured in this
+        snapshot._.
+
+    .PARAMETER Name
+        The capture file name under the raw folder.
+
+    .PARAMETER Empty
+        The text to return when the capture file exists. Defaults to _None._.
+
+    .OUTPUTS
+        [string].
+    #>
+    [CmdletBinding()]
+    param([string]$Name, [string]$Empty = '_None._')
     if (Test-Path (Join-Path $script:RawRoot $Name)) { return $Empty }
     return '_Not captured in this snapshot._'
 }

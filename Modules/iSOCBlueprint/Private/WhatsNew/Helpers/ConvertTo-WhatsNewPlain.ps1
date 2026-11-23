@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    ConvertTo-WhatsNewPlain
+    Markdown inline text as plain text.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Private/WhatsNew/Helpers/ConvertTo-WhatsNewPlain.ps1
@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-16
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, What's new reading
     Requires:     PowerShell 7.6+
@@ -26,6 +26,12 @@ function ConvertTo-WhatsNewPlain {
     .SYNOPSIS
         Markdown inline text as plain text: links and images to their text,
         emphasis and code marks removed, spaces collapsed.
+
+    .PARAMETER Text
+        The Markdown text.
+
+    .OUTPUTS
+        [string]
     #>
     [CmdletBinding()]
     [OutputType([string])]

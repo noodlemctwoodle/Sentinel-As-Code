@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
@@ -24,8 +24,22 @@
 function Format-MaturityWindow {
     <#
     .SYNOPSIS
-        Name the run's window in a criterion's text: {lookback} as the days
-        the KQL captures read, {recent} as the latest days within it.
+        Name the run's window in a criterion's text.
+
+    .DESCRIPTION
+        {lookback} becomes the days the KQL captures read and {recent} the
+        latest days within it, each as a count of days, or as 1 day when the
+        count is one.
+
+    .PARAMETER Text
+        The criterion's text. It is returned as it is when null or empty.
+
+    .PARAMETER Window
+        The run's window: Days is the lookback and RecentDays the latest days
+        within it.
+
+    .OUTPUTS
+        [string] The text with the window named.
     #>
     [CmdletBinding()]
     param(

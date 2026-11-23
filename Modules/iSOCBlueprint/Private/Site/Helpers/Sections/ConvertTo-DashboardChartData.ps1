@@ -13,8 +13,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -27,13 +27,25 @@
 function ConvertTo-DashboardChartData {
     <#
     .SYNOPSIS
-        A chart's data for the dashboard. A flowchart node that links to a
-        section or a finding gets an in-dashboard address (/#sac-section-NN,
-        /#sac-finding-ID), which the dashboard opens in its Report tab or
-        findings view; a web link stays; anything else has no link. A
-        finding card links to its finding the same way. Other kinds pass
-        through.
+        A chart's data in the shape the dashboard draws.
+
+    .DESCRIPTION
+        A flowchart node that links to a section or a finding gets an
+        in-dashboard address (/#sac-section-NN or /#sac-finding-ID), which the
+        dashboard opens in its Report tab or findings view. A web link is kept,
+        and a node with any other target, or none, has no link. A finding-cards
+        chart links each card that has an id to its finding the same way. The
+        data is copied through JSON first, so the chart itself is not changed.
+        Any other kind returns its data as it is.
+
+    .PARAMETER Chart
+        The chart block, read for its kind and data.
+
+    .OUTPUTS
+        The chart's data: a hashtable copy for a flowchart or finding-cards
+        chart, otherwise the chart's own data.
     #>
+    [CmdletBinding()]
     param($Chart)
     if ([string]$Chart.kind -eq 'finding-cards' -and $null -ne $Chart.data) {
         $cards = $Chart.data | ConvertTo-Json -Depth 32 | ConvertFrom-Json -AsHashtable -Depth 32

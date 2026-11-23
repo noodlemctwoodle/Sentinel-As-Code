@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -26,6 +26,12 @@ function Get-SacFolderFileNames {
     .SYNOPSIS
         Names of the files in one folder of the assets library, or an empty
         array when the folder does not exist yet.
+
+    .PARAMETER Folder
+        The folder to list, relative to the assets library, such as 'diagrams'.
+
+    .OUTPUTS
+        [string[]] The file names, as an array even when there is one or none.
     #>
     [CmdletBinding()]
     [OutputType([string[]])]

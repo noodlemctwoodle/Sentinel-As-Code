@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -19,9 +19,23 @@
     lives on the function's own help block.
 #>
 
-# Enabled Scheduled and NRT rules, the only kinds whose query, entity
-# mappings and incident settings are authored by the workspace owner.
+# Keeps the file help above from being read as the help of the function below.
 function Get-GapEnabledQueryRule {
+    <#
+    .SYNOPSIS
+        The enabled Scheduled and NRT analytics rules in the inventory.
+
+    .DESCRIPTION
+        These are the only kinds whose query, entity mappings and incident
+        settings are authored by the workspace owner.
+
+    .PARAMETER Inventory
+        The gap inventory; its AlertRules are read.
+
+    .OUTPUTS
+        The matching rules as an array, empty when none match.
+    #>
+    [CmdletBinding()]
     param([object]$Inventory)
     return @($Inventory.AlertRules | Where-Object {
         $null -ne $_ -and

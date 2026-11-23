@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint page conversion
     Requires:     PowerShell 7.6+
@@ -33,6 +33,9 @@ function ConvertTo-SacCsvField {
         that starts with =, +, -, @, a tab or a carriage return as a
         formula, so such a field is prefixed with an apostrophe, which Excel
         shows as text. A plain negative number is left alone.
+
+    .PARAMETER Value
+        The field's text.
     #>
     [CmdletBinding()]
     [OutputType([string])]

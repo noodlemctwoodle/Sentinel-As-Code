@@ -10,7 +10,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
+    Version:      0.1.2
     Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
@@ -25,6 +25,14 @@ function Get-SacNavigation {
     <#
     .SYNOPSIS
         Read the site's top navigation as a planner-shaped tree.
+
+    .PARAMETER WebServerRelativeUrl
+        The web's server-relative URL, passed to ConvertTo-SacNavigationTree so
+        the URLs come back in '~site/' form.
+
+    .OUTPUTS
+        [object[]] The navigation tree, empty when the site has no top
+        navigation nodes.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]

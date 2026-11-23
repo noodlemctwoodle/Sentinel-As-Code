@@ -56,7 +56,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-06
-    Version:      0.7.5
+    Version:      0.7.6
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
@@ -67,6 +67,43 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-SentinelGap {
+    <#
+    .SYNOPSIS
+        Run every rule's check against the inventory built from a run's raw
+        files and return the findings.
+
+    .DESCRIPTION
+        Each rule in the ruleset names a check function. A check that returns a
+        result gives a finding; one that returns $null passes and gives none. A
+        check that throws, or is not defined, is warned about and gives none.
+        {lookback} and {recent} in a rule's title and remediation are replaced
+        with the run's window in days. When OutcomeCollector is given, every
+        rule adds a record to it: Id, Check, Outcome (Fired, Passed, Errored or
+        Undefined) and Message (the error text for Errored and Undefined, else
+        $null).
+
+    .PARAMETER InputRoot
+        The run's _raw folder of JSON files, read into the inventory by
+        New-InventoryFromRaw. An error when it does not exist.
+
+    .PARAMETER ResourcesRoot
+        The folder of reference data files the inventory also reads. An error
+        when it does not exist.
+
+    .PARAMETER RulesPath
+        The best-practices JSON file; its rules array lists the rules to run.
+        An error when it does not exist.
+
+    .PARAMETER OutcomeCollector
+        An empty List[object] that receives one outcome record per rule. When it
+        is omitted no outcomes are recorded.
+
+    .OUTPUTS
+        [pscustomobject[]] One finding per rule whose check returned a result,
+        with Id, LegacyId, Area, Title, Category, Severity, Evidence, Detail,
+        Remediation, Learn, CheckName and PassedAt. An empty array when nothing
+        fired.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
