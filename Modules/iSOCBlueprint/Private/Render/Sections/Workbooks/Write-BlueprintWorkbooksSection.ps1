@@ -49,7 +49,7 @@ function Write-BlueprintWorkbooksSection {
     }
     $wbUnsaved = [math]::Max(0, $workbookTemplates.Count - $workbooksSaved.Count)
     Write-BlueprintSection '40-workbooks.md' (@"
-$(Format-Banner -Title "Workbooks")
+$(Format-Banner -Title 'Workbooks')
 
 ## Adoption
 

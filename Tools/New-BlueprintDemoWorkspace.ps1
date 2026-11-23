@@ -148,8 +148,8 @@ if (Test-Path -LiteralPath $raw) { Remove-Item -LiteralPath $raw -Recurse -Force
 New-Item -ItemType Directory -Path $raw -Force | Out-Null
 
 $demoHelpers = @(Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private/Kql') -Filter '*.ps1' -File -Recurse | Sort-Object FullName) +
-@(Get-Item -LiteralPath (Join-Path $moduleRoot 'Private/Azure/Get-DefenderCustomDetections.ps1'),
-    (Join-Path $moduleRoot 'Private/Azure/Get-CustomDetectionTableReferences.ps1'))
+@(Get-Item -LiteralPath (Join-Path $moduleRoot 'Private/Azure/Get-DefenderCustomDetection.ps1'),
+    (Join-Path $moduleRoot 'Private/Azure/Get-CustomDetectionTableReference.ps1'))
 foreach ($helper in $demoHelpers) { . $helper.FullName }
 
 $asOfUtc = if ($AsOf.Kind -eq [System.DateTimeKind]::Unspecified) { [datetime]::SpecifyKind($AsOf, 'Utc') } else { $AsOf.ToUniversalTime() }
@@ -445,13 +445,13 @@ $communityYaml = [System.Collections.Generic.List[object]]::new()
 foreach ($f in $ruleFiles) {
     $y = Read-DemoYaml $f.FullName
     if (-not $y -or -not $y['id'] -or -not $y['query']) { continue }
-    $entry = [pscustomobject]@{ Yaml = $y; File = $f; Folder = $f.Directory.Name; Tables = @(Resolve-KqlTableNames -Query ([string]$y['query'])) }
+    $entry = [pscustomobject]@{ Yaml = $y; File = $f; Folder = $f.Directory.Name; Tables = @(Resolve-KqlTableName -Query ([string]$y['query'])) }
     if ($f.FullName -match '[/\\]Community[/\\]') { $communityYaml.Add($entry) } else { $customYaml.Add($entry) }
 }
 # A rule can fire when it reads a table the estate ingests.
 function Test-DemoReadable([string[]]$Tables) { foreach ($t in $Tables) { if ($hasData.ContainsKey($t)) { return $true } }; return $false }
 
-function New-DemoRuleProperties($Y, [bool]$Enabled, [string]$Template, [string]$TemplateVersion) {
+function New-DemoRuleProperty($Y, [bool]$Enabled, [string]$Template, [string]$TemplateVersion) {
     $kind = [string](Get-DemoValue $Y 'kind' 'Scheduled')
     $p = [ordered]@{
         displayName         = [string]$Y['name']
@@ -505,7 +505,7 @@ foreach ($e in $customYaml) {
             etag       = '"' + (New-DemoGuid "etag|$id") + '"'
             type       = 'Microsoft.SecurityInsights/alertRules'
             kind       = $kind
-            properties = (New-DemoRuleProperties $e.Yaml $enabled $null $null)
+            properties = (New-DemoRuleProperty $e.Yaml $enabled $null $null)
         })
     $ruleModels.Add([pscustomobject]@{
             Id        = $id
@@ -529,7 +529,7 @@ foreach ($e in $communityYaml) {
             etag       = '"' + (New-DemoGuid "etag|$id") + '"'
             type       = 'Microsoft.SecurityInsights/alertRules'
             kind       = 'Scheduled'
-            properties = (New-DemoRuleProperties $e.Yaml $true $tid $version)
+            properties = (New-DemoRuleProperty $e.Yaml $true $tid $version)
         })
     $ruleModels.Add([pscustomobject]@{
             Id        = $id
@@ -1408,7 +1408,7 @@ Save-DemoJson 'daily-incidents.json' @(foreach ($g in ($incidents |
         }
     })
 # Per detection: incidents and verdicts, overall and per day.
-function Get-DemoVerdicts($Items) {
+function Get-DemoVerdict($Items) {
     $closed = @($Items | Where-Object Status -EQ 'Closed')
     [ordered]@{ Incidents = @($Items).Count
         Closed            = $closed.Count
@@ -1420,7 +1420,7 @@ function Get-DemoVerdicts($Items) {
 }
 $byDetection = $incidents | Group-Object { $_.Source.Key }
 Save-DemoJson 'rule-effectiveness.json' @($(foreach ($g in $byDetection) {
-            $s = $g.Group[0].Source; $v = Get-DemoVerdicts $g.Group
+            $s = $g.Group[0].Source; $v = Get-DemoVerdict $g.Group
             [ordered]@{
                 AlertRuleId = $s.RuleId
                 RuleName    = $s.Name
@@ -1440,7 +1440,7 @@ Save-DemoJson 'daily-rule-incidents.json' @(foreach ($g in ($incidents | Group-O
             RuleName    = $s.Name
             Product     = $s.Product
             Provider    = $s.Provider
-        } + (Get-DemoVerdicts $g.Group)
+        } + (Get-DemoVerdict $g.Group)
     })
 Save-DemoJson 'incidents-by-rule.json' @(
     foreach ($g in ($incidents | Group-Object { $_.Source.Title } | Sort-Object Count -Descending)) { [ordered]@{ Title = $g.Name; Incidents = "$($g.Count)" } }
@@ -2244,9 +2244,9 @@ Save-DemoJson 'run-context.json' ([ordered]@{ SubscriptionId = $subscriptionId
 $rulesForRefs = @(Get-Content -LiteralPath (Join-Path $raw 'alert-rules.json') -Raw | ConvertFrom-Json -Depth 64)
 $templatesForRefs = @(Get-Content -LiteralPath (Join-Path $raw 'alert-rule-templates.json') -Raw | ConvertFrom-Json -Depth 64)
 $detectionsForRefs = @(Get-Content -LiteralPath (Join-Path $raw 'defender-custom-detections.json') -Raw | ConvertFrom-Json -Depth 64)
-Save-DemoJson 'rule-table-references.json' @(Get-RuleTableReferences -AlertRules $rulesForRefs)
-Save-DemoJson 'template-table-references.json' @(Get-TemplateTableReferences -Templates $templatesForRefs -AlertRules $rulesForRefs)
-Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTableReferences -Detections $detectionsForRefs)
+Save-DemoJson 'rule-table-references.json' @(Get-RuleTableReference -AlertRules $rulesForRefs)
+Save-DemoJson 'template-table-references.json' @(Get-TemplateTableReference -Templates $templatesForRefs -AlertRules $rulesForRefs)
+Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTableReference -Detections $detectionsForRefs)
 
 # The cost estimate, gap checks and maturity assessment (the module's own
 # Private folders), defined in this scope.

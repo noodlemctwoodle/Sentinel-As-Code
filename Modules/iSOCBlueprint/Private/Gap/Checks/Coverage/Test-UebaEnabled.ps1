@@ -64,11 +64,11 @@ function Test-UebaEnabled {
     if ($producingCount -gt 0) { return $null }
 
     if ($null -eq $ueba) {
-        return New-Finding -Evidence "No Ueba setting resource found on the workspace and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last $(Format-GapDays (Get-GapWindow $Inventory).Days)."
+        return New-Finding -Evidence "No Ueba setting resource found on the workspace and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last $(Format-GapDay (Get-GapWindow $Inventory).Days)."
     }
     $enabled = Get-PropOrDefault $ueba 'properties.dataSources'
     if (-not $enabled -or $enabled.Count -eq 0) {
-        return New-Finding -Evidence "UEBA is configured but no data sources are enabled, and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last $(Format-GapDays (Get-GapWindow $Inventory).Days)." -Detail $ueba
+        return New-Finding -Evidence "UEBA is configured but no data sources are enabled, and no rows observed in BehaviorAnalytics / IdentityInfo / UserPeerAnalytics in the last $(Format-GapDay (Get-GapWindow $Inventory).Days)." -Detail $ueba
     }
     return $null
 }

@@ -42,7 +42,7 @@ function Merge-iSOCCommunityTag {
         Merge-iSOCCommunityTag -Existing $rule.tags -Required $source.Tags
     #>
     [CmdletBinding()]
-    [OutputType([string])]
+    [OutputType([string], [array])]
     param(
         [AllowNull()]
         [object] $Existing,

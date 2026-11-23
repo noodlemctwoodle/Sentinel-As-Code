@@ -81,5 +81,5 @@ function Test-DeadAnalyticsRule {
     }
     if ($dead.Count -eq 0) { return $null }
     $sample = ($dead | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
-    return New-Finding -Evidence "$(Format-BlueprintCount $dead.Count) of $(Format-BlueprintPlural $rules.Count 'enabled Scheduled/NRT rule') produced zero alerts in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $sample." -Detail @{ Count = $dead.Count; Enabled = $rules.Count }
+    return New-Finding -Evidence "$(Format-BlueprintCount $dead.Count) of $(Format-BlueprintPlural $rules.Count 'enabled Scheduled/NRT rule') produced zero alerts in the last $(Format-GapDay (Get-GapWindow $Inventory).Days): $sample." -Detail @{ Count = $dead.Count; Enabled = $rules.Count }
 }

@@ -39,6 +39,7 @@ function Resolve-BlueprintWindowText {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Text)
     if (-not $Text -or $Text.IndexOf('{') -lt 0) { return $Text }

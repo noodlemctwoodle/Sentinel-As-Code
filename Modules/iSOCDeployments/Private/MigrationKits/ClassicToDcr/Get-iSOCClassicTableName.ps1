@@ -45,7 +45,7 @@ function Get-iSOCClassicTableName {
         Get-iSOCClassicTableName -Context $ctx
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array])]
     param(
         [Parameter(Mandatory)]
         [psobject] $Context

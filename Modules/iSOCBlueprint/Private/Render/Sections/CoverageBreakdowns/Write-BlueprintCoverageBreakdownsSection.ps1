@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -103,7 +103,7 @@ config:
 xychart-beta
     title "Defender XDR tables: records ingested in the last {lookback-d}"
     x-axis [$xdrAxis]
-$(Format-XyFullLabels @($xdrRows | ForEach-Object { $_.Table }))
+$(Format-XyFullLabel @($xdrRows | ForEach-Object { $_.Table }))
     y-axis "Records" 0 --> $($xdrYmax + ([math]::Ceiling($xdrYmax * 0.1)))
     bar [$xdrBars]
 ``````
@@ -139,7 +139,7 @@ A short bar means that XDR surface (email / device / identity / cloud-app) isn't
     else { 'Azure Firewall logs arrive in one form only.' }
 
     Write-BlueprintSection '14-coverage-breakdowns.md' (@"
-$(Format-Banner -Title "Coverage Breakdowns")
+$(Format-Banner -Title 'Coverage Breakdowns')
 
 Per-source coverage gaps revealed by direct table queries. A subscription, resource provider, or XDR table missing from these tables is a coverage gap to triage.
 $xdrChartBlock

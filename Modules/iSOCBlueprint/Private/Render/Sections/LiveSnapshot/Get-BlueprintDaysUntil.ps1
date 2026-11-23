@@ -38,6 +38,7 @@ function Get-BlueprintDaysUntil {
     .OUTPUTS
         [int].
     #>
+    [OutputType([int])]
     [CmdletBinding()]
     param([string]$IsoDate)
     $target = [datetime]::Parse($IsoDate, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal)

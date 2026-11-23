@@ -38,7 +38,7 @@ function Get-iSOCKqlWatchlistReference {
     String[] of distinct alias names. Returns @() when no references found.
 #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Query)
 
     if ([string]::IsNullOrWhiteSpace($Query)) { return @() }

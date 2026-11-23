@@ -40,6 +40,7 @@ function ConvertTo-GapInt {
     .OUTPUTS
         [int]
     #>
+    [OutputType([int])]
     [CmdletBinding()]
     param([object]$Value)
     if ($null -eq $Value) { return 0 }

@@ -74,7 +74,7 @@ function Test-SilentTableWithDependentRules {
             "$_ ($(Format-BlueprintPlural ($rulesByTable[$_].Count) 'rule'): $(@($rulesByTable[$_]) -join ', '))"
         }) -join '; '
     $dependent = @($silent | ForEach-Object { $rulesByTable[$_] } | Sort-Object -Unique).Count
-    return New-Finding -Evidence "$(Format-BlueprintPlural $silent.Count 'table') that enabled analytics rules read $(Select-GapWording $silent.Count 'has' 'have') ingested nothing in the last $(Format-GapDays (Get-GapWindow $Inventory).RecentDays): $sample. $(Select-GapWording $dependent 'That rule cannot' 'Those rules cannot') fire." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $silent.Count 'table') that enabled analytics rules read $(Select-GapWording $silent.Count 'has' 'have') ingested nothing in the last $(Format-GapDay (Get-GapWindow $Inventory).RecentDays): $sample. $(Select-GapWording $dependent 'That rule cannot' 'Those rules cannot') fire." -Detail @{
         Count  = $silent.Count
         Tables = @($silent | ForEach-Object { [pscustomobject]@{ Table = $_; Rules = @($rulesByTable[$_]) } })
     }

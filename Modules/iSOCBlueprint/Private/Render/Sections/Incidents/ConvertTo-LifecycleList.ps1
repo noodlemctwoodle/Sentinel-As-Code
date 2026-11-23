@@ -47,6 +47,7 @@ function ConvertTo-LifecycleList {
     .OUTPUTS
         An array (kept as an array when empty) of ordered maps with label and count.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param([System.Collections.IDictionary]$Bag, [string[]]$Order, [hashtable]$Labels)
     if (-not $Bag -or -not $Bag.Count) { return , @() }

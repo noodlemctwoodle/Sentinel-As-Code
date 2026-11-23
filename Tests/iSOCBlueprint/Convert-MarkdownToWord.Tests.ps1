@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -26,7 +26,7 @@
 
 BeforeAll {
     $helpers = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Word/Helpers/Markdown'
-    foreach ($name in 'Convert-StatusWords', 'Convert-FindingBullets') {
+    foreach ($name in 'Convert-StatusWord', 'Convert-FindingBullet') {
         $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $helpers "$name.ps1"), [ref]$null, [ref]$null)
         foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq $name }, $true)) {
             . ([scriptblock]::Create($fn.Extent.Text))
@@ -34,11 +34,11 @@ BeforeAll {
     }
     function Invoke-Status([string]$Text) {
         $count = [ref]0
-        [pscustomobject]@{ Text = (Convert-StatusWords -Text $Text -Count $count); Count = $count.Value }
+        [pscustomobject]@{ Text = (Convert-StatusWord -Text $Text -Count $count); Count = $count.Value }
     }
 }
 
-Describe 'Convert-StatusWords' {
+Describe 'Convert-StatusWord' {
 
     It 'colours the words in a Coverage column' {
         $r = Invoke-Status "| Tactic | Coverage |`n|---|---|`n| Recon | None |`n| Exec | Covered |`n| Persist | Thin |"
@@ -81,11 +81,11 @@ Describe 'Convert-StatusWords' {
     }
 }
 
-Describe 'Convert-FindingBullets' {
+Describe 'Convert-FindingBullet' {
 
     It 'colours a plain severity word on a finding bullet' {
         $count = [ref]0
-        $out = Convert-FindingBullets -Text '- **Warning** [SAC-LOG-22](90-gap-analysis.md#sac-log-22) SecurityEvent duplicates - two agents' -TitleMap @{} `
+        $out = Convert-FindingBullet -Text '- **Warning** [SAC-LOG-22](90-gap-analysis.md#sac-log-22) SecurityEvent duplicates - two agents' -TitleMap @{} `
             -Count $count
         $out | Should -Match '\[Warning\]\{custom-style="SevWarning"\}'
         $count.Value | Should -Be 1

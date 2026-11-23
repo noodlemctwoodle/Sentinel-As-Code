@@ -43,6 +43,7 @@ function Format-MaturityEvidence {
     .OUTPUTS
         [string] The filled text, or $null.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)] [AllowNull()] [AllowEmptyString()] [string] $Template,

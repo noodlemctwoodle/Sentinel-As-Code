@@ -42,6 +42,7 @@ function Get-BpLinkTarget {
     .OUTPUTS
         An ordered dictionary with kind and the entries that kind names.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string] $Href)
     if ($Href -match '^(?:90-gap-analysis\.md)?#(?<id>sac-[a-z]{2,4}-\d{2})$') { return [ordered]@{ kind = 'finding'; id = $Matches['id'].ToUpperInvariant() } }

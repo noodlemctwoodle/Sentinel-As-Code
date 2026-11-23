@@ -43,6 +43,7 @@ function ConvertFrom-BpMermaidGantt {
         axisFormat and sections (name and tasks, each with label, tags, id,
         start and length).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $title = $null; $dateFormat = $null; $axisFormat = $null

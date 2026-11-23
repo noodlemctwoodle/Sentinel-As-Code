@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -54,13 +54,13 @@ function Write-BlueprintCostEstimateSectionPart2 {
 
     $costBody = if (-not $cost) {
         @"
-$(Format-Banner -Title "Estimated Monthly Cost")
+$(Format-Banner -Title 'Estimated Monthly Cost')
 
 _Cost estimate not available. Confirm Export-iSOCBlueprintInventory ran with retail-prices fetch and tables-with-data KQL._
 "@
     } else {
         @"
-$(Format-Banner -Title "Estimated Monthly Cost")
+$(Format-Banner -Title 'Estimated Monthly Cost')
 
 > **Headline** **$(Format-BlueprintMoney $cost.MonthlyTotal $cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for $(Get-BlueprintRegionName $cost.Region) as of $(Format-BlueprintDate $cost.AsOfUtc -Time).
 $(if ($costTierText) { "`n$costTierText`n" })$(if ($costCurrencyText) { "`n$costCurrencyText`n" })
@@ -89,7 +89,7 @@ xychart-beta
     }) -join ', ')]
     y-axis "GB" 0 --> $([math]::Ceiling(([double]($cost.Top10TablesByCost | Measure-Object -Property Gb30d -Maximum).Maximum + 0.5)))
     bar [$(($cost.Top10TablesByCost | ForEach-Object { $_.Gb30d }) -join ', ')]
-$(Format-XyFullLabels @($cost.Top10TablesByCost | ForEach-Object { $_.Table }))
+$(Format-XyFullLabel @($cost.Top10TablesByCost | ForEach-Object { $_.Table }))
 ``````
 
 Long-tail concentration: the loudest table is always the right first cost-optimisation target. The chart shows the ten costliest tables; the table below lists every table with its full name.

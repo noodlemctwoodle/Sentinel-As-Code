@@ -5,7 +5,7 @@
     Strip KQL comments before references are read from a query.
 
 .DESCRIPTION
-    Copied from Remove-KqlComments in Modules/Sentinel.Common/Sentinel.Common.psm1
+    Copied from Remove-KqlComment in Modules/Sentinel.Common/Sentinel.Common.psm1
     (1.1.1) with the helper names changed and the logic unchanged.
     Its answer for every file under Content/ was held to the original's on
     release/26.11.0, until Sentinel.Common was removed;
@@ -35,6 +35,7 @@ function Remove-iSOCKqlComment {
     extraction so commented-out _GetWatchlist / externaldata calls do
     not produce false positives in the manifest.
 #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string]$Query)
 

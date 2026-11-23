@@ -165,7 +165,7 @@ Describe 'Maturity metric bookmarksRecent' {
     It 'counts the bookmarks created or changed in the window' {
         $dir = New-HuntingRaw @{ 'bookmarks.json' = @((New-Bookmark 5), (New-Bookmark 80)) } -Lookback 30
         try {
-            $m = New-MaturityMetrics -InputRoot $dir -ResourcesRoot $script:resourcesDir
+            $m = New-MaturityMetric -InputRoot $dir -ResourcesRoot $script:resourcesDir
             $m.bookmarks | Should -Be 2
             $m.bookmarksRecent | Should -Be 1
         } finally { Remove-Item $dir -Recurse -Force }
@@ -173,7 +173,7 @@ Describe 'Maturity metric bookmarksRecent' {
 
     It 'is unknown, not zero, when only the count was captured and the table was not read' {
         $dir = New-HuntingRaw @{ 'bookmarks-count.json' = @{ Count = 350 } } -Lookback 30
-        try { (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $script:resourcesDir).bookmarksRecent | Should -BeNullOrEmpty }
+        try { (New-MaturityMetric -InputRoot $dir -ResourcesRoot $script:resourcesDir).bookmarksRecent | Should -BeNullOrEmpty }
         finally { Remove-Item $dir -Recurse -Force }
     }
 

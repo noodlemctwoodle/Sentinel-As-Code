@@ -35,6 +35,7 @@ function Get-GapEnabledQueryRule {
     .OUTPUTS
         The matching rules as an array, empty when none match.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param([object]$Inventory)
     return @($Inventory.AlertRules | Where-Object {

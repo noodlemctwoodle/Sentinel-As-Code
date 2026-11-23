@@ -50,7 +50,7 @@ function Test-CefInSyslog {
             }
         } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
     $names = @($byHost | ForEach-Object { "$($_.Computer) ($(Format-BlueprintPlural $_.Records 'record'))" })
-    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(Format-GapDays (Get-GapWindow $Inventory).Days), from $(Format-BlueprintPlural $byHost.Count 'forwarder'): $($names -join ', ')." -Detail @{
+    return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(Format-GapDay (Get-GapWindow $Inventory).Days), from $(Format-BlueprintPlural $byHost.Count 'forwarder'): $($names -join ', ')." -Detail @{
         Forwarders = $byHost
     }
 }

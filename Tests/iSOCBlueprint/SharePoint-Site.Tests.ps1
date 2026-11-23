@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -12,7 +12,7 @@
     Nothing here needs SharePoint or PnP.PowerShell: the functions that
     call PnP are tested against stand-in functions. The publisher keeps
     its decisions in pure planning functions (Get-SacSyncPlan.ps1) and the
-    page conversion in ConvertTo-SharePointPageSegments.ps1, so both are
+    page conversion in ConvertTo-SharePointPageSegment.ps1, so both are
     exercised directly. The build test renders the deliberately-broken
     fixture (the section model, and Markdown alone for an older snapshot)
     and runs New-iSOCBlueprintSite offline (-SkipWhatsNew) into a temp
@@ -42,9 +42,9 @@ BeforeAll {
 
     # Pages are built from the section model; these tests write the section
     # as Markdown for readability and convert it the way the renderer does.
-    function ConvertTo-Segments([string]$Markdown, [string]$File = '20-analytics-rules.md', [int]$Max = 500) {
+    function ConvertTo-Segment([string]$Markdown, [string]$File = '20-analytics-rules.md', [int]$Max = 500) {
         $section = ConvertTo-BlueprintSection -Markdown $Markdown -Id ([System.IO.Path]::GetFileNameWithoutExtension($File))
-        ConvertTo-SharePointPageSegments -Section $section -MaxTableRows $Max
+        ConvertTo-SharePointPageSegment -Section $section -MaxTableRows $Max
     }
     function Join-Html($Result) { ($Result.Segments | Where-Object { $_.type -eq 'html' } | ForEach-Object { $_.html }) -join "`n" }
 
@@ -101,7 +101,7 @@ Describe 'Get-SectionFamily' {
     }
 }
 
-Describe 'ConvertTo-SharePointPageSegments' {
+Describe 'ConvertTo-SharePointPageSegment' {
 
     Context 'title and banner' {
         BeforeAll {
@@ -112,7 +112,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
                 ''
                 'Body text.'
             ) -join "`n"
-            $script:r = ConvertTo-Segments $md '11-sentinel-health.md'
+            $script:r = ConvertTo-Segment $md '11-sentinel-health.md'
         }
         It 'uses the H1 as the title without the TOC suffix' { $r.Title | Should -Be 'Sentinel Health and Resilience' }
         It 'drops the metadata banner' { Join-Html $r | Should -Not -Match 'Blueprint' }
@@ -123,12 +123,12 @@ Describe 'ConvertTo-SharePointPageSegments' {
     Context 'tables a graphic shows in full' {
         It 'leaves out a table flagged inGraphic, keeping the rest' {
             $md = "# T`n`n<!-- bp:shown-in-graphic -->`n`n| Stage | Share |`n|---|---|`n| Ingestion | 87% |`n`n| Family | GB |`n|---|---|`n| Entra | 4 |"
-            $html = Join-Html (ConvertTo-Segments $md)
+            $html = Join-Html (ConvertTo-Segment $md)
             $html | Should -Not -Match 'Ingestion'
             $html | Should -Match 'Entra'
         }
         It 'leaves out a line of figures flagged inGraphic' {
-            $html = Join-Html (ConvertTo-Segments "# T`n`n<!-- bp:shown-in-graphic -->`n`n**71** packages  ·  **38** to update`n`nKept.")
+            $html = Join-Html (ConvertTo-Segment "# T`n`n<!-- bp:shown-in-graphic -->`n`n**71** packages  ·  **38** to update`n`nKept.")
             $html | Should -Not -Match 'packages'
             $html | Should -Match 'Kept\.'
         }
@@ -140,7 +140,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
                 '# T', '', '## Analyst journey', '', '```mermaid', 'journey', '    title Analyst journey', '    section A', '      Step: 5: Sentinel', '```',
                 '', '## Outcomes', '', '```mermaid', 'pie title Closed by classification', '    "TP" : 3', '```'
             ) -join "`n"
-            $charts = @((ConvertTo-Segments $md).Segments | Where-Object { $_.type -eq 'chart' })
+            $charts = @((ConvertTo-Segment $md).Segments | Where-Object { $_.type -eq 'chart' })
             $charts.Count | Should -Be 2
             $charts[0].chart.title | Should -BeNullOrEmpty
             $charts[1].chart.title | Should -Be 'Closed by classification'
@@ -150,7 +150,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
     Context 'headings, anchors and rules' {
         BeforeAll {
             $md = "# T`n`n## Two`n`n### Three`n`n#### Four`n`n##### Five`n`n<a id=`"sac-log-03`"></a>`n`n---`n`ntext"
-            $script:html = Join-Html (ConvertTo-Segments $md)
+            $script:html = Join-Html (ConvertTo-Segment $md)
         }
         It 'clamps headings to h2-h4' {
             $html | Should -Match '<h2>Two</h2>'
@@ -175,7 +175,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
                 '[SAC-GOV-06](90-gap-analysis.md#sac-gov-06), [here](#sac-plt-08), [script](../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1),'
                 '[index](index.md) and [Learn](https://learn.microsoft.com/azure/sentinel/).'
             ) -join "`n"
-            $script:html = Join-Html (ConvertTo-Segments $md '90-gap-analysis.md')
+            $script:html = Join-Html (ConvertTo-Segment $md '90-gap-analysis.md')
         }
         It 'points section links at the generated page' {
             $html | Should -Match 'href="~site/SitePages/sac-20-analytics-rules.aspx">rules</a>'
@@ -196,7 +196,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
     Context 'charts' {
         BeforeAll {
             $md = "# T`n`n## Chart`n`n``````mermaid`npie title X`n  `"A`" : 1`n```````n`nAfter."
-            $script:r = ConvertTo-Segments $md '25-mitre-coverage.md'
+            $script:r = ConvertTo-Segment $md '25-mitre-coverage.md'
         }
         It 'turns a chart into a chart segment carrying its data' {
             $c = ($r.Segments | Where-Object type -EQ 'chart').chart
@@ -210,7 +210,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
             $r.Warnings | Should -BeNullOrEmpty
         }
         It 'maps a flowchart node''s link to the site, with a raw ampersand for the web part' {
-            $flow = ConvertTo-Segments "# T`n`n``````mermaid`nflowchart LR`n    A[Group] --> B[Owner] --> C[Parser]`n    click A href `"90-gap-analysis.md#sac-gov-06`"`n    click B href `"20-analytics-rules.md#volume`"`n    click C href `"../../Content/Parsers/x.yaml`"`n```````n"
+            $flow = ConvertTo-Segment "# T`n`n``````mermaid`nflowchart LR`n    A[Group] --> B[Owner] --> C[Parser]`n    click A href `"90-gap-analysis.md#sac-gov-06`"`n    click B href `"20-analytics-rules.md#volume`"`n    click C href `"../../Content/Parsers/x.yaml`"`n```````n"
             $nodes = @(($flow.Segments | Where-Object type -EQ 'chart').chart.data.nodes)
             ($nodes | Where-Object id -EQ 'A').href | Should -Be '~site/Lists/SentinelFindings/AllItems.aspx?FilterField1=FindingId&FilterValue1=SAC-GOV-06'
             ($nodes | Where-Object id -EQ 'B').href | Should -Be '~site/SitePages/sac-20-analytics-rules.aspx'
@@ -218,7 +218,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
         }
         It 'keeps the Mermaid source only for a chart kind it cannot draw' {
             ($r.Segments | Where-Object type -EQ 'chart').chart.Contains('source') | Should -BeFalse
-            $other = ConvertTo-Segments "# T`n`n``````mermaid`nquadrantChart`n    title Q`n```````n"
+            $other = ConvertTo-Segment "# T`n`n``````mermaid`nquadrantChart`n    title Q`n```````n"
             ($other.Segments | Where-Object type -EQ 'chart').chart.source | Should -Match 'quadrantChart'
         }
     }
@@ -229,7 +229,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
                 '# T', '', 'Intro.', '', '## One', '', 'Before.', '', '```mermaid', 'pie title P', '    "A" : 1', '```', '',
                 'After.', '', '## Two', '', 'Second.'
             ) -join "`n"
-            $script:r = ConvertTo-Segments $md
+            $script:r = ConvertTo-Segment $md
         }
         It 'splits at every H2 and chart, in order' {
             $types = @($r.Segments | ForEach-Object type)
@@ -242,7 +242,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
 
     Context 'lists, notes and code' {
         BeforeAll {
-            $script:html = Join-Html (ConvertTo-Segments "# T`n`n- one`n  - nested`n`n3. third`n`n> A note with **bold**`n`n``````kusto`nT | take 1`n```````n")
+            $script:html = Join-Html (ConvertTo-Segment "# T`n`n- one`n  - nested`n`n3. third`n`n> A note with **bold**`n`n``````kusto`nT | take 1`n```````n")
         }
         It 'nests a sub-list inside its item' { $html | Should -Match '<ul><li>one<ul><li>nested</li></ul></li></ul>' }
         It 'keeps an ordered list''s start' { $html | Should -Match '<ol start="3"><li>third</li></ol>' }
@@ -254,7 +254,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
         BeforeAll {
             $rows = 1..7 | ForEach-Object { "| r$_ | $_ |" }
             $md = (@('# T', '', '| | |', '|---|---:|', '| Key | Value |', '', '| Name | Count |', '|---|---:|') + $rows) -join "`n"
-            $script:r = ConvertTo-Segments $md '20-analytics-rules.md' 5
+            $script:r = ConvertTo-Segment $md '20-analytics-rules.md' 5
             $script:html = Join-Html $r
         }
         It 'uses the SharePoint editor table markup' {
@@ -282,7 +282,7 @@ Describe 'ConvertTo-SharePointPageSegments' {
     }
 
     It 'returns an empty result for empty Markdown' {
-        $r = ConvertTo-Segments ''
+        $r = ConvertTo-Segment ''
         $r.Title | Should -Be ''
         $r.Segments.Count | Should -Be 0
     }
@@ -328,7 +328,7 @@ Describe 'Cut tables as CSV files' {
                     ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
         "`n"
         $publisher | Should -Match 'Send-SacFile -Path \$csvPath -Folder ''tables'''
-        $publisher | Should -Match 'Get-AssetPrunePlan -DesiredFiles \$siteTables -ExistingFiles \(Get-SacFolderFileNames -Folder ''tables''\)'
+        $publisher | Should -Match 'Get-AssetPrunePlan -DesiredFiles \$siteTables -ExistingFiles \(Get-SacFolderFileName -Folder ''tables''\)'
         $publisher | Should -Match 'Remove-PnPFile -SiteRelativeUrl "\$script:SacAssetsLibraryUrl/tables/\$file" -Force -Recycle'
         $publisher | Should -Match '\$siteTables = @\(if \(\$site\.PSObject\.Properties\[''tables''\]\)'
     }
@@ -1374,7 +1374,7 @@ Describe 'Detection outcomes and template solutions in the site build' {
         # Family names share a two-line box, so the column heads line up.
         $script:doHtml | Should -Match '\.dm thead th\.dm-fcol \.dm-fn\{display:flex;align-items:center;justify-content:center;min-height:2\.6em\}'
         # Every table's angled names get the room the longest needs.
-        $script:doHtml.Contains("const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;") | Should -BeTrue
+        $script:doHtml.Contains('const labH=Math.ceil(Math.max(1,...cols.map(c=>c.label.length))*6.9*Math.sin(64*Math.PI/180))+30;') | Should -BeTrue
         # The last names lean past the last column: a spacer column of that width keeps them clear of Health.
         $script:doHtml.Contains("const over=st.mode==='table'? Math.max(0,Math.ceil(Math.max(...cols.map((c,i)=>i*40+33+c.label.length*6.9*Math.cos(64*Math.PI/180)))-cols.length*40)) : 0;") |
             Should -BeTrue
@@ -1382,8 +1382,8 @@ Describe 'Detection outcomes and template solutions in the site build' {
         $script:doHtml.Contains('h+=spacer;') | Should -BeTrue
         # Tables on screen together with the same columns share measured widths, so they line up.
         $script:doHtml.Contains('function alignTables(scope){') | Should -BeTrue
-        $script:doHtml.Contains("if(!t.offsetParent || !t.tHead) return;") | Should -BeTrue
-        $script:doHtml.Contains("const px=need.map((x,i)=>flex[i]? Math.max(180, Math.floor(flexNeed? left*x/flexNeed : 0)) : x);") | Should -BeTrue
+        $script:doHtml.Contains('if(!t.offsetParent || !t.tHead) return;') | Should -BeTrue
+        $script:doHtml.Contains('const px=need.map((x,i)=>flex[i]? Math.max(180, Math.floor(flexNeed? left*x/flexNeed : 0)) : x);') | Should -BeTrue
         $script:doHtml.Contains('alignTables(panes[i]);') | Should -BeTrue
         $script:doHtml.Contains('realign(panes[i]);') | Should -BeTrue
         # The verdict cell reads incidents and the true-positive share of the closed ones.
@@ -1649,7 +1649,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'id="findingsBoard"[\s\S]*class="filters"'
         $html | Should -Match 'id="areaSelect"'
         $html | Should -Match 'id="findClear"'
-        $html | Should -Match "h2>Score impact</h2>"
+        $html | Should -Match 'h2>Score impact</h2>'
         $html | Should -Match 'data-fk='
     }
 
@@ -1681,33 +1681,33 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $model.estate.alertsSentinel | Should -Be 525
         $model.estate.alertsXdr | Should -Be 40
         ($model.estate.alertsSentinel + $model.estate.alertsXdr) | Should -Be $model.estate.alerts
-        $html.Contains("const aSen=E.alertsSentinel!=null? n0(E.alertsSentinel) : alerts, aXdr=n0(E.alertsXdr), split=aXdr>0;") | Should -BeTrue
+        $html.Contains('const aSen=E.alertsSentinel!=null? n0(E.alertsSentinel) : alerts, aXdr=n0(E.alertsXdr), split=aXdr>0;') | Should -BeTrue
         $html.Contains("bigNode(ax,aSen,'SENTINEL ALERTS','Open the alerts page',") | Should -BeTrue
         $html.Contains("bigNode(ax,aXdr,'DEFENDER XDR ALERTS','Open the alerts page',") | Should -BeTrue
         # Split, the nodes sit further left so their figures clear the core's rings.
-        $html.Contains("const ax=split? 424 : 436, jx=Math.round(ax-half(split? Math.max(aSen,aXdr) : alerts)-22);") | Should -BeTrue
+        $html.Contains('const ax=split? 424 : 436, jx=Math.round(ax-half(split? Math.max(aSen,aXdr) : alerts)-22);') | Should -BeTrue
         # Figures are centred on their node's line, and the incidents junction keeps clear of its figure.
         $html.Contains("mk('text',{x:x,y:y+11,'text-anchor':'middle','font-size':'32',class:'lc-num'},num(value),g);") | Should -BeTrue
-        $html.Contains("const ix=Math.round(764+half(incidents)+18);") | Should -BeTrue
+        $html.Contains('const ix=Math.round(764+half(incidents)+18);') | Should -BeTrue
         # Exact counts, never abbreviated (14,226, not 14.2k).
         $html.Contains("const num=v=>n0(v).toLocaleString('en-GB');") | Should -BeTrue
         $html | Should -Not -Match "notation:'compact'"
 
         # A strand per family into Defender XDR's alerts, from the products that raised them.
-        $html.Contains("const xa=split? n0(xdrByFam[s.category]) : 0;") | Should -BeTrue
+        $html.Contains('const xa=split? n0(xdrByFam[s.category]) : 0;') | Should -BeTrue
         # The estate flow splits after detection: Defender XDR's alerts above the
         # line, Sentinel's below, merging into the incidents.
-        $html.Contains("const xdr=(E&&+E.alertsXdr)||0, splitY=xdr>0? 90 : 0, poolDrop=xdr>0? 26 : 0;") | Should -BeTrue
+        $html.Contains('const xdr=(E&&+E.alertsXdr)||0, splitY=xdr>0? 90 : 0, poolDrop=xdr>0? 26 : 0;') | Should -BeTrue
         $html.Contains("{k:'alerts',x:770,y:cy+splitY,label:xdr>0? 'Sentinel alerts' : 'Alerts'}") | Should -BeTrue
-        $html.Contains("xx=al.x, xy=cy-splitY,") | Should -BeTrue
-        $html.Contains("[curve(det.x+r,cy,xx-r,xy), curve(xx+r,xy,inc.x-r,cy)]") | Should -BeTrue
+        $html.Contains('xx=al.x, xy=cy-splitY,') | Should -BeTrue
+        $html.Contains('[curve(det.x+r,cy,xx-r,xy), curve(xx+r,xy,inc.x-r,cy)]') | Should -BeTrue
         $html.Contains("'DEFENDER XDR ALERTS');") | Should -BeTrue
         # Its strands have square ends and are drawn before the stage rings, so they do not bleed over them.
         $html.Contains("'stroke-width':xw.toFixed(1),'stroke-linecap':'butt'}),xTip);") | Should -BeTrue
         $html | Should -Match "(?s)'DEFENDER XDR ALERTS'\);.*?rings\.forEach\(rg=>\{"
         # The flow's description follows the split.
         $html | Should -Match 'Alerts split in two: Defender XDR&#39;s|Alerts split in two: Defender XDR''s'
-        $html.Contains("onXdr:()=>{ const n=findSecNum(/^alerts/i,null); if(n!=null) jumpTo(n); }") | Should -BeTrue
+        $html.Contains('onXdr:()=>{ const n=findSecNum(/^alerts/i,null); if(n!=null) jumpTo(n); }') | Should -BeTrue
         $html | Should -Match 'id="alertLifecycle"[\s\S]*id="lcStage"[\s\S]*id="lcStrip"'
         # Under Workspace at a glance, before the security posture cards.
         $html | Should -Match 'id="heroPills"[\s\S]*id="alertLifecycle"[\s\S]*Security posture'
@@ -1719,7 +1719,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'animates the estate flow: beads on the strands, creeping dashes, rings that draw in' {
-        $html | Should -Match "const beads=\(tag,attrs,col,w,k,fam\)=>"
+        $html | Should -Match 'const beads=\(tag,attrs,col,w,k,fam\)=>'
         $html | Should -Match 'svg\.estate \.es-beads\{[^}]*pointer-events:none'
         $html | Should -Match 'svg\.estate \.es-unc\{animation:esdash'
         $html | Should -Match "svgEl\.querySelectorAll\('\.es-beads'\)\.forEach\(el=>el\.classList\.toggle\('es-hot'"
@@ -1734,22 +1734,22 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("mk('rect',{x:0,y:0,width:W,height:H},null,clip);") | Should -BeTrue
         $html | Should -Match 'function revealSankey\(svgEl\)'
         # A frame stamped just before the start never yields a negative width.
-        $html.Contains("const step=now=>{ const k=Math.max(0,Math.min(1,(now-t0)/dur)), e=1-Math.pow(1-k,3);") | Should -BeTrue
+        $html.Contains('const step=now=>{ const k=Math.max(0,Math.min(1,(now-t0)/dur)), e=1-Math.pow(1-k,3);') | Should -BeTrue
         $html | Should -Match "prefers-reduced-motion: reduce\)'\)\.matches\) \|\| !svgEl\.getBoundingClientRect\(\)\.width\) return;"
         $html | Should -Match "if\(name==='flow' && big\) revealSankey\(big\);"
     }
 
     It 'draws the ingest and billing flow in the lifecycle style: family dots, table pills, plan rings, outcome nodes' {
         $html | Should -Match 'function drawSankey\(svgEl, opts\)\{'
-        $html.Contains("const fx=232, tx=384, tw=262, px=842, ox=1012;") | Should -BeTrue
+        $html.Contains('const fx=232, tx=384, tw=262, px=842, ox=1012;') | Should -BeTrue
         $html.Contains("mk('rect',{x:tx,y:n._y-12,width:tw,height:24,rx:12,fill:col,'fill-opacity':'.16'") | Should -BeTrue
-        $html.Contains("const C=2*Math.PI*R, planGb=cols[2].reduce((a,n)=>a+(+n.value||0),0)||1;") | Should -BeTrue
+        $html.Contains('const C=2*Math.PI*R, planGb=cols[2].reduce((a,n)=>a+(+n.value||0),0)||1;') | Should -BeTrue
         $html.Contains("mk('circle',{cx:ox,cy:n._y,r:7,fill:col,filter:'url(#ibGlow)'},null,g);") | Should -BeTrue
         # Strands carry GB on a square-root scale; hovering a family spotlights it.
-        $html.Contains("const sw=v=>Math.max(1.5,22*Math.sqrt((+v||0)/maxGb));") | Should -BeTrue
+        $html.Contains('const sw=v=>Math.max(1.5,22*Math.sqrt((+v||0)/maxGb));') | Should -BeTrue
         $html | Should -Match 'svg\.sankey\.ib-dim \.ib-hot\{opacity:1\}'
         # The family filter, every-table and Other paths still go through onNode.
-        $html.Contains("dim=drawSankey(big,{graph,onNode:n=>{") | Should -BeTrue
+        $html.Contains('dim=drawSankey(big,{graph,onNode:n=>{') | Should -BeTrue
     }
 
     It 'shows the estate flow on the Data flow tab, above the ingest and billing flow, and no gap analysis button' {
@@ -1810,7 +1810,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
 
     It 'links the ATT&CK grid, the MITRE page and the inventory to the report' {
         $html | Should -Match 'id="akPanel"[\s\S]*id="akGrid"'
-        $html | Should -Match "function wireAttackGrid\(\)"
+        $html | Should -Match 'function wireAttackGrid\(\)'
         $html | Should -Match 'data-ak-rules="all">Include disabled'
         $html | Should -Match 'data-ak-show="all">Every technique'
         $html | Should -Match 'data-ak-level="tech">Techniques</button><button type="button" data-ak-level="sub">Sub-techniques'
@@ -1833,7 +1833,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Not -Match 's\.id\.slice\(s\.id\.indexOf'
         $html | Should -Match '\.ak-subrow\.h1,\.ak-key \.s1\{background:color-mix\(in srgb,var\(--ak-sub\)'
         $html | Should -Match '<i class="s1"></i><i class="s2"></i><i class="s3"></i>sub-technique'
-        $html | Should -Match "const sub=s\.sub\? c\.subs\.find\(x=>x\.id===s\.sub\) : null;"
+        $html | Should -Match 'const sub=s\.sub\? c\.subs\.find\(x=>x\.id===s\.sub\) : null;'
         $html | Should -Match 'const idx=sub\? sub\.rules : c\.rules;'
     }
 
@@ -1854,7 +1854,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match "barsHtml\(pi,\{theme:'rose',fill:\{sec:secAlerts,label:'sources'\}\}\)"
         $html | Should -Match "barsHtml\(hi,\{theme:'cyan',fill:\{sec:secHealth,label:'operations'\}\}\)"
         $html | Should -Match "barsHtml\(fl,\{theme:'rose',fill:\{sec:secAutomation,label:'failing playbooks'\}\}\)"
-        $html | Should -Match "secRulePerf=findSecNum\(/\^rule performance/i, null\)"
+        $html | Should -Match 'secRulePerf=findSecNum\(/\^rule performance/i, null\)'
         $html | Should -Match '<tbody data-fill-list data-fill-total="''\+rows\.length\+''">'
         # No list card expands in place any more.
         $html | Should -Not -Match "show:8,label:'(tables|rules|operations|playbooks)'"
@@ -1873,11 +1873,11 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'opens a criterion from the roadmap or a quick win by filtering the criteria list' {
         $html | Should -Match '<tr class="frow" role="button" tabindex="0" data-crit="'
         $html | Should -Match '<div class="qwi" role="button" tabindex="0" data-crit="'
-        $html | Should -Match "window\.showCriterion=function\(id\)\{"
+        $html | Should -Match 'window\.showCriterion=function\(id\)\{'
         $html | Should -Match "sel\.value=''; ar\.value=''; q\.value=id; renderCriteria\(\);"
         $html | Should -Match 'id="matClear"'
         # An id on its own matches that criterion only.
-        $html | Should -Match "const exact=!!s && \(MAT\.criteria\|\|\[\]\)\.some\(c=>c\.id\.toLowerCase\(\)===s\);"
+        $html | Should -Match 'const exact=!!s && \(MAT\.criteria\|\|\[\]\)\.some\(c=>c\.id\.toLowerCase\(\)===s\);'
         # Each criterion links to the findings behind it.
         $html | Should -Match 'function critFindingLinks\(c\)'
     }
@@ -2016,7 +2016,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'tints a chip whose templates are ready to enable, Built-in included, and keys the colours as filters' {
-        $html.Contains("const readyChip=x=>/,\s*installed\)$/.test(x) || /^Built-in \(\d+\)$/.test(") | Should -BeTrue
+        $html.Contains('const readyChip=x=>/,\s*installed\)$/.test(x) || /^Built-in \(\d+\)$/.test(') | Should -BeTrue
         # The key is the filter chips with the legend's swatches and a row count each.
         $html | Should -Match 'function chipKey\(tid,nReady,nNot\)\{'
         $html.Contains("k('ready','Installed or built in',nReady,") | Should -BeTrue
@@ -2028,7 +2028,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html.Contains("const m=words.every(w=>txt.includes(w)) && (!want || tr.dataset[want]==='1') && pinned(tr) && grouped(tr);") | Should -BeTrue
         # With the key on, each row's chips narrow to that kind (all of them), and the chevron hides.
         $html.Contains("ch.hidden=want? (want==='ready'? !ready : ready) : (ch.hasAttribute('data-mr') && !w.classList.contains('open'));") | Should -BeTrue
-        $html.Contains("if(chev) chev.hidden=!!want;") | Should -BeTrue
+        $html.Contains('if(chev) chev.hidden=!!want;') | Should -BeTrue
         # A single solution in a From solutions cell is a chip too, so it shows its colour.
         $html | Should -Match 'const solCol=/\^from solutions\?\$/i'
     }
@@ -2036,12 +2036,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     It 'lets a solution chip list its templates and open the template list filtered to them' {
         $html | Should -Match 'function linkSolutionChips\(\)\{'
         $html.Contains("return h.includes('template') && h.includes('solution') && h.includes('tables');") | Should -BeTrue
-        $html.Contains("const names=tpl.filter(x=>x.sol===m[1] && x.tables.includes(tbl.toLowerCase())).map(x=>x.name);") | Should -BeTrue
+        $html.Contains('const names=tpl.filter(x=>x.sol===m[1] && x.tables.includes(tbl.toLowerCase())).map(x=>x.name);') | Should -BeTrue
         $html | Should -Match 'function openTemplates\(sol, tbl\)\{'
         # Pinned to the solution and table exactly, not a text match, with a chip to clear it.
-        $html.Contains("list.dataset.pinSol=sol; list.dataset.pinTbl=tbl;") | Should -BeTrue
+        $html.Contains('list.dataset.pinSol=sol; list.dataset.pinTbl=tbl;') | Should -BeTrue
         $html.Contains("tr.children[iS].textContent.trim()===pin.sol && tr.children[iTb].textContent.toLowerCase().split(',')") | Should -BeTrue
-        $html.Contains("chip.onclick=()=>{ delete list.dataset.pinSol; delete list.dataset.pinTbl; chip.remove(); docFilter(list.id); };") | Should -BeTrue
+        $html.Contains('chip.onclick=()=>{ delete list.dataset.pinSol; delete list.dataset.pinTbl; chip.remove(); docFilter(list.id); };') | Should -BeTrue
         # The renderer's tables carry the columns this joins on.
         $md = Get-Content (Join-Path $ws 'sections/28-detection-opportunities.json') -Raw
         foreach ($col in 'Table', 'From solutions', 'Template', 'Solution', 'Tables') { $md | Should -Match ('"text": "' + $col + '"') -Because $col }
@@ -2051,13 +2051,13 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match 'function linkGroupRows\(\)\{'
         $html | Should -Match 'linkSolutionChips\(\);\s*linkGroupRows\(\);'
         # The summary's first column names a column of a bigger table that repeats its values; the summary's own values are unique.
-        $html.Contains("if(vals.length<=sumRows.length || new Set(vals).size===vals.length) return;") | Should -BeTrue
-        $html.Contains("if(new Set(sumVals).size!==sumVals.length) return;") | Should -BeTrue
+        $html.Contains('if(vals.length<=sumRows.length || new Set(vals).size===vals.length) return;') | Should -BeTrue
+        $html.Contains('if(new Set(sumVals).size!==sumVals.length) return;') | Should -BeTrue
         # Opening pins that table to the value, exactly, with a chip to clear it.
         $html | Should -Match 'function openGroup\(detId, col, val\)\{'
-        $html.Contains("det.dataset.pinCol=String(col); det.dataset.pinVal=val;") | Should -BeTrue
-        $html.Contains("const grouped=tr=>!gp || (!!tr.children[gp.i] && tr.children[gp.i].textContent.trim().toLowerCase()===gp.v);") | Should -BeTrue
-        $html.Contains("chip.onclick=()=>{ delete det.dataset.pinCol; delete det.dataset.pinVal; chip.remove(); docFilter(det.id); };") | Should -BeTrue
+        $html.Contains('det.dataset.pinCol=String(col); det.dataset.pinVal=val;') | Should -BeTrue
+        $html.Contains('const grouped=tr=>!gp || (!!tr.children[gp.i] && tr.children[gp.i].textContent.trim().toLowerCase()===gp.v);') | Should -BeTrue
+        $html.Contains('chip.onclick=()=>{ delete det.dataset.pinCol; delete det.dataset.pinVal; chip.remove(); docFilter(det.id); };') | Should -BeTrue
         # Keyboard as well as pointer, and its tooltip names the table by its section heading.
         $html.Contains("const g=e.target.closest('.grouplink'); if(g && (e.key==='Enter' || e.key===' '))") | Should -BeTrue
         $html.Contains("sec=el.closest('.docsec'), h=sec && sec.querySelector('.dsech');") | Should -BeTrue
@@ -2133,7 +2133,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         # The rule name is a button, and the row passes its alert and incident counts.
         $html.Contains('<button type="button" class="dm-open" data-rule="''+esc(r.name)+''" data-alerts="''+n0(r.alerts)+''" data-incidents="''+inc+''"') |
             Should -BeTrue
-        $html.Contains("window.openRuleReport(b.dataset.rule, {alerts:+b.dataset.alerts||0, incidents:+b.dataset.incidents||0})") | Should -BeTrue
+        $html.Contains('window.openRuleReport(b.dataset.rule, {alerts:+b.dataset.alerts||0, incidents:+b.dataset.incidents||0})') | Should -BeTrue
         $html.Contains('window.openRuleReport = function(name, counts){') | Should -BeTrue
         $html.Contains("const sec=secs.find(x=>/^rule performance$/i.test(cleanTitle(x.title||'')));") | Should -BeTrue
         # Each table is filtered to the rule; the incidents table wins when it lists it.
@@ -2180,12 +2180,12 @@ Describe 'Build-SentinelDocsSite against the fixture' {
         $html | Should -Match '\.tagpill\.crit\.c-met\{background:var\(--green\)\} \.tagpill\.crit\.c-gap\{background:var\(--red\)\}'
         # The state stays in the tooltip and for a screen reader; one criterion is still a chip.
         $html.Contains('<span class="vh">, ''+esc(st)+''</span></span>') | Should -BeTrue
-        $html.Contains("if(!solCol && !critCol && (items.length<2") | Should -BeTrue
+        $html.Contains('if(!solCol && !critCol && (items.length<2') | Should -BeTrue
         $html.Contains('items.map((x,i)=>critChip(x, i>=CELL_CHIPS) ||') | Should -BeTrue
     }
 
     It 'pins a page''s References under its tabs and opens a page on its first tab' {
-        $html.Contains("const refIx=groups.findIndex(g=>/^references$/i.test(label(g))") | Should -BeTrue
+        $html.Contains('const refIx=groups.findIndex(g=>/^references$/i.test(label(g))') | Should -BeTrue
         $html.Contains("(refsCard? '<div class=`"docrefs`">'+refsCard+'</div>' : '');") | Should -BeTrue
         @([regex]::Matches($html, [regex]::Escape("const refs=body.querySelector(':scope > .docrefs'); if(refs) body.appendChild(refs);"))).Count | Should -Be 2
         $html.Contains('if(s.num!==curDocNum) delete lastDocTab[s.num];') | Should -BeTrue
@@ -2398,7 +2398,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'links the Overview top alerting rules to the report after eight' {
-        $html | Should -Match "sec=findSecNum\(/\^rule performance/i, null\)"
+        $html | Should -Match 'sec=findSecNum\(/\^rule performance/i, null\)'
         $html | Should -Match "rows\.slice\(0,8\)\.join\(''\)"
         $html | Should -Match "sbtn\('All '\+rows\.length\.toLocaleString\(\)\+' rules in the report'"
     }
@@ -2567,11 +2567,11 @@ Describe 'Dashboard figures and labels' {
     }
 
     It 'writes figures, money, dates and names in one style' {
-        $script:dash.Contains("const fmtGb = n =>") | Should -BeTrue
+        $script:dash.Contains('const fmtGb = n =>') | Should -BeTrue
         $script:dash.Contains("const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];") | Should -BeTrue
         $script:dash.Contains("? 'Collected '+fmtDate(M.workspace.generatedUtc,{time:true}) : PRODUCT_SUB;") | Should -BeTrue
         $script:dash.Contains("uksouth:'UK South'") | Should -BeTrue
-        $script:dash.Contains("label:apiWords(i.label)") | Should -BeTrue
+        $script:dash.Contains('label:apiWords(i.label)') | Should -BeTrue
         # No currency code before an amount, and no locale-dependent month names.
         $script:dash | Should -Not -Match "esc\(DL\.cost\.currency\)\+' '"
         $script:dash | Should -Not -Match "toLocaleDateString\('en-GB'"

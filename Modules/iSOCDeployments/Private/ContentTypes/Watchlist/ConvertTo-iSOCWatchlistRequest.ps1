@@ -75,12 +75,12 @@ function ConvertTo-iSOCWatchlistRequest {
             properties = @{
                 watchlistAlias      = $alias
                 displayName         = Get-iSOCPropertyValue -InputObject $metadata -Path 'displayName'
-                description         = if ($description) { $description } else { "" }
-                provider            = if ($provider) { $provider } else { "Custom" }
-                source              = "Local File"
-                sourceType          = "Local"
+                description         = if ($description) { $description } else { '' }
+                provider            = if ($provider) { $provider } else { 'Custom' }
+                source              = 'Local File'
+                sourceType          = 'Local'
                 itemsSearchKey      = Get-iSOCPropertyValue -InputObject $metadata -Path 'itemsSearchKey'
-                contentType         = "Text/Csv"
+                contentType         = 'Text/Csv'
                 rawContent          = $csvContent
                 numberOfLinesToSkip = 0
             }

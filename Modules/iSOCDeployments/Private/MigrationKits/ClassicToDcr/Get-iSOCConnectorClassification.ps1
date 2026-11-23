@@ -54,7 +54,7 @@ function Get-iSOCConnectorClassification {
         Get-iSOCConnectorClassification -TableName MyApp_CL -StaticMapping $mapping -Packages $packages
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject[]])]
+    [OutputType([pscustomobject[]], [object[]])]
     param(
         [Parameter(Mandatory)]
         [string] $TableName,

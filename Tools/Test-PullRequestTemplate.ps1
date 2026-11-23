@@ -127,6 +127,7 @@ function Write-TemplateMessage {
 # us tell "author wrote a real description" from "author left the template
 # untouched".
 function Remove-MarkdownComment {
+    [OutputType([string])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -146,6 +147,7 @@ function Remove-MarkdownComment {
 # deeper headings (### and beyond) stay part of the current section's
 # content, so an author's sub-headings never accidentally split a section.
 function Get-PullRequestSection {
+    [OutputType([System.Collections.Generic.List[object]])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

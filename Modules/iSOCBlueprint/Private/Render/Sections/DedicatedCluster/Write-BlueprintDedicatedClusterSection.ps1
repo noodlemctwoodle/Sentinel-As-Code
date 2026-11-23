@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -47,7 +47,7 @@ function Write-BlueprintDedicatedClusterSection {
     # blanks whose empty code spans broke the table.
     if ($cluster -and $cluster.PSObject.Properties['name'] -and $cluster.name) {
         $clusterBody = @"
-$(Format-Banner -Title "Dedicated Cluster")
+$(Format-Banner -Title 'Dedicated Cluster')
 
 | Property | Value |
 |---|---|
@@ -65,7 +65,7 @@ $(Format-Banner -Title "Dedicated Cluster")
         Write-BlueprintSection '82-dedicated-cluster.md' $clusterBody
     } else {
         Write-BlueprintSection '82-dedicated-cluster.md' (@"
-$(Format-Banner -Title "Dedicated Cluster")
+$(Format-Banner -Title 'Dedicated Cluster')
 
 _No dedicated cluster linked to this workspace._
 

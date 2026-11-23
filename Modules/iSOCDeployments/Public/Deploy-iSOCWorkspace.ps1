@@ -245,7 +245,7 @@ function Deploy-iSOCWorkspace {
     Write-iSOCLog 'Workspace deployment summary' -Level Section
     foreach ($result in $results) {
         $why = if ($result.Reason) { " ($($result.Reason))" } else { '' }
-        Write-iSOCLog ("  {0,-20} {1}{2}" -f $result.Stage, $result.Outcome, $why) -Level $(if ($result.Outcome -eq 'Failed') { 'Error' } else { 'Info' })
+        Write-iSOCLog ('  {0,-20} {1}{2}' -f $result.Stage, $result.Outcome, $why) -Level $(if ($result.Outcome -eq 'Failed') { 'Error' } else { 'Info' })
     }
 
     [pscustomobject]@{

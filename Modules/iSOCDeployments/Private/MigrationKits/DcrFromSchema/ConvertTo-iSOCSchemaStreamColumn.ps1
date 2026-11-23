@@ -45,7 +45,7 @@ function ConvertTo-iSOCSchemaStreamColumn {
         $streamColumns = @(ConvertTo-iSOCSchemaStreamColumn -Column $columns)
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject[]])]
+    [OutputType([pscustomobject[]], [array])]
     param(
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]

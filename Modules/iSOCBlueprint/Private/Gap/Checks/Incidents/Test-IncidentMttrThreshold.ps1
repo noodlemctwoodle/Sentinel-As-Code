@@ -49,5 +49,5 @@ function Test-IncidentMttrThreshold {
     if (-not [double]::TryParse([string]$mttrRaw, [ref]$mttr)) { return $null }
     if ($mttr -le 1440.0) { return $null }
     $hours = [math]::Round($mttr / 60.0, 1)
-    return New-Finding -Evidence "MTTR over the last $(Format-GapDays (Get-GapWindow $Inventory).Days) is $(Format-BlueprintNumber $hours -Decimals 1) hours across $(Format-BlueprintPlural $closed 'closed incident'); SOC target is 24 hours or less." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
+    return New-Finding -Evidence "MTTR over the last $(Format-GapDay (Get-GapWindow $Inventory).Days) is $(Format-BlueprintNumber $hours -Decimals 1) hours across $(Format-BlueprintPlural $closed 'closed incident'); SOC target is 24 hours or less." -Detail @{ MttrHours = $hours; ClosedCount = $closed }
 }

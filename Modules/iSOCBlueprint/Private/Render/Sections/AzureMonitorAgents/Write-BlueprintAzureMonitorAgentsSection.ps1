@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -107,7 +107,7 @@ Two bars per machine type: AMA first, MMA second. A workspace mid-migration show
         })
 
     Write-BlueprintSection '87-azure-monitor-agents.md' (@"
-$(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")
+$(Format-Banner -Title 'Azure Monitor Agents  (TOC 4.5)')
 
 Agents heartbeating into the workspace over the last {lookback}, derived from the ``Heartbeat`` table. Each row is a distinct ``SourceComputerId``.
 $agentChartBlock

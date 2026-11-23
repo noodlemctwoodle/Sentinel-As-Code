@@ -177,12 +177,12 @@ Set-StrictMode -Version Latest
 # SharePoint Online's first-party application and its Sites.Selected
 # application role. These ids are the same in every tenant.
 $sharePointResourceAppId = '00000003-0000-0ff1-ce00-000000000000'
-$sitesSelectedRoleId     = '20d37865-089c-4dee-8c41-6967602d4ac8'
-$adoResourceId           = '499b84ac-1321-427f-aa17-267ca6975798'
-$adoApi                  = 'api-version=7.1-preview.4'
+$sitesSelectedRoleId = '20d37865-089c-4dee-8c41-6967602d4ac8'
+$adoResourceId = '499b84ac-1321-427f-aa17-267ca6975798'
+$adoApi = 'api-version=7.1-preview.4'
 
-function Write-Step { param([string]$Text) Write-Host ""; Write-Host $Text -ForegroundColor Yellow }
-function Write-Ok   { param([string]$Text) Write-Host "  $Text" -ForegroundColor Green }
+function Write-Step { param([string]$Text) Write-Host ''; Write-Host $Text -ForegroundColor Yellow }
+function Write-Ok { param([string]$Text) Write-Host "  $Text" -ForegroundColor Green }
 function Write-Skip { param([string]$Text) Write-Host "  $Text" -ForegroundColor DarkGray }
 
 function Get-AdoHeader {
@@ -211,13 +211,13 @@ function Invoke-Ado {
     }
 }
 
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  Sentinel-As-Code: SharePoint publisher bootstrap" -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ''
+Write-Host '============================================================' -ForegroundColor Cyan
+Write-Host '  Sentinel-As-Code: SharePoint publisher bootstrap' -ForegroundColor Cyan
+Write-Host '============================================================' -ForegroundColor Cyan
 
 # ---- 0. Sign-ins -----------------------------------------------------------
-Write-Step "Verifying Azure sign-in..."
+Write-Step 'Verifying Azure sign-in...'
 $context = Get-AzContext -WarningAction SilentlyContinue
 if (-not $context) { throw 'Not authenticated. Run Connect-AzAccount first.' }
 Set-AzContext -SubscriptionId $SubscriptionId -WarningAction SilentlyContinue -WhatIf:$false | Out-Null
@@ -228,9 +228,9 @@ Write-Ok "Account:      $($context.Account.Id)"
 Write-Ok "Tenant:       $tenantId"
 Write-Ok "Subscription: $subscriptionName ($SubscriptionId)"
 
-Write-Step "Connecting to Microsoft Graph (applications)..."
+Write-Step 'Connecting to Microsoft Graph (applications)...'
 if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Applications)) {
-    Write-Host "  Installing Microsoft.Graph.Applications..." -ForegroundColor DarkGray
+    Write-Host '  Installing Microsoft.Graph.Applications...' -ForegroundColor DarkGray
     Install-Module -Name Microsoft.Graph.Applications -Force -Scope CurrentUser -AllowClobber
 }
 Import-Module Microsoft.Graph.Applications -ErrorAction Stop
@@ -243,7 +243,7 @@ if (-not $mg -or @($neededScopes | Where-Object { $mg.Scopes -notcontains $_ }).
 Write-Ok "Graph account: $($mg.Account)"
 
 # ---- 1. Publisher app registration ------------------------------------------
-Write-Step "Publisher app registration..."
+Write-Step 'Publisher app registration...'
 $app = $null
 if ($PublisherAppId) {
     $app = Get-MgApplication -Filter "appId eq '$PublisherAppId'" -ErrorAction Stop | Select-Object -First 1
@@ -297,7 +297,7 @@ if ($app) {
 }
 
 # ---- 2. SharePoint Sites.Selected with admin consent ------------------------
-Write-Step "SharePoint application permission Sites.Selected..."
+Write-Step 'SharePoint application permission Sites.Selected...'
 if ($app) {
     $spoAccess = @($app.RequiredResourceAccess | Where-Object { $_.ResourceAppId -eq $sharePointResourceAppId })
     $hasRole = @($spoAccess | ForEach-Object { $_.ResourceAccess } | Where-Object { $_.Id -eq $sitesSelectedRoleId -and $_.Type -eq 'Role' }).Count -gt 0
@@ -358,14 +358,14 @@ if ($endpoint) {
 } elseif ($PSCmdlet.ShouldProcess("$AdoProject/$ServiceConnectionName", 'Create Azure Resource Manager service connection (workload identity federation)')) {
     if (-not $app) { throw 'The app registration must exist before the service connection can be created. Re-run without -WhatIf.' }
     $body = [ordered]@{
-        name          = $ServiceConnectionName
-        type          = 'azurerm'
-        url           = 'https://management.azure.com/'
-        description   = 'iSOC Blueprint SharePoint publisher. Writes one SharePoint site, holds no Azure role beyond Reader on one resource group.'
-        authorization = @{ scheme = 'WorkloadIdentityFederation'; parameters = @{ tenantid = $tenantId; serviceprincipalid = $app.AppId } }
-        data          = @{ environment = 'AzureCloud'; scopeLevel = 'Subscription'; subscriptionId = $SubscriptionId; subscriptionName = $subscriptionName; creationMode = 'Manual' }
-        isShared      = $false
-        isReady       = $true
+        name                             = $ServiceConnectionName
+        type                             = 'azurerm'
+        url                              = 'https://management.azure.com/'
+        description                      = 'iSOC Blueprint SharePoint publisher. Writes one SharePoint site, holds no Azure role beyond Reader on one resource group.'
+        authorization                    = @{ scheme = 'WorkloadIdentityFederation'; parameters = @{ tenantid = $tenantId; serviceprincipalid = $app.AppId } }
+        data                             = @{ environment = 'AzureCloud'; scopeLevel = 'Subscription'; subscriptionId = $SubscriptionId; subscriptionName = $subscriptionName; creationMode = 'Manual' }
+        isShared                         = $false
+        isReady                          = $true
         serviceEndpointProjectReferences = @(@{ projectReference = @{ id = $project.id; name = $project.name }; name = $ServiceConnectionName })
     }
     $endpoint = Invoke-Ado -Method POST -Uri "$projectUri/_apis/serviceendpoint/endpoints?$adoApi" -Body $body
@@ -378,7 +378,7 @@ $issuer = $null; $subject = $null
 if ($endpoint) {
     $endpoint = Invoke-Ado -Method GET -Uri "$projectUri/_apis/serviceendpoint/endpoints/$($endpoint.id)?$adoApi"
     $params = $endpoint.authorization.parameters
-    if ($params.PSObject.Properties['workloadIdentityFederationIssuer'])  { $issuer  = $params.workloadIdentityFederationIssuer }
+    if ($params.PSObject.Properties['workloadIdentityFederationIssuer']) { $issuer = $params.workloadIdentityFederationIssuer }
     if ($params.PSObject.Properties['workloadIdentityFederationSubject']) { $subject = $params.workloadIdentityFederationSubject }
 }
 if (-not $issuer) {
@@ -393,7 +393,7 @@ Write-Ok "Issuer:  $issuer"
 Write-Ok "Subject: $subject"
 
 # ---- 5. Federated credential on the app -------------------------------------
-Write-Step "Federated credential on the publisher app..."
+Write-Step 'Federated credential on the publisher app...'
 if ($app) {
     $creds = @(Get-MgApplicationFederatedIdentityCredential -ApplicationId $app.Id -ErrorAction SilentlyContinue)
     $cred = $creds | Where-Object { $_.Issuer -eq $issuer -and $_.Subject -eq $subject } | Select-Object -First 1
@@ -452,7 +452,7 @@ if ($SharePointSiteUrl) {
             $groupDescription = if ($group.PSObject.Properties['description']) { $group.description } else { '' }
             $update = [ordered]@{
                 id = $group.id; name = $group.name; type = $group.type; description = $groupDescription
-                variables = $vars
+                variables                      = $vars
                 variableGroupProjectReferences = @(@{ projectReference = @{ id = $project.id; name = $project.name }; name = $group.name; description = $groupDescription })
             }
             Invoke-Ado -Method PUT -Uri "$org/_apis/distributedtask/variablegroups/$($group.id)?api-version=7.1-preview.2" -Body $update | Out-Null
@@ -464,17 +464,17 @@ if ($SharePointSiteUrl) {
 }
 
 # ---- Summary ---------------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  Done. Next steps" -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ''
+Write-Host '============================================================' -ForegroundColor Cyan
+Write-Host '  Done. Next steps' -ForegroundColor Cyan
+Write-Host '============================================================' -ForegroundColor Cyan
 Write-Host "  1. Verify the connection in ADO (Project settings, Service connections, $ServiceConnectionName, Verify)."
-Write-Host "  2. Prepare the site once, as a SharePoint administrator (adds the site app catalog and grants this app FullControl on that site only):"
-Write-Host ""
-Write-Host "     Import-Module ./Modules/iSOCBlueprint" -ForegroundColor White
+Write-Host '  2. Prepare the site once, as a SharePoint administrator (adds the site app catalog and grants this app FullControl on that site only):'
+Write-Host ''
+Write-Host '     Import-Module ./Modules/iSOCBlueprint' -ForegroundColor White
 Write-Host "     Initialize-iSOCBlueprintSite ``" -ForegroundColor White
 Write-Host "         -SiteUrl '$(if ($SharePointSiteUrl) { $SharePointSiteUrl } else { '<site url>' })' -Owner '<owner upn>' ``" -ForegroundColor White
 Write-Host "         -PublisherAppId '$appId' -ClientId '<your PnP sign-in app id>' -Tenant '<tenant>.onmicrosoft.com' -WhatIf" -ForegroundColor White
-Write-Host ""
+Write-Host ''
 Write-Host "  3. Queue Sentinel-Blueprint with 'Export: SharePoint site' and 'SharePoint: what-if' ticked, read the plan, then run it again without what-if."
-Write-Host ""
+Write-Host ''

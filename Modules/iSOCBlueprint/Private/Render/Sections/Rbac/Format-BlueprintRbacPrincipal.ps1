@@ -42,6 +42,7 @@ function Format-BlueprintRbacPrincipal {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Row)
     if ($Row.DisplayName) { return [string]$Row.DisplayName }

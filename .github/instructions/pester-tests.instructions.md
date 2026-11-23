@@ -76,12 +76,12 @@ BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
     $scriptPath = Join-Path $repoRoot 'Tools/Test-PullRequestTemplate.ps1'
 
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
+    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunction.psm1') -Force -ErrorAction Stop
 
     # The helper dot-sources the script's top-level functions directly
     # into the caller's session via InvokeWithContext — no need to
     # capture a string and re-execute it.
-    Import-ScriptFunctions -Path $scriptPath
+    Import-ScriptFunction -Path $scriptPath
 }
 
 Describe 'Get-PullRequestSection' {
@@ -92,7 +92,7 @@ Describe 'Get-PullRequestSection' {
 ```
 
 The AST helper is at
-[`Tests/_helpers/Import-ScriptFunctions.psm1`](../../Tests/_helpers/Import-ScriptFunctions.psm1).
+[`Tests/_helpers/Import-ScriptFunction.psm1`](../../Tests/_helpers/Import-ScriptFunction.psm1).
 Its self-test is [`Tests/Test-ImportScriptFunctions.Tests.ps1`](../../Tests/Test-ImportScriptFunctions.Tests.ps1).
 
 ## Module suites and mocking in module scope
@@ -163,5 +163,5 @@ Invoke-Pester -Path Tests/Test-DeployCustomContent.Tests.ps1 -FullName 'Get-Prio
 ## Cross-references
 
 - Full conventions: [`Docs/Tests/Pester-Tests.md`](../../Docs/Tests/Pester-Tests.md)
-- AST helper: [`Tests/_helpers/Import-ScriptFunctions.psm1`](../../Tests/_helpers/Import-ScriptFunctions.psm1)
+- AST helper: [`Tests/_helpers/Import-ScriptFunction.psm1`](../../Tests/_helpers/Import-ScriptFunction.psm1)
 - PR-validation entrypoint: [`Tools/Invoke-PRValidation.ps1`](../../Tools/Invoke-PRValidation.ps1)

@@ -35,6 +35,7 @@ function Get-GapTableVolume30d {
     .OUTPUTS
         [hashtable] DataType to billable GB.
     #>
+    [OutputType([hashtable])]
     [CmdletBinding()]
     param([object]$Inventory)
     $gb = @{}

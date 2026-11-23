@@ -33,7 +33,7 @@ BeforeAll {
     $script:repoRoot = $repoRoot
     $script:tool = Join-Path $repoRoot 'Tools/New-BlueprintDemoWorkspace.ps1'
     $script:content = Join-Path $repoRoot 'Content'
-    $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-demo-" + [guid]::NewGuid())
+    $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-demo-' + [guid]::NewGuid())
     $script:asOf = [datetime]::SpecifyKind([datetime]'2026-10-14T09:00:00', 'Utc')
     $script:days = 30
     $script:result = & $script:tool -OutputPath (Join-Path $script:outDir 'sentinel-blog-uks-law') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf `

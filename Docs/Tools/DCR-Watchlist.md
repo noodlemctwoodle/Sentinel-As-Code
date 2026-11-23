@@ -9,7 +9,7 @@ Deployment is driven by CI from either side of the mirror: the GitHub Actions wo
 ## What It Does
 
 1. **Lists all DCRs** in the subscription via the ARM REST API (`Get-DCRList`, with `nextLink` pagination)
-2. **Enumerates associations** for each DCR (`Get-DCRAssociations`) - the servers/resources sending data through it. The built-in `configurationAccessEndpoint` association is skipped, and each associated resource name, type, and resource group is derived from the association resource ID via regular-expression matching
+2. **Enumerates associations** for each DCR (`Get-DCRAssociation`) - the servers/resources sending data through it. The built-in `configurationAccessEndpoint` association is skipped, and each associated resource name, type, and resource group is derived from the association resource ID via regular-expression matching
 3. **Groups by DCR** - one watchlist row per DCR (keyed by DCR name) with the associated resource names as a delimited list
 4. **Upserts to a Sentinel watchlist** - creates the watchlist with data if it is missing (404), otherwise merges into existing items, and never deletes mid-billing-period
 5. **Tracks billing history** - maintains `AllResourceNames` (cumulative union, case-insensitive), `RemovedResourceNames`, `PeakResourceCount`, and `FirstSeenUtc` so removed servers are still billable for the period they were active

@@ -37,6 +37,7 @@ function ConvertTo-GapIsoTime {
     .OUTPUTS
         [string]
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([object]$Value)
     if ($null -eq $Value) { return '' }

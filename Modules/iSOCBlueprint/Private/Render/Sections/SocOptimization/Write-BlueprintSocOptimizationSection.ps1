@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -82,7 +82,7 @@ $(Format-BlueprintCount $socTotal) recommendations grouped by what action they d
     } else { '' }
 
     Write-BlueprintSection '12-soc-optimization.md' (@"
-$(Format-Banner -Title "SOC Optimization Insights  (TOC 4.9)")
+$(Format-Banner -Title 'SOC Optimization Insights  (TOC 4.9)')
 
 Recommendations from the SOC Optimization service (preview). The endpoint is empty on workspaces where the service has not run, or in regions where it is not yet available. Recommendations are grouped by the kind of action they drive.
 $socChartBlock

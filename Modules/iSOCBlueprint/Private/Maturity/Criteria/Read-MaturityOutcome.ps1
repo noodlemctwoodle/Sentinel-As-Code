@@ -42,6 +42,7 @@ function Read-MaturityOutcome {
         A hashtable with OutcomeById (rule id to outcome) and EvidenceById
         (rule id to the finding's evidence text).
     #>
+    [OutputType([hashtable])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)] [string] $InputRoot,

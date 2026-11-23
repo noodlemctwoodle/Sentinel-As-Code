@@ -59,7 +59,7 @@ function New-iSOCDependencyFixtureRecord {
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds records in memory; changes nothing.')]
     [CmdletBinding()]
-    [OutputType([System.Collections.Generic.List[hashtable]])]
+    [OutputType([System.Collections.Generic.List[hashtable]], [array])]
     param(
         [Parameter(Mandatory)]
         [int] $Count,

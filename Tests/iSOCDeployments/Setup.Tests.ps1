@@ -158,7 +158,7 @@ Describe 'Initialize-iSOCServicePrincipal' {
                 $t = $script:tenantState
                 $query = [Uri]::UnescapeDataString($Uri)
                 if ($Method -eq 'GET' -and $query -like 'v1.0/roleManagement/directory/roleAssignments?*') { return @($t.DirectoryRoles | Where-Object { $query -like "*principalId eq '$($_.PrincipalId)' and roleDefinitionId eq '$($_.RoleDefinitionId)'*" } | ForEach-Object { [pscustomobject]@{ id = 'x' } }) }
-                if ($Method -eq 'GET' -and $query -like "v1.0/servicePrincipals?*00000003-0000-0000-c000-000000000000*") { return [pscustomobject]@{ id = $t.GraphSpId; appRoles = @([pscustomobject]@{ value = 'User.Read.All'; id = 'other' }, [pscustomobject]@{ value = 'CustomDetection.ReadWrite.All'; id = $t.AppRoleId }) } }
+                if ($Method -eq 'GET' -and $query -like 'v1.0/servicePrincipals?*00000003-0000-0000-c000-000000000000*') { return [pscustomobject]@{ id = $t.GraphSpId; appRoles = @([pscustomobject]@{ value = 'User.Read.All'; id = 'other' }, [pscustomobject]@{ value = 'CustomDetection.ReadWrite.All'; id = $t.AppRoleId }) } }
                 if ($Method -eq 'GET' -and $query -eq "v1.0/servicePrincipals/$($t.ObjectId)/appRoleAssignments") { return @($t.AppRoleAssignments | ForEach-Object { [pscustomobject]@{ appRoleId = $_.AppRoleId; resourceId = $_.ResourceId } }) }
                 if ($Method -eq 'POST' -and $query -eq 'v1.0/roleManagement/directory/roleAssignments') {
                     if ($script:graphScopes -notcontains 'RoleManagement.ReadWrite.Directory') { throw 'Insufficient privileges' }

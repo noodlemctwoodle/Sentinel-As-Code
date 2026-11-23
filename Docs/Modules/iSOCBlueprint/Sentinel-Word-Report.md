@@ -176,10 +176,10 @@ Two pandoc behaviours are always applied, learned against real Blueprint output:
   pandoc resolves them against the working directory and silently drops them.
 
 When `-NoReformatFindings` is *not* set, the script also rewrites the report for
-print: `Convert-FindingBullets` turns dense finding bullets shaped like
+print: `Convert-FindingBullet` turns dense finding bullets shaped like
 `- **<severity>** [<ID>](<link>) <title> - <description>` into a bold
 severity/ID/title lead line with the description beneath (resolving the title from
-the matching gap-analysis heading), and `Convert-StatusWords` colours the status
+the matching gap-analysis heading), and `Convert-StatusWord` colours the status
 words through a character style: a table cell under a Severity, Status, Coverage
 or Rating column whose whole text is a known status (`Warning`, `Gap`, `None`,
 `Strong`), and the value after `**Severity:**` on the finding cards. A word in any

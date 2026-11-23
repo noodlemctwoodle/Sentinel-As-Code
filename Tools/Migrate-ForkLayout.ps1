@@ -163,7 +163,7 @@ try {
     if (-not $AllowDirty) {
         $dirty = git status --porcelain 2>$null
         if ($dirty) {
-            throw "Working tree has uncommitted changes. Commit or stash first, or pass -AllowDirty."
+            throw 'Working tree has uncommitted changes. Commit or stash first, or pass -AllowDirty.'
         }
     }
 

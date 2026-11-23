@@ -42,6 +42,7 @@ function Get-ConnectorTargetTable {
     .OUTPUTS
         [string], or $null.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Kind, [string]$DataType)
     $dt = if ($DataType) { $DataType.ToLowerInvariant() } else { '' }

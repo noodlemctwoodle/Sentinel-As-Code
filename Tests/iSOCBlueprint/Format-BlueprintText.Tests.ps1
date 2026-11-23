@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -100,12 +100,12 @@ Describe 'Plurals' {
 
 Describe 'API names in words' {
     It 'writes CamelCase values as words, keeping acronyms' {
-        ConvertTo-BlueprintWords 'CredentialAccess' | Should -Be 'Credential access'
-        ConvertTo-BlueprintWords 'BenignPositive' | Should -Be 'Benign positive'
-        ConvertTo-BlueprintWords 'CommandAndControl' | Should -Be 'Command and control'
-        ConvertTo-BlueprintWords 'IPAddress' | Should -Be 'IP address'
-        ConvertTo-BlueprintWords 'Undetermined' | Should -Be 'Undetermined'
-        ConvertTo-BlueprintWords 'Already words' | Should -Be 'Already words'
+        ConvertTo-BlueprintWord 'CredentialAccess' | Should -Be 'Credential access'
+        ConvertTo-BlueprintWord 'BenignPositive' | Should -Be 'Benign positive'
+        ConvertTo-BlueprintWord 'CommandAndControl' | Should -Be 'Command and control'
+        ConvertTo-BlueprintWord 'IPAddress' | Should -Be 'IP address'
+        ConvertTo-BlueprintWord 'Undetermined' | Should -Be 'Undetermined'
+        ConvertTo-BlueprintWord 'Already words' | Should -Be 'Already words'
     }
 
     It 'names regions and workspace SKUs as the portal and the dashboard do' {

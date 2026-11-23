@@ -44,6 +44,7 @@ function Format-WorkspaceRegion {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Region, [switch]$WithCode)
     $r = [string]$Region

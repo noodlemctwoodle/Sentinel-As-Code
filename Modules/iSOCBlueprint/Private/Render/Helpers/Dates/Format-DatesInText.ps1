@@ -42,6 +42,7 @@ function Format-DatesInText {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Text)
     if (-not $Text) { return $Text }

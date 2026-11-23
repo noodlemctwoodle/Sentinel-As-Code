@@ -44,6 +44,7 @@ function Format-WorkspaceSku {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Sku, [switch]$WithCode)
     $k = [string]$Sku

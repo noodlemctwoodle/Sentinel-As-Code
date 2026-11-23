@@ -33,6 +33,7 @@ function ConvertTo-SacHtmlText {
     .OUTPUTS
         [string] The escaped text.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowEmptyString()] [AllowNull()] [string] $Text)
     if (-not $Text) { return '' }

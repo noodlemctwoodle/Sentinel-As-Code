@@ -50,7 +50,7 @@ function Test-AnalyticsRuleRunFailures {
             $why = if ($reason) { ": $reason" } else { '' }
             "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(Format-BlueprintPlural (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failures' 0)) 'failed run')$why)"
         }) -join '; '
-    return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'analytics rule') had failed runs in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $sample." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'analytics rule') had failed runs in the last $(Format-GapDay (Get-GapWindow $Inventory).Days): $sample." -Detail @{
         Count = $failing.Count
         Rules = @($failing | ForEach-Object {
                 [pscustomobject]@{

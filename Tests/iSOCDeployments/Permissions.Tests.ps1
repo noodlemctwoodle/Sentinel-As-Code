@@ -74,7 +74,7 @@ BeforeAll {
         if ($connections.Count -gt 0) { $properties.parameters = @{ '$connections' = @{ value = $connections } } }
         $properties | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
     }
-    function Get-Roles { param($Properties) Invoke-Private Get-iSOCPlaybookRequiredRole @{ Properties = $Properties } }
+    function Get-Role { param($Properties) Invoke-Private Get-iSOCPlaybookRequiredRole @{ Properties = $Properties } }
 }
 
 AfterAll {
@@ -89,14 +89,14 @@ Describe 'Playbook role analysis (carried over from Test-SetPlaybookPermissions.
         @{ Api = 'azuremonitorlogs'; Role = 'Log Analytics Reader'; Scope = 'rg' }
         @{ Api = 'azureloganalyticsdatacollector'; Role = 'Log Analytics Reader'; Scope = 'rg' }
     ) {
-        $roles = Get-Roles (New-Workflow -Connector $Api)
+        $roles = Get-Role (New-Workflow -Connector $Api)
         @($roles.Keys) | Should -Be @($Role)
         $roles[$Role] | Should -Be $Scope
     }
 
     It 'needs nothing for a connector it does not know, or a workflow with no connections' {
-        (Get-Roles (New-Workflow -Connector 'somethingexotic')).Count | Should -Be 0
-        (Get-Roles (New-Workflow)).Count | Should -Be 0
+        (Get-Role (New-Workflow -Connector 'somethingexotic')).Count | Should -Be 0
+        (Get-Role (New-Workflow)).Count | Should -Be 0
     }
 
     It 'upgrades Responder to Contributor for <Case>' -ForEach @(
@@ -104,16 +104,16 @@ Describe 'Playbook role analysis (carried over from Test-SetPlaybookPermissions.
         @{ Case = 'an Update_incident action'; Actions = @{ Update_incident = @{ type = 'ApiConnection' } } }
         @{ Case = 'a PUT request'; Actions = @{ Put = @{ type = 'Http'; inputs = @{ method = 'PUT'; uri = 'https://example.invalid/x' } } } }
     ) {
-        $roles = Get-Roles (New-Workflow -Connector 'azuresentinel' -Actions $Actions)
+        $roles = Get-Role (New-Workflow -Connector 'azuresentinel' -Actions $Actions)
         @($roles.Keys) | Should -Be @('Microsoft Sentinel Contributor')
     }
 
     It 'adds Contributor for a /Watchlists write without the Sentinel connector' {
-        @((Get-Roles (New-Workflow -Actions @{ Put = @{ type = 'Http'; inputs = @{ uri = 'https://management.azure.com/Watchlists' } } })).Keys) | Should -Be @('Microsoft Sentinel Contributor')
+        @((Get-Role (New-Workflow -Actions @{ Put = @{ type = 'Http'; inputs = @{ uri = 'https://management.azure.com/Watchlists' } } })).Keys) | Should -Be @('Microsoft Sentinel Contributor')
     }
 
     It 'leaves a workflow that only reads at Responder, whatever its inputs and outputs say' {
-        $roles = Get-Roles (New-Workflow -Connector 'azuresentinel' -Actions @{ Get = @{ type = 'Http'; inputs = @{ method = 'GET'; uri = 'https://graph.microsoft.com/v1.0/users' }; runAfter = @{}; outputs = 'x' } })
+        $roles = Get-Role (New-Workflow -Connector 'azuresentinel' -Actions @{ Get = @{ type = 'Http'; inputs = @{ method = 'GET'; uri = 'https://graph.microsoft.com/v1.0/users' }; runAfter = @{}; outputs = 'x' } })
         @($roles.Keys) | Should -Be @('Microsoft Sentinel Responder')
     }
 
@@ -123,7 +123,7 @@ Describe 'Playbook role analysis (carried over from Test-SetPlaybookPermissions.
         @{ Audience = 'https://graph.microsoft.com'; Expected = @() }
         @{ Audience = 'https://api.securitycenter.microsoft.com'; Expected = @() }
     ) {
-        $roles = Get-Roles (New-Workflow -Actions @{ Call = @{ type = 'Http'; inputs = @{ method = 'GET'; authentication = @{ type = 'ManagedServiceIdentity'; audience = $Audience } } } })
+        $roles = Get-Role (New-Workflow -Actions @{ Call = @{ type = 'Http'; inputs = @{ method = 'GET'; authentication = @{ type = 'ManagedServiceIdentity'; audience = $Audience } } } })
         @($roles.Keys) | Should -Be $Expected
     }
 

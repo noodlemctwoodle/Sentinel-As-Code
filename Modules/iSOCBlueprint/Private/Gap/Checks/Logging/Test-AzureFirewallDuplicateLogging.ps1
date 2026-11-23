@@ -53,7 +53,7 @@ function Test-AzureFirewallDuplicateLogging {
     $categories = @($legacy | ForEach-Object { [string](Get-PropOrDefault $_ 'Category' '') } | Sort-Object -Unique)
     $tables = @($structured | ForEach-Object { [string](Get-PropOrDefault $_ 'DataType' '') } | Sort-Object -Unique)
     $structuredGb = (($structured | ForEach-Object { Get-GapBillable30d $_ }) | Measure-Object -Sum).Sum
-    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $(Format-BlueprintPlural $legacyRows 'row') in the last $(Format-GapDays (Get-GapWindow $Inventory).Days)) and the resource-specific tables ($($tables -join ', '); $(Format-BlueprintGb $structuredGb) GB in the same window). The same events are ingested and billed twice." -Detail @{
+    return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $(Format-BlueprintPlural $legacyRows 'row') in the last $(Format-GapDay (Get-GapWindow $Inventory).Days)) and the resource-specific tables ($($tables -join ', '); $(Format-BlueprintGb $structuredGb) GB in the same window). The same events are ingested and billed twice." -Detail @{
         LegacyCategories = $categories
         LegacyRows7d     = $legacyRows
         StructuredTables = $tables

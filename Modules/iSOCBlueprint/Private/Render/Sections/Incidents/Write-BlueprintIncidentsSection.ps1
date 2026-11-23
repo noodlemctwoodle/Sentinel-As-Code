@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -132,7 +132,7 @@ function Write-BlueprintIncidentsSection {
     $incOutcomeBlock = if ($incClassTotal -gt 0) {
         $classRows = ($incClassBag.GetEnumerator() |
                 Sort-Object @{ Expression = 'Value'; Descending = $true }, Key |
-                ForEach-Object { "    `"$(ConvertTo-BlueprintWords ([string]$_.Key))`" : $($_.Value)" }) -join
+                ForEach-Object { "    `"$(ConvertTo-BlueprintWord ([string]$_.Key))`" : $($_.Value)" }) -join
         [Environment]::NewLine
         @"
 

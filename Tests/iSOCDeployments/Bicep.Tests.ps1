@@ -209,7 +209,7 @@ Describe 'ConvertTo-iSOCBicepExpression' {
         @{ Case = 'another resource id'; Expression = "resourceId('Microsoft.Logic/workflows', 'other')"; Expected = "resourceId('Microsoft.Logic/workflows', 'other')" }
         @{ Case = 'operators'; Expression = "if(equals(parameters('Count'), 1), not(true()), and(false(), or(true(), false())))"; Expected = '((Count == 1) ? !(true) : (false && (true || false)))' }
         @{ Case = 'literals'; Expression = "createObject('a', createArray(1, 2), 'b-c', null())"; Expected = "{ a: [1, 2], 'b-c': null }" }
-        @{ Case = 'function spelling'; Expression = "uniquestring(resourcegroup().id)"; Expected = 'uniqueString(resourceGroup().id)' }
+        @{ Case = 'function spelling'; Expression = 'uniquestring(resourcegroup().id)'; Expected = 'uniqueString(resourceGroup().id)' }
         @{ Case = 'an index'; Expression = "variables('settings')['a']"; Expected = "settings['a']" }
         @{ Case = 'a subscription-level id'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')"; Expected = "subscriptionResourceId('Microsoft.Web/locations/managedApis', resourceGroup().location, 'office365')" }
         @{ Case = 'a subscription-level id split over literals'; Expression = "concat('/subscriptions/', subscription().subscriptionId, '/providers/', 'Microsoft.Web/locations/westus/managedApis/', parameters('PlaybookName'))"; Expected = "subscriptionResourceId('Microsoft.Web/locations/managedApis', 'westus', PlaybookName)" }
@@ -239,7 +239,7 @@ Describe 'ConvertTo-iSOCBicepExpression' {
         @{ Kind = 'parameter'; Expression = "parameters('Missing')" }
         @{ Kind = 'variable'; Expression = "variables('Missing')" }
     ) {
-        { ConvertTo-Bicep -Expression $Expression -Symbols $script:symbols } | Should -Throw "*does not declare*"
+        { ConvertTo-Bicep -Expression $Expression -Symbols $script:symbols } | Should -Throw '*does not declare*'
     }
 }
 
@@ -339,12 +339,12 @@ resource office365_Connection 'Microsoft.Web/connections@2016-06-01' = {
 
     It 'names variables in camel case, or as the caller says, and the connection after its variable' {
         $pascal = ConvertTo-BicepFile -Json $script:template.Replace('office365-ConnectionName', 'Office365ConnectionName')
-        $pascal | Should -Match "(?m)^var office365ConnectionName = "
+        $pascal | Should -Match '(?m)^var office365ConnectionName = '
         $pascal | Should -Match "(?m)^resource office365Connection 'Microsoft\.Web/connections@2016-06-01' = \{$"
         $chosen = ConvertTo-BicepFile -Json $script:template -VariableName @{ 'office365-ConnectionName' = 'mailConnectionName' }
-        $chosen | Should -Match "(?m)^var mailConnectionName = "
-        $chosen | Should -Match "(?m)^  name: mailConnectionName$"
-        $chosen | Should -Match "(?m)^            connectionId: mailConnection\.id$"
+        $chosen | Should -Match '(?m)^var mailConnectionName = '
+        $chosen | Should -Match '(?m)^  name: mailConnectionName$'
+        $chosen | Should -Match '(?m)^            connectionId: mailConnection\.id$'
     }
 
     It 'describes a parameter that has no description of its own' {
@@ -358,8 +358,8 @@ resource office365_Connection 'Microsoft.Web/connections@2016-06-01' = {
         $own = $script:template.Replace('"PlaybookName": {', '"location": { "type": "string", "defaultValue": "[resourceGroup().location]" }, "PlaybookName": {')
         $text = ConvertTo-BicepFile -Json $own
         @([regex]::Matches($text, '(?m)^param location ')).Count | Should -Be 1
-        $text | Should -Match "(?m)^param location string = resourceGroup\(\)\.location$"
-        $text | Should -Match "(?m)^  location: resourceGroup\(\)\.location$"
+        $text | Should -Match '(?m)^param location string = resourceGroup\(\)\.location$'
+        $text | Should -Match '(?m)^  location: resourceGroup\(\)\.location$'
     }
 
     It 'adds no location parameter when nothing reads the location' {
@@ -370,8 +370,8 @@ resource office365_Connection 'Microsoft.Web/connections@2016-06-01' = {
     }
 
     It 'keeps a dependsOn the body does not imply' {
-        $json = $script:template.Replace("""connectionId"": ""[resourceId('Microsoft.Web/connections', variables('office365-ConnectionName'))]""", """connectionId"": ""none""")
-        ConvertTo-BicepFile -Json $json | Should -Match "(?m)^  dependsOn: \[\n    office365_Connection\n  \]$"
+        $json = $script:template.Replace("""connectionId"": ""[resourceId('Microsoft.Web/connections', variables('office365-ConnectionName'))]""", '"connectionId": "none"')
+        ConvertTo-BicepFile -Json $json | Should -Match '(?m)^  dependsOn: \[\n    office365_Connection\n  \]$'
     }
 
     It 'refuses <Case>' -ForEach @(

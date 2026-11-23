@@ -79,7 +79,7 @@ function Test-ConnectorTableMismatch {
     # A table can be expected by several connectors, so count the tables.
     $badTables = @($bad | ForEach-Object { ($_ -split ' to ')[-1] } | Sort-Object -Unique).Count
     if ($bad.Count) {
-        $parts += "$(Format-BlueprintPlural $badTables 'core table') with no data in the last $(Format-GapDays (Get-GapWindow $Inventory).RecentDays): $($bad -join '; ')"
+        $parts += "$(Format-BlueprintPlural $badTables 'core table') with no data in the last $(Format-GapDay (Get-GapWindow $Inventory).RecentDays): $($bad -join '; ')"
     }
     if ($silent.Count) {
         $parts += "$(Format-BlueprintPlural $silent.Count 'connector') with no data in any table $(Select-GapWording $silent.Count 'it writes' `

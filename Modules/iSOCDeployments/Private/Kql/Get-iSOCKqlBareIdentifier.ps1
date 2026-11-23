@@ -5,7 +5,7 @@
     Tables and functions a KQL query reads from.
 
 .DESCRIPTION
-    Copied from Get-KqlBareIdentifiers in Modules/Sentinel.Common/Sentinel.Common.psm1
+    Copied from Get-KqlBareIdentifier in Modules/Sentinel.Common/Sentinel.Common.psm1
     (1.1.1) with the helper names changed and the logic unchanged.
     Its answer for every file under Content/ was held to the original's on
     release/26.11.0, until Sentinel.Common was removed;
@@ -51,7 +51,7 @@ function Get-iSOCKqlBareIdentifier {
     String[] of distinct candidate identifiers.
 #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Query)
 
     if ([string]::IsNullOrWhiteSpace($Query)) { return @() }

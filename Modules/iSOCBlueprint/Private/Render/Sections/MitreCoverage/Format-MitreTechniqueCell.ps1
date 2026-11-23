@@ -44,6 +44,7 @@ function Format-MitreTechniqueCell {
     .OUTPUTS
         [string] of Markdown.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Id, [bool]$Sub = $false)
     if (-not $Id) { return '' }

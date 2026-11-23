@@ -58,7 +58,7 @@ BeforeAll {
 
     # A criteria document with one area and the CSF reference the engine
     # validates against, for the synthetic cases.
-    function New-SyntheticCriteria {
+    function New-SyntheticCriterion {
         param([object[]]$Criteria, [string]$Path)
         $doc = [ordered]@{
             version     = '0.0.1'
@@ -94,11 +94,11 @@ BeforeAll {
     }
     function Invoke-Synthetic {
         param([object[]]$Criteria, [object[]]$Outcomes, [int]$Target = 3)
-        $dir = Join-Path $TestDrive ("synthetic-" + [guid]::NewGuid().ToString('N'))
+        $dir = Join-Path $TestDrive ('synthetic-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $raw = Join-Path $dir '_raw'
         New-Item -ItemType Directory -Path $raw -Force | Out-Null
-        $criteriaFile = New-SyntheticCriteria -Criteria $Criteria -Path (Join-Path $dir 'criteria.json')
+        $criteriaFile = New-SyntheticCriterion -Criteria $Criteria -Path (Join-Path $dir 'criteria.json')
         return Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $script:resourcesDir -CriteriaPath $criteriaFile -GapOutcomes $Outcomes -TargetLevel $Target
     }
 }
@@ -221,10 +221,10 @@ Describe 'Maturity assessment over the sample fixture' {
         $dir = Join-Path $TestDrive 'bmcount-raw'
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $dir 'bookmarks-count.json')
-        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).bookmarks | Should -Be 350
+        (New-MaturityMetric -InputRoot $dir -ResourcesRoot $resourcesDir).bookmarks | Should -Be 350
         $bare = Join-Path $TestDrive 'bmcount-none'
         New-Item -ItemType Directory -Path $bare -Force | Out-Null
-        (New-MaturityMetrics -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
+        (New-MaturityMetric -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
     }
 
     It 'reads search jobs and restores from the table list when a snapshot has neither file' {
@@ -238,7 +238,7 @@ Describe 'Maturity assessment over the sample fixture' {
             }
         }
         ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $dir 'workspace-tables.json')
-        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).searchOrRestoreJobs | Should -Be 1
+        (New-MaturityMetric -InputRoot $dir -ResourcesRoot $resourcesDir).searchOrRestoreJobs | Should -Be 1
         $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
         ($m.areas.criteria | Where-Object id -EQ 'SAC-INV-02').status | Should -Be 'Met'
         # With neither file nor a search or restore table, it is a Gap, not Unknown.
@@ -267,7 +267,7 @@ Describe 'Maturity assessment over the sample fixture' {
         Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
         '[{ "ClosedCount": "0", "AcknowledgedCount": "0", "MTTAMinutes": "NaN", "MTTRMinutes": "NaN" }]' |
             Set-Content (Join-Path $dir 'incidents-mttr.json') -Encoding UTF8
-        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).mttaMinutes | Should -BeNullOrEmpty
+        (New-MaturityMetric -InputRoot $dir -ResourcesRoot $resourcesDir).mttaMinutes | Should -BeNullOrEmpty
         $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
         $c = $m.areas.criteria | Where-Object id -EQ 'SAC-INC-03'
         $c.status | Should -Be 'Unknown'
@@ -421,9 +421,9 @@ Describe 'maturity-criteria.json schema guards' {
     BeforeAll {
         $script:doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
         $script:ruleIds = @((Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | ForEach-Object id)
-        $script:metricNames = @((New-MaturityMetrics -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
-        function Get-SourceLeaves($Source) {
-            if ($Source.kind -in 'allOf', 'anyOf') { foreach ($s in $Source.sources) { Get-SourceLeaves $s } } else { $Source }
+        $script:metricNames = @((New-MaturityMetric -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
+        function Get-SourceLeaf($Source) {
+            if ($Source.kind -in 'allOf', 'anyOf') { foreach ($s in $Source.sources) { Get-SourceLeaf $s } } else { $Source }
         }
     }
 
@@ -438,7 +438,7 @@ Describe 'maturity-criteria.json schema guards' {
 
     It 'references only gap rules that exist in best-practices.json' {
         foreach ($c in $doc.criteria) {
-            foreach ($leaf in @(Get-SourceLeaves $c.source | Where-Object kind -EQ 'gapRule')) {
+            foreach ($leaf in @(Get-SourceLeaf $c.source | Where-Object kind -EQ 'gapRule')) {
                 $ruleIds | Should -Contain $leaf.rule -Because "$($c.id) references $($leaf.rule)"
             }
         }
@@ -446,7 +446,7 @@ Describe 'maturity-criteria.json schema guards' {
 
     It 'references only metrics the engine computes' {
         foreach ($c in $doc.criteria) {
-            foreach ($leaf in @(Get-SourceLeaves $c.source | Where-Object kind -EQ 'metric')) {
+            foreach ($leaf in @(Get-SourceLeaf $c.source | Where-Object kind -EQ 'metric')) {
                 $metricNames | Should -Contain $leaf.path -Because "$($c.id) references $($leaf.path)"
             }
         }
@@ -581,7 +581,7 @@ Describe 'Maturity evidence text' {
     It 'rejects a criteria document whose evidence writes a plural as (s)' {
         $doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
         ($doc.criteria | Where-Object id -EQ 'SAC-DET-01').evidence.met = '{metric} enabled rule(s).'
-        $metricNames = @((New-MaturityMetrics -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
+        $metricNames = @((New-MaturityMetric -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
         { Test-MaturityCriteriaDocument -Document $doc -MetricNames $metricNames } |
             Should -Throw -ExpectedMessage '*SAC-DET-01 evidence writes a plural as (s)*'
     }

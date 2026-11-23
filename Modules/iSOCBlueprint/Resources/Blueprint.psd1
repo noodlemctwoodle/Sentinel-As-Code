@@ -1,4 +1,4 @@
-@{
+﻿@{
     # Reference record of the module versions and API versions the
     # Blueprint is built and tested against. Nothing reads this file at run
     # time: the collector carries its own copy of the API versions (see

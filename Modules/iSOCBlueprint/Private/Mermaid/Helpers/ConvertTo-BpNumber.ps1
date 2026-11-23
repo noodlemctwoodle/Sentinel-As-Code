@@ -33,6 +33,7 @@ function ConvertTo-BpNumber {
     .OUTPUTS
         [double] The number, or $null when the text does not parse.
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param([string] $Text)
     $n = 0.0

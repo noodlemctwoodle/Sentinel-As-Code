@@ -45,6 +45,6 @@ function Test-SyslogSplitOpportunity {
         } | Select-Object -First 1)
     if ($sys.Count -eq 0) { return $null }
     $gb30 = Get-GapBillable30d $sys[0]
-    if ((ConvertTo-GapPer30Days $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "Syslog ingested $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days), narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
+    if ((ConvertTo-GapPer30Day $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "Syslog ingested $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDay (Get-GapWindow $Inventory).Days), narrow the AMA DCR's facilityNames + logLevels to security-relevant facilities and route the rest to a custom _CL table at LA rates." -Detail @{ Gb30d = $gb30 }
 }

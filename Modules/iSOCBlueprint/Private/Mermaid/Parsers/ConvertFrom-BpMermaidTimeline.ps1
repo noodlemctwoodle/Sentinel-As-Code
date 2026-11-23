@@ -39,6 +39,7 @@ function ConvertFrom-BpMermaidTimeline {
         [ordered] kind ('timeline'), the chart's title and data: periods
         (label, section and events).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $title = $null

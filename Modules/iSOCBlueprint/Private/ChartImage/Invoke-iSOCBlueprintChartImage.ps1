@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -104,7 +104,7 @@ function Invoke-iSOCBlueprintChartImage {
     if (-not (Test-Path $Root)) { throw "Root not found: $Root" }
 
     if (-not (Get-Command 'mmdc' -ErrorAction SilentlyContinue)) {
-        throw "mmdc not found on PATH. Install via: npm install -g @mermaid-js/mermaid-cli"
+        throw 'mmdc not found on PATH. Install via: npm install -g @mermaid-js/mermaid-cli'
     }
 
     # Puppeteer launch config, Linux hosted CI agents run as root and need
@@ -173,8 +173,8 @@ function Invoke-iSOCBlueprintChartImage {
         }
     }
 
-    Write-Host ""
-    Write-Host "##[section]Mermaid pre-render summary"
+    Write-Host ''
+    Write-Host '##[section]Mermaid pre-render summary'
     Write-Host "  Format          : $Format"
     Write-Host "  Charts seen     : $($count.Seen)"
     Write-Host "  Images emitted  : $($count.Rewritten)"

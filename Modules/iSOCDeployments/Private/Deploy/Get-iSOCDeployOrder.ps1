@@ -51,7 +51,7 @@ function Get-iSOCDeployOrder {
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Run', Justification = 'Read inside the priority script block, which the analyser does not follow.')]
     [CmdletBinding()]
-    [OutputType([psobject])]
+    [OutputType([psobject], [array])]
     param(
         [Parameter(Mandatory)]
         [psobject] $Run,

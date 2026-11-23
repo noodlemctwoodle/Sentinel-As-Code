@@ -28,7 +28,7 @@ function ConvertTo-BpTable {
 
     .DESCRIPTION
         The columns come from the header row. Each has its text as runs
-        (ConvertTo-BpCellRuns) and its alignment as a lower-case string, or
+        (ConvertTo-BpCellRun) and its alignment as a lower-case string, or
         $null when the column has none. The other rows become arrays of cells,
         each cell an array of runs.
 
@@ -38,6 +38,7 @@ function ConvertTo-BpTable {
     .OUTPUTS
         An ordered dictionary with type 'table', columns and rows.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([object] $Table)
     $rows = @($Table)
@@ -49,7 +50,7 @@ function ConvertTo-BpTable {
         $columns = foreach ($cell in $header) {
             $align = if ($i -lt $defs.Count -and $null -ne $defs[$i].Alignment) { ([string]$defs[$i].Alignment).ToLowerInvariant() } else { $null }
             $i++
-            [ordered]@{ text = @(ConvertTo-BpCellRuns -Cell $cell); align = $align }
+            [ordered]@{ text = @(ConvertTo-BpCellRun -Cell $cell); align = $align }
         }
     }
     # Lists, not pipeline output: a one-row table or a one-cell row would
@@ -58,7 +59,7 @@ function ConvertTo-BpTable {
     # @(): a single TableRow left bare would be enumerated as its cells.
     foreach ($row in @($rows | Where-Object { -not $_.IsHeader })) {
         $cells = [System.Collections.Generic.List[object]]::new()
-        foreach ($cell in $row) { $cells.Add(@(ConvertTo-BpCellRuns -Cell $cell)) }
+        foreach ($cell in $row) { $cells.Add(@(ConvertTo-BpCellRun -Cell $cell)) }
         $body.Add($cells.ToArray())
     }
     return [ordered]@{ type = 'table'; columns = @($columns); rows = $body.ToArray() }

@@ -35,6 +35,7 @@ function Get-CostUnitPrice {
     .OUTPUTS
         [double]
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param($Prices, [string] $Key)
 

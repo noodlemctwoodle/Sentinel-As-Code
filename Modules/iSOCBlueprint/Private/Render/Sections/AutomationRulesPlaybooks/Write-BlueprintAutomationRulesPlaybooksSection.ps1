@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -219,7 +219,7 @@ pie showData title Playbook runs by outcome ({lookback-d})
             )
         })
     Write-BlueprintSection '60-automation-rules-playbooks.md' (@"
-$(Format-Banner -Title "Automation Rules and Playbooks")
+$(Format-Banner -Title 'Automation Rules and Playbooks')
 
 **$(Format-BlueprintPlural $autoCount 'automation rule') · $(Format-BlueprintPlural $pbCount 'playbook')** on this workspace.
 

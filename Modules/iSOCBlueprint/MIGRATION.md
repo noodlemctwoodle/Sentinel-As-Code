@@ -57,8 +57,8 @@ beneath it.
 | `Tools/Blueprint/Private/GapChecks.ps1` | Retire | | | Split one check per file into `Private/Gap`, loaded with the module |
 | `Tools/Blueprint/Private/Get-AzureRetailPrice.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-AzureRetailPrice.ps1` | | |
 | `Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Import-ConnectorCatalogue.ps1` | | Split one function per file in `Private/Lookup` |
-| `Tools/Blueprint/Private/Get-DefenderCustomDetections.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1` | | |
-| `Tools/Blueprint/Private/Get-EffectiveConnectors.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1` | | |
+| `Tools/Blueprint/Private/Get-DefenderCustomDetection.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetection.ps1` | | |
+| `Tools/Blueprint/Private/Get-EffectiveConnector.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1` | | |
 | `Tools/Blueprint/Private/Get-FindingMaturityLink.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1` | | |
 | `Tools/Blueprint/Private/Get-KqlTableReferences.ps1` | Move | `Modules/iSOCBlueprint/Private/Kql/**` | | Split one function per file; its KQL helpers come from the vendored copy |
 | `Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1` | Retire | | | Split into steps and helpers in `Private/Cost`, loaded with the module |
@@ -83,11 +83,11 @@ beneath it.
 | `Tools/Blueprint/SharePoint/Build-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/Site/Invoke-iSOCBlueprintSiteBuild.ps1` | | Now a function; `New-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Initialize-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1` | | Now a function that checks the PnP module itself in place of `#Requires -Modules`; `Initialize-iSOCBlueprintSite` |
 | `Tools/Blueprint/SharePoint/Publish-SentinelDocsSite.ps1` | Move | `Modules/iSOCBlueprint/Private/Publish/Invoke-iSOCBlueprintSitePublish.ps1` | | Now a function; the PnP module check moved to `Publish-iSOCBlueprintSite` in place of `#Requires -Modules`; `Publish-iSOCBlueprintSite` |
-| `Tools/Blueprint/SharePoint/Private/ConvertTo-SharePointPageSegments.ps1` | Retire | | | Split into `Private/PageSegments`, loaded with the module |
+| `Tools/Blueprint/SharePoint/Private/ConvertTo-SharePointPageSegment.ps1` | Retire | | | Split into `Private/PageSegments`, loaded with the module |
 | `Tools/Blueprint/SharePoint/Private/Get-SacSyncPlan.ps1` | Retire | | | Split one planner per file into `Private/SyncPlan`, loaded with the module |
 | `Tools/Blueprint/SharePoint/Private/Get-SectionFamily.ps1` | Move | `Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1` | | |
 | `Tools/Blueprint/SharePoint/Private/SacSharePoint.ps1` | Retire | | | Split one function per file into `Private/SharePoint`, loaded with the module |
 | `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Move | `Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard/**` | | Split into numbered parts that `Get-SiteDashboardTemplate` joins; the joined page is the original file byte for byte |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Modules/iSOCBlueprint/WebParts/**` | | SPFx web part source (TypeScript, not PowerShell): beside the engine, outside what the module loads |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Private/Kql/Vendor/**` | | One function per file. `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Private/Kql/Vendor/**` | | One function per file. `Remove-KqlComment` and `Get-KqlBareIdentifier` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
 | `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Resources/Data/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

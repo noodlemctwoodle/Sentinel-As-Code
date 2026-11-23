@@ -88,18 +88,18 @@ Set-StrictMode -Version Latest
 # Modules/iSOCBlueprint/Private/Collector (Get-CollectorApiVersion). dataConnectorDefinitions and the
 # RestApiPoller connector kind are preview-only resource types, so both use the
 # repository's SentinelPreview pin rather than the Sentinel GA pin.
-$apiTables    = '2023-09-01'         # Tables
-$apiDcr       = '2023-03-11'         # DataCollection
-$apiConnDef   = '2024-10-01-preview' # SentinelPreview
+$apiTables = '2023-09-01'         # Tables
+$apiDcr = '2023-03-11'         # DataCollection
+$apiConnDef = '2024-10-01-preview' # SentinelPreview
 $apiConnector = '2024-10-01-preview' # SentinelPreview
 $apiWorkspace = '2025-02-01'         # OperationalInsights
 
 # --- Paths ---------------------------------------------------------------------
-$root            = $PSScriptRoot
-$tableFile       = Join-Path $root 'Sophos_Table.json'
-$dcrFile         = Join-Path $root 'Sophos_DCR.json'
-$connDefFile     = Join-Path $root 'Sophos_ConnectorDefinition.json'
-$pollingFile     = Join-Path $root 'Sophos_PollingConfig.json'
+$root = $PSScriptRoot
+$tableFile = Join-Path $root 'Sophos_Table.json'
+$dcrFile = Join-Path $root 'Sophos_DCR.json'
+$connDefFile = Join-Path $root 'Sophos_ConnectorDefinition.json'
+$pollingFile = Join-Path $root 'Sophos_PollingConfig.json'
 
 foreach ($f in @($tableFile, $dcrFile, $connDefFile, $pollingFile)) {
     if (-not (Test-Path $f)) { throw "Required file not found: $f" }
@@ -107,7 +107,7 @@ foreach ($f in @($tableFile, $dcrFile, $connDefFile, $pollingFile)) {
 
 # --- Helpers -------------------------------------------------------------------
 function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -ForegroundColor Cyan }
-function Write-Ok   { param([string]$Message) Write-Host "    [OK] $Message" -ForegroundColor Green }
+function Write-Ok { param([string]$Message) Write-Host "    [OK] $Message" -ForegroundColor Green }
 
 function Invoke-AzRestPut {
     # The body is passed as an in-memory argument rather than via a temporary file. The
@@ -134,7 +134,7 @@ function Invoke-AzRestGet {
 }
 
 # --- 0. Context ----------------------------------------------------------------
-Write-Step "Verifying Azure CLI session"
+Write-Step 'Verifying Azure CLI session'
 $account = az account show 2>&1 | ConvertFrom-Json -ErrorAction SilentlyContinue
 if (-not $account) { throw "Not logged in. Run 'az login' first." }
 az account set --subscription $SubscriptionId | Out-Null
@@ -142,27 +142,27 @@ Write-Ok "Subscription set to $SubscriptionId"
 
 $workspaceResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
 
-Write-Step "Resolving workspace"
+Write-Step 'Resolving workspace'
 $ws = Invoke-AzRestGet -Url "https://management.azure.com$workspaceResourceId`?api-version=$apiWorkspace"
 if (-not $Location) { $Location = $ws.location }
 Write-Ok "Workspace '$WorkspaceName' in '$Location'"
 
 # --- 1. Custom tables ----------------------------------------------------------
-Write-Step "Deploying custom tables"
+Write-Step 'Deploying custom tables'
 $tables = Get-Content $tableFile -Raw | ConvertFrom-Json -Depth 100
 foreach ($table in $tables) {
     $tableName = $table.name
     $body = @{ properties = @{ schema = $table.properties.schema } } | ConvertTo-Json -Depth 100
-    $url  = "https://management.azure.com$workspaceResourceId/tables/$tableName`?api-version=$apiTables"
+    $url = "https://management.azure.com$workspaceResourceId/tables/$tableName`?api-version=$apiTables"
     Invoke-AzRestPut -Url $url -BodyJson $body | Out-Null
     Write-Ok "Table $tableName"
 }
 
 # --- 2. Data Collection Rule ---------------------------------------------------
-Write-Step "Deploying Data Collection Rule"
+Write-Step 'Deploying Data Collection Rule'
 $dcrRaw = Get-Content $dcrFile -Raw
 $dcrRaw = $dcrRaw.Replace('{{location}}', $Location).Replace('{{workspaceResourceId}}', $workspaceResourceId)
-$dcr    = $dcrRaw | ConvertFrom-Json -Depth 100
+$dcr = $dcrRaw | ConvertFrom-Json -Depth 100
 
 $dcrName = $dcr.name
 $dcrBody = @{
@@ -177,7 +177,7 @@ $dcrResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/p
 $dcrResult = Invoke-AzRestPut -Url "https://management.azure.com$dcrResourceId`?api-version=$apiDcr" -BodyJson $dcrBody
 
 $dcrImmutableId = $dcrResult.properties.immutableId
-$dcrEndpoint    = $null
+$dcrEndpoint = $null
 if ($dcrResult.properties.PSObject.Properties.Name -contains 'endpoints') {
     $dcrEndpoint = $dcrResult.properties.endpoints.logsIngestion
 }
@@ -193,14 +193,14 @@ Write-Ok "DCR $dcrName (immutableId: $dcrImmutableId)"
 if ($dcrEndpoint) { Write-Ok "Ingestion endpoint: $dcrEndpoint" }
 
 # --- 3. Connector definition ---------------------------------------------------
-Write-Step "Deploying connector definition"
+Write-Step 'Deploying connector definition'
 $connDefRaw = (Get-Content $connDefFile -Raw).Replace('{{location}}', $Location)
-$connDef    = $connDefRaw | ConvertFrom-Json -Depth 100
+$connDef = $connDefRaw | ConvertFrom-Json -Depth 100
 $connDefName = $connDef.name
 $connDefBody = @{
-    kind         = $connDef.kind
-    location     = $Location
-    properties   = $connDef.properties
+    kind       = $connDef.kind
+    location   = $Location
+    properties = $connDef.properties
 }
 if ($connDef.PSObject.Properties.Name -contains 'tags' -and $connDef.tags) { $connDefBody.tags = $connDef.tags }
 $connDefBody = $connDefBody | ConvertTo-Json -Depth 100
@@ -212,18 +212,18 @@ Write-Ok "Connector definition $connDefName"
 # --- 4. Data connector pollers (optional) --------------------------------------
 if ($ClientId -and $ClientSecret) {
     if (-not $dcrEndpoint) {
-        throw "DCR did not expose a logs ingestion endpoint; cannot deploy pollers automatically. Complete the connection from the Sentinel UI instead."
+        throw 'DCR did not expose a logs ingestion endpoint; cannot deploy pollers automatically. Complete the connection from the Sentinel UI instead.'
     }
 
-    Write-Step "Deploying data connector pollers"
+    Write-Step 'Deploying data connector pollers'
     $plainSecret = [System.Net.NetworkCredential]::new('', $ClientSecret).Password
 
     $pollingRaw = (Get-Content $pollingFile -Raw).
-        Replace('{{location}}', $Location).
-        Replace('{{dataCollectionEndpoint}}', $dcrEndpoint).
-        Replace('{{dataCollectionRuleImmutableId}}', $dcrImmutableId).
-        Replace('{{clientId}}', $ClientId).
-        Replace('{{clientSecret}}', $plainSecret)
+    Replace('{{location}}', $Location).
+    Replace('{{dataCollectionEndpoint}}', $dcrEndpoint).
+    Replace('{{dataCollectionRuleImmutableId}}', $dcrImmutableId).
+    Replace('{{clientId}}', $ClientId).
+    Replace('{{clientSecret}}', $plainSecret)
 
     $pollers = $pollingRaw | ConvertFrom-Json -Depth 100
     foreach ($poller in $pollers) {
@@ -238,10 +238,9 @@ if ($ClientId -and $ClientSecret) {
         Write-Ok "Poller $pollerName"
     }
     $plainSecret = $null
-}
-else {
-    Write-Step "Skipping poller deployment (no credentials supplied)"
-    Write-Host "    Complete the connection in Microsoft Sentinel:" -ForegroundColor Yellow
+} else {
+    Write-Step 'Skipping poller deployment (no credentials supplied)'
+    Write-Host '    Complete the connection in Microsoft Sentinel:' -ForegroundColor Yellow
     Write-Host "    Data connectors > 'Sophos Central (using REST API)' > Connect" -ForegroundColor Yellow
 }
 

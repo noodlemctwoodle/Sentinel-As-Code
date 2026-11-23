@@ -116,7 +116,7 @@ Describe 'Compare-iSOCSemanticVersion' {
 
 Describe 'Test-iSOCContentHubRuleCustomised' {
     BeforeAll {
-        function New-RuleProps {
+        function New-RuleProp {
             param([hashtable] $Override = @{})
             $base = [ordered]@{ query = 'T | take 1'; queryFrequency = 'PT5M'; queryPeriod = 'PT5M'; triggerOperator = 'GreaterThan'; triggerThreshold = 0; severity = 'Medium' }
             foreach ($key in $Override.Keys) { $base[$key] = $Override[$key] }
@@ -124,7 +124,7 @@ Describe 'Test-iSOCContentHubRuleCustomised' {
         }
         function Test-Customised {
             param([hashtable] $Rule = @{}, [hashtable] $Template = @{})
-            Invoke-InModule { param($R, $T) Test-iSOCContentHubRuleCustomised -ExistingRule ([pscustomobject]@{ name = 'r'; properties = $R }) -TemplateProperties $T } @{ R = (New-RuleProps $Rule); T = (New-RuleProps $Template) }
+            Invoke-InModule { param($R, $T) Test-iSOCContentHubRuleCustomised -ExistingRule ([pscustomobject]@{ name = 'r'; properties = $R }) -TemplateProperties $T } @{ R = (New-RuleProp $Rule); T = (New-RuleProp $Template) }
         }
     }
 
@@ -160,7 +160,7 @@ Describe 'Test-iSOCContentHubRuleCustomised' {
     }
 
     It 'does not compare entity mappings or a field only one side has' {
-        $rule = [pscustomobject]@{ name = 'r'; properties = (New-RuleProps) }
+        $rule = [pscustomobject]@{ name = 'r'; properties = (New-RuleProp) }
         $rule.properties | Add-Member -NotePropertyName entityMappings -NotePropertyValue @(@{ entityType = 'Account' })
         $template = [pscustomobject]@{ severity = 'Medium'; entityMappings = @(@{ entityType = 'Host' }) }
         (Invoke-InModule { param($R, $T) Test-iSOCContentHubRuleCustomised -ExistingRule $R -TemplateProperties $T } @{ R = $rule; T = $template }).IsCustomised | Should -BeFalse

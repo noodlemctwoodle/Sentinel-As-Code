@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -87,7 +87,7 @@ function Write-BlueprintWhatsNewSection {
         } catch { $M }
     }
     $wnRows = @($wnItems | ForEach-Object {
-            $rel = Get-WhatsNewRelations -Item $_
+            $rel = Get-WhatsNewRelation -Item $_
             [pscustomobject]@{
                 Product           = [string]$_.Product
                 Month             = (& $wnMonth ([string]$_.Month))

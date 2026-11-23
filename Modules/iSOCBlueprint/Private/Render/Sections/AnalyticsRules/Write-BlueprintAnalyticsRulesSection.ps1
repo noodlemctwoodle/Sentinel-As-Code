@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -78,7 +78,7 @@ config:
 xychart-beta
     title "Top 10 alerting rules: alert count (last {lookback-d})"
     x-axis [$volAxis]
-$(Format-XyFullLabels @($top10 | ForEach-Object { $_.AlertName }))
+$(Format-XyFullLabel @($top10 | ForEach-Object { $_.AlertName }))
     y-axis "Alerts" 0 --> $($volMax + ([math]::Ceiling($volMax * 0.1) + 1))
     bar [$volBars]
 ``````

@@ -59,5 +59,5 @@ function Test-LegacyThreatIntelligenceTable {
     } else {
         'No data observed in the new ThreatIntelIndicators / ThreatIntelObjects tables, TI ingestion may be broken since the 31 Jul 2025 cutoff.'
     }
-    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days). $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
+    return New-Finding -Evidence "ThreatIntelligenceIndicator (legacy) carries $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDay (Get-GapWindow $Inventory).Days). $statusNote" -Detail @{ LegacyGb30d = $gb30; NewTablePresent = $newPresent }
 }

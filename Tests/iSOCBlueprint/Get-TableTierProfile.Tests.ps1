@@ -87,9 +87,9 @@ Describe 'Get-TableTierProfile' {
     It 'lists the extended-retention and lake-only tables with their day split' {
         $p = Get-TableTierProfile -Tables $script:tables -LakeEnrolled $true
         @($p.RetentionRows).Count | Should -Be 3
-        ($p.RetentionRows | Where-Object Table -eq 'SigninLogs').LakeOnlyDays | Should -Be 275
-        ($p.RetentionRows | Where-Object Table -eq 'Firewall_CL').Plan | Should -Be 'DataLake'
-        ($p.RetentionRows | Where-Object Table -eq 'Archive_CL').TotalDays | Should -Be 365
+        ($p.RetentionRows | Where-Object Table -EQ 'SigninLogs').LakeOnlyDays | Should -Be 275
+        ($p.RetentionRows | Where-Object Table -EQ 'Firewall_CL').Plan | Should -Be 'DataLake'
+        ($p.RetentionRows | Where-Object Table -EQ 'Archive_CL').TotalDays | Should -Be 365
         $p.LakeOnlyTables | Should -Be @('Firewall_CL')
     }
 

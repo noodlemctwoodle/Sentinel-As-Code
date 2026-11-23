@@ -43,6 +43,7 @@ function Get-BlueprintEmptyMessage {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Name, [string]$Empty = '_None._')
     if (Test-Path (Join-Path $script:RawRoot $Name)) { return $Empty }

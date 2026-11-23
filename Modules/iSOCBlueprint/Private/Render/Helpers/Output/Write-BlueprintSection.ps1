@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -33,7 +33,7 @@ function Write-BlueprintSection {
         gets the page description from $script:SectionDescriptions under the title
         and workspace line, and has finding ids outside code fences linked to the
         gap analysis page. Reference links are moved to the foot
-        (Move-BlueprintReferenceLinks) except on index.md. The Markdown is written
+        (Move-BlueprintReferenceLink) except on index.md. The Markdown is written
         under $script:OutputRoot when $script:WriteMarkdown is set, and the section
         model is written through Write-BlueprintSectionModel when $script:WriteJson
         is set.
@@ -107,7 +107,7 @@ function Write-BlueprintSection {
     }
     $body = $sb.ToString()
     # After the auto-linker, so the finding ids a moved reference names stay text.
-    if ($FileName -ne 'index.md') { $body = Move-BlueprintReferenceLinks $body }
+    if ($FileName -ne 'index.md') { $body = Move-BlueprintReferenceLink $body }
     if ($script:WriteMarkdown) {
         Set-Content -Path $target -Value $body -Encoding UTF8
         if ($FileName -ne 'index.md') { $script:PagesWritten++ }

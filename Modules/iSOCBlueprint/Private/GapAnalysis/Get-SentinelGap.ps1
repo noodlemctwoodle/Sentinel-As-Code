@@ -104,6 +104,7 @@ function Get-SentinelGap {
         Remediation, Learn, CheckName and PassedAt. An empty array when nothing
         fired.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

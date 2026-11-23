@@ -44,7 +44,7 @@ function Get-iSOCDcrStreamColumn {
         Get-iSOCDcrStreamColumn -Dcr $dcr -Stream Custom-MyApp_CL
     #>
     [CmdletBinding()]
-    [OutputType([object[]])]
+    [OutputType([object[]], [array])]
     param(
         [Parameter(Mandatory)]
         [object] $Dcr,

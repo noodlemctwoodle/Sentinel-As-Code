@@ -42,6 +42,7 @@ function Format-BlueprintFindingMaturity {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Id)
     $links = if ($findingMaturity.ContainsKey($Id)) { @($findingMaturity[$Id]) } else { @() }

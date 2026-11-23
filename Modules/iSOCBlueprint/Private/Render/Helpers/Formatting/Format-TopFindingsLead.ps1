@@ -43,6 +43,7 @@ function Format-TopFindingsLead {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([int]$Shown, [int]$Total)
     $of = Format-BlueprintPlural $Total 'finding'

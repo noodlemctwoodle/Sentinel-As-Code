@@ -39,6 +39,7 @@ function ConvertTo-BlueprintNumber {
     .OUTPUTS
         [double].
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param($Value)
     if ($null -eq $Value) { return 0.0 }

@@ -37,7 +37,7 @@ BeforeAll {
     "`n"
     . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
-    $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
+    $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-slider-' + [guid]::NewGuid())
 
     # The fixture's _raw in a workspace folder, changed by $Edit, built.
     function Build-Fixture([string]$Name, [scriptblock]$Edit) {
@@ -237,7 +237,7 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
         # Nothing on the calendar but the days; a quick choice lights up
         # only while it is what is chosen.
         $script:html | Should -Not -Match 'caldot|calkey|RUN_DAYS'
-        $script:html.Contains("const on=!pending && b===maxT && nDays(a,b)===+q.dataset.calLast;") | Should -BeTrue
+        $script:html.Contains('const on=!pending && b===maxT && nDays(a,b)===+q.dataset.calLast;') | Should -BeTrue
     }
 
     It 'rebuilds the model before anything renders, for any days within the span' {
@@ -261,12 +261,12 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
 
     It 'keeps the window in window.name, checks it before use and reloads to apply it' {
         $script:html | Should -Match "const m=/\^sacDash:\(\.\*\)\$/\.exec\(window\.name\|\|''\)"
-        $script:html | Should -Match "saveWindow\(\{days:n, ago:ago, back:1, view:curView, doc:curDoc\(\)\}\);"
+        $script:html | Should -Match 'saveWindow\(\{days:n, ago:ago, back:1, view:curView, doc:curDoc\(\)\}\);'
         $script:html | Should -Match 'const ago=Math\.min\(Math\.max\(Math\.round\(\+SAVED\.ago\|\|0\),0\), span-n\);'
         $script:html | Should -Match 'location\.reload\(\);'
         # The saved view must name a view on the page; it is never put in a selector.
         $script:html | Should -Match "if\(\[\.\.\.document\.querySelectorAll\('\[data-view\]'\)\]\.some\(el=>el\.dataset\.view===view\)\) activateTab\(view\);"
-        $script:html | Should -Match "\(M\.sections\|\|\[\]\)\.some\(x=>x\.num===doc\)"
+        $script:html | Should -Match '\(M\.sections\|\|\[\]\)\.some\(x=>x\.num===doc\)'
         $script:html | Should -Not -Match "querySelector\('\[data-view=""'\+SAVED"
     }
 
@@ -277,7 +277,7 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
         $script:html | Should -Match 'const smooth=n>21;'
         $script:html | Should -Match 'stroke="''\+l\.col\+''"'
         $script:html | Should -Match '<svg class="lc-sev" viewBox'
-        $script:html | Should -Match "<small>a day</small>"
+        $script:html | Should -Match '<small>a day</small>'
         $script:html | Should -Match "\+num\(open\)\+' still open</div>"
         $script:html | Should -Match '<div class="k">Open incidents</div><div class="v">''\+num\(open\)\+''</div>''\+chips'
     }
@@ -285,6 +285,6 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
     It 'labels what keeps the collected window' {
         $script:html | Should -Match "Threat intelligence by source \('\+WIN\.cd\(\)\+'\)"
         $script:html | Should -Match "configuration and '\+WIN\.cw\(\)\+' of activity"
-        $script:html | Should -Not -Match "Sentinel alerts in 30 days"
+        $script:html | Should -Not -Match 'Sentinel alerts in 30 days'
     }
 }

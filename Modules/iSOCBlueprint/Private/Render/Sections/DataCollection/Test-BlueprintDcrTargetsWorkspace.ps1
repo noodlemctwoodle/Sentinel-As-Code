@@ -49,6 +49,7 @@ function Test-BlueprintDcrTargetsWorkspace {
     .OUTPUTS
         [bool].
     #>
+    [OutputType([bool])]
     [CmdletBinding()]
     param($Dcr, [string]$WorkspaceId)
     if (-not $WorkspaceId) { return $true }

@@ -257,7 +257,7 @@ The drift-detect pipeline uses the same identity, so the permissions are configu
 Cross-cutting [`.github/instructions/kql-queries.instructions.md`](../../.github/instructions/kql-queries.instructions.md)
 loads automatically when editing any KQL-bearing content; it
 includes the discovery-friendly patterns table that maps directly
-to what `Get-KqlBareIdentifiers` recognises.
+to what `Get-KqlBareIdentifier` recognises.
 
 Copilot tooling for the dependency-manifest sub-system:
 
@@ -272,7 +272,7 @@ See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 ## Related
 
 - [`Tools/Build-DependencyManifest.ps1`](../../Tools/Build-DependencyManifest.ps1) — the build script
-- [`Modules/Sentinel.Common/Sentinel.Common.psm1`](../../Modules/Sentinel.Common/Sentinel.Common.psm1) — discovery helpers (`Get-ContentDependencies`, `Get-KqlBareIdentifiers`, etc.)
+- [`Modules/Sentinel.Common/Sentinel.Common.psm1`](../../Modules/Sentinel.Common/Sentinel.Common.psm1) — discovery helpers (`Get-ContentDependencies`, `Get-KqlBareIdentifier`, etc.)
 - [`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1) — manifest cross-reference tests
 - [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1) — discovery helper unit tests
 - [`.github/workflows/sentinel-dependency-update.yml`](../../.github/workflows/sentinel-dependency-update.yml) — daily auto-PR workflow (GitHub)

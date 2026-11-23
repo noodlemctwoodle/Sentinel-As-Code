@@ -35,6 +35,7 @@ function ConvertFrom-BpMermaidList {
     .OUTPUTS
         [string[]] The items, in order.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param([string] $Text)
     $inner = $Text.Trim().TrimStart('[').TrimEnd(']')

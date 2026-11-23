@@ -31,7 +31,7 @@ function Test-MaturityCriteriaDocument {
         The parsed criteria document.
 
     .PARAMETER MetricNames
-        The metric names New-MaturityMetrics produces.
+        The metric names New-MaturityMetric produces.
     #>
     [CmdletBinding()]
     param(

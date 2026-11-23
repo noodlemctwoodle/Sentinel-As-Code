@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -117,7 +117,7 @@ $(Format-BlueprintTable -Items @($uebaPresenceRows | ForEach-Object { [pscustomo
 "@
     } else { '' }
     Write-BlueprintSection '26-ueba.md' (@"
-$(Format-Banner -Title "User and Entity Behaviour Analytics  (TOC 4.16)")
+$(Format-Banner -Title 'User and Entity Behaviour Analytics  (TOC 4.16)')
 
 UEBA enriches incidents with anomaly scores and entity-level timelines. It is enabled at the workspace level via the ``Microsoft.SecurityInsights/settings/Ueba`` resource. The configuration row reflects whether the settings resource has been written; the data-presence row reflects whether UEBA is actually producing rows.
 

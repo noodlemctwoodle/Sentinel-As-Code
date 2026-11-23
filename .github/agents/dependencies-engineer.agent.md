@@ -42,8 +42,8 @@ refreshes the manifest. You maintain all of it.
 ## Files you work on
 
 - `Modules/Sentinel.Common/Sentinel.Common.psm1` (discovery
-  functions: `Remove-KqlComments`, `Get-KqlWatchlistReferences`,
-  `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifiers`,
+  functions: `Remove-KqlComment`, `Get-KqlWatchlistReferences`,
+  `Get-KqlExternalDataReferences`, `Get-KqlBareIdentifier`,
   `Get-ContentKqlQuery`, `Get-ContentDependencies`)
 - `Modules/iSOCDeployments/Private/Manifest/` (the inventory, the
   comparison and the JSON writer)
@@ -127,11 +127,11 @@ When a new KQL idiom shows up that the extractor misses (manifest
 silently gets wrong data):
 
 1. **Find a real-content example.** Pull the rule that triggered
-   the discovery gap. Confirm what `Get-KqlBareIdentifiers` returns
+   the discovery gap. Confirm what `Get-KqlBareIdentifier` returns
    today vs what it should return.
 2. **Add a unit test first** in
    `Tests/Test-SentinelCommon.Tests.ps1` under the
-   `Get-KqlBareIdentifiers` Describe block. Make the test fail.
+   `Get-KqlBareIdentifier` Describe block. Make the test fail.
 3. **Extend the extractor** in
    `Modules/Sentinel.Common/Sentinel.Common.psm1`. Follow the
    existing position-based regex pattern; add a comment block
@@ -200,7 +200,7 @@ When a user reports "this rule's manifest entry looks wrong":
    Get-ContentDependencies -Path 'Content/AnalyticalRules/Foo/Bar.yaml' -KnownFunctions $known
    ```
 2. **Drill in.** If `tables` is missing an entry, run
-   `Get-KqlBareIdentifiers` on the rule's query body. If it's a
+   `Get-KqlBareIdentifier` on the rule's query body. If it's a
    watchlist that's missing, run `Get-KqlWatchlistReferences`.
 3. **Identify the root cause:**
    - Discovery missed a pattern → add a unit test and extend the

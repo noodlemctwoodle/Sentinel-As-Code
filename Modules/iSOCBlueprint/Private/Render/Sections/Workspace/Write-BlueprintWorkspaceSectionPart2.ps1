@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -51,7 +51,7 @@ function Write-BlueprintWorkspaceSectionPart2 {
     $wsDefaultDcr = $Context.wsDefaultDcr
 
     $wsBody = @"
-$(Format-Banner -Title "Workspace Inventory")
+$(Format-Banner -Title 'Workspace Inventory')
 
 ## Workspace history
 
@@ -131,7 +131,7 @@ $( $wsProps80 = Get-BlueprintRawProperty $workspace 'properties'
    $cmk80 = Get-BlueprintRawProperty (Get-BlueprintRawProperty $onb80 'properties') 'customerManagedKey'
    $locks80 = @(Read-BlueprintRawArray 'workspace-locks.json' | Where-Object { $_ }).Count
    $resRows = @(
-       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { "Enabled (" + (Get-BlueprintRegionName ([string](Get-BlueprintRawProperty $repl 'location' '?'))) + ")" } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SAC-PLT-05]' }
+       [pscustomobject]@{ Control = 'Workspace replication'; State = $(if ($replOn) { 'Enabled (' + (Get-BlueprintRegionName ([string](Get-BlueprintRawProperty $repl 'location' '?'))) + ')' } else { 'Not enabled' }); Note = 'Cross-region replica for regional outages; [SAC-PLT-05]' }
        [pscustomobject]@{ Control = 'Private Link scoped resources'; State = $(if ($plsr -gt 0) { "$(Format-BlueprintCount $plsr) linked" } else { 'None' }); Note = 'AMPLS links on the workspace; [SAC-PLT-06] covers public access' }
        [pscustomobject]@{ Control = 'Public ingestion / query'; State = "$(Get-BlueprintRawProperty $wsProps80 'publicNetworkAccessForIngestion' 'Enabled') / $(Get-BlueprintRawProperty $wsProps80 'publicNetworkAccessForQuery' 'Enabled')"; Note = 'Disabled on both means every path goes through Private Link' }
        [pscustomobject]@{ Control = 'Customer-managed key'; State = $(if ($null -eq $cmk80) { 'Unknown (onboarding state not captured)' } elseif ($cmk80) { 'Yes' } else { 'No (platform-managed keys)' }); Note = 'From the Sentinel onboarding state; CMK also needs a dedicated cluster' }

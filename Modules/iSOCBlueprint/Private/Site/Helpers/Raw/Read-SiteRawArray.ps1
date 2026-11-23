@@ -42,6 +42,7 @@ function Read-SiteRawArray {
     .OUTPUTS
         [object[]] The items of the file, or an empty array.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string] $Name)
 

@@ -241,7 +241,7 @@ Describe 'ConvertTo-iSOCDefenderDetectionEntityMapping' {
         @{ Case = 'a user identifier it cannot place'; Type = 'impactedUserAsset'; Identifier = 'servicePrincipalId'; Match = '*servicePrincipalId*' }
         @{ Case = 'a device identifier it cannot place'; Type = 'impactedDeviceAsset'; Identifier = 'deviceSerial'; Match = '*deviceSerial*' }
         @{ Case = 'a mailbox identifier it cannot place'; Type = 'impactedMailboxAsset'; Identifier = 'recipientObjectId'; Match = '*recipientObjectId*' }
-        @{ Case = 'an unknown asset type'; Type = 'impactedCloudAsset'; Identifier = 'resourceId'; Match = "*impactedCloudAsset*" }
+        @{ Case = 'an unknown asset type'; Type = 'impactedCloudAsset'; Identifier = 'resourceId'; Match = '*impactedCloudAsset*' }
     ) {
         { Invoke-InModule { param($T, $I) ConvertTo-iSOCDefenderDetectionEntityMapping -ImpactedAssets @(@{ '@odata.type' = "#microsoft.graph.security.$T"; identifier = $I }) } @{ T = $Type; I = $Identifier } } |
             Should -Throw -ExpectedMessage $Match
@@ -406,7 +406,7 @@ Describe 'Defender detection handlers' {
     }
 
     It 'fails <Case>, as the deployer did' -ForEach @(
-        @{ Case = 'a file that does not parse'; Yaml = "displayName: [unclosed"; Match = 'YAML does not parse:*' }
+        @{ Case = 'a file that does not parse'; Yaml = 'displayName: [unclosed'; Match = 'YAML does not parse:*' }
         @{ Case = 'a file that holds a list'; Yaml = "- one`n- two"; Match = 'the file does not hold a YAML mapping' }
         @{ Case = 'a file whose retired fields cannot be translated'; Yaml = "displayName: X`ndetectionAction:`n  alertTemplate:`n    impactedAssets:`n      - '@odata.type': '#microsoft.graph.security.impactedUserAsset'`n        identifier: servicePrincipalId"; Match = 'the retired Graph fields cannot be translated: *servicePrincipalId*' }
     ) {

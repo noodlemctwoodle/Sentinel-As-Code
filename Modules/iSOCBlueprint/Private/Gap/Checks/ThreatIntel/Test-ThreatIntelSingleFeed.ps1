@@ -58,7 +58,7 @@ function Test-ThreatIntelSingleFeed {
     }
     if ($feeds.Count -gt 1) { return $null }
     $evidence = if ($feeds.Count -eq 0) {
-        "No threat intelligence feed is connected and no indicators were seen in the last $(Format-GapDays (Get-GapWindow $Inventory).Days)."
+        "No threat intelligence feed is connected and no indicators were seen in the last $(Format-GapDay (Get-GapWindow $Inventory).Days)."
     } else {
         "Threat intelligence comes from a single feed ($(@($feeds) -join ''))."
     }

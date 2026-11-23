@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -71,7 +71,7 @@ $(Format-BlueprintTable -Items $assetDataRows -Columns 'Table','Family','IngestS
     } else { '' }
 
     $lakeBody = @"
-$(Format-Banner -Title "Microsoft Sentinel Data Lake")
+$(Format-Banner -Title 'Microsoft Sentinel Data Lake')
 
 $lakeHeadline
 

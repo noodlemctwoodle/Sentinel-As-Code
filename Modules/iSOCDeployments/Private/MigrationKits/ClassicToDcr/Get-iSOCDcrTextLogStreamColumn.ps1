@@ -41,7 +41,7 @@ function Get-iSOCDcrTextLogStreamColumn {
         Get-iSOCDcrTextLogStreamColumn
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject[]])]
+    [OutputType([pscustomobject[]], [array])]
     param()
 
     @(

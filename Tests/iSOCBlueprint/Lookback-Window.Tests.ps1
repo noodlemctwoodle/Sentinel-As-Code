@@ -42,7 +42,7 @@ BeforeAll {
 
     # A copy of the fixture's _raw with the run's lookback set.
     function New-WindowedFixture([int]$Days) {
-        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-lookback-" + [guid]::NewGuid())
+        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-lookback-' + [guid]::NewGuid())
         Copy-Item -Path $script:fixtureRaw -Destination $dir -Recurse
         $rcPath = Join-Path $dir 'run-context.json'
         $rc = Get-Content $rcPath -Raw | ConvertFrom-Json
@@ -103,8 +103,8 @@ Describe 'The gap engine judges the window it was given' {
 
     It 'compares a per-30-day threshold as a 30-day rate' {
         $inv = [pscustomobject]@{ Window = [pscustomobject]@{ Days = 14; RecentDays = 7 } }
-        ConvertTo-GapPer30Days 14 $inv | Should -Be 30
-        Format-GapDays 1 | Should -Be '1 day'
+        ConvertTo-GapPer30Day 14 $inv | Should -Be 30
+        Format-GapDay 1 | Should -Be '1 day'
     }
 
     It 'names the window in a finding''s evidence' {
@@ -217,7 +217,7 @@ Describe 'The site names the window on every card' {
     It 'the dashboard reads it once and labels from it' {
         . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
         $html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
-        $html.Contains("const days=(M.window&&+M.window.days>0)? +M.window.days : 30;") | Should -BeTrue
+        $html.Contains('const days=(M.window&&+M.window.days>0)? +M.window.days : 30;') | Should -BeTrue
         $html.Contains("const paintWindow=()=>document.querySelectorAll('[data-win]')") | Should -BeTrue
         ([regex]::Matches($html, 'data-win="')).Count | Should -BeGreaterOrEqual 6
         $html | Should -Not -Match "\(30d\)</h3>|'Alerts \(30d\)'|over the last 30 days"

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -49,7 +49,7 @@ function Write-BlueprintDataConnectorsSectionPart2 {
     $unificationRows = $Context.unificationRows
 
     $connectorBody = @"
-$(Format-Banner -Title "Data Connectors")
+$(Format-Banner -Title 'Data Connectors')
 
 ## Connector mix
 

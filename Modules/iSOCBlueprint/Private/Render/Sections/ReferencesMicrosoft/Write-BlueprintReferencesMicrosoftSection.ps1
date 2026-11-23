@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -42,7 +42,7 @@ function Write-BlueprintReferencesMicrosoftSection {
 
     # Section 96 — User-facing Microsoft references (TOC 6.x)
     Write-BlueprintSection '96-references-microsoft.md' (@"
-$(Format-Banner -Title "Microsoft References")
+$(Format-Banner -Title 'Microsoft References')
 
 Microsoft Learn pages for the topics this report covers, grouped by topic, the best-practice pages its findings link to among them. The Blueprint's own API versions, services, modules and queries are on [99-references.md](99-references.md).
 

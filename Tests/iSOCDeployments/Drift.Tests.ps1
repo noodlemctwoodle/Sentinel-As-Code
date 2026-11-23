@@ -223,8 +223,8 @@ Describe 'Update-iSOCAnalyticsRuleYaml' {
 Describe 'Get-iSOCLineDiff' {
     It '<Case>' -ForEach @(
         @{ Case = 'marks identical lines as context'; Before = "a`nb"; After = "a`nb"; Expected = "  a`n  b" }
-        @{ Case = 'marks an added line +'; Before = "a"; After = "a`nb"; Expected = "  a`n+ b" }
-        @{ Case = 'marks a removed line -'; Before = "a`nb"; After = "a"; Expected = "  a`n- b" }
+        @{ Case = 'marks an added line +'; Before = 'a'; After = "a`nb"; Expected = "  a`n+ b" }
+        @{ Case = 'marks a removed line -'; Before = "a`nb"; After = 'a'; Expected = "  a`n- b" }
         @{ Case = 'shows a changed line as an addition and a removal, in place'; Before = "a`nb`nc"; After = "a`nX`nc"; Expected = "  a`n+ X`n- b`n  c" }
         @{ Case = 'handles an empty before'; Before = ''; After = 'a'; Expected = "+ a`n- " }
         @{ Case = 'handles an empty after'; Before = 'a'; After = ''; Expected = "+ `n- a" }

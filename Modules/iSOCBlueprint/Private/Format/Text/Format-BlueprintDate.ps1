@@ -37,6 +37,7 @@ function Format-BlueprintDate {
     .OUTPUTS
         [string]; the input as text when it is not a date, '' for $null.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowNull()] $Value, [switch] $Time)
     if ($null -eq $Value) { return '' }

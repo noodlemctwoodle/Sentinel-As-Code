@@ -44,5 +44,5 @@ function Test-QueryAuditing {
     $row = @($Inventory.LaQueryLogs | Where-Object { $null -ne $_ }) | Select-Object -First 1
     $count = if ($row) { ConvertTo-GapInt (Get-PropOrDefault $row 'QueryCount' 0) } else { 0 }
     if ($count -gt 0) { return $null }
-    return New-Finding -Evidence "LAQueryLogs recorded no queries in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): query auditing is not enabled on the workspace, so nobody can see who searched which data." -Detail @{ QueryCount7d = $count }
+    return New-Finding -Evidence "LAQueryLogs recorded no queries in the last $(Format-GapDay (Get-GapWindow $Inventory).Days): query auditing is not enabled on the workspace, so nobody can see who searched which data." -Detail @{ QueryCount7d = $count }
 }

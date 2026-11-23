@@ -77,7 +77,7 @@ function ConvertTo-iSOCAnalyticsRuleRequest {
     $ruleKind = $rule['kind']
     $isCommunityRule = $Item.Source -eq 'Community'
 
-    $ruleDescription = if ($rule.Contains('description')) { $rule['description'] } else { "" }
+    $ruleDescription = if ($rule.Contains('description')) { $rule['description'] } else { '' }
     $ruleEnabled = if ($isCommunityRule) { $false } elseif ($Disabled) { $false } elseif ($rule.Contains('enabled')) { [bool]$rule['enabled'] } else { $true }
 
     $properties = @{
@@ -87,10 +87,10 @@ function ConvertTo-iSOCAnalyticsRuleRequest {
         enabled             = $ruleEnabled
         query               = $rule['query']
         suppressionEnabled  = if ($rule.Contains('suppressionEnabled')) { [bool]$rule['suppressionEnabled'] } else { $false }
-        suppressionDuration = if ($rule.Contains('suppressionDuration')) { $rule['suppressionDuration'] } else { "PT5H" }
+        suppressionDuration = if ($rule.Contains('suppressionDuration')) { $rule['suppressionDuration'] } else { 'PT5H' }
     }
 
-    if ($ruleKind -eq "Scheduled") {
+    if ($ruleKind -eq 'Scheduled') {
         $properties.queryFrequency = $rule['queryFrequency']
         $properties.queryPeriod = $rule['queryPeriod']
         $properties.triggerThreshold = [int]$rule['triggerThreshold']

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -45,6 +45,7 @@ function Format-BlueprintGapEvidence {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Evidence)
     if (-not $Evidence) { return '_(none)_' }

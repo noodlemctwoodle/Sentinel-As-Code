@@ -76,8 +76,8 @@ function New-iSOCPermissionRun {
 
     Write-iSOCLog 'Summary' -Level Section
     foreach ($name in 'Assigned', 'Removed', 'Unchanged', 'Skipped', 'Failed', 'WhatIf') {
-        if ($run[$name] -gt 0 -or $name -in 'Assigned', 'Failed') { Write-iSOCLog ("  {0,-10} {1}" -f "${name}:", $run[$name]) }
+        if ($run[$name] -gt 0 -or $name -in 'Assigned', 'Failed') { Write-iSOCLog ('  {0,-10} {1}' -f "${name}:", $run[$name]) }
     }
-    if ($run.Failed -gt 0) { Write-iSOCLog "Some role assignments failed. The identity running this needs Owner or User Access Administrator on the scopes." -Level Error }
+    if ($run.Failed -gt 0) { Write-iSOCLog 'Some role assignments failed. The identity running this needs Owner or User Access Administrator on the scopes.' -Level Error }
     [pscustomobject]$run
 }

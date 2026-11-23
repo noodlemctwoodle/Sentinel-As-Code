@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -50,7 +50,7 @@ function Write-BlueprintRbacSection {
         [pscustomobject]@{
             Principal = (Format-BlueprintRbacPrincipal $_)
             SignIn    = [string](Get-BlueprintRawProperty $_ 'SignInName' '')
-            Type      = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
+            Type      = (ConvertTo-BlueprintWord ([string]$_.ObjectType))
             Role      = $_.RoleDefinitionName
         }
     }
@@ -72,7 +72,7 @@ function Write-BlueprintRbacSection {
     $rgRows = $rbacRg | ForEach-Object {
         [pscustomobject]@{
             Principal = (Format-BlueprintRbacPrincipal $_)
-            Type      = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
+            Type      = (ConvertTo-BlueprintWord ([string]$_.ObjectType))
             Role      = $_.RoleDefinitionName
         }
     }
@@ -113,7 +113,7 @@ function Write-BlueprintRbacSection {
             if ($n -eq 0) { continue }
             $prinIdx++
             $prinId = "P$prinIdx"
-            $principalNodes += "        $prinId[$(Format-BlueprintCount $n) $(Format-BlueprintPlural $n (ConvertTo-BlueprintWords $t).ToLowerInvariant() `
+            $principalNodes += "        $prinId[$(Format-BlueprintCount $n) $(Format-BlueprintPlural $n (ConvertTo-BlueprintWord $t).ToLowerInvariant() `
                 -NoCount)]"
             if ($role -in @('Owner', 'Contributor')) {
                 $sentId = if ($t -eq 'ServicePrincipal') { 'sac-gov-05' } else { 'sac-gov-06' }
@@ -177,7 +177,7 @@ function Write-BlueprintRbacSection {
     ).Count
 
     Write-BlueprintSection '85-rbac.md' (@"
-$(Format-Banner -Title "Access Control (RBAC)")
+$(Format-Banner -Title 'Access Control (RBAC)')
 
 $(Format-BlueprintPlural $rbacWs.Count 'workspace-scope assignment') across $(Format-BlueprintPlural $rolesSeen.Count 'distinct role'). Broad roles (Owner and Contributor) are marked out below; see [SAC-GOV-06] and [SAC-GOV-05] in the gap analysis.
 

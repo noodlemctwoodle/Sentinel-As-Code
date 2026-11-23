@@ -40,6 +40,7 @@ function ConvertFrom-BpMermaidClass {
         members), relations (from, to, kind and label) and notes (for and
         text).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $classes = [ordered]@{}

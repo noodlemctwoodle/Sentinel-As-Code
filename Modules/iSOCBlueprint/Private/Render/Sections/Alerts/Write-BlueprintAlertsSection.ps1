@@ -46,7 +46,7 @@ function Write-BlueprintAlertsSection {
 
     # Section 16: alerts, across every product that raises them.
     $alertsBody = @"
-$(Format-Banner -Title "Alerts")
+$(Format-Banner -Title 'Alerts')
 
 > Aggregate-only, like the incidents page: alert names, products and counts from ``SecurityAlert``, never alert payloads or entities. Incidents are in [15-incidents.md](15-incidents.md); alert volume per rule with its closure verdicts is in [21-rule-performance.md](21-rule-performance.md).
 

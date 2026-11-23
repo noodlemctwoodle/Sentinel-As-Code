@@ -1298,7 +1298,7 @@ from the synthetic demo workspace. The four changes merged to `main` since
   `Pipelines/Sentinel-Blueprint.yml` drops its mermaid-cli install and
   pre-render step (and the `mermaidCliVersion` variable). The section
   pages reuse the PNGs when the Document stage already made them
-  (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegments` leaves
+  (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegment` leaves
   each Mermaid block out with no placeholder and no warning, and
   `Build-SentinelDocsSite.ps1` logs how many it left out. The GitHub
   SharePoint workflow still pre-renders.

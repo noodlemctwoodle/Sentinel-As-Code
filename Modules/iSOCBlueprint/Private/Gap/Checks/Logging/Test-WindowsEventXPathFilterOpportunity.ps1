@@ -51,6 +51,6 @@ function Test-WindowsEventXPathFilterOpportunity {
             $totalGb30 += Get-GapBillable30d $t
         }
     }
-    if ((ConvertTo-GapPer30Days $totalGb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $(Format-BlueprintGb $totalGb30) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days), typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
+    if ((ConvertTo-GapPer30Day $totalGb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "SecurityEvent/WindowsEvent ingested $(Format-BlueprintGb $totalGb30) GB in the last $(Format-GapDay (Get-GapWindow $Inventory).Days), typical AMA collection ships every Event ID. Add an XPath filter to drop 4624/4634/4672/5379 noise at the DCR." -Detail @{ Gb30d = $totalGb30 }
 }

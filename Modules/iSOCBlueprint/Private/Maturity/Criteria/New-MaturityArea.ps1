@@ -39,7 +39,7 @@ function New-MaturityArea {
         Every criterion in the document; those naming this area are used.
 
     .PARAMETER Metrics
-        The table from New-MaturityMetrics.
+        The table from New-MaturityMetric.
 
     .PARAMETER OutcomeById
         Gap rule outcomes by rule id, from Read-MaturityOutcome.

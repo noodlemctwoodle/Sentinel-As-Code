@@ -46,7 +46,7 @@ function Get-iSOCPropertyValue {
         Get-iSOCPropertyValue -InputObject $workspace -Path 'properties.customerId'
     #>
     [CmdletBinding()]
-    [OutputType([object])]
+    [OutputType([object], [array])]
     param(
         [AllowNull()]
         [object] $InputObject,

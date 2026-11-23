@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -54,7 +54,7 @@ function Write-BlueprintTablePlansRetentionSectionPart2 {
     $workspaceTables = $Context.workspaceTables
 
     $tablePlansBody = @"
-$(Format-Banner -Title "Table Plans, Retention and Activity")
+$(Format-Banner -Title 'Table Plans, Retention and Activity')
 
 ## Plan adoption
 

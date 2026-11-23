@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -163,7 +163,7 @@ function Write-BlueprintLiveSnapshotSection {
     )
 
     $execBody = @"
-$(Format-Banner -Title "Live snapshot")
+$(Format-Banner -Title 'Live snapshot')
 
 > Living documentation for the Microsoft Sentinel workspace ``$WorkspaceName``. Every page in this set is regenerated from the live workspace on every CI/CD pipeline run and every pull request, so the numbers below describe the workspace as it stands at the timestamp above, not a periodic audit deliverable. If a value looks stale, re-run the pipeline; there is no separate refresh cycle.
 

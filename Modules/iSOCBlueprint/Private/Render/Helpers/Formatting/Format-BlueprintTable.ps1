@@ -52,6 +52,7 @@ function Format-BlueprintTable {
     .OUTPUTS
         [string] of Markdown.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)] [AllowNull()] [object[]]$Items,

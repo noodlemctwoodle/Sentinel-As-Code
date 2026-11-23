@@ -86,10 +86,10 @@ separate module, and are not part of this map.
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Connect-AzureEnvironment` | `Modules/iSOCDeployments/Private/Az/Get-iSOCAzContext.ps1` | - | Get-AzContext |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Connect-AzureEnvironment` | `Modules/iSOCDeployments/Private/Core/Get-iSOCAzSession.ps1` | E6 | The tenant, subscription and cloud hosts, shared with Initialize-iSOCServicePrincipal |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Connect-AzureEnvironment` | `Modules/iSOCDeployments/Private/Az/Set-iSOCAzContext.ps1` | - | Set-AzContext |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Remove-KqlComments` | `Modules/iSOCDeployments/Private/Kql/Remove-iSOCKqlComment.ps1` | - | |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Remove-KqlComment` | `Modules/iSOCDeployments/Private/Kql/Remove-iSOCKqlComment.ps1` | - | |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-KqlWatchlistReferences` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCKqlWatchlistReference.ps1` | - | |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-KqlExternalDataReferences` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCKqlExternalDataReference.ps1` | - | |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-KqlBareIdentifiers` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCKqlBareIdentifier.ps1` | - | |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-KqlBareIdentifier` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCKqlBareIdentifier.ps1` | - | |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentKqlQuery` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCContentKqlQuery.ps1` | E4 | |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentDependencies` | `Modules/iSOCDeployments/Private/Kql/Get-iSOCQueryDependency.ps1` | - | The classification; reading the query is each type's GetQuery handler, or Get-iSOCContentKqlQuery for any file |
 | `Modules/Sentinel.Common/Sentinel.Common.psm1` | `Get-ContentDependencies` | `Modules/iSOCDeployments/Public/Get-iSOCContentDependency.ps1` | - | For a file, with the known functions read from the repository's parsers |

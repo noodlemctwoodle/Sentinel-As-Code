@@ -44,9 +44,9 @@ function Invoke-PublishNavigation {
     # 7. Navigation --------------------------------------------------------------
     Write-PublishStep '7/8 Navigation'
     Assert-TokenFresh 'navigation'
-    # Get-SacGeneratedPageNames returns its array as one object; assign it
+    # Get-SacGeneratedPageName returns its array as one object; assign it
     # directly rather than wrapping it in @(), which would nest it.
-    $pagesNow = Get-SacGeneratedPageNames
+    $pagesNow = Get-SacGeneratedPageName
     if ($WhatIfPreference) { $pagesNow = @($pagesNow) + @($pagePlan | Where-Object Action -EQ 'Create' | ForEach-Object { $_.Name }) }
     $navPlan = Get-NavigationPlan -Sections @($site.sections) -ExistingPages $pagesNow -FamilyOrder @($site.familyOrder) `
         -DashboardPage ([string]$site.dashboard.page) -FindingsListUrl ([string]$site.findingsList.url)

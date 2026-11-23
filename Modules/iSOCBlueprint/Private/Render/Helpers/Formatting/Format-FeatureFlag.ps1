@@ -45,6 +45,7 @@ function Format-FeatureFlag {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([psobject]$Container, [string]$Property)
     if ($null -eq $Container) { return 'False' }

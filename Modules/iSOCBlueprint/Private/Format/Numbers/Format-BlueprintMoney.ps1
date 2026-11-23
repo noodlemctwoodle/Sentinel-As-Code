@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -38,6 +38,7 @@ function Format-BlueprintMoney {
     .OUTPUTS
         [string]; the input as text when it is not a number, '' for $null.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowNull()] $Amount, [AllowNull()] [AllowEmptyString()] [string] $Currency)
     $d = ConvertTo-BlueprintDouble $Amount

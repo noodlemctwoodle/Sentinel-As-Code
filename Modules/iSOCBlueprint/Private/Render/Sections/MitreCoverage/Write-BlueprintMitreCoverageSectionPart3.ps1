@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -105,9 +105,9 @@ function Write-BlueprintMitreCoverageSectionPart3 {
                 }
             }
         }
-        [void]$detailSections.AppendLine("")
+        [void]$detailSections.AppendLine('')
         [void]$detailSections.AppendLine("### $($t.id) · $($t.name)")
-        [void]$detailSections.AppendLine("")
+        [void]$detailSections.AppendLine('')
         [void]$detailSections.AppendLine((Format-BlueprintTable -Items $techRows -Columns 'Technique', 'Sub-technique', 'Rules', 'Sub-techniques covered'))
     }
     $uncoveredLine = if ($uncoveredTactics.Count) { "No enabled rule maps a technique in: $($uncoveredTactics -join ', ')." } else { 'Every tactic has at least one technique mapped by an enabled rule.' }
@@ -133,7 +133,7 @@ function Write-BlueprintMitreCoverageSectionPart3 {
     $mitreYmax = [int]([math]::Ceiling(($mitreMax + 1) / 10.0)) * 10
 
     $mitreBody = @"
-$(Format-Banner -Title "MITRE ATT&CK Coverage")
+$(Format-Banner -Title 'MITRE ATT&CK Coverage')
 
 Coverage comes from every **enabled** Sentinel detection rule: its ``tactics``, its ``techniques`` and its ``subTechniques``. A sub-technique (such as ``T1078.004``) also counts towards its parent technique. Each technique sits under the tactics ATT&CK gives it, so a rule tagged with several tactics does not spread every technique across all of them. Every ID links to its entry on attack.mitre.org.
 
@@ -149,7 +149,7 @@ config:
 xychart-beta
     title "Enabled rules per MITRE tactic"
     x-axis [$mitreAxis]
-$(Format-XyFullLabels @($tactics | ForEach-Object { $_.name }))
+$(Format-XyFullLabel @($tactics | ForEach-Object { $_.name }))
     y-axis "Enabled rules" 0 --> $mitreYmax
     bar [$mitreBars]
 ``````

@@ -87,7 +87,7 @@ if (-not $TscPath -or -not (Test-Path -LiteralPath $TscPath)) {
 $work = Join-Path ([System.IO.Path]::GetTempPath()) "sac-charts-$([guid]::NewGuid())"
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 try {
-    & $TscPath --module commonjs --target es2017 --lib es2017,dom --moduleResolution node --skipLibCheck --strict --outDir $work @($sources.FullName)
+    & $TscPath --module commonjs --target es2017 --lib es2017, dom --moduleResolution node --skipLibCheck --strict --outDir $work @($sources.FullName)
     if ($LASTEXITCODE -ne 0) { throw "TypeScript failed (exit $LASTEXITCODE)." }
 
     $modules = @(Get-OrdinalSorted @(Get-ChildItem -LiteralPath $work -Filter '*.js' -File))

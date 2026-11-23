@@ -171,7 +171,7 @@ United States.
 
 ## Metrics catalogue
 
-[`New-MaturityMetrics`](../../../Modules/iSOCBlueprint/Private/Maturity/Metrics/New-MaturityMetrics.ps1) computes every metric the criteria can reference. A
+[`New-MaturityMetric`](../../../Modules/iSOCBlueprint/Private/Maturity/Metrics/New-MaturityMetric.ps1) computes every metric the criteria can reference. A
 metric is `null` when its source file is absent (the criterion is then
 Unknown), and `0` or `false` when the file exists but holds nothing.
 
@@ -237,7 +237,7 @@ metrics            every computed metric, null where not captured or not computa
 
 1. Decide what decides it. If a gap rule already checks the condition,
    use `{"kind": "gapRule", "rule": "SAC-<AREA>-NN"}`. If a number from the
-   captures decides it, add the metric to `New-MaturityMetrics` (null when
+   captures decides it, add the metric to `New-MaturityMetric` (null when
    the file is absent) and use `{"kind": "metric", "path": "...", "op":
    "gt|ge|eq|lt|le", "value": ...}`. Combine with `allOf` or `anyOf`.
 2. Add the criterion under its area in `maturity-criteria.json` with the

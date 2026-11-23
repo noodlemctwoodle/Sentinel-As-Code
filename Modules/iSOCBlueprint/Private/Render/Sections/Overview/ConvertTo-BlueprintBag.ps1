@@ -41,6 +41,7 @@ function ConvertTo-BlueprintBag {
     .OUTPUTS
         [ordered] map of name to [long].
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param($Value)
     $bag = [ordered]@{}

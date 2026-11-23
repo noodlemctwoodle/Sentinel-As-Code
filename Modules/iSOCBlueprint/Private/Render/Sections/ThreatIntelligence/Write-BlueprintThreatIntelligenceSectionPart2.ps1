@@ -51,7 +51,7 @@ function Write-BlueprintThreatIntelligenceSectionPart2 {
     $tiTypeBlock = $Context.tiTypeBlock
 
     Write-BlueprintSection '27-threat-intelligence.md' (@"
-$(Format-Banner -Title "Threat Intelligence  (TOC 4.17)")
+$(Format-Banner -Title 'Threat Intelligence  (TOC 4.17)')
 
 Indicator counts and most-recent ingestion timestamp by source, last {lookback}. Indicator detail is intentionally NOT exported to keep the report aggregate-only.
 

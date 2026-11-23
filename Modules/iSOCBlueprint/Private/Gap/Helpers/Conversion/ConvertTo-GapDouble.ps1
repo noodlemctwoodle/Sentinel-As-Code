@@ -40,6 +40,7 @@ function ConvertTo-GapDouble {
     .OUTPUTS
         [double]
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param([object]$Value)
     if ($null -eq $Value) { return 0.0 }

@@ -36,7 +36,7 @@ function Get-AssetPrunePlan {
         [string[]] Names to remove.
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param(
         [Parameter(Mandatory)] [AllowEmptyCollection()] [string[]] $DesiredFiles,
         [Parameter(Mandatory)] [AllowEmptyCollection()] [string[]] $ExistingFiles

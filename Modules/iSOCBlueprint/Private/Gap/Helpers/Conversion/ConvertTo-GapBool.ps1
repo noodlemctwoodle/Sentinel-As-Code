@@ -41,6 +41,7 @@ function ConvertTo-GapBool {
     .OUTPUTS
         [bool]
     #>
+    [OutputType([bool])]
     [CmdletBinding()]
     param([object]$Value)
     if ($null -eq $Value) { return $false }

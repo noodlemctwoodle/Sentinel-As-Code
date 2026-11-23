@@ -180,13 +180,13 @@ $result = Invoke-Pester -Configuration $config
 # ---------------------------------------------------------------------------
 Write-Host ''
 Write-Host '##[section]Test summary'
-Write-Host ("  Passed:       {0}" -f $result.PassedCount)
-Write-Host ("  Failed:       {0}" -f $result.FailedCount)
-Write-Host ("  Skipped:      {0}" -f $result.SkippedCount)
-Write-Host ("  Inconclusive: {0}" -f $result.InconclusiveCount)
-Write-Host ("  Failed setup or teardown blocks: {0}" -f $result.FailedBlocksCount)
-Write-Host ("  Suites that could not be loaded: {0}" -f $result.FailedContainersCount)
-Write-Host ("  Duration:     {0}" -f $result.Duration)
+Write-Host ('  Passed:       {0}' -f $result.PassedCount)
+Write-Host ('  Failed:       {0}' -f $result.FailedCount)
+Write-Host ('  Skipped:      {0}' -f $result.SkippedCount)
+Write-Host ('  Inconclusive: {0}' -f $result.InconclusiveCount)
+Write-Host ('  Failed setup or teardown blocks: {0}' -f $result.FailedBlocksCount)
+Write-Host ('  Suites that could not be loaded: {0}' -f $result.FailedContainersCount)
+Write-Host ('  Duration:     {0}' -f $result.Duration)
 
 # Every line of an error, each marked so the pipeline annotates it.
 function Write-PRValidationError {

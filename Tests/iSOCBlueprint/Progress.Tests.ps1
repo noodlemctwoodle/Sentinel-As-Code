@@ -233,13 +233,13 @@ Describe 'The dashboard''s Progress tab' {
         # Without daily series, the snapshot's run against the previous one.
         $script:html.Contains('if(WIN.endT==null){ const i=runs.indexOf(latest); return {end:latest, base:i>0? runs[i-1] : null}; }') | Should -BeTrue
         # The trends cover the runs between the two; the kept days go to the calendar.
-        $script:html.Contains("viewRuns=entries.filter(e=>(!base || e.date>=base.date) && e.date<=cur.date)") | Should -BeTrue
+        $script:html.Contains('viewRuns=entries.filter(e=>(!base || e.date>=base.date) && e.date<=cur.date)') | Should -BeTrue
         $script:html.Contains("'Change from the run of <b>'+esc(long(base.date))+'</b> to the run of <b>'+esc(long(cur.date))+'</b>, '") | Should -BeTrue
     }
 
     It 'draws in the dashboard''s own parts: tiles, area bars, trend cards' {
         $script:html.Contains('<div class="tiles pgtiles">') | Should -BeTrue
-        $script:html.Contains("<div class=""insights pgcards"">") | Should -BeTrue
+        $script:html.Contains('<div class="insights pgcards">') | Should -BeTrue
         # Balanced rows, as the other boards (eight tiles are 4 + 4, not 7 + 1).
         $script:html.Contains("['.pgtiles',150],['.pgcards',380]") | Should -BeTrue
         $script:html.Contains("requestAnimationFrame(()=>{ if(typeof balanceGrids==='function') balanceGrids(); });") | Should -BeTrue
@@ -272,8 +272,8 @@ Describe 'The dashboard''s Progress tab' {
 
     It 'opens a finding, criterion or rule from its change' {
         $script:html.Contains("if(l.classList.contains('pgfind') && typeof window.showFinding==='function') window.showFinding(l.dataset.id);") | Should -BeTrue
-        $script:html.Contains("window.showCriterion(l.dataset.id)") | Should -BeTrue
-        $script:html.Contains("window.openRuleReport(l.dataset.name)") | Should -BeTrue
+        $script:html.Contains('window.showCriterion(l.dataset.id)') | Should -BeTrue
+        $script:html.Contains('window.openRuleReport(l.dataset.name)') | Should -BeTrue
     }
 
     It 'closes a fitted trend''s area at the foot of its scale' {

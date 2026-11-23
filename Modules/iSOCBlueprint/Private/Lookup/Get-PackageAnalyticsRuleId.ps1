@@ -35,7 +35,7 @@ function Get-PackageAnalyticsRuleId {
         [string[]] The ids, lower-case.
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param([AllowNull()] $Package)
 
     $has = { param($o, [string]$n) $null -ne $o -and $o.PSObject.Properties.Name -contains $n -and $null -ne $o.$n }

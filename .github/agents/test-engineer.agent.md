@@ -30,7 +30,7 @@ the prompt bootstraps one file; you reason about the suite.
 ## Files you work on
 
 - `Tests/*.Tests.ps1` — every Pester file
-- `Tests/_helpers/Import-ScriptFunctions.psm1` — the AST helper
+- `Tests/_helpers/Import-ScriptFunction.psm1` — the AST helper
 - `Tools/Invoke-PRValidation.ps1` — the cross-platform PR gate
   entry point
 
@@ -69,9 +69,9 @@ For a module (like `iSOCDeployments`), use `Import-Module` and
    ```powershell
    BeforeAll {
        $repoRoot = Split-Path -Parent $PSScriptRoot
-       Import-Module "$repoRoot/Tests/_helpers/Import-ScriptFunctions.psm1" -Force
+       Import-Module "$repoRoot/Tests/_helpers/Import-ScriptFunction.psm1" -Force
 
-       $functions = Import-ScriptFunctions `
+       $functions = Import-ScriptFunction `
            -ScriptPath "$repoRoot/Deploy/<Name>.ps1"
        . ([scriptblock]::Create($functions))
 

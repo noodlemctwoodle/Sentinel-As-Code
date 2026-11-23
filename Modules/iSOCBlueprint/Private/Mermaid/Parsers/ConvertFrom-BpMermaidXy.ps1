@@ -39,6 +39,7 @@ function ConvertFrom-BpMermaidXy {
         labels), yAxis (title, min and max) and series (kind, name and
         values; the kind is bar or line).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body, [string[]] $FullLabels)
     $title = $null

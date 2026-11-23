@@ -57,13 +57,14 @@ function ConvertTo-BpBlockList {
     .OUTPUTS
         One ordered dictionary per block that is emitted.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([object] $Blocks, [hashtable] $Context)
     foreach ($b in $Blocks) {
         $type = $b.GetType().Name
         switch ($type) {
             'HeadingBlock' {
-                $runs = @(ConvertTo-BpRuns -Container $b.Inline)
+                $runs = @(ConvertTo-BpRun -Container $b.Inline)
                 if ($b.Level -eq 1 -and -not $Context.title) { $Context.title = Get-BpPlainText $runs; break }
                 $block = [ordered]@{ type = 'heading'; level = [int]$b.Level; text = $runs; anchor = $Context.anchor }
                 if (-not $block.anchor) { $block.anchor = Get-BpSlug (Get-BpPlainText $runs) }
@@ -74,7 +75,7 @@ function ConvertTo-BpBlockList {
             'ParagraphBlock' {
                 $anchor = Get-BpAnchorOnly -Container $b.Inline
                 if ($anchor) { $Context.anchor = $anchor; break }
-                $runs = @(ConvertTo-BpRuns -Container $b.Inline)
+                $runs = @(ConvertTo-BpRun -Container $b.Inline)
                 if ($runs.Count -eq 0) { break }
                 $Context.content = $true
                 $para = [ordered]@{ type = 'paragraph'; text = $runs }
@@ -99,7 +100,7 @@ function ConvertTo-BpBlockList {
                     $text = @()
                     $rest = $children
                     if ($first -and $first.GetType().Name -eq 'ParagraphBlock') {
-                        $text = @(ConvertTo-BpRuns -Container $first.Inline)
+                        $text = @(ConvertTo-BpRun -Container $first.Inline)
                         $rest = @($children | Select-Object -Skip 1)
                     }
                     [ordered]@{ text = $text; blocks = @(ConvertTo-BpBlockList -Blocks $rest -Context @{ title = 'nested'; anchor = $null; content = $true }) }

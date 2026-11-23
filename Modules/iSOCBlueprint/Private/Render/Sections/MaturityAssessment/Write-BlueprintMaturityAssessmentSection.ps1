@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -48,7 +48,7 @@ function Write-BlueprintMaturityAssessmentSection {
     # Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md.
     $maturityBody = if (-not $maturityOk) {
         @"
-$(Format-Banner -Title "Maturity Assessment")
+$(Format-Banner -Title 'Maturity Assessment')
 
 _The maturity assessment was not produced in this run (``_raw/maturity.json`` is absent or empty). The collector writes it after the gap analysis; when that capture fails this page stays empty rather than scoring a workspace it cannot see._
 "@
@@ -125,7 +125,7 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
             'not assessed'
         } else { "$(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
         @"
-$(Format-Banner -Title "Maturity Assessment")
+$(Format-Banner -Title 'Maturity Assessment')
 
 > **$($maturity.methodology.name)** v$($maturity.methodology.version), criteria v$($maturity.methodology.criteriaVersion). $(if ($maturityBasis) { "$maturityBasis " })$($maturity.methodology.scaleNote)
 $(if ($maturityScope) { "

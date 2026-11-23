@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -114,7 +114,7 @@ Mostly-Success workspaces are operating cleanly. A non-trivial Failure / Partial
     } else { '' }
 
     Write-BlueprintSection '11-sentinel-health.md' (@"
-$(Format-Banner -Title "Sentinel Health and Resilience  (TOC 4.8)")
+$(Format-Banner -Title 'Sentinel Health and Resilience  (TOC 4.8)')
 
 Health events are pulled from the workspace's ``SentinelHealth`` table for the last {lookback}, summarised per Sentinel resource. The table is empty on workspaces where Sentinel diagnostics have not been enabled: [turn on health diagnostics](https://learn.microsoft.com/azure/sentinel/health-audit) to start the data flowing.
 $healthChartBlock

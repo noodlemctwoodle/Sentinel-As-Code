@@ -39,6 +39,7 @@ function Test-BpSameFormat {
     .OUTPUTS
         [bool] $true when all five entries match.
     #>
+    [OutputType([bool])]
     [CmdletBinding()]
     param([System.Collections.IDictionary] $Run, [hashtable] $Format)
     foreach ($flag in 'bold', 'italic', 'code', 'strike') { if ([bool]$Run[$flag] -ne [bool]$Format[$flag]) { return $false } }

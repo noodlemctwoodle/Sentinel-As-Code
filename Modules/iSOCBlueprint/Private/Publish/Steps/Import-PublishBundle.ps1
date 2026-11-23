@@ -55,7 +55,7 @@ function Import-PublishBundle {
     # The CSVs of the tables cut on their pages; a bundle built before them has none.
     $siteTables = @(if ($site.PSObject.Properties['tables']) { @($site.tables) | Where-Object { $_ } | ForEach-Object { [string]$_ } })
 
-    Write-Host "iSOC Blueprint publish" -ForegroundColor Cyan
+    Write-Host 'iSOC Blueprint publish' -ForegroundColor Cyan
     Write-Host "  Site      : $SiteUrl"
     Write-Host "  Bundle    : $Bundle ($($pageDocs.Count) pages, $(@($site.diagrams).Count) diagrams, $($siteTables.Count) table CSVs, $(@($findingsDoc.items).Count) findings)"
     Write-Host "  Workspace : $($site.workspace.name)"

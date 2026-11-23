@@ -47,6 +47,7 @@ function ConvertFrom-BpMermaidFlowchart {
         stroke, color, href and tooltip) and edges (from, to, label, style
         and arrow). An edge's style is solid, dotted or thick.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string] $Header, [string[]] $Body)
     $direction = if ($Header -match '^(?:flowchart|graph)\s+(\w+)') { $Matches[1] } else { 'TB' }

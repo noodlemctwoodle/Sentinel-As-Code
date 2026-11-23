@@ -40,6 +40,7 @@ function Format-ColumnLabel {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Name)
     if ($script:ColumnLabels.ContainsKey($Name)) { return $script:ColumnLabels[$Name] }

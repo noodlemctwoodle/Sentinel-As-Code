@@ -53,7 +53,7 @@ function Get-iSOCChangedFile {
         $changed = Get-iSOCChangedFile -RepoPath $repo
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param(
         [Parameter(Mandatory)]
         [string] $RepoPath

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -39,6 +39,7 @@ function Format-Banner {
     .OUTPUTS
         [string] of Markdown: the heading, then a block quote line.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Title)
     $run = Read-BlueprintRaw 'run-context.json'

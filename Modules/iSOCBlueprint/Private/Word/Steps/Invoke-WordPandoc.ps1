@@ -55,7 +55,7 @@ function Invoke-WordPandoc {
     if ($Toc -eq 'Baked') {
         $soffice = Get-SofficePath
         if (-not ($soffice -and (Test-UnoAvailable))) {
-            Write-WordLog "  LibreOffice + python3-uno not both available - using -Toc Styled (no page numbers)." -Level Warning
+            Write-WordLog '  LibreOffice + python3-uno not both available - using -Toc Styled (no page numbers).' -Level Warning
             $Toc = 'Styled'
         }
     }
@@ -78,7 +78,7 @@ function Invoke-WordPandoc {
             '--toc', "--toc-depth=$TocDepth"
             '-o', $tocProbe
         )
-        Write-WordLog "Running pandoc (contents pass)..." -Level Info
+        Write-WordLog 'Running pandoc (contents pass)...' -Level Info
         $passAOut = & pandoc @passA 2>&1
         if ($LASTEXITCODE -ne 0) {
             foreach ($line in $passAOut) { Write-WordLog "  $line" -Level Error }
@@ -137,7 +137,7 @@ function Invoke-WordPandoc {
             $passB += @('--reference-doc', (Get-Item -LiteralPath $ReferenceDoc).FullName)
         }
 
-        Write-WordLog "Running pandoc (docx pass)..." -Level Info
+        Write-WordLog 'Running pandoc (docx pass)...' -Level Info
         $pandocOut = & pandoc @passB 2>&1
         $exit = $LASTEXITCODE
     } else {
@@ -157,14 +157,14 @@ function Invoke-WordPandoc {
             '-o', $OutputPath
         )
         if ($ReferenceDoc) { $tocArgs += @('--reference-doc', (Get-Item -LiteralPath $ReferenceDoc).FullName) }
-        Write-WordLog "Running pandoc (TOC field)..." -Level Info
+        Write-WordLog 'Running pandoc (TOC field)...' -Level Info
         $pandocOut = & pandoc @tocArgs 2>&1
         $exit = $LASTEXITCODE
 
         if ($exit -eq 0 -and $Toc -eq 'Baked') {
-            Write-WordLog "Baking TOC page numbers via LibreOffice..." -Level Info
+            Write-WordLog 'Baking TOC page numbers via LibreOffice...' -Level Info
             if (-not (Invoke-LibreOfficeBake -Soffice $soffice -DocxPath $OutputPath)) {
-                Write-WordLog "  LibreOffice bake failed; TOC field is present but unpopulated (open in Word, Ctrl+A then F9)." -Level Warning
+                Write-WordLog '  LibreOffice bake failed; TOC field is present but unpopulated (open in Word, Ctrl+A then F9).' -Level Warning
             }
         }
     }

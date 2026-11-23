@@ -68,7 +68,7 @@ function Write-BlueprintDataConnectorsSection {
         [pscustomobject]@{
             Title     = Get-ConnectorFriendlyTitle -Kind $_.kind -Connector $_ -CcfTitleByName $ccfTitleByName
             Kind      = $_.kind
-            DataTypes = Get-ConnectorDataTypes -Connector $_
+            DataTypes = Get-ConnectorDataType -Connector $_
             State     = Get-ConnectorAggregateState -Connector $_
             Data7d    = Get-ConnectorData7d -Connector $_
         }
@@ -119,11 +119,11 @@ function Write-BlueprintDataConnectorsSection {
 
     # Build the synthesised effective-connectors view. Covers DCR-driven and
     # diagnostic-settings-driven ingestion which the Sentinel data-connectors
-    # endpoint doesn't enumerate. See Get-EffectiveConnectors for the precedence
+    # endpoint doesn't enumerate. See Get-EffectiveConnector for the precedence
     # rules.
     $diagSettings = Read-BlueprintRawArray 'diagnostic-settings.json'
     $workspaceResourceId = if ($workspace.id) { [string]$workspace.id } else { '' }
-    $effective = Get-EffectiveConnectors `
+    $effective = Get-EffectiveConnector `
         -ClassicConnectors $connectors `
         -CcfDefinitions $ccfDefs `
         -Dcrs $dcrs `

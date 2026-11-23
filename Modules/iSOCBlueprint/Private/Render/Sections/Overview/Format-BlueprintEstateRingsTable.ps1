@@ -40,6 +40,7 @@ function Format-BlueprintEstateRingsTable {
     .OUTPUTS
         [string] of Markdown.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Estate)
     function _Row([string]$Stage, [int]$Value, [int]$Of) {

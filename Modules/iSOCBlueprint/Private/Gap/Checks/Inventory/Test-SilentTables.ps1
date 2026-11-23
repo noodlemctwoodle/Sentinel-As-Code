@@ -49,7 +49,7 @@ function Test-SilentTables {
     if ($silent.Count -gt 0) {
         $names = ($silent | Select-Object -ExpandProperty DataType) -join ', '
         $w = Get-GapWindow $Inventory
-        return New-Finding -Evidence "$(Select-GapWording $silent.Count 'Silent table' 'Silent tables') (data in the last $(Format-GapDays $w.Days) but none in the last $(Format-GapDays $w.RecentDays)): $names." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "$(Select-GapWording $silent.Count 'Silent table' 'Silent tables') (data in the last $(Format-GapDay $w.Days) but none in the last $(Format-GapDay $w.RecentDays)): $names." -Detail @{ Tables = $names }
     }
     return $null
 }

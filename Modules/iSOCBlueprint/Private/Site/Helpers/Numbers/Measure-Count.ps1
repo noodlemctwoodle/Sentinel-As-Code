@@ -41,6 +41,7 @@ function Measure-Count {
     .OUTPUTS
         [int] The number of items.
     #>
+    [OutputType([int])]
     [CmdletBinding()]
     param($Data)
     if ($null -eq $Data) { return 0 }

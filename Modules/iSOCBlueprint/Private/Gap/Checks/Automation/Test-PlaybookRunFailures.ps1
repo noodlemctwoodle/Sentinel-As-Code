@@ -50,7 +50,7 @@ function Test-PlaybookRunFailures {
             $when = if ($last) { ", last $(Format-BlueprintDate $last -Time)" } else { '' }
             "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(Format-BlueprintCount (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0))) of $(Format-BlueprintPlural (ConvertTo-GapInt (Get-PropOrDefault $_ 'Runs7d' 0)) 'run') failed$when)"
         }) -join '; '
-    return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'playbook') had failed runs in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $sample." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'playbook') had failed runs in the last $(Format-GapDay (Get-GapWindow $Inventory).Days): $sample." -Detail @{
         Count     = $failing.Count
         Playbooks = @($failing | ForEach-Object {
                 [pscustomobject]@{

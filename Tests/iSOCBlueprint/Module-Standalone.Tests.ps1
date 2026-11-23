@@ -39,7 +39,7 @@ BeforeAll {
     # node_modules there would make the copy slow.
     New-Item -ItemType Directory -Path $script:copy -Force | Out-Null
     Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint') -Force |
-        Where-Object Name -ne 'WebParts' |
+        Where-Object Name -NE 'WebParts' |
         Copy-Item -Destination $script:copy -Recurse -Force
 
     Remove-Module iSOCBlueprint -ErrorAction SilentlyContinue

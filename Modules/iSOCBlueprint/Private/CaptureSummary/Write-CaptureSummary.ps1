@@ -137,7 +137,7 @@ function Write-CaptureSummary {
     if ($problems.Count) {
         & $headline (& $row 'Key data' "$($problems.Count) of $keyTotal key captures hold no data:") 'Yellow' $true
         $width = ($problems | ForEach-Object { $_.File.Length } | Measure-Object -Maximum).Maximum
-        foreach ($p in $problems) { Write-Host ("    {0}  {1}" -f $p.File.PadRight($width), $p.Status) }
+        foreach ($p in $problems) { Write-Host ('    {0}  {1}' -f $p.File.PadRight($width), $p.Status) }
         foreach ($line in (Format-WrappedText -Text 'Usually populated on an active workspace. If you expected data: check RBAC (Microsoft Sentinel Reader at workspace scope covers automation rules, watchlists, hunting queries and incidents) and that the workspace has been used since deployment.' -Indent 4)) { Write-Host $line }
     } else {
         Write-Host (& $row 'Key data' "all $keyTotal key captures hold data")

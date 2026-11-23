@@ -154,7 +154,7 @@ Describe 'File <Path>' -ForEach $functionFiles {
 
     It 'opens with the PowerShell floor and names its own path' {
         $script:text | Should -Match '^#Requires -Version 7\.6\r?\n'
-        $script:text | Should -Match ("(?m)^\s*File:\s+" + [regex]::Escape($Path) + '\s*$')
+        $script:text | Should -Match ('(?m)^\s*File:\s+' + [regex]::Escape($Path) + '\s*$')
     }
 
     It 'declares no module in #Requires, so the module imports without it' {

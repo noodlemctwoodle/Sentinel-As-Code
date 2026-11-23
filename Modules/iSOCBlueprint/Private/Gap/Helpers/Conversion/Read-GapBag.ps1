@@ -36,6 +36,7 @@ function Read-GapBag {
     .OUTPUTS
         [hashtable] Name to integer.
     #>
+    [OutputType([hashtable])]
     [CmdletBinding()]
     param([object]$Value)
     $bag = @{}

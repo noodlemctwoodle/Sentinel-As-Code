@@ -39,6 +39,7 @@ function ConvertFrom-BpMermaidJourney {
         [ordered] kind ('journey'), the chart's title and data: sections
         (name and tasks, each with label, score and actors).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $title = $null

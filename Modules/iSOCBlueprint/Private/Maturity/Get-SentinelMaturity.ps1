@@ -8,7 +8,7 @@
 
 .DESCRIPTION
     Pure data-in/data-out, testable end-to-end with fixture files. The work is
-    shared out across the files beside this one: New-MaturityMetrics
+    shared out across the files beside this one: New-MaturityMetric
     computes the metrics, Resolve-MaturitySource and New-MaturityArea score the
     criteria, New-MaturityRoadmap orders the gaps and Get-MaturityCsfRollup
     counts the NIST CSF coverage.
@@ -23,7 +23,7 @@
     Source kinds:
         gapRule  a gap rule outcome: Passed is Met, Fired is Gap, anything
                  else (Errored, Undefined, not evaluated) is Unknown
-        metric   a value from New-MaturityMetrics compared with op/value;
+        metric   a value from New-MaturityMetric compared with op/value;
                  a null metric (its file was not captured) is Unknown
         allOf    Gap if any source is Gap, else Unknown if any is Unknown,
                  else Met
@@ -123,7 +123,7 @@ function Get-SentinelMaturity {
     if (-not (Test-Path $CriteriaPath)) { throw "Criteria file not found: $CriteriaPath" }
 
     $doc = Get-Content $CriteriaPath -Raw | ConvertFrom-Json -Depth 16
-    $metrics = New-MaturityMetrics -InputRoot $InputRoot -ResourcesRoot $ResourcesRoot
+    $metrics = New-MaturityMetric -InputRoot $InputRoot -ResourcesRoot $ResourcesRoot
     $window = Read-MaturityWindow -InputRoot $InputRoot
     Test-MaturityCriteriaDocument -Document $doc -MetricNames @($metrics.Keys)
 

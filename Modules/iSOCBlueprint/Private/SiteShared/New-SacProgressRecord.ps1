@@ -45,6 +45,7 @@ function New-SacProgressRecord {
         techniques (ATT&CK techniques an enabled rule covers), tables (tables
         ingesting) and uncovered (those no enabled detection reads).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] $Model,

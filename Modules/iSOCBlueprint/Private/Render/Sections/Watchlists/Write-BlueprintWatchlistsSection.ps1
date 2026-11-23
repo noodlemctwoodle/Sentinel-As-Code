@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -149,7 +149,7 @@ $(Format-BlueprintTable -Items $brokenWatchlistRefs -Columns 'MissingAlias','Rul
     } else { '' }
 
     Write-BlueprintSection '50-watchlists.md' (@"
-$(Format-Banner -Title "Watchlists")
+$(Format-Banner -Title 'Watchlists')
 $wlChartBlock
 **$(Format-BlueprintPlural $wlRows.Count 'watchlist')**  ·  **$(Format-BlueprintCount $wlOwn)** maintained in the workspace  ·  **$(Format-BlueprintCount $wlStale)** stale (not updated in $(Format-BlueprintPlural $script:WatchlistStaleDays 'day'))  ·  **$(Format-BlueprintCount $wlStaleUsed)** stale and read by enabled rules  ·  **$(Format-BlueprintCount $wlHub)** shipped by Content Hub solutions
 

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -76,7 +76,7 @@ function Write-BlueprintGapAnalysisSection {
     }
 
     Write-BlueprintSection '90-gap-analysis.md' (@"
-$(Format-Banner -Title "Gap Analysis")
+$(Format-Banner -Title 'Gap Analysis')
 
 The gap engine compares the live workspace against the rule set in [Resources/Data/best-practices.json](https://github.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Modules/iSOCBlueprint/Resources/Data/best-practices.json). Each row is a Test-* function in [Private/Gap](https://github.com/noodlemctwoodle/Sentinel-As-Code/tree/main/Modules/iSOCBlueprint/Private/Gap), and adding a new rule is a two-line change.
 

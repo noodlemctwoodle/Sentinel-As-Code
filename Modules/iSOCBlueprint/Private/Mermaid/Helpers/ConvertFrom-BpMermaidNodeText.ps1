@@ -39,6 +39,7 @@ function ConvertFrom-BpMermaidNodeText {
     .OUTPUTS
         [hashtable] with id, text and shape.
     #>
+    [OutputType([hashtable])]
     [CmdletBinding()]
     param([string] $Text)
     $t = $Text.Trim()

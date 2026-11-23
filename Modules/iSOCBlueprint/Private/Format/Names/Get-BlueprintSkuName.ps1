@@ -34,6 +34,7 @@ function Get-BlueprintSkuName {
     .OUTPUTS
         [string]
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowNull()] [AllowEmptyString()] [string] $Sku)
     if (-not $Sku) { return [string]$Sku }

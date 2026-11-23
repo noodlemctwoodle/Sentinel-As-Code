@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -91,7 +91,7 @@ pie showData title Summary rule health
     } else { '' }
 
     Write-BlueprintSection '38-summary-rules.md' (@"
-$(Format-Banner -Title "Summary Rules  (TOC 4.3.5)")
+$(Format-Banner -Title 'Summary Rules  (TOC 4.3.5)')
 
 Summary rules pre-aggregate high-volume tables on a schedule into a derived table. They cut query cost on noisy data.
 $summaryWarning$summaryChartBlock

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -102,7 +102,7 @@ $($rpPieRows -join [Environment]::NewLine)
     } else { '_Not recorded in this snapshot._' }
 
     Write-BlueprintSection '86-subscription-context.md' (@"
-$(Format-Banner -Title "Subscription and Tenant Context")
+$(Format-Banner -Title 'Subscription and Tenant Context')
 
 ## Subscription
 

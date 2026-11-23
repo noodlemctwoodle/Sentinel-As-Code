@@ -43,7 +43,7 @@ function Get-iSOCDefenderDetectionMappedColumn {
         Get-iSOCDefenderDetectionMappedColumn -Rule $item.Rule
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array])]
     param(
         [Parameter(Mandatory)]
         [System.Collections.IDictionary] $Rule

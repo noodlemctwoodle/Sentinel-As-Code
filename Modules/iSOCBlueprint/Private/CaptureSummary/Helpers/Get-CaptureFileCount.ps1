@@ -30,6 +30,7 @@ function Get-CaptureFileCount {
     .PARAMETER Path
         The _raw JSON file to count.
     #>
+    [OutputType([int])]
     [CmdletBinding()]
     param([string] $Path)
 

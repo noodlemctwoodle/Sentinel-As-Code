@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -107,7 +107,7 @@ function Write-BlueprintDeprecatedLegacyFeaturesSection {
         })
 
     $legacyBody = @"
-$(Format-Banner -Title "Deprecated and Legacy Features")
+$(Format-Banner -Title 'Deprecated and Legacy Features')
 
 What Microsoft has retired or is retiring on the Sentinel platform, and whether this workspace still depends on any of it. Each row links to the page with the detail.
 

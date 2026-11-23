@@ -40,6 +40,7 @@ function Format-DateUtc {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Value)
     if ($null -eq $Value) { return '' }

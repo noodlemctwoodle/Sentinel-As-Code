@@ -58,7 +58,7 @@ function Write-BlueprintParsersFunctionsSection {
         if (-not $parserByCat.ContainsKey($c)) { $parserByCat[$c] = 0 }
         $parserByCat[$c]++
     }
-    $parserPieRows = Format-PieSlices -Counts $parserByCat -Limit 8
+    $parserPieRows = Format-PieSlice -Counts $parserByCat -Limit 8
     $parserChartBlock = if ($parserRows.Count -gt 0 -and $parserPieRows.Count -gt 0) {
         @"
 
@@ -83,12 +83,12 @@ $(Format-BlueprintPlural $parserRows.Count 'parser or function' 'parsers and fun
             [pscustomobject]@{
                 Category   = $(if ($cat) { $cat } else { 'Uncategorised' })
                 Name       = [string](Get-BlueprintRawProperty $p 'displayName' (Get-BlueprintRawProperty $_ 'name' ''))
-                QueryLines = $(if ($q) { @($q -split "\r?\n").Count } else { 0 })
+                QueryLines = $(if ($q) { @($q -split '\r?\n').Count } else { 0 })
             }
         } | Sort-Object Category, Name)
 
     Write-BlueprintSection '35-parsers-functions.md' (@"
-$(Format-Banner -Title "Parsers and Functions")
+$(Format-Banner -Title 'Parsers and Functions')
 $parserChartBlock
 
 $(Format-BlueprintTable -Items $parserRows -Columns 'Name','Alias','Category')

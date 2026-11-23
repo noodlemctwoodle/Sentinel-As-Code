@@ -36,6 +36,7 @@ function Get-GapBillable30d {
     .OUTPUTS
         [double]
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param([object]$Row)
     $v = Get-PropOrDefault $Row 'BillableLast30d' 0

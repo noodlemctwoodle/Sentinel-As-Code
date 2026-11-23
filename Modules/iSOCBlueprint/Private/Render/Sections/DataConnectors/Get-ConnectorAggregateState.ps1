@@ -42,6 +42,7 @@ function Get-ConnectorAggregateState {
     .OUTPUTS
         [string]: 'enabled', 'disabled', 'partial' or 'unknown'.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([psobject]$Connector)
     # RestApiPoller / Push connectors don't carry a dataTypes map. Treat the

@@ -37,6 +37,7 @@ function ConvertTo-MaturityNumber {
     .OUTPUTS
         [double] The number.
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param([Parameter(Mandatory = $false)] [AllowNull()] $Value)
     if ($null -eq $Value) { return 0.0 }

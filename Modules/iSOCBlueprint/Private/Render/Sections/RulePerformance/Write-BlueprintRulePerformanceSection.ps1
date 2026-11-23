@@ -43,7 +43,7 @@ function Write-BlueprintRulePerformanceSection {
 
     # Section 21: how the rules perform, alert volume and closure verdicts.
     Write-BlueprintSection '21-rule-performance.md' (@(
-            "$(Format-Banner -Title "Rule Performance")`n`nHow much each detection fires and how its incidents are closed. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); alerts by severity, product and provider are in [16-alerts.md](16-alerts.md).",
+            "$(Format-Banner -Title 'Rule Performance')`n`nHow much each detection fires and how its incidents are closed. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); alerts by severity, product and provider are in [16-alerts.md](16-alerts.md).",
             $volumeSection,
             $analyticsLinks) -join [Environment]::NewLine)
 }

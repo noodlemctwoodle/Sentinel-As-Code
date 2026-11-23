@@ -41,6 +41,7 @@ function ConvertFrom-BpMermaidState {
         and parent), transitions (from, to, parent and label) and notes
         (state, position and text).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $transitions = [System.Collections.Generic.List[object]]::new()

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -51,7 +51,7 @@ function Write-BlueprintWorkspaceSection {
         [int]([math]::Floor(((Get-Date).ToUniversalTime() - [datetime]$wsCreated).TotalDays))
     } else { $null }
     $wsAgeWarning = if ($null -ne $wsAgeDays -and $wsAgeDays -lt (Get-BlueprintWindow).Days) {
-        " _(The workspace is younger than the {lookback} the captures read, so figures over that window cover only its life so far.)_"
+        ' _(The workspace is younger than the {lookback} the captures read, so figures over that window cover only its life so far.)_'
     } else { '' }
     $wsDefaultDcr = $null
     if ($workspace.properties.PSObject.Properties.Name -contains 'defaultDataCollectionRuleResourceId') {
@@ -77,7 +77,7 @@ function Write-BlueprintWorkspaceSection {
         Date  = $wsCreatedShort
         Lines = @(
             "Workspace created ($(Format-WorkspaceSku $workspace.properties.sku.name), $($workspace.properties.retentionInDays)-day retention)",
-            "First captured connector inventory"
+            'First captured connector inventory'
         )
     }
     # Tables-in-use: operational subset (tables that have received billable

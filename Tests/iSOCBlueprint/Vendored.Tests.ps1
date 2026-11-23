@@ -13,7 +13,7 @@
     fix-in-one-place bug, so this suite fails until both sides match: fix
     the original first, then copy it across.
 
-    The KQL helpers Remove-KqlComments and Get-KqlBareIdentifiers were a
+    The KQL helpers Remove-KqlComment and Get-KqlBareIdentifier were a
     copy of Modules/Sentinel.Common's until that module retired in release
     26.11.0; they are the Blueprint's own code now, and the suite holds the
     vendor file to just those two.
@@ -52,7 +52,7 @@ BeforeAll {
 }
 
 Describe 'Vendored KQL helpers' {
-    It 'defines <_> once' -ForEach @('Remove-KqlComments', 'Get-KqlBareIdentifiers') {
+    It 'defines <_> once' -ForEach @('Remove-KqlComment', 'Get-KqlBareIdentifier') {
         @(Get-FunctionText -File $script:vendorFiles -Name $_).Count | Should -Be 1
     }
 
@@ -64,7 +64,7 @@ Describe 'Vendored KQL helpers' {
                     ForEach-Object { $_.Name }
                 } | Sort-Object)
         @($script:vendorFiles).Count | Should -Be 2
-        $names | Should -Be @('Get-KqlBareIdentifiers', 'Remove-KqlComments')
+        $names | Should -Be @('Get-KqlBareIdentifier', 'Remove-KqlComment')
     }
 }
 

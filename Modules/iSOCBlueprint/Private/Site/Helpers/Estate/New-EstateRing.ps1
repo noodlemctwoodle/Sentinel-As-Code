@@ -46,6 +46,7 @@ function New-EstateRing {
     .OUTPUTS
         [ordered] A dictionary with label, value, max and pct.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string]$Label, [int]$Value, [int]$Max)
     [ordered]@{ label = $Label; value = $Value; max = $Max; pct = $(if ($Max -gt 0) { [int][math]::Round(100.0 * $Value / $Max, 0) } else { $null }) }

@@ -40,6 +40,7 @@ function ConvertFrom-BpMermaidPie {
         [ordered] kind ('pie'), the chart's title and data: showData (true
         when the header names it) and slices (label and value).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string] $Header, [string[]] $Body)
     $title = if ($Header -match '\btitle\s+(.+)$') { $Matches[1].Trim() } else { $null }

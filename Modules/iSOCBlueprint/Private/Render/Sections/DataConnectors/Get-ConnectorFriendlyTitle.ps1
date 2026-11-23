@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -57,6 +57,7 @@ function Get-ConnectorFriendlyTitle {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Kind, [psobject]$Connector, [hashtable]$CcfTitleByName = @{})
     switch ($Kind) {

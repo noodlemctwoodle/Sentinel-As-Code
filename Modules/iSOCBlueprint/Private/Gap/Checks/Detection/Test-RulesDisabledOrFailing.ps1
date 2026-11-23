@@ -79,8 +79,8 @@ function Test-RulesDisabledOrFailing {
         if ($bulk) { $extra += " $(Format-BlueprintCount $bulkCount) of them were last modified on $(Format-BlueprintDate $bulkDay), which looks like a bulk change rather than rule-by-rule tuning." }
         if ($firedThenDisabled.Count -gt 0) {
             $win = (Get-GapWindow $Inventory).Days
-            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($(Format-BlueprintPlural $_.Alerts30d 'alert') in $(Format-GapDays $win)$(if ($_.LastModified.Length -ge 10) { ', disabled ' + (Format-BlueprintDate $_.LastModified) }))" }) -join '; '
-            $extra += " $(Format-BlueprintCount $firedThenDisabled.Count) of them produced alerts in the last $(Format-GapDays $win) and $(Select-GapWording $firedThenDisabled.Count 'was' 'were') disabled since: $sample."
+            $sample = ($firedThenDisabled | ForEach-Object { "$($_.Rule) ($(Format-BlueprintPlural $_.Alerts30d 'alert') in $(Format-GapDay $win)$(if ($_.LastModified.Length -ge 10) { ', disabled ' + (Format-BlueprintDate $_.LastModified) }))" }) -join '; '
+            $extra += " $(Format-BlueprintCount $firedThenDisabled.Count) of them produced alerts in the last $(Format-GapDay $win) and $(Select-GapWording $firedThenDisabled.Count 'was' 'were') disabled since: $sample."
         }
         return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'rule') disabled: $names.$extra" -Detail @{
             Count             = $bad.Count

@@ -46,7 +46,7 @@ function Get-iSOCPlaybookEntity {
         Get-iSOCPlaybookEntity -Definition $app.properties.definition
     #>
     [CmdletBinding()]
-    [OutputType([string])]
+    [OutputType([string], [array])]
     param(
         [Parameter(Mandatory)]
         [object] $Definition

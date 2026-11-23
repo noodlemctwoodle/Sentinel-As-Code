@@ -50,7 +50,7 @@ BeforeAll {
 
     # A workspace: tables as @{ Name = @(GB over 30 days, plan) }.
     function Invoke-Estimate([hashtable]$Tables, [object[]]$Prices, [string]$Sku = 'PerGB2018', [int]$Level = 0, [switch]$Lake, [string]$SentinelSku = '') {
-        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-cost-" + [guid]::NewGuid())
+        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-cost-' + [guid]::NewGuid())
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $tw = @(foreach ($k in $Tables.Keys) { [ordered]@{ DataType = $k; BillableLast30d = [double]$Tables[$k][0] } })
         $wt = @(foreach ($k in $Tables.Keys) { [ordered]@{ name = $k; properties = [ordered]@{ plan = $Tables[$k][1] } } })

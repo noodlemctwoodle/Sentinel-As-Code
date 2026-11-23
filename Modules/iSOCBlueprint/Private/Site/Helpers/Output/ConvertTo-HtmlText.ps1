@@ -39,6 +39,7 @@ function ConvertTo-HtmlText {
     .OUTPUTS
         [string] The escaped text.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string] $Text)
     if (-not $Text) { return '' }

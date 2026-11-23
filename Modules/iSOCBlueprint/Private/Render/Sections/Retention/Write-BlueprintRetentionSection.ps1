@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -47,15 +47,15 @@ function Write-BlueprintRetentionSection {
     # (formerly on section 81) and the retention that rolls into the lake
     # (formerly on section 88), in one place.
     $retentionLakeBlock = if ($retentionChartBlock) { $retentionChartBlock } else {
-        @"
+        @'
 
 ## Retention that rolls into the lake
 
 _No table keeps data beyond its analytics retention, so nothing rolls into the lake or into long-term retention._
-"@
+'@
     }
     $retentionBody = @"
-$(Format-Banner -Title "Data Retention")
+$(Format-Banner -Title 'Data Retention')
 
 How long each table keeps its data and whether the workspace is set up to keep it cheaply. Analytics retention is the period a table stays fully queryable; total retention adds long-term retention beyond it, which bills against the data lake storage meter once the tenant is on the data lake. Table plans are in [81-table-plans-retention.md](81-table-plans-retention.md) and the data lake in [88-sentinel-data-lake.md](88-sentinel-data-lake.md).
 

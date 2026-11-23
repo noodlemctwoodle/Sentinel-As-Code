@@ -53,7 +53,7 @@ function ConvertTo-iSOCPortableValue {
         $definition = ConvertTo-iSOCPortableValue -Value $app.properties.definition -Context $portable
     #>
     [CmdletBinding()]
-    [OutputType([object])]
+    [OutputType([object], [System.Collections.Specialized.OrderedDictionary], [object[]], [string])]
     param(
         [AllowNull()]
         [object] $Value,

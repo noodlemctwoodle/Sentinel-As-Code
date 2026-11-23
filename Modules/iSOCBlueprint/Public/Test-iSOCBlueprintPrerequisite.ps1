@@ -69,7 +69,7 @@ function Test-iSOCBlueprintPrerequisite {
         Installs pandoc when the Word step would fail without it.
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject], [bool])]
+    [OutputType([pscustomobject], [bool], [object[]])]
     param(
         [ValidateSet('Collect', 'Render', 'ChartImage', 'Word', 'Site', 'Publish')]
         [string[]] $Step = @('Collect', 'Render', 'ChartImage', 'Word', 'Site', 'Publish'),

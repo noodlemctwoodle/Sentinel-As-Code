@@ -15,7 +15,7 @@
       - Test-PullRequestTemplateBody
 
     The harness AST-extracts those functions (via the shared
-    Import-ScriptFunctions helper) and dot-sources them, so the script's
+    Import-ScriptFunction helper) and dot-sources them, so the script's
     entry-point (which calls exit) never runs.
 
 .EXAMPLE
@@ -41,11 +41,11 @@
 #>
 
 BeforeAll {
-    $repoRoot   = Split-Path -Parent $PSScriptRoot
+    $repoRoot = Split-Path -Parent $PSScriptRoot
     $scriptPath = Join-Path $repoRoot 'Tools/Test-PullRequestTemplate.ps1'
 
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
-    Import-ScriptFunctions -Path $scriptPath
+    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunction.psm1') -Force -ErrorAction Stop
+    Import-ScriptFunction -Path $scriptPath
 
     # A description that satisfies every rule. Individual tests mutate a copy
     # to exercise the failure paths.
@@ -102,9 +102,9 @@ Describe 'Get-PullRequestSection' {
     It 'splits on level-2 headings only' {
         $body = "## A`nalpha`n### sub-heading`nbeta`n## B`ngamma"
         $sections = @(Get-PullRequestSection -Body $body)
-        $sections.Count            | Should -Be 2
-        $sections[0].Heading       | Should -Be 'A'
-        $sections[1].Heading       | Should -Be 'B'
+        $sections.Count | Should -Be 2
+        $sections[0].Heading | Should -Be 'A'
+        $sections[1].Heading | Should -Be 'B'
     }
 
     It 'keeps deeper headings inside the parent section content' {
@@ -122,7 +122,7 @@ Describe 'Get-PullRequestSection' {
     It 'ignores content before the first heading' {
         $body = "leading preamble`n## Real`nbody"
         $sections = @(Get-PullRequestSection -Body $body)
-        $sections.Count      | Should -Be 1
+        $sections.Count | Should -Be 1
         $sections[0].Heading | Should -Be 'Real'
     }
 }
@@ -131,12 +131,12 @@ Describe 'Test-PullRequestTemplateBody' {
     Context 'a well-formed description' {
         It 'passes with no errors' {
             $result = Test-PullRequestTemplateBody -Body $script:ValidBody
-            $result.IsValid      | Should -BeTrue
+            $result.IsValid | Should -BeTrue
             $result.Errors.Count | Should -Be 0
         }
 
         It 'accepts an uppercase [X] tick' {
-            $body   = $script:ValidBody -replace '- \[x\] feat', '- [X] feat'
+            $body = $script:ValidBody -replace '- \[x\] feat', '- [X] feat'
             $result = Test-PullRequestTemplateBody -Body $body
             $result.IsValid | Should -BeTrue
         }
@@ -157,7 +157,7 @@ Describe 'Test-PullRequestTemplateBody' {
 
     Context 'a missing required section' {
         It 'fails when "Why is this change needed?" is removed' {
-            $body   = $script:ValidBody -replace '(?s)## Why is this change needed\?.*?(?=## What does this change do\?)', ''
+            $body = $script:ValidBody -replace '(?s)## Why is this change needed\?.*?(?=## What does this change do\?)', ''
             $result = Test-PullRequestTemplateBody -Body $body
             $result.IsValid | Should -BeFalse
             ($result.Errors -join "`n") | Should -Match 'Why is this change needed'
@@ -166,7 +166,7 @@ Describe 'Test-PullRequestTemplateBody' {
 
     Context 'a section left as the placeholder' {
         It 'fails when Summary holds only a guidance comment' {
-            $body   = $script:ValidBody -replace 'Adds a Copilot mass sensitive resource access detection rule\.', '<!-- one or two sentences -->'
+            $body = $script:ValidBody -replace 'Adds a Copilot mass sensitive resource access detection rule\.', '<!-- one or two sentences -->'
             $result = Test-PullRequestTemplateBody -Body $body
             $result.IsValid | Should -BeFalse
             ($result.Errors -join "`n") | Should -Match "Section '## Summary' is empty"
@@ -175,7 +175,7 @@ Describe 'Test-PullRequestTemplateBody' {
 
     Context 'no type-of-change box ticked' {
         It 'fails when every box is unchecked' {
-            $body   = $script:ValidBody -replace '- \[x\] feat - new capability', '- [ ] feat - new capability'
+            $body = $script:ValidBody -replace '- \[x\] feat - new capability', '- [ ] feat - new capability'
             $result = Test-PullRequestTemplateBody -Body $body
             $result.IsValid | Should -BeFalse
             ($result.Errors -join "`n") | Should -Match 'box is ticked'
@@ -184,9 +184,9 @@ Describe 'Test-PullRequestTemplateBody' {
 
     Context 'multiple problems at once' {
         It 'reports one error per failing rule' {
-            $body   = "## Summary`n`n<!-- nothing -->`n`n## Type of change`n`n- [ ] feat - new capability"
+            $body = "## Summary`n`n<!-- nothing -->`n`n## Type of change`n`n- [ ] feat - new capability"
             $result = Test-PullRequestTemplateBody -Body $body
-            $result.IsValid      | Should -BeFalse
+            $result.IsValid | Should -BeFalse
             $result.Errors.Count | Should -BeGreaterThan 1
         }
     }

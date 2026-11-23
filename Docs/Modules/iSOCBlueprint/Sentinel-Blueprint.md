@@ -840,7 +840,7 @@ diagnostic-settings pipelines that never appear in those two endpoints, so
 rendering section 10 purely from those two captures makes well-instrumented
 workspaces look almost empty.
 
-[`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1)
+[`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1)
 synthesises a unified ingestion view by walking the five captures in this
 order, with each later step skipping any table already claimed by an earlier
 one (precedence avoids double-counting):
@@ -859,7 +859,7 @@ operator wants to know. It usually means data arrived via a path the
 Blueprint doesn't yet enumerate (e.g. ingestion through a Logic App
 running outside the captured playbook resource group, or a legacy MMA
 agent still attached to the workspace). Rather than leaving the `Identifier`
-blank, `Get-EffectiveConnectors` runs the table name through an
+blank, `Get-EffectiveConnector` runs the table name through an
 `_ActiveTableFamily` helper that maps it to an inferred product family
 (for example `Microsoft Defender XDR`, `Microsoft Entra ID`, or
 `CEF / Syslog`), so the row at least hints at which source the unmapped

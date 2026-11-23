@@ -41,6 +41,7 @@ function Get-BlueprintRawList {
     .OUTPUTS
         [string[]].
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param($Value)
     if ($null -eq $Value) { return @() }

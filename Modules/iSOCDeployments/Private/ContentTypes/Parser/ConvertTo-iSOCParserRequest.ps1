@@ -60,7 +60,7 @@ function ConvertTo-iSOCParserRequest {
     $parser = $Item.Data
 
     $properties = @{
-        category      = if ($parser.Contains('category')) { $parser['category'] } else { "Sentinel Parsers" }
+        category      = if ($parser.Contains('category')) { $parser['category'] } else { 'Sentinel Parsers' }
         displayName   = $parser['name']
         query         = $parser['query']
         functionAlias = $parser['functionAlias']
@@ -77,7 +77,7 @@ function ConvertTo-iSOCParserRequest {
         Identity     = $Item.Identity
         ResourceName = [string]$parser['id']
         Body         = @{
-            etag       = "*"
+            etag       = '*'
             properties = $properties
         }
     }

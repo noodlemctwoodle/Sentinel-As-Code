@@ -41,6 +41,7 @@ function Format-BlueprintEstateSankey {
     .OUTPUTS
         [string]: a fenced mermaid block.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Estate)
     function _Gb([double]$v) {

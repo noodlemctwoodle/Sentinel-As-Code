@@ -41,6 +41,7 @@ function Format-BlueprintEstateFamilyTable {
     .OUTPUTS
         [string] of Markdown.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Estate)
     $alertsByFamily = @{}

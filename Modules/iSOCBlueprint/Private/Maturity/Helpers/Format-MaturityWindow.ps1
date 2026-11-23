@@ -41,6 +41,7 @@ function Format-MaturityWindow {
     .OUTPUTS
         [string] The text with the window named.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)] [AllowNull()] [AllowEmptyString()] [string] $Text,

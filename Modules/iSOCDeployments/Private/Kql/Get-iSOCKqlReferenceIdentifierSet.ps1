@@ -55,7 +55,7 @@ function Get-iSOCKqlReferenceIdentifierSet {
         Get-iSOCKqlReferenceIdentifierSet -Text 'OfficeParser | where X == 1'
     #>
     [CmdletBinding()]
-    [OutputType([System.Collections.Generic.HashSet[string]])]
+    [OutputType([System.Collections.Generic.HashSet[string]], [array])]
     param(
         [AllowNull()]
         [string[]] $Text

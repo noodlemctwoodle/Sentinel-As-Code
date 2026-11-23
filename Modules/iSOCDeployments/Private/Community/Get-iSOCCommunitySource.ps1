@@ -54,7 +54,7 @@ function Get-iSOCCommunitySource {
         Get-iSOCCommunitySource -Name Dalonso
     #>
     [CmdletBinding()]
-    [OutputType([hashtable])]
+    [OutputType([hashtable], [object[]])]
     param(
         [string] $Name
     )

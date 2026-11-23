@@ -44,7 +44,7 @@ function Get-iSOCWorkbookQueryText {
         Get-iSOCWorkbookQueryText -SerializedData $workbook.properties.serializedData
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param(
         [AllowNull()]
         [AllowEmptyString()]

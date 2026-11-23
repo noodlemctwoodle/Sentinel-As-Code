@@ -39,6 +39,7 @@ function ConvertFrom-BpMermaidSankey {
         [ordered] kind ('sankey'), title ($null) and data: links (source,
         target and value).
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $links = foreach ($l in $Body) {

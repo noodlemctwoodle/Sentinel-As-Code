@@ -40,6 +40,7 @@ function Format-BlueprintGapLearnLink {
     .OUTPUTS
         [string] of Markdown.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Url)
     if (-not $Url) { return '_(no reference)_' }

@@ -35,6 +35,7 @@ function Format-BlueprintGb {
     .OUTPUTS
         [string]; the input as text when it is not a number, '' for $null.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowNull()] $Value)
     $d = ConvertTo-BlueprintDouble $Value

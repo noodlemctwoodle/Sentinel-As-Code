@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -57,7 +57,7 @@ function Write-BlueprintDataCollectionSectionPart2 {
     $wspNodes = $Context.wspNodes
 
     $dcBody = @"
-$(Format-Banner -Title "Data Collection Rules and Endpoints")
+$(Format-Banner -Title 'Data Collection Rules and Endpoints')
 
 ## Workspace topology
 

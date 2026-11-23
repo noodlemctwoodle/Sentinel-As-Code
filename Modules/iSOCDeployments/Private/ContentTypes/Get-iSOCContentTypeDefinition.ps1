@@ -40,7 +40,7 @@ function Get-iSOCContentTypeDefinition {
         Get-iSOCContentTypeDefinition -Name AnalyticsRule
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject])]
+    [OutputType([pscustomobject], [object[]])]
     param(
         [string[]] $Name
     )

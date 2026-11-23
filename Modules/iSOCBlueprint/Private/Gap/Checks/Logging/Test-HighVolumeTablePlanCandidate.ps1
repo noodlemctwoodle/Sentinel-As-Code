@@ -47,7 +47,7 @@ function Test-HighVolumeTablePlanCandidate {
         if ($name -and $plan -eq 'Analytics') { $analytics[$name] = $true }
     }
     $candidates = @($Inventory.TablesWithData | Where-Object {
-            (ConvertTo-GapPer30Days ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -gt 50.0 -and
+            (ConvertTo-GapPer30Day ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -gt 50.0 -and
             $analytics.ContainsKey((Get-PropOrDefault $_ 'DataType' ''))
         })
     if ($candidates.Count -gt 0) {

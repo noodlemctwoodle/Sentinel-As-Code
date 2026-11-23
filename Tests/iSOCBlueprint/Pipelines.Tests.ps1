@@ -49,11 +49,9 @@ BeforeDiscovery {
                 $value = $Node[$key]
                 if ($key -in $scriptKeys -and $value -is [string] -and $value -match '\n') {
                     @{ Pipeline = $Pipeline; Step = $Step; Script = $value }
-                }
-                else { & $collect $value $Pipeline $Step }
+                } else { & $collect $value $Pipeline $Step }
             }
-        }
-        elseif ($Node -is [System.Collections.IList]) { foreach ($item in $Node) { & $collect $item $Pipeline $Step } }
+        } elseif ($Node -is [System.Collections.IList]) { foreach ($item in $Node) { & $collect $item $Pipeline $Step } }
     }
 
     $steps = foreach ($p in $pipelines) {
@@ -98,11 +96,9 @@ BeforeAll {
                 foreach ($h in $a.Right.FindAll({ param($n) $n -is [System.Management.Automation.Language.HashtableAst] }, $true) | Select-Object -First 1) {
                     foreach ($pair in $h.KeyValuePairs) { $keys.Add($pair.Item1.SafeGetValue()) }
                 }
-            }
-            elseif ($left -is [System.Management.Automation.Language.IndexExpressionAst] -and $left.Target.VariablePath.UserPath -eq $Name) {
+            } elseif ($left -is [System.Management.Automation.Language.IndexExpressionAst] -and $left.Target.VariablePath.UserPath -eq $Name) {
                 $keys.Add($left.Index.SafeGetValue())
-            }
-            elseif ($left -is [System.Management.Automation.Language.MemberExpressionAst] -and $left.Expression.VariablePath.UserPath -eq $Name) {
+            } elseif ($left -is [System.Management.Automation.Language.MemberExpressionAst] -and $left.Expression.VariablePath.UserPath -eq $Name) {
                 $keys.Add($left.Member.Value)
             }
         }

@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -81,7 +81,7 @@ function Write-BlueprintDataSourceHygieneSection {
         if (-not $cefByVendor.ContainsKey($v)) { $cefByVendor[$v] = 0 }
         $cefByVendor[$v] += [long]$r.LogCount
     }
-    $cefPieRows = Format-PieSlices -Counts $cefByVendor -Limit 6
+    $cefPieRows = Format-PieSlice -Counts $cefByVendor -Limit 6
     $cefChartBlock = if ($cefDevices.Count -gt 0) {
         @"
 
@@ -109,7 +109,7 @@ A single vendor dominating means CEF ingestion is mostly that source, likely a c
             [pscustomobject]@{ Computer = $_.Computer; LogCount = Format-BlueprintCount $_.LogCount; SizeMB = Format-BlueprintNumber $_.SizeMB }
         })
     Write-BlueprintSection '13-data-source-hygiene.md' (@"
-$(Format-Banner -Title "Data Source Hygiene")
+$(Format-Banner -Title 'Data Source Hygiene')
 
 Operational data-quality findings that drive ingestion-tuning actions: misrouted records, agent dual-collection, and noisy event types. Each table is independent and may show ``_None._`` when the workspace has nothing to report against that check.
 $cefChartBlock

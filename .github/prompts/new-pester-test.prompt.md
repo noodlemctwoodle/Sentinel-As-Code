@@ -71,8 +71,8 @@ BeforeAll {
     $repoRoot   = Split-Path -Parent $PSScriptRoot
     $scriptPath = Join-Path $repoRoot 'Deploy/<TargetName>.ps1'
 
-    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunctions.psm1') -Force -ErrorAction Stop
-    Import-ScriptFunctions -Path $scriptPath
+    Import-Module (Join-Path $PSScriptRoot '_helpers/Import-ScriptFunction.psm1') -Force -ErrorAction Stop
+    Import-ScriptFunction -Path $scriptPath
 
     Import-Module "$repoRoot/Modules/Sentinel.Common/Sentinel.Common.psd1" -Force -ErrorAction Stop
 }

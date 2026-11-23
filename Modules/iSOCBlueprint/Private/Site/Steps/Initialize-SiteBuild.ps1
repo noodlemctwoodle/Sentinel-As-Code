@@ -63,7 +63,7 @@ function Initialize-SiteBuild {
     if (-not $Title) { $Title = "$WorkspaceName - $ProductName" }
     if (-not $OutputRoot) { $OutputRoot = Join-Path $Source 'sharepoint' }
 
-    Write-SiteLog "iSOC Blueprint -> SharePoint site bundle" Section
+    Write-SiteLog 'iSOC Blueprint -> SharePoint site bundle' Section
     Write-SiteLog "  Source     : $Source"
     Write-SiteLog "  Workspace  : $WorkspaceName"
     Write-SiteLog "  Product    : $ProductName"

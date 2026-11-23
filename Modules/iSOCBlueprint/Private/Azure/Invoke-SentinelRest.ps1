@@ -107,6 +107,7 @@ function Invoke-SentinelRest {
             -Path '/subscriptions/.../providers/Microsoft.SecurityInsights/dataConnectorDefinitions' `
             -ApiVersion '2024-09-01'
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, Position = 0)]

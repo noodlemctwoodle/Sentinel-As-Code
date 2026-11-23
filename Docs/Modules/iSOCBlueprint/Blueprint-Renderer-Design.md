@@ -206,8 +206,8 @@ function name to find its file.
 | `Format-Gb` | Numeric-ish input → 3-decimal string. `(0, 0.001)` → `<0.001`, `0` → `0`, non-numeric → passthrough. | BillableLast24h, Gb30d, top-tables-by-cost |
 | `Format-Banner` | Section header, title, workspace, generated date, version. Reads `$run` (run-context.json). | Every section emit block |
 | `Format-BlueprintTable` | PSObject array → Markdown table. Empty input → `_None._`. Handles nulls, escapes pipes. | Every section that emits a table |
-| `Format-PieSlices` | Label to count map → Mermaid pie lines, largest first; past a limit the rest fold into one `Other (N)` slice so the pie still sums to the total. A page that folds a tail also carries a table listing every item. | Hunting, parser, CEF vendor and TI source pies |
-| `Format-XyFullLabels` | Full x-axis labels as a `%% x-labels [...]` comment. Mermaid ignores it; `ConvertFrom-BlueprintMermaid` reads it, so the SharePoint chart shows whole names where the Markdown axis uses short ones. | MITRE, cost, XDR, alert volume and lake retention bar charts |
+| `Format-PieSlice` | Label to count map → Mermaid pie lines, largest first; past a limit the rest fold into one `Other (N)` slice so the pie still sums to the total. A page that folds a tail also carries a table listing every item. | Hunting, parser, CEF vendor and TI source pies |
+| `Format-XyFullLabel` | Full x-axis labels as a `%% x-labels [...]` comment. Mermaid ignores it; `ConvertFrom-BlueprintMermaid` reads it, so the SharePoint chart shows whole names where the Markdown axis uses short ones. | MITRE, cost, XDR, alert volume and lake retention bar charts |
 | `Format-FeatureFlag` | Workspace feature property → string ("True"/"False"), missing = False. | Workspace feature-flag table (80) |
 | `Format-MinutesScalar` | MTTA/MTTR scalar → "X.X min" or "n/a". Handles KQL `NaN` string. | MTTR headline in 15 |
 | `Format-MitreTechniqueCell` | Technique ID → `[T1078, Valid Accounts](url)` Markdown link. Falls back to ID-only if catalogue lacks the name. | MITRE tactic-detail tables (25) |
@@ -216,13 +216,13 @@ function name to find its file.
 | `Get-BlueprintDaysUntil` | ISO date → integer days until. Drives gantt bar widths. | Live-snapshot deprecation gantt (01) |
 | `Get-ConnectorFriendlyTitle` | Connector `kind` → user-readable name (e.g. "MicrosoftThreatProtection" → "Microsoft Defender XDR"). Knows the CCF lookup via `$ccfTitleByName`. | 10-data-connectors classic + CCF tables |
 | `Get-ConnectorAggregateState` | Per-data-type state → single aggregate (enabled / partial / disabled). | 10-data-connectors State column |
-| `Get-ConnectorDataTypes` | Connector → data-type list (classic) or single dataType string (RestApiPoller/Push). | 10-data-connectors DataTypes column |
-| `Get-ConnectorTargetTable` | Connector + data type → target workspace table. | Connector-health join + Get-EffectiveConnectors |
+| `Get-ConnectorDataType` | Connector → data-type list (classic) or single dataType string (RestApiPoller/Push). | 10-data-connectors DataTypes column |
+| `Get-ConnectorTargetTable` | Connector + data type → target workspace table. | Connector-health join + Get-EffectiveConnector |
 | `Get-ConnectorData7d` | Connector + tables-with-data → "Yes/No" for 7-day activity. | 10-data-connectors Data7d column |
 
 External helpers used by the renderer:
 
-- `Get-EffectiveConnectors`, [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1), 
+- `Get-EffectiveConnector`, [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1), 
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
 - `Get-SentinelCostEstimate` (`Private/Cost`), used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
@@ -424,7 +424,7 @@ when titles change.
 
 ## Reference links at the foot of a page
 
-After the auto-link passes, `Write-BlueprintSection` runs `Move-BlueprintReferenceLinks`
+After the auto-link passes, `Write-BlueprintSection` runs `Move-BlueprintReferenceLink`
 over every page but the contents. A paragraph or list that holds only
 external links (the Microsoft Learn pointers under a section, a finding's
 `**Reference:**` line, "See A and B.") moves out of the page into one
@@ -476,7 +476,7 @@ dashboard's `fmtN`, `fmtGb`, `fmtMoney` and `fmtDate` follow the same rules:
 | Money | the currency's symbol, whole units from 1,000 and two places below: `£137,356`, `£491.76`, `US$4,528`; an unknown currency as its code, `SEK 12.50` | `Format-BlueprintMoney` |
 | A date | `15 Oct 2026`, or `15 Oct 2026 21:03 UTC` with the time; invariant month names (Sep, never Sept) | `Format-BlueprintDate` |
 | A plural | `1 table`, `3 tables`, never `table(s)` | `Format-BlueprintPlural` |
-| An API value | in words: `CredentialAccess` reads Credential access, `BenignPositive` Benign positive | `ConvertTo-BlueprintWords` |
+| An API value | in words: `CredentialAccess` reads Credential access, `BenignPositive` Benign positive | `ConvertTo-BlueprintWord` |
 | A region or workspace SKU | by the portal's name: `uksouth` reads UK South, `CapacityReservation` Commitment tier (identity tables keep the raw name in a code span after it) | `Get-BlueprintRegionName`, `Get-BlueprintSkuName` |
 
 The machine-readable blocks (`%% visual` payloads, Mermaid data lines,
@@ -541,7 +541,7 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/Collector`](../../../Modules/iSOCBlueprint/Private/Collector) (`Invoke-iSOCBlueprintCollect`, one function per capture) | Stage 1, produces `_raw/*.json` |
 | [`Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1`](../../../Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
-| [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
+| [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
 | [`Modules/iSOCBlueprint/Private/Lookup`](../../../Modules/iSOCBlueprint/Private/Lookup) (`Import-ConnectorCatalogue` and the helpers beside it) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-iSOCBlueprintConnectorCatalogue`](../../../Modules/iSOCBlueprint/Public/Update-iSOCBlueprintConnectorCatalogue.ps1) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
@@ -559,8 +559,8 @@ assets root).
 | [`Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1`](../../../Tests/iSOCBlueprint/Convert-MarkdownToWord.Tests.ps1) | Word report rewrites: status colouring by column, finding bullets (7 tests) |
 | [`Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1) | Table-reference builder Pester suite (12 tests) |
 | [`Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-TableTierProfile.Tests.ps1) | Lake tier classifier Pester suite (10 tests) |
-| [`Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-DefenderCustomDetections.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
-| [`Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1`](../../../Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
+| [`Tests/iSOCBlueprint/Get-DefenderCustomDetection.Tests.ps1`](../../../Tests/iSOCBlueprint/Get-DefenderCustomDetection.Tests.ps1) | Custom-detection projection Pester suite (4 tests) |
+| [`Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetection.ps1`](../../../Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetection.ps1) | Graph detectionRules reader (SDK session or Azure PowerShell) and the table-reference projection |
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | REST helper Pester suite (5 tests) |
 | [`Modules/iSOCBlueprint/Private/SyncPlan`](../../../Modules/iSOCBlueprint/Private/SyncPlan) | The site publisher's planning functions: pages, findings, navigation and asset pruning |
 | [`Modules/iSOCBlueprint/Private/CaptureSummary`](../../../Modules/iSOCBlueprint/Private/CaptureSummary) | The collector's capture summary, sorting failed captures into permission refusals and errors |
@@ -634,7 +634,7 @@ assets root).
    parameter. The older helpers read their caller's variables by dynamic
    scope (`New-BlueprintEstateModel`, `Get-ConnectorData7d`,
    `Format-MitreTechniqueCell`, `Get-BlueprintTopologyBucket`,
-   `Format-BlueprintFindingMaturity`, `Get-WhatsNewRelations`); do not add
+   `Format-BlueprintFindingMaturity`, `Get-WhatsNewRelation`); do not add
    more of those.
 3. Add a row to the "Helper toolbox" table in this spec when the next
    maintainer updates the doc.

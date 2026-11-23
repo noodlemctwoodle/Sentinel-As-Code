@@ -41,6 +41,7 @@ function ConvertTo-BuildNumber {
     .OUTPUTS
         [double] The parsed number, or 0.0.
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param($Value)
     if ($null -eq $Value) { return 0.0 }

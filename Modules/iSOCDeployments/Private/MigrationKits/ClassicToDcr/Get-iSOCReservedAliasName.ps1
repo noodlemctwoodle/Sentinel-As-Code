@@ -52,7 +52,7 @@ function Get-iSOCReservedAliasName {
         (Get-iSOCReservedAliasName) -contains 'where'
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array])]
     param()
 
     @(

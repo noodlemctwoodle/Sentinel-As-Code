@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -53,18 +53,18 @@
 #>
 
 BeforeDiscovery {
-    $script:repoRoot      = Split-Path -Parent $PSScriptRoot
+    $script:repoRoot = Split-Path -Parent $PSScriptRoot
 
-    $script:agentFiles        = @(Get-ChildItem -Path "$repoRoot/.github/agents"       -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.agent.md' })
-    $script:instructionFiles  = @(Get-ChildItem -Path "$repoRoot/.github/instructions" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.instructions.md' })
-    $script:promptFiles       = @(Get-ChildItem -Path "$repoRoot/.github/prompts"      -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.prompt.md' })
+    $script:agentFiles = @(Get-ChildItem -Path "$repoRoot/.github/agents" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.agent.md' })
+    $script:instructionFiles = @(Get-ChildItem -Path "$repoRoot/.github/instructions" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.instructions.md' })
+    $script:promptFiles = @(Get-ChildItem -Path "$repoRoot/.github/prompts" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.prompt.md' })
 
     # Stray files in those folders that don't match the expected
     # extension — typically a sign of a half-renamed or
     # accidentally-committed file. Capture for a separate test.
     $script:strayFiles = @(
         Get-ChildItem -Path "$repoRoot/.github/agents", "$repoRoot/.github/instructions", "$repoRoot/.github/prompts" -Recurse -File -ErrorAction SilentlyContinue
-            | Where-Object { $_.Name -notmatch '\.(agent|instructions|prompt)\.md$' }
+        | Where-Object { $_.Name -notmatch '\.(agent|instructions|prompt)\.md$' }
     )
 }
 
@@ -86,8 +86,7 @@ BeforeAll {
         $yamlBlock = $Matches[1]
         try {
             return ConvertFrom-Yaml -Yaml $yamlBlock
-        }
-        catch {
+        } catch {
             return $null
         }
     }
@@ -237,7 +236,7 @@ Describe 'Folder hygiene' {
         # Drop common metadata files that some tools auto-create
         $stray = @($strayFiles | Where-Object { $_.Name -notin @('.DS_Store', '.gitignore', 'README.md') })
         $stray.Count | Should -Be 0 -Because (
-            "Found stray files: " + (($stray | ForEach-Object { $_.FullName.Substring($repoRoot.Length + 1) }) -join ', ')
+            'Found stray files: ' + (($stray | ForEach-Object { $_.FullName.Substring($repoRoot.Length + 1) }) -join ', ')
         )
     }
 }
@@ -272,9 +271,9 @@ Describe 'Cross-references resolve' {
                 $cleanPath = ($target -split '#')[0]
                 if ([string]::IsNullOrWhiteSpace($cleanPath)) { continue }
                 $linkRefs.Add([pscustomobject]@{
-                    Source = $p
-                    Target = $cleanPath
-                })
+                        Source = $p
+                        Target = $cleanPath
+                    })
             }
         }
     }

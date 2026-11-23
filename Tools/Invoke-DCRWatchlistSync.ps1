@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 #Requires -Modules Az.Accounts
 
 <#
@@ -85,19 +85,19 @@ param (
     [Parameter(Mandatory)]
     [string] $SubscriptionId
 
-  , [Parameter(Mandatory)]
+    , [Parameter(Mandatory)]
     [string] $WorkspaceResourceGroup
 
-  , [Parameter(Mandatory)]
+    , [Parameter(Mandatory)]
     [string] $WorkspaceName
 
-  , [Parameter(Mandatory)]
+    , [Parameter(Mandatory)]
     [string] $WatchlistAlias
 
-  , [Parameter()]
+    , [Parameter()]
     [string] $WatchlistDisplayName = 'Customer DCR Resources'
 
-  , [Parameter()]
+    , [Parameter()]
     [string] $SearchKey = 'DCRName'
 )
 
@@ -106,9 +106,9 @@ $ErrorActionPreference = 'Stop'
 
 #region ── Constants ────────────────────────────────────────────────────────────
 
-$DCR_API_VERSION       = '2024-03-11'
+$DCR_API_VERSION = '2024-03-11'
 $WATCHLIST_API_VERSION = '2025-09-01'
-$ARM_BASE              = 'https://management.azure.com'
+$ARM_BASE = 'https://management.azure.com'
 
 #endregion
 
@@ -118,7 +118,7 @@ function Write-AuditLog {
     [CmdletBinding()]
     param (
         [string] $Message
-      , [ValidateSet('Info', 'Warning', 'Error', 'Success')]
+        , [ValidateSet('Info', 'Warning', 'Error', 'Success')]
         [string] $Level = 'Info'
     )
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
@@ -139,9 +139,9 @@ function Invoke-ArmRequest {
         [Parameter(Mandatory)]
         [string] $Uri
 
-      , [string] $Method = 'GET'
+        , [string] $Method = 'GET'
 
-      , [string] $Body
+        , [string] $Body
     )
 
     $params = @{
@@ -169,18 +169,19 @@ function Get-DCRList {
         Lists all DCRs in the subscription via the ARM REST API.
         Handles nextLink pagination automatically.
     #>
+    [OutputType([System.Collections.Generic.List[object]])]
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
         [string] $SubscriptionId
     )
 
-    $dcrs    = [System.Collections.Generic.List[object]]::new()
+    $dcrs = [System.Collections.Generic.List[object]]::new()
     $nextUri = "$ARM_BASE/subscriptions/$SubscriptionId/providers/Microsoft.Insights/dataCollectionRules?api-version=$DCR_API_VERSION"
 
     do {
         $response = Invoke-ArmRequest -Uri $nextUri
-        $content  = $response.Content | ConvertFrom-Json
+        $content = $response.Content | ConvertFrom-Json
 
         foreach ($dcr in $content.value) { $dcrs.Add($dcr) }
 
@@ -193,14 +194,15 @@ function Get-DCRList {
 
 #endregion
 
-#region ── Helper: Get-DCRAssociations ──────────────────────────────────────────
+#region ── Helper: Get-DCRAssociation ──────────────────────────────────────────
 
-function Get-DCRAssociations {
+function Get-DCRAssociation {
     <#
     .SYNOPSIS
         Retrieves associations for a specific DCR via its resource ID.
         Handles pagination and parses associated resource details.
     #>
+    [OutputType([System.Collections.Generic.List[psobject]])]
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
@@ -226,26 +228,26 @@ function Get-DCRAssociations {
                 # Skip built-in endpoint associations
                 if ($assoc.name -eq 'configurationAccessEndpoint') { continue }
 
-                $resourceId    = $null
-                $resourceName  = $null
-                $resourceType  = $null
+                $resourceId = $null
+                $resourceName = $null
+                $resourceType = $null
                 $resourceGroup = $null
 
                 if ($assoc.id -match '^(.+)/providers/Microsoft\.Insights/dataCollectionRuleAssociations/') {
                     $resourceId = $Matches[1]
 
-                    if ($resourceId -match '/([^/]+)$')                        { $resourceName  = $Matches[1] }
-                    if ($resourceId -match '/resourceGroups/([^/]+)/')         { $resourceGroup = $Matches[1] }
-                    if ($resourceId -match '/providers/([^/]+/[^/]+)/[^/]+$') { $resourceType  = $Matches[1] }
+                    if ($resourceId -match '/([^/]+)$') { $resourceName = $Matches[1] }
+                    if ($resourceId -match '/resourceGroups/([^/]+)/') { $resourceGroup = $Matches[1] }
+                    if ($resourceId -match '/providers/([^/]+/[^/]+)/[^/]+$') { $resourceType = $Matches[1] }
                 }
 
                 $results.Add([PSCustomObject]@{
-                    AssociationName = $assoc.name
-                    ResourceId      = $resourceId
-                    ResourceName    = $resourceName
-                    ResourceType    = $resourceType
-                    ResourceGroup   = $resourceGroup
-                })
+                        AssociationName = $assoc.name
+                        ResourceId      = $resourceId
+                        ResourceName    = $resourceName
+                        ResourceType    = $resourceType
+                        ResourceGroup   = $resourceGroup
+                    })
             }
         }
 
@@ -286,22 +288,22 @@ if ($dcrs.Count -eq 0) {
 
 Write-AuditLog 'Retrieving associations for each DCR...'
 
-$dcrRows    = [ordered]@{}  # keyed by DCR name
-$now        = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+$dcrRows = [ordered]@{}  # keyed by DCR name
+$now = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 $totalAssoc = 0
 
 foreach ($dcr in $dcrs) {
 
     $dcrName = $dcr.name
-    $dcrId   = $dcr.id
-    $dcrRg   = if ($dcrId -match '/resourceGroups/([^/]+)/') { $Matches[1] } else { '' }
+    $dcrId = $dcr.id
+    $dcrRg = if ($dcrId -match '/resourceGroups/([^/]+)/') { $Matches[1] } else { '' }
 
     Write-AuditLog "  Getting associations for: $dcrName"
 
-    $associations = @(Get-DCRAssociations -DataCollectionRuleId $dcrId)
+    $associations = @(Get-DCRAssociation -DataCollectionRuleId $dcrId)
 
     if ($associations.Count -eq 0) {
-        Write-AuditLog "    No associations — skipping."
+        Write-AuditLog '    No associations — skipping.'
         continue
     }
 
@@ -348,18 +350,18 @@ foreach ($row in $dcrRows.Values) {
 
 $columns = @(
     'DCRName'
-  , 'DCRId'
-  , 'DCRResourceGroup'
-  , 'SubscriptionId'
-  , 'ActiveResourceCount'
-  , 'ActiveResourceNames'
-  , 'AllResourceNames'
-  , 'RemovedResourceNames'
-  , 'ResourceTypes'
-  , 'PeakResourceCount'
-  , 'FirstSeenUtc'
-  , 'LastUpdatedUtc'
-  , 'Status'
+    , 'DCRId'
+    , 'DCRResourceGroup'
+    , 'SubscriptionId'
+    , 'ActiveResourceCount'
+    , 'ActiveResourceNames'
+    , 'AllResourceNames'
+    , 'RemovedResourceNames'
+    , 'ResourceTypes'
+    , 'PeakResourceCount'
+    , 'FirstSeenUtc'
+    , 'LastUpdatedUtc'
+    , 'Status'
 )
 
 #endregion
@@ -367,11 +369,11 @@ $columns = @(
 #region ── Sentinel Watchlist Upsert ───────────────────────────────────────────
 
 $watchlistBase = "$ARM_BASE/subscriptions/$SubscriptionId" +
-                 "/resourceGroups/$WorkspaceResourceGroup" +
-                 "/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName" +
-                 "/providers/Microsoft.SecurityInsights/watchlists/$WatchlistAlias"
-$watchlistUri  = "$watchlistBase`?api-version=$WATCHLIST_API_VERSION"
-$itemsBaseUri  = "$watchlistBase/watchlistItems"
+"/resourceGroups/$WorkspaceResourceGroup" +
+"/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName" +
+"/providers/Microsoft.SecurityInsights/watchlists/$WatchlistAlias"
+$watchlistUri = "$watchlistBase`?api-version=$WATCHLIST_API_VERSION"
+$itemsBaseUri = "$watchlistBase/watchlistItems"
 
 # ── Helper: Build CSV row from DCR data ───────────────────────────────────────
 
@@ -380,19 +382,19 @@ function ConvertTo-WatchlistCsvRow {
 
     $values = foreach ($col in $Columns) {
         $val = switch ($col) {
-            'ActiveResourceNames'  { ($Row.ResourceNames | Sort-Object) -join '; ' }
-            'AllResourceNames'     { ($Row.ResourceNames | Sort-Object) -join '; ' }
-            'ResourceTypes'        { ($Row.ResourceTypes | Sort-Object) -join '; ' }
-            'ActiveResourceCount'  { [string]$Row.ResourceCount }
-            'PeakResourceCount'    { [string]$Row.ResourceCount }
+            'ActiveResourceNames' { ($Row.ResourceNames | Sort-Object) -join '; ' }
+            'AllResourceNames' { ($Row.ResourceNames | Sort-Object) -join '; ' }
+            'ResourceTypes' { ($Row.ResourceTypes | Sort-Object) -join '; ' }
+            'ActiveResourceCount' { [string]$Row.ResourceCount }
+            'PeakResourceCount' { [string]$Row.ResourceCount }
             'RemovedResourceNames' { '' }
-            'FirstSeenUtc'         { $now }
-            'LastUpdatedUtc'       { $now }
-            'Status'               { 'Active' }
-            default                { [string]$Row.$col }
+            'FirstSeenUtc' { $now }
+            'LastUpdatedUtc' { $now }
+            'Status' { 'Active' }
+            default { [string]$Row.$col }
         }
         if ($val -match '[,;"\r\n]') { '"' + $val.Replace('"', '""') + '"' }
-        else                         { $val }
+        else { $val }
     }
     return ($values -join ',')
 }
@@ -401,13 +403,12 @@ function ConvertTo-WatchlistCsvRow {
 
 Write-AuditLog 'Checking for existing watchlist...'
 
-$checkResponse   = Invoke-AzRestMethod -Uri $watchlistUri -Method GET
+$checkResponse = Invoke-AzRestMethod -Uri $watchlistUri -Method GET
 $watchlistExists = $checkResponse.StatusCode -eq 200
 
 if ($watchlistExists) {
     Write-AuditLog 'Existing watchlist found.'
-}
-elseif ($checkResponse.StatusCode -eq 404) {
+} elseif ($checkResponse.StatusCode -eq 404) {
     Write-AuditLog 'Watchlist does not exist — creating with data...'
 
     # Build full CSV with all current DCR rows
@@ -436,8 +437,7 @@ elseif ($checkResponse.StatusCode -eq 404) {
     Write-AuditLog "Watchlist created with $($dcrRows.Count) DCR(s), $totalAssoc association(s)." -Level Success
 
     Start-Sleep -Seconds 3
-}
-else {
+} else {
     throw "Unexpected response checking watchlist — HTTP $($checkResponse.StatusCode): $($checkResponse.Content)"
 }
 
@@ -446,7 +446,7 @@ else {
 Write-AuditLog 'Listing existing watchlist items...'
 
 $existingItems = [ordered]@{}  # keyed by SearchKey value (DCRName) → full item data
-$nextUri       = "$itemsBaseUri`?api-version=$WATCHLIST_API_VERSION"
+$nextUri = "$itemsBaseUri`?api-version=$WATCHLIST_API_VERSION"
 
 do {
     $response = Invoke-AzRestMethod -Uri $nextUri -Method GET
@@ -461,8 +461,8 @@ do {
     foreach ($item in $content.value) {
         $keyValue = $item.properties.itemsKeyValue
         $existingItems[$keyValue] = @{
-            ItemId         = $item.properties.watchlistItemId
-            EntityMapping  = $item.properties.entityMapping
+            ItemId        = $item.properties.watchlistItemId
+            EntityMapping = $item.properties.entityMapping
         }
     }
 
@@ -476,25 +476,25 @@ Write-AuditLog "Found $($existingItems.Count) existing item(s) in watchlist."
 
 Write-AuditLog 'Merging watchlist items (billing-safe)...'
 
-$created   = 0
-$updated   = 0
+$created = 0
+$updated = 0
 $deactived = 0
-$newKeys   = [System.Collections.Generic.HashSet[string]]::new()
+$newKeys = [System.Collections.Generic.HashSet[string]]::new()
 
 foreach ($row in $dcrRows.Values) {
 
-    $keyValue       = $row.$SearchKey
+    $keyValue = $row.$SearchKey
     [void]$newKeys.Add($keyValue)
-    $activeNames    = [System.Collections.Generic.List[string]]($row.ResourceNames | Sort-Object)
-    $activeTypes    = [System.Collections.Generic.List[string]]($row.ResourceTypes | Sort-Object)
+    $activeNames = [System.Collections.Generic.List[string]]($row.ResourceNames | Sort-Object)
+    $activeTypes = [System.Collections.Generic.List[string]]($row.ResourceTypes | Sort-Object)
     $activeNamesStr = $activeNames -join '; '
     $activeTypesStr = $activeTypes -join '; '
 
     if ($existingItems.Contains($keyValue)) {
         # ── UPDATE: merge new resources into historical list ──────────
-        $existing    = $existingItems[$keyValue]
-        $itemId      = $existing.ItemId
-        $entityMap   = $existing.EntityMapping
+        $existing = $existingItems[$keyValue]
+        $itemId = $existing.ItemId
+        $entityMap = $existing.EntityMapping
 
         # Parse existing AllResourceNames (cumulative history)
         $previousAll = @()
@@ -510,7 +510,7 @@ foreach ($row in $dcrRows.Values) {
 
         # Removed = in AllResourceNames but NOT in current active
         $removedNames = $allNames | Where-Object { $_ -notin $activeNames } | Sort-Object
-        $removedStr   = $removedNames -join '; '
+        $removedStr = $removedNames -join '; '
 
         # Preserve FirstSeenUtc from existing row
         $firstSeen = if ($entityMap.PSObject.Properties['FirstSeenUtc'] -and $entityMap.FirstSeenUtc) {
@@ -525,14 +525,13 @@ foreach ($row in $dcrRows.Values) {
         $peak = [Math]::Max($previousPeak, $row.ResourceCount)
 
         $updated++
-    }
-    else {
+    } else {
         # ── CREATE: brand new DCR ─────────────────────────────────────
-        $itemId       = [guid]::NewGuid().ToString()
-        $allNamesStr  = $activeNamesStr
-        $removedStr   = ''
-        $firstSeen    = $now
-        $peak         = $row.ResourceCount
+        $itemId = [guid]::NewGuid().ToString()
+        $allNamesStr = $activeNamesStr
+        $removedStr = ''
+        $firstSeen = $now
+        $peak = $row.ResourceCount
 
         $created++
     }
@@ -568,8 +567,8 @@ foreach ($row in $dcrRows.Values) {
 
 foreach ($existingKey in $existingItems.Keys) {
     if (-not $newKeys.Contains($existingKey)) {
-        $existing  = $existingItems[$existingKey]
-        $itemId    = $existing.ItemId
+        $existing = $existingItems[$existingKey]
+        $itemId = $existing.ItemId
         $entityMap = $existing.EntityMapping
 
         # Preserve all historical data, just mark inactive
@@ -580,16 +579,16 @@ foreach ($existingKey in $existingItems.Keys) {
 
         $itemProps = [ordered]@{
             DCRName              = $existingKey
-            DCRId                = if ($entityMap.PSObject.Properties['DCRId'])            { $entityMap.DCRId }            else { '' }
+            DCRId                = if ($entityMap.PSObject.Properties['DCRId']) { $entityMap.DCRId }            else { '' }
             DCRResourceGroup     = if ($entityMap.PSObject.Properties['DCRResourceGroup']) { $entityMap.DCRResourceGroup } else { '' }
             SubscriptionId       = $SubscriptionId
             ActiveResourceCount  = '0'
             ActiveResourceNames  = ''
             AllResourceNames     = $prevAll
             RemovedResourceNames = $prevAll
-            ResourceTypes        = if ($entityMap.PSObject.Properties['ResourceTypes'])    { $entityMap.ResourceTypes }    else { '' }
-            PeakResourceCount    = if ($entityMap.PSObject.Properties['PeakResourceCount']){ $entityMap.PeakResourceCount }else { '0' }
-            FirstSeenUtc         = if ($entityMap.PSObject.Properties['FirstSeenUtc'])     { $entityMap.FirstSeenUtc }     else { $now }
+            ResourceTypes        = if ($entityMap.PSObject.Properties['ResourceTypes']) { $entityMap.ResourceTypes }    else { '' }
+            PeakResourceCount    = if ($entityMap.PSObject.Properties['PeakResourceCount']) { $entityMap.PeakResourceCount }else { '0' }
+            FirstSeenUtc         = if ($entityMap.PSObject.Properties['FirstSeenUtc']) { $entityMap.FirstSeenUtc }     else { $now }
             LastUpdatedUtc       = $now
             Status               = 'Inactive'
         }

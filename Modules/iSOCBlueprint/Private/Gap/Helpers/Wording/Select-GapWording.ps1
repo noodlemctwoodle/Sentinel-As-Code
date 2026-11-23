@@ -42,6 +42,7 @@ function Select-GapWording {
     .OUTPUTS
         [string]
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Count, [string]$One, [string]$Many)
     if ((ConvertTo-BlueprintDouble $Count) -eq 1) { $One } else { $Many }

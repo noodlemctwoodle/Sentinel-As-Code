@@ -43,6 +43,7 @@ function Read-BlueprintRawArray {
     .OUTPUTS
         [object[]], empty when there is no data.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param([string]$Name)
     $value = Read-BlueprintRaw $Name

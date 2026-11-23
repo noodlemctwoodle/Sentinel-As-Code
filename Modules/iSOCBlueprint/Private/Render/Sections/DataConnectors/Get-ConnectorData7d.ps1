@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -42,6 +42,7 @@ function Get-ConnectorData7d {
     .OUTPUTS
         [string]: 'Yes', 'No' or an empty string.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([psobject]$Connector)
     # RestApiPoller / Push connectors write to a single table at

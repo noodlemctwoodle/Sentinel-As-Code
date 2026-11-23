@@ -87,7 +87,7 @@ Enabled Scheduled and NRT rules with incident creation turned off. Their alerts 
 $(Format-BlueprintTable -Items $alertOnlyRows -Columns 'Rule','Kind','Severity' -EmptyMessage '_Every enabled Scheduled and NRT rule creates incidents._')
 "@
     Write-BlueprintSection '22-rule-health-quality.md' (@(
-            "$(Format-Banner -Title "Rule Health and Quality")`n`nWhether the analytics rules run, and whether they are built to be trusted and triaged. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); how often each rule fires is in [21-rule-performance.md](21-rule-performance.md).",
+            "$(Format-Banner -Title 'Rule Health and Quality')`n`nWhether the analytics rules run, and whether they are built to be trusted and triaged. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); how often each rule fires is in [21-rule-performance.md](21-rule-performance.md).",
             $ruleHealthSection,
             $antiPatternSection,
             $staleSection,

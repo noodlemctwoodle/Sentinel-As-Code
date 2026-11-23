@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -738,11 +738,11 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
         # to prove both are recorded rather than silently dropped.
         $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-outcomes-$(New-Guid)"
         New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
-        function Test-Throws { param($Inventory) throw 'boom' }
+        function Test-Throw { param($Inventory) throw 'boom' }
         function Test-Quiet { param($Inventory) return $null }
         $badRules = Join-Path $script:tempDir 'rules.json'
         @{ rules = @(
-                @{ id = 'SAC-TST-01'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throws'; remediation = ''; learn = '' }
+                @{ id = 'SAC-TST-01'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throw'; remediation = ''; learn = '' }
                 @{ id = 'SAC-TST-02'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Missing'; remediation = ''; learn = '' }
                 @{ id = 'SAC-TST-03'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Quiet'; remediation = ''; learn = '' }
             )

@@ -45,6 +45,7 @@ function Merge-SacProgressHistory {
     .OUTPUTS
         [ordered] schemaVersion and entries.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param(
         [AllowNull()] $History,

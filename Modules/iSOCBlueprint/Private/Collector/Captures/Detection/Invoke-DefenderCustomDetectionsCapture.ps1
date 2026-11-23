@@ -37,7 +37,7 @@ function Invoke-DefenderCustomDetectionsCapture {
     param([Parameter(Mandatory = $true)] [hashtable] $Context)
 
 
-    $detections = @(Get-DefenderCustomDetections)
+    $detections = @(Get-DefenderCustomDetection)
     Save-Json -FileName 'defender-custom-detections.json' -Data $detections
-    Save-Json -FileName 'custom-detection-table-references.json' -Data @(Get-CustomDetectionTableReferences -Detections $detections)
+    Save-Json -FileName 'custom-detection-table-references.json' -Data @(Get-CustomDetectionTableReference -Detections $detections)
 }

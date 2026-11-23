@@ -42,6 +42,7 @@ function Format-MinutesScalar {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Value, $CountAcknowledged)
     # KQL returns the literal string "NaN" when an aggregate had no rows to

@@ -227,7 +227,7 @@ Describe 'Dependencies' {
         BeforeAll {
             $script:hunt = Get-Item1 HuntingQuery 'FixtureHunt.yaml'
             $script:graph = @{ 'Content/HuntingQueries/SigninLogs/FixtureHunt.yaml' = @{ tables = @('SigninLogs'); watchlists = @('vipUsers', 'notInRepo'); functions = @('FixtureSignIns', 'ASimDns') } }
-            function Test-Deps {
+            function Test-Dependency {
                 param($Inventory, [hashtable] $Graph = $script:graph)
                 $run = New-TestRun -Repo $script:fixtureRepo -Graph $Graph
                 $run.Inventory = $Inventory
@@ -236,25 +236,25 @@ Describe 'Dependencies' {
         }
 
         It 'passes an item the graph does not list' {
-            (Test-Deps ([pscustomobject]@{ Tables = @(); Watchlists = @(); Functions = @(); RepoFunctions = @(); RepoWatchlists = @() }) @{}).Passed | Should -BeTrue
+            (Test-Dependency ([pscustomobject]@{ Tables = @(); Watchlists = @(); Functions = @(); RepoFunctions = @(); RepoWatchlists = @() }) @{}).Passed | Should -BeTrue
         }
 
         It 'counts the repository''s own watchlists and functions as met, and names the rest' {
-            $check = Test-Deps ([pscustomobject]@{ Tables = @('Other'); Watchlists = @(); Functions = @(); RepoFunctions = @('fixturesignins'); RepoWatchlists = @('vipUsers') })
+            $check = Test-Dependency ([pscustomobject]@{ Tables = @('Other'); Watchlists = @(); Functions = @(); RepoFunctions = @('fixturesignins'); RepoWatchlists = @('vipUsers') })
             $check.Passed | Should -BeFalse
             @($check.Missing) | Should -Be @('table:SigninLogs', 'watchlist:notInRepo', 'function:ASimDns')
         }
 
         It 'counts the workspace''s watchlists and functions as met' {
-            (Test-Deps ([pscustomobject]@{ Tables = @('SigninLogs'); Watchlists = @('vipUsers', 'notInRepo'); Functions = @('FixtureSignIns', 'ASimDns'); RepoFunctions = @(); RepoWatchlists = @() })).Passed | Should -BeTrue
+            (Test-Dependency ([pscustomobject]@{ Tables = @('SigninLogs'); Watchlists = @('vipUsers', 'notInRepo'); Functions = @('FixtureSignIns', 'ASimDns'); RepoFunctions = @(); RepoWatchlists = @() })).Passed | Should -BeTrue
         }
 
         It 'skips each check whose workspace list could not be read (MIGRATION.md edit E13)' {
-            (Test-Deps ([pscustomobject]@{ Tables = $null; Watchlists = $null; Functions = $null; RepoFunctions = @(); RepoWatchlists = @() })).Passed | Should -BeTrue
+            (Test-Dependency ([pscustomobject]@{ Tables = $null; Watchlists = $null; Functions = $null; RepoFunctions = @(); RepoWatchlists = @() })).Passed | Should -BeTrue
         }
 
         It 'skips the table check for a workspace that lists no tables, as the script did' {
-            (Test-Deps ([pscustomobject]@{ Tables = @(); Watchlists = @('vipUsers', 'notInRepo'); Functions = @('FixtureSignIns', 'ASimDns'); RepoFunctions = @(); RepoWatchlists = @() })).Passed | Should -BeTrue
+            (Test-Dependency ([pscustomobject]@{ Tables = @(); Watchlists = @('vipUsers', 'notInRepo'); Functions = @('FixtureSignIns', 'ASimDns'); RepoFunctions = @(); RepoWatchlists = @() })).Passed | Should -BeTrue
         }
     }
 

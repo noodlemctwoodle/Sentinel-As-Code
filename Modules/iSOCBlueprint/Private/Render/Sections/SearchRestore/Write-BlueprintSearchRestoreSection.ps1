@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -88,7 +88,7 @@ function Write-BlueprintSearchRestoreSection {
             }
         })
     Write-BlueprintSection '37-search-restore.md' (@"
-$(Format-Banner -Title "Search and Restore Tables  (TOC 4.3.4)")
+$(Format-Banner -Title 'Search and Restore Tables  (TOC 4.3.4)')
 
 Search jobs and restores bring data back from long-term retention into tables you can query: a search job writes its matches to a table ending in ``_SRCH``, a restore a time range of a table to one ending in ``_RST``. Each table stays until someone deletes it, so this is every search and restore whose table is still in the workspace: **$(Format-BlueprintPlural @($searchRows).Count 'search job')** and **$(Format-BlueprintPlural @($restoreRows).Count 'restore')**.
 

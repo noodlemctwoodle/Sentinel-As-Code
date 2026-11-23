@@ -50,6 +50,7 @@ function Format-TableCell {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Value, [bool]$Identifier, [bool]$Gb = $false)
     if ($null -eq $Value) { return '' }

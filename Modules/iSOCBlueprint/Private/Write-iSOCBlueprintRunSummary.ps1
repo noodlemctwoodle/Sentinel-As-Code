@@ -75,8 +75,8 @@ function Write-iSOCBlueprintRunSummary {
     }
 
     $took = if ($Elapsed.TotalHours -ge 1) { '{0}h {1:00}m' -f [int][math]::Floor($Elapsed.TotalHours), $Elapsed.Minutes }
-        elseif ($Elapsed.TotalMinutes -ge 1) { '{0}m {1:00}s' -f $Elapsed.Minutes, $Elapsed.Seconds }
-        else { '{0}s' -f [int][math]::Ceiling($Elapsed.TotalSeconds) }
+    elseif ($Elapsed.TotalMinutes -ge 1) { '{0}m {1:00}s' -f $Elapsed.Minutes, $Elapsed.Seconds }
+    else { '{0}s' -f [int][math]::Ceiling($Elapsed.TotalSeconds) }
 
     Write-Host ''
     Write-Host "iSOC Blueprint finished in $took" -ForegroundColor Green
@@ -113,9 +113,9 @@ function Write-iSOCBlueprintRunSummary {
         Write-Host (& $row 'Captures' "$files files, reused (-SkipCollection)")
     }
 
-    $pages = @(Get-ChildItem -LiteralPath $Path -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object Name -ne 'index.md').Count
+    $pages = @(Get-ChildItem -LiteralPath $Path -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object Name -NE 'index.md').Count
     $sections = @(
-        Get-ChildItem -LiteralPath (Join-Path $Path 'sections') -Filter '*.json' -File -ErrorAction SilentlyContinue | Where-Object Name -ne 'index.json'
+        Get-ChildItem -LiteralPath (Join-Path $Path 'sections') -Filter '*.json' -File -ErrorAction SilentlyContinue | Where-Object Name -NE 'index.json'
     ).Count
     $report = @()
     if ($pages) { $report += "$pages Markdown pages" }

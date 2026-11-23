@@ -66,7 +66,7 @@ function New-iSOCFixtureAlertRuleBody {
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a request body; changes nothing.')]
     [CmdletBinding()]
-    [OutputType([hashtable])]
+    [OutputType([hashtable], [System.Collections.Specialized.OrderedDictionary])]
     param(
         [Parameter(Mandatory)]
         [string] $DisplayName,

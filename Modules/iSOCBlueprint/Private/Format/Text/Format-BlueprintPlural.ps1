@@ -43,6 +43,7 @@ function Format-BlueprintPlural {
     .OUTPUTS
         [string]
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowNull()] $Count, [Parameter(Mandatory)] [string] $Singular, [string] $Plural, [switch] $NoCount)
     $n = ConvertTo-BlueprintDouble $Count

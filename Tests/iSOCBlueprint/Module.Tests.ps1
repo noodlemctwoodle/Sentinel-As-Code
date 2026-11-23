@@ -123,7 +123,7 @@ Describe 'File header of <Path>' -ForEach $ownFiles {
     It 'opens with the PowerShell floor and names its own path' {
         $text = Get-Content -LiteralPath (Join-Path $script:repoRoot $Path) -Raw
         $text | Should -Match '^#Requires -Version 7\.6\r?\n'
-        $text | Should -Match ("(?m)^\s*File:\s+" + [regex]::Escape($Path) + '\s*$')
+        $text | Should -Match ('(?m)^\s*File:\s+' + [regex]::Escape($Path) + '\s*$')
     }
 }
 

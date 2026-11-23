@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -133,7 +133,7 @@ config:
 xychart-beta
     title "Lake-only retention days (beyond Analytics period)"
     x-axis [$retAxis]
-$(Format-XyFullLabels @($topRetention | ForEach-Object { $_.Table }))
+$(Format-XyFullLabel @($topRetention | ForEach-Object { $_.Table }))
     y-axis "Days" 0 --> $($retYmax + 30)
     bar [$retLakeBars]
 ``````
@@ -210,12 +210,12 @@ Tables explicitly configured to bypass the Analytics tier and route exclusively 
 $(Format-BlueprintTable -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetention')
 "@
     } else {
-        @"
+        @'
 
 ## Lake-only tables
 
 _No tables currently route to the Lake-only tier on this workspace._ When Lake is enrolled, the default behaviour is to mirror all Analytics-tier tables to the Lake at the same retention (see the tier distribution above). *Lake-only* requires explicitly switching a table's tier in **Defender portal → Microsoft Sentinel → Data management → Tables**.
-"@
+'@
     }
 
     # Usage evidence for the tables that keep data in the lake beyond analytics

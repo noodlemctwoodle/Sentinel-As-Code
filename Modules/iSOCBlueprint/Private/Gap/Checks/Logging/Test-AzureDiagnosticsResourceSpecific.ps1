@@ -45,11 +45,11 @@ function Test-AzureDiagnosticsResourceSpecific {
         } | Select-Object -First 1)
     if ($ad.Count -eq 0) { return $null }
     $gb30 = Get-GapBillable30d $ad[0]
-    if ((ConvertTo-GapPer30Days $gb30 $Inventory) -lt 10.0) { return $null }    # smaller threshold, even 10 GB per 30 days across many RPs is messy
+    if ((ConvertTo-GapPer30Day $gb30 $Inventory) -lt 10.0) { return $null }    # smaller threshold, even 10 GB per 30 days across many RPs is messy
     # We don't know per-RP breakdown from tables-with-data alone (the
     # AzureDiagnostics rendering is summarised in 14-coverage-breakdowns.md
     # but isn't a separate _raw capture). Flag based on volume alone, the
     # remediation is still correct: switch any RP that has a dedicated
     # resource-specific table.
-    return New-Finding -Evidence "AzureDiagnostics ingested $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days). Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
+    return New-Finding -Evidence "AzureDiagnostics ingested $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDay (Get-GapWindow $Inventory).Days). Resource-specific tables are cheaper, faster to query, and have stable schemas, review diagnostic settings and switch each resource type to dedicated table mode." -Detail @{ Gb30d = $gb30 }
 }

@@ -41,6 +41,7 @@ function Compare-BlueprintVersion {
     .OUTPUTS
         [int]: negative when A is lower, zero when equal, positive when A is higher.
     #>
+    [OutputType([int])]
     [CmdletBinding()]
     param([string]$A, [string]$B)
     $va = $null; $vb = $null

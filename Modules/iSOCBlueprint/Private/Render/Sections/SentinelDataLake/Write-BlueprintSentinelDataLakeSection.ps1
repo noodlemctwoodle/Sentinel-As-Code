@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -190,7 +190,7 @@ function Write-BlueprintSentinelDataLakeSection {
     } elseif (-not $hasDataLake -and $analyticsGb -gt 30) {
         "**Sentinel Data Lake is not enrolled.** This workspace ingests $(Format-BlueprintGb $analyticsGb) GB in {lookback-d} on the Analytics plan at the full Sentinel-rate meter. For high-volume workspaces, onboarding to the unified Sentinel/Defender billing model unlocks the DataLake plan, which routes verbose, low-query tables (Defender XDR advanced hunting, raw firewall, EDR telemetry) to a cheaper ingestion tier with longer affordable retention."
     } else {
-        "**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB a month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive."
+        '**Sentinel Data Lake is not enrolled.** This workspace is on the legacy per-GB billing model with no Lake-tier ingest. Lake becomes cost-relevant once steady-state ingest exceeds a few hundred GB a month, particularly for verbose Defender XDR tables; below that the per-GB Analytics rate is competitive.'
     }
 
     # Enrollment-signal table — primary signal is the

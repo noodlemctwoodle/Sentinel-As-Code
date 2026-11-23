@@ -46,7 +46,7 @@ function Test-SummaryRulesInUse {
     $volumes = Get-GapTableVolume30d $Inventory
     $big = @(
         $volumes.GetEnumerator() |
-            Where-Object { (ConvertTo-GapPer30Days $_.Value $Inventory) -ge $threshold } |
+            Where-Object { (ConvertTo-GapPer30Day $_.Value $Inventory) -ge $threshold } |
             Sort-Object @{ Expression = 'Value'; Descending = $true }, Key
     )
     if ($big.Count -eq 0) { return $null }

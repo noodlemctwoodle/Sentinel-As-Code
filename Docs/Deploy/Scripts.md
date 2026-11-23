@@ -1039,7 +1039,7 @@ Copilot tooling for scripts and modules:
   failures. Knows the module-manifest discipline (version bump +
   ReleaseNotes + Pester tests in lockstep).
 - Agent `Sentinel-As-Code: Dependencies Engineer` — when a change
-  touches the discovery extractors (`Get-KqlBareIdentifiers`,
+  touches the discovery extractors (`Get-KqlBareIdentifier`,
   `Get-ContentDependencies`, etc.).
 - Agent `Sentinel-As-Code: Security Reviewer` — for review of
   secret-handling, log-leak surface, RBAC-impacting scripts.

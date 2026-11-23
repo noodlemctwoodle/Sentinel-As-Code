@@ -372,7 +372,7 @@ retention chart.
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`
 / Office\* / Behavior\* pattern match) is driven by the `$assetTableNames`
 array defined locally inside `Write-BlueprintSentinelDataLakeSection.ps1`, not
-by `Get-EffectiveConnectors.ps1`. `Get-EffectiveConnectors.ps1` does define
+by `Get-EffectiveConnector.ps1`. `Get-EffectiveConnector.ps1` does define
 its own `_ActiveTableFamily` helper, but that is a separate
 connector-classification function (active-table / UEBA detection for
 connector coverage elsewhere in the report) and is unrelated to Section

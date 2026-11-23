@@ -66,26 +66,25 @@ BeforeDiscovery {
     $detectionsRoot = Join-Path $repoRoot 'Content/DefenderCustomDetections'
     if (Test-Path $detectionsRoot) {
         $script:defenderCases = @(Get-ChildItem -Path $detectionsRoot -Recurse -Filter '*.yaml' -File | ForEach-Object {
-            $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
-            $yaml = $null
-            $parseError = $null
-            try {
-                $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
-                if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
-                $yaml = ConvertFrom-Yaml $raw
-            }
-            catch {
-                $parseError = $_.Exception.Message
-            }
+                $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
+                $yaml = $null
+                $parseError = $null
+                try {
+                    $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                    if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
+                    $yaml = ConvertFrom-Yaml $raw
+                } catch {
+                    $parseError = $_.Exception.Message
+                }
 
-            @{
-                Path         = $_.FullName
-                RelativePath = $rel
-                Yaml         = $yaml
-                ParseError   = $parseError
-                ParseFailed  = ($null -ne $parseError) -or -not ($yaml -is [System.Collections.IDictionary])
-            }
-        })
+                @{
+                    Path         = $_.FullName
+                    RelativePath = $rel
+                    Yaml         = $yaml
+                    ParseError   = $parseError
+                    ParseFailed  = ($null -ne $parseError) -or -not ($yaml -is [System.Collections.IDictionary])
+                }
+            })
     }
 }
 
@@ -117,7 +116,7 @@ Describe 'Defender custom detection: <RelativePath>' -ForEach $script:defenderCa
 
     It 'parses as valid YAML with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
-        $Yaml       | Should -Not -BeNullOrEmpty
+        $Yaml | Should -Not -BeNullOrEmpty
         ($Yaml -is [System.Collections.IDictionary]) | Should -BeTrue -Because 'Defender detection YAML files must have a mapping at the root'
     }
 
@@ -174,8 +173,7 @@ Describe 'Defender custom detections: cross-file invariants' {
                         if (-not $pair.Map.ContainsKey($value)) { $pair.Map[$value] = @() }
                         $pair.Map[$value] += $rel
                     }
-                }
-                catch {
+                } catch {
                     # Per-file schema test owns parse errors; skip silently here.
                 }
             }

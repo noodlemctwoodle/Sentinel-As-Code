@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -201,13 +201,13 @@ $headroomVisualLine
     } else { '' }
     $opportunityBody = if ($ruleTableRefs.Count -eq 0 -and $templateTableRefs.Count -eq 0) {
         @"
-$(Format-Banner -Title "Detection Opportunities")
+$(Format-Banner -Title 'Detection Opportunities')
 
 _Table-to-rule mapping was not computed in this run (``rule-table-references.json`` and ``template-table-references.json`` are absent), so there is nothing to compare. The collector writes both; they are missing from an inventory taken by an older collector or when that capture failed._
 "@
     } else {
         @"
-$(Format-Banner -Title "Detection Opportunities")
+$(Format-Banner -Title 'Detection Opportunities')
 
 Which ingested tables no enabled analytics rule reads, and which rule templates would cover them. The template list is the workspace's own alert-rule template catalogue, so a suggestion here can be enabled from Content Hub without a new data source. Deprecated templates and templates already deployed are never suggested.
 $headroomChart

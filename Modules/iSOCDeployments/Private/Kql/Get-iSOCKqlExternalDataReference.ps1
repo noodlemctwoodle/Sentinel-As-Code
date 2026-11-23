@@ -44,7 +44,7 @@ function Get-iSOCKqlExternalDataReference {
     String[] of distinct URLs. Returns @() when no references found.
 #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [object[]])]
     param([Parameter(Mandatory)] [AllowEmptyString()] [string]$Query)
 
     if ([string]::IsNullOrWhiteSpace($Query)) { return @() }

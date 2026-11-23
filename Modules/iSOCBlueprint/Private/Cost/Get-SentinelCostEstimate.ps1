@@ -124,15 +124,15 @@ function Get-SentinelCostEstimate {
     }
 
     $steps = @(
-        'Read-CostInputs'
+        'Read-CostInput'
         'Initialize-CostResult'
-        'Get-CostLookups'
-        'Get-CostMeterPrices'
-        'Get-CostCommitmentTiers'
-        'Get-CostPlanRates'
-        'Get-CostTableRows'
+        'Get-CostLookup'
+        'Get-CostMeterPrice'
+        'Get-CostCommitmentTier'
+        'Get-CostPlanRate'
+        'Get-CostTableRow'
         'Get-CostCommitment'
-        'Get-CostTotals'
+        'Get-CostTotal'
         'Get-CostBenefitEligible'
         'Get-CostCommitmentWhatIf'
         'Get-CostEstimateResult'

@@ -32,7 +32,7 @@ function Format-TacticName {
         A tactic as the Sentinel API returns it (CredentialAccess) by MITRE's own
         name (Credential Access, Command and Control), as the ATT&CK page and the
         dashboard write it: each word capitalised but 'and'. The name goes through
-        ConvertTo-BlueprintWords; a single word that comes back unchanged is
+        ConvertTo-BlueprintWord; a single word that comes back unchanged is
         returned as it is.
 
     .PARAMETER Tactic
@@ -43,7 +43,7 @@ function Format-TacticName {
     #>
     [CmdletBinding()]
     param([string]$Tactic)
-    $words = ConvertTo-BlueprintWords $Tactic.Trim()
+    $words = ConvertTo-BlueprintWord $Tactic.Trim()
     if ($words -eq $Tactic.Trim() -and $words -notmatch '\s') { return $words }
     (@($words -split ' ' | ForEach-Object { if ($_ -ceq 'and') { $_ } else { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) } }) -join ' ')
 }

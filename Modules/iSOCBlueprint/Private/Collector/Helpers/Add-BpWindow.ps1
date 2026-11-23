@@ -42,6 +42,7 @@ function Add-BpWindow {
     .OUTPUTS
         [string] The three let statements followed by the query.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Kql)
     $daily = if ($script:DailyDays -ge 1) { $script:DailyDays } else { [math]::Min(90, $script:LookbackDays) }

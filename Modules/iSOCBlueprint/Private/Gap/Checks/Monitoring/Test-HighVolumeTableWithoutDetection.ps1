@@ -61,7 +61,7 @@ function Test-HighVolumeTableWithoutDetection {
     $uncovered = @($Inventory.TablesWithData | Where-Object {
             $t = [string](Get-PropOrDefault $_ 'DataType' '')
             $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and
-            ((ConvertTo-GapPer30Days (Get-GapBillable30d $_) $Inventory) -ge $threshold)
+            ((ConvertTo-GapPer30Day (Get-GapBillable30d $_) $Inventory) -ge $threshold)
         } | Sort-Object { - (Get-GapBillable30d $_) })
     if ($uncovered.Count -eq 0) { return $null }
 
@@ -118,7 +118,7 @@ function Test-HighVolumeTableWithoutDetection {
         $ofAll = ", of $(Format-BlueprintGb $allTablesGb) GB in every table no detection reads (the rest is in smaller tables or Sentinel's own operational tables)"
     }
     return New-Finding -Evidence "$(Format-BlueprintPlural $rows.Count 'table') of $(Format-BlueprintCount $threshold) GB a month or more $(Select-GapWording `
-            $rows.Count 'ingests' 'ingest') $(Format-BlueprintGb $totalGb) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading $(Select-GapWording $rows.Count 'it' 'them')$($ofAll): $sample." -Detail @{
+            $rows.Count 'ingests' 'ingest') $(Format-BlueprintGb $totalGb) GB in the last $(Format-GapDay (Get-GapWindow $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading $(Select-GapWording $rows.Count 'it' 'them')$($ofAll): $sample." -Detail @{
         Count          = $rows.Count
         TotalGb30d     = [math]::Round($totalGb, 2)
         AllTablesGb30d = [math]::Round($allTablesGb, 2)

@@ -44,7 +44,7 @@ function Get-iSOCKqlLetBoundName {
         Get-iSOCKqlLetBoundName -Text 'let Recent = T | take 5; Recent'
     #>
     [CmdletBinding()]
-    [OutputType([System.Collections.Generic.HashSet[string]])]
+    [OutputType([System.Collections.Generic.HashSet[string]], [array], [object[]])]
     param(
         [AllowNull()]
         [AllowEmptyString()]

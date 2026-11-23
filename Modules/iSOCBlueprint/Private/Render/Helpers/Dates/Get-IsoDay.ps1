@@ -39,6 +39,7 @@ function Get-IsoDay {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Value)
     if ($null -eq $Value) { return '' }

@@ -51,7 +51,7 @@ function Write-BlueprintIncidentsSectionPart2 {
     $unackCount = $Context.unackCount
 
     $incidentBody = @"
-$(Format-Banner -Title "Incidents  (TOC 4.10)")
+$(Format-Banner -Title 'Incidents  (TOC 4.10)')
 
 > Aggregate-only. The Blueprint never exports incident bodies, alert payloads or entity detail, only counts and derived SOC-efficiency metrics.
 

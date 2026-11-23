@@ -47,7 +47,7 @@ function Get-iSOCReservedTableName {
         Get-iSOCReservedTableName
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array], [object[]])]
     param(
         [AllowEmptyString()]
         [AllowNull()]

@@ -44,6 +44,7 @@ function Format-UnitPrice {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Amount, [string]$Currency)
     $d = ConvertTo-BlueprintDouble $Amount

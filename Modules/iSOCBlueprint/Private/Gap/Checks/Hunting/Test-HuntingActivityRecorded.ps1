@@ -74,7 +74,7 @@ function Test-HuntingActivityRecorded {
     ) -WorkspaceTables @(Get-PropOrDefault $Inventory 'WorkspaceTables' @()) -WindowDays $days -AsOf $asOf
     if ($activity.BookmarksRecent -ne 0 -or $activity.HuntsRecent -ne 0) { return $null }
     $hunts = @($Inventory.Hunts).Count
-    return New-Finding -Evidence "$(Format-BlueprintPlural $bookmarkCount 'bookmark') and $(Format-BlueprintPlural $hunts 'hunt') exist, but none has been created or changed in the last $(Format-GapDays $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $bookmarkCount 'bookmark') and $(Format-BlueprintPlural $hunts 'hunt') exist, but none has been created or changed in the last $(Format-GapDay $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{
         Hunts           = $hunts
         Bookmarks       = $bookmarkCount
         RecentHunts     = 0

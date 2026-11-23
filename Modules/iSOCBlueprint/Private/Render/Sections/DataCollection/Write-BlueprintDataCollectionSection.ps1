@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -123,7 +123,7 @@ function Write-BlueprintDataCollectionSection {
     }
     if ($overflowBuckets.Count -gt 0) {
         $srcLines += "    S99[`"Other sources · $(Format-BlueprintCount $overflowTotal)`"]"
-        $sourceEdges += "    S99 --> WS"
+        $sourceEdges += '    S99 --> WS'
     }
 
     # Workspace-side node selection. Each cell renders only when the

@@ -55,7 +55,7 @@ function Test-NoisyFalsePositiveRule {
     $sample = ($noisy | ForEach-Object {
             "$(Get-EvidenceName $_ 'RuleName' 'Unnamed rule') ($(Format-BlueprintCount (ConvertTo-GapInt (Get-PropOrDefault $_ 'FalsePositive' 0))) of $(Format-BlueprintCount (ConvertTo-GapInt (Get-PropOrDefault $_ 'Closed' 0))) closed as false positive, $(Format-BlueprintNumber (ConvertTo-GapDouble (Get-PropOrDefault $_ 'FPRate' 0)) -Decimals 1)%)"
         }) -join '; '
-    return New-Finding -Evidence "$(Format-BlueprintPlural $noisy.Count 'rule') closed mostly as false positive in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $sample." -Detail @{
+    return New-Finding -Evidence "$(Format-BlueprintPlural $noisy.Count 'rule') closed mostly as false positive in the last $(Format-GapDay (Get-GapWindow $Inventory).Days): $sample." -Detail @{
         Count = $noisy.Count
         Rules = @($noisy | ForEach-Object {
                 [pscustomobject]@{

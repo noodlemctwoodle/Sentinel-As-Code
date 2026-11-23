@@ -74,7 +74,7 @@ function Write-WordSummary {
     if ($missing.Count -gt 0) {
         Write-WordLog "  $($missing.Count) image(s) not found on disk - left as alt text (broken links in the source)." -Level Warning
     } else {
-        Write-WordLog "  All images resolved." -Level Info
+        Write-WordLog '  All images resolved.' -Level Info
     }
 
     if (Test-Path -LiteralPath $OutputPath) {

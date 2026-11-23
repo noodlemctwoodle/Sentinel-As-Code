@@ -43,7 +43,7 @@ function Test-NoisyTableHasTransform {
     if (-not $Inventory.TablesWithData) { return $null }
     $threshold = 50.0
     $candidates = @($Inventory.TablesWithData | Where-Object {
-            (ConvertTo-GapPer30Days ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -ge $threshold
+            (ConvertTo-GapPer30Day ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -ge $threshold
         })
     if (-not $candidates) { return $null }
 

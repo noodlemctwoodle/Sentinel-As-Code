@@ -58,7 +58,7 @@ function ConvertFrom-BlueprintMermaid {
     param([Parameter(Mandatory)] [AllowEmptyString()] [string] $Source)
 
     $lines = [System.Collections.Generic.List[string]]::new()
-    $all = $Source -split "\r?\n"
+    $all = $Source -split '\r?\n'
     $i = 0
     # Front matter (---\nconfig...\n---) carries only presentation settings.
     while ($i -lt $all.Count -and [string]::IsNullOrWhiteSpace($all[$i])) { $i++ }

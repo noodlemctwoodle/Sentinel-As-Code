@@ -64,10 +64,10 @@ updated when a function is added).
 | `Write-PipelineMessage` | ADO / GitHub / local-friendly logging abstraction with a fixed set of severity levels |
 | `Invoke-SentinelApi` | REST wrapper with retry-on-transient-failure and defensive error-body recovery |
 | `Connect-AzureEnvironment` | Az context bootstrap; returns a hashtable of derived deployment state |
-| `Remove-KqlComments` | Strip KQL line and block comments before regex extraction |
+| `Remove-KqlComment` | Strip KQL line and block comments before regex extraction |
 | `Get-KqlWatchlistReferences` | Extract watchlist aliases referenced via `_GetWatchlist('alias')` |
 | `Get-KqlExternalDataReferences` | Extract URLs referenced by an `externaldata(...)` operator |
-| `Get-KqlBareIdentifiers` | Heuristically extract table / function identifiers at data-source positions |
+| `Get-KqlBareIdentifier` | Heuristically extract table / function identifiers at data-source positions |
 | `Get-ContentKqlQuery` | Read a content file and return its embedded KQL text |
 | `Get-ContentDependencies` | Orchestrate the extractors for one content file and classify the results |
 
@@ -201,7 +201,7 @@ not a full KQL parser, but they cover every real-world rule pattern in the repo
 (the fixtures live in
 [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1)).
 
-### `Remove-KqlComments`
+### `Remove-KqlComment`
 
 Strips `/* ... */` block comments and `// ...` line comments so a commented-out
 `_GetWatchlist` or `externaldata` call cannot produce a false positive. The
@@ -220,7 +220,7 @@ Returns the distinct, sorted list of URLs referenced inside an
 `externaldata(...) [ ... ]` operator's bracket list. The bracket list can carry
 several URLs and every one is captured.
 
-### `Get-KqlBareIdentifiers`
+### `Get-KqlBareIdentifier`
 
 The heart of the discovery layer. It extracts bare identifiers that sit where a
 data source is expected, then aggressively filters out everything that is not a
@@ -298,7 +298,7 @@ adding a function; the same discipline applies to any behavioural change:
    of whichever CalVer repository release it ships with.
 4. Update `ReleaseNotes` in `PrivateData.PSData` to record what changed. The
    existing notes read as a running changelog (`1.0.0` initial extraction,
-   `1.1.0` KQL discovery helpers, `1.1.1` the two extra `Get-KqlBareIdentifiers`
+   `1.1.0` KQL discovery helpers, `1.1.1` the two extra `Get-KqlBareIdentifier`
    patterns plus four new unit tests).
 5. Add or extend Pester coverage in
    [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1).

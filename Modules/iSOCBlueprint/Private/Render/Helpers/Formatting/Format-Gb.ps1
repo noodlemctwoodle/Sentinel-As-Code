@@ -40,6 +40,7 @@ function Format-Gb {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param($Value)
     if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) { return '' }

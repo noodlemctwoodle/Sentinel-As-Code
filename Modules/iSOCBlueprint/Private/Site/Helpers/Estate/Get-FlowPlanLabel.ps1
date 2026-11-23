@@ -48,6 +48,7 @@ function Get-FlowPlanLabel {
     .OUTPUTS
         [string] The label.
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Table, [string]$Plan)
     if ($Plan -in @('Basic', 'Auxiliary')) { return "$Plan plan" }

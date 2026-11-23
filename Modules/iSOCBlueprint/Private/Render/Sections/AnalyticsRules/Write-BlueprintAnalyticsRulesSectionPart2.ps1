@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -174,10 +174,10 @@ $(if (-not $customDetectionsCaptured) { '_Not captured in this run: the Graph ca
     # One page for the rule estate: the core view built in the section-20 block
     # above, then the alert-volume, Microsoft-managed, modifications and
     # solution subsections (formerly 21 to 24).
-    $analyticsLinks = @"
+    $analyticsLinks = @'
 
 [Built-in detections (Microsoft Learn)](https://learn.microsoft.com/azure/sentinel/detect-threats-built-in) · [Detect threats from template](https://learn.microsoft.com/azure/sentinel/detect-threats-from-template) · [Alert and incident tuning](https://learn.microsoft.com/azure/sentinel/false-positives)
-"@
+'@
     # Each part begins with a newline and ends without one; joining with a
     # newline keeps a blank line between a table and the next heading.
     Write-BlueprintSection '20-analytics-rules.md' (@(

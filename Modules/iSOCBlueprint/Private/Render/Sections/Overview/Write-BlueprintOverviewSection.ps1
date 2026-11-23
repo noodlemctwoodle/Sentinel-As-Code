@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -102,7 +102,7 @@ _No billable ingestion in the last {lookback}, so there is no flow to draw._$fam
     $maturityHeadline = if ($maturityOk -and $null -ne $maturity.overall.score) {
         "**Maturity:** $(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))  ·  **Target:** $($maturity.targetLevel) ($($maturity.targetLevelName))  ·  **Areas below target:** $(@($maturity.areasBelowTarget).Count) of $(@($maturity.areas).Count)  ·  **Quick wins:** $(@($maturity.quickWins).Count)`n`nScored from the Sentinel workspace only: people and processes were not assessed. Detail in [91-maturity-assessment.md](91-maturity-assessment.md)."
     } elseif ($maturityOk) {
-        "_Maturity not assessed: no criterion could be evaluated in this run._ See [91-maturity-assessment.md](91-maturity-assessment.md)."
+        '_Maturity not assessed: no criterion could be evaluated in this run._ See [91-maturity-assessment.md](91-maturity-assessment.md).'
     } else { '_Maturity assessment not available for this run._' }
     $maturityCell = if ($maturityOk -and $null -ne $maturity.overall.score) {
         "$(Format-BlueprintNumber $maturity.overall.score) / $($maturity.targetLevel) ($($maturity.overall.levelName), target $($maturity.targetLevelName))"
@@ -181,7 +181,7 @@ Billable GB per day, and free GB (the Sentinel benefit and other non-billable da
     }
 
     $overviewBody = @"
-$(Format-Banner -Title "SIEM Overview")
+$(Format-Banner -Title 'SIEM Overview')
 
 ## Findings at a glance
 

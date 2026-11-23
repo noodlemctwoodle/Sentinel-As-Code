@@ -47,7 +47,7 @@ function ConvertFrom-WhatsNewMarkdown {
         [Parameter(Mandatory)] [string] $PageUrl
     )
 
-    $lines = $Markdown -split "\r?\n"
+    $lines = $Markdown -split '\r?\n'
     $i = 0
     # Front matter.
     if ($lines.Count -and $lines[0].Trim() -eq '---') {
@@ -87,7 +87,7 @@ function ConvertFrom-WhatsNewMarkdown {
                 $text = [System.Collections.Generic.List[string]]::new()
                 while ($j -lt $body.Count -and $body[$j] -notmatch '^###\s') { $text.Add($body[$j]); $j++ }
                 $paras = @(
-                    ($text -join "`n") -split "\n\s*\n" |
+                    ($text -join "`n") -split '\n\s*\n' |
                         ForEach-Object { $_.Trim() } |
                         Where-Object { $_ -and $_ -notmatch '^(Note|Important|Tip|Caution|Warning)$' -and $_ -notmatch '^[-*|>#]' }
                 )

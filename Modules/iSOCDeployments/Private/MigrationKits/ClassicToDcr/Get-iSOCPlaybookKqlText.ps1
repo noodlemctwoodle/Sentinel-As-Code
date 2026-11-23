@@ -48,7 +48,7 @@ function Get-iSOCPlaybookKqlText {
         Get-iSOCPlaybookKqlText -Definition $logicApp.properties.definition
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array], [object[]])]
     param(
         [AllowNull()]
         $Definition

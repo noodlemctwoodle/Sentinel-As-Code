@@ -67,7 +67,7 @@ function Test-iSOCDeploymentPrerequisite {
         Installs powershell-yaml when reading content would fail without it.
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject], [bool])]
+    [OutputType([pscustomobject], [bool], [object[]])]
     param(
         [ValidateSet('Connect', 'Read', 'Deploy', 'Import', 'Setup', 'Migrate')]
         [string[]] $Step = @('Connect', 'Read', 'Deploy', 'Import', 'Setup', 'Migrate'),

@@ -38,6 +38,7 @@ function ConvertFrom-BpMermaidMindmap {
         [ordered] kind ('mindmap'), title ($null) and data: root, a node with
         text and children.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $root = $null

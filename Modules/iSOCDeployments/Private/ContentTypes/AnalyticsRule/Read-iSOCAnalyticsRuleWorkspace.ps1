@@ -44,7 +44,7 @@ function Read-iSOCAnalyticsRuleWorkspace {
         $deployed = @(Read-iSOCAnalyticsRuleWorkspace -Context $ctx -ContentType $rules)
     #>
     [CmdletBinding()]
-    [OutputType([psobject])]
+    [OutputType([psobject], [object[]])]
     param(
         [Parameter(Mandatory)]
         [psobject] $Context,

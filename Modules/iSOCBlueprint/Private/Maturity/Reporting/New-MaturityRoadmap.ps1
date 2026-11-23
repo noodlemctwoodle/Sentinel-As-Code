@@ -44,6 +44,7 @@ function New-MaturityRoadmap {
         The roadmap entries in priority order, each with priority and
         projectedScore.
     #>
+    [OutputType([object[]])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)] [AllowEmptyCollection()] [object[]] $Area,

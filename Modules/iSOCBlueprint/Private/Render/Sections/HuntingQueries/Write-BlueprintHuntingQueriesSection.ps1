@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -76,7 +76,7 @@ function Write-BlueprintHuntingQueriesSection {
             }
         }
     }
-    $huntPieRows = Format-PieSlices -Counts $huntByTactic
+    $huntPieRows = Format-PieSlice -Counts $huntByTactic
     $huntChartBlock = if ($hunting.Count -gt 0 -and $huntPieRows.Count -gt 0) {
         @"
 
@@ -154,7 +154,7 @@ $(Format-BlueprintPlural $hunting.Count 'hunting query' 'hunting queries'). Tact
         })
 
     Write-BlueprintSection '30-hunting-queries.md' (@"
-$(Format-Banner -Title "Hunting Queries")
+$(Format-Banner -Title 'Hunting Queries')
 $huntChartBlock
 
 $(Format-BlueprintTable -Items $huntingRows -Columns 'Name','Tags')

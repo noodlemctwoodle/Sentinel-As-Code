@@ -90,7 +90,7 @@ function Get-ParityTokenText {
         [string[]] One entry per token, in order.
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array])]
     param(
         [Parameter(Mandatory)] [string] $Path,
         [Parameter(Mandatory)] [string] $Name

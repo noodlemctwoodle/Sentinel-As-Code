@@ -41,6 +41,7 @@ function ConvertFrom-BpMermaidSequence {
         when an autonumber line is present), participants (id, label and
         kind) and steps.
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string[]] $Body)
     $participants = [ordered]@{}

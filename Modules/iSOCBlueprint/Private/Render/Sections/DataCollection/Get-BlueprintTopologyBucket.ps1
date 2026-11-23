@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -53,6 +53,7 @@ function Get-BlueprintTopologyBucket {
     .OUTPUTS
         [string].
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([string]$Table, [string]$Source, [string]$Identifier)
     if ($Source -eq 'CCF' -and $Identifier) { return $Identifier }

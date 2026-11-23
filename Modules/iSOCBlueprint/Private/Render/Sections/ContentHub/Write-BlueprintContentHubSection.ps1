@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -131,7 +131,7 @@ function Write-BlueprintContentHubSection {
         })
 
     Write-BlueprintSection '70-content-hub.md' (@"
-$(Format-Banner -Title "Content Hub and Repositories")
+$(Format-Banner -Title 'Content Hub and Repositories')
 
 ## Source mix
 

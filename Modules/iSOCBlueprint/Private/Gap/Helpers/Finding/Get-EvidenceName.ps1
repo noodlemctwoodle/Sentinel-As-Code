@@ -41,6 +41,7 @@ function Get-EvidenceName {
     .OUTPUTS
         [string]
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)] [AllowNull()] [object]$Object,

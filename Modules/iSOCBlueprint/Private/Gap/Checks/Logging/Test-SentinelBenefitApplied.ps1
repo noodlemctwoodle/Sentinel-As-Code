@@ -48,7 +48,7 @@ function Test-SentinelBenefitApplied {
         })
     if ($billableSecurity.Count -gt 0) {
         $names = ($billableSecurity | Select-Object -ExpandProperty DataType) -join ', '
-        return New-Finding -Evidence "Eligible security $(Select-GapWording $billableSecurity.Count 'table' 'tables') with non-zero billable ingest in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }
+        return New-Finding -Evidence "Eligible security $(Select-GapWording $billableSecurity.Count 'table' 'tables') with non-zero billable ingest in the last $(Format-GapDay (Get-GapWindow $Inventory).Days): $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }
     }
     return $null
 }

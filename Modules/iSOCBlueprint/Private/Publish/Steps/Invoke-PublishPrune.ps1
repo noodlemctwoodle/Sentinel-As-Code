@@ -54,13 +54,13 @@ function Invoke-PublishPrune {
                 Write-Host "  Removed page: $($step.Name)"
             }
         }
-        $stale = Get-AssetPrunePlan -DesiredFiles @($site.diagrams) -ExistingFiles (Get-SacFolderFileNames -Folder 'diagrams')
+        $stale = Get-AssetPrunePlan -DesiredFiles @($site.diagrams) -ExistingFiles (Get-SacFolderFileName -Folder 'diagrams')
         foreach ($file in $stale) {
             if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/diagrams/$file", 'Send diagram to recycle bin')) {
                 Remove-PnPFile -SiteRelativeUrl "$script:SacAssetsLibraryUrl/diagrams/$file" -Force -Recycle
             }
         }
-        $staleTables = Get-AssetPrunePlan -DesiredFiles $siteTables -ExistingFiles (Get-SacFolderFileNames -Folder 'tables')
+        $staleTables = Get-AssetPrunePlan -DesiredFiles $siteTables -ExistingFiles (Get-SacFolderFileName -Folder 'tables')
         foreach ($file in $staleTables) {
             if ($PSCmdlet.ShouldProcess("$script:SacAssetsLibraryUrl/tables/$file", 'Send table CSV to recycle bin')) {
                 Remove-PnPFile -SiteRelativeUrl "$script:SacAssetsLibraryUrl/tables/$file" -Force -Recycle

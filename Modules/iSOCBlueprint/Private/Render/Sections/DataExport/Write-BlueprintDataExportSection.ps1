@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -71,7 +71,7 @@ function Write-BlueprintDataExportSection {
             [pscustomobject]@{ Name = $_.Name; Cluster = ($_.ResourceId -split '/')[-1]; ResourceId = $_.ResourceId }
         })
     Write-BlueprintSection '36-data-export.md' (@"
-$(Format-Banner -Title "Data Export  (TOC 4.3.3)")
+$(Format-Banner -Title 'Data Export  (TOC 4.3.3)')
 
 ## Continuous data exports
 

@@ -118,6 +118,7 @@ function Invoke-iSOCBlueprintSitePublish {
     .OUTPUTS
         [string] The site URL.
     #>
+    [OutputType([string])]
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Token')]
     param(
         [Parameter(Mandatory = $true)]
@@ -172,10 +173,10 @@ function Invoke-iSOCBlueprintSitePublish {
         'Import-PublishBundle'
         'Connect-PublishSite'
         'Invoke-PublishStructure'
-        'Invoke-PublishAssets'
-        'Invoke-PublishPages'
+        'Invoke-PublishAsset'
+        'Invoke-PublishPage'
         'Invoke-PublishDashboard'
-        'Invoke-PublishFindings'
+        'Invoke-PublishFinding'
         'Invoke-PublishNavigation'
         'Invoke-PublishPrune'
         'Save-PublishRun'

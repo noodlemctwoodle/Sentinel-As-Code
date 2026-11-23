@@ -73,8 +73,7 @@ BeforeDiscovery {
         try {
             $script:manifest = Get-Content -Path $manifestPath -Raw -ErrorAction Stop |
                 ConvertFrom-Json -Depth 32 -AsHashtable -ErrorAction Stop
-        }
-        catch {
+        } catch {
             $script:manifestParseError = $_.Exception.Message
         }
     }
@@ -86,9 +85,9 @@ BeforeDiscovery {
         foreach ($key in $script:manifest['dependencies'].Keys) {
             $entry = $script:manifest['dependencies'][$key]
             $script:entryCases += @{
-                Key       = $key
-                Entry     = $entry
-                AbsPath   = (Join-Path $repoRoot $key)
+                Key         = $key
+                Entry       = $entry
+                AbsPath     = (Join-Path $repoRoot $key)
                 IsCommunity = ($key -match '(?i)/Community/')
             }
         }
@@ -98,7 +97,7 @@ BeforeDiscovery {
     # One test case per distinct alias, with a list of citing entries so the
     # failure message points at exactly which dependency declared a broken
     # reference.
-    function Get-AliasCases {
+    function Get-AliasCase {
         param([string]$ArrayKey)
         $bucket = @{}
         if ($script:manifest -and $script:manifest.ContainsKey('dependencies')) {
@@ -120,8 +119,8 @@ BeforeDiscovery {
         return @($cases)
     }
 
-    $script:watchlistAliasCases = Get-AliasCases -ArrayKey 'watchlists'
-    $script:functionAliasCases  = Get-AliasCases -ArrayKey 'functions'
+    $script:watchlistAliasCases = Get-AliasCase -ArrayKey 'watchlists'
+    $script:functionAliasCases = Get-AliasCase -ArrayKey 'functions'
 }
 
 BeforeAll {
@@ -142,8 +141,7 @@ BeforeAll {
                 if ($wl.PSObject.Properties.Name -contains 'watchlistAlias' -and $wl.watchlistAlias) {
                     $script:knownWatchlistAliases[[string]$wl.watchlistAlias] = $_.FullName
                 }
-            }
-            catch {
+            } catch {
                 # Schema test for watchlists owns parse errors; skip silently here.
             }
         }
@@ -159,8 +157,7 @@ BeforeAll {
                 if ($p -and $p.ContainsKey('functionAlias') -and $p['functionAlias']) {
                     $script:knownFunctionAliases[[string]$p['functionAlias']] = $_.FullName
                 }
-            }
-            catch {
+            } catch {
                 # Parser-schema test owns parse errors; skip silently here.
             }
         }
@@ -202,8 +199,7 @@ Describe 'Dependency manifest: top-level shape' {
             try {
                 $script:topShapeManifest = Get-Content -Path $manifestPath -Raw -ErrorAction Stop |
                     ConvertFrom-Json -Depth 32 -AsHashtable -ErrorAction Stop
-            }
-            catch {
+            } catch {
                 $script:topShapeParseError = $_.Exception.Message
             }
         }
@@ -215,13 +211,13 @@ Describe 'Dependency manifest: top-level shape' {
 
     It 'parses as JSON' {
         $script:topShapeParseError | Should -BeNullOrEmpty
-        $script:topShapeManifest   | Should -Not -BeNullOrEmpty
+        $script:topShapeManifest | Should -Not -BeNullOrEmpty
     }
 
     It 'has a version field' {
         $script:topShapeManifest | Should -Not -BeNullOrEmpty
         $script:topShapeManifest.ContainsKey('version') | Should -BeTrue
-        [string]$script:topShapeManifest['version']     | Should -Not -BeNullOrEmpty
+        [string]$script:topShapeManifest['version'] | Should -Not -BeNullOrEmpty
     }
 
     It 'has a description field' {

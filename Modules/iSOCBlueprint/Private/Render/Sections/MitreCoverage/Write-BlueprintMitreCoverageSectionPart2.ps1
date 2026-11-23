@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -51,7 +51,7 @@ function Write-BlueprintMitreCoverageSectionPart2 {
     $schedNote = $Context.schedNote
 
     $rulesBody = @"
-$(Format-Banner -Title "Analytics Rules")
+$(Format-Banner -Title 'Analytics Rules')
 
 ## Rule taxonomy
 

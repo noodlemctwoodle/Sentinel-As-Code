@@ -65,7 +65,7 @@ function Build-WordInput {
 
     # Pass 2: strip the provenance line, reformat finding bullets, write a
     # cleaned copy to the temp dir.
-    $work = Join-Path ([System.IO.Path]::GetTempPath()) ("md2word-{0}" -f ([guid]::NewGuid().ToString('N')))
+    $work = Join-Path ([System.IO.Path]::GetTempPath()) ('md2word-{0}' -f ([guid]::NewGuid().ToString('N')))
     [void](New-Item -ItemType Directory -Path $work -Force)
     $inputPaths = [System.Collections.Generic.List[string]]::new()
     $stripped = 0
@@ -84,11 +84,11 @@ function Build-WordInput {
         }
         if (-not $NoReformatFindings) {
             $cnt = [ref]0
-            $text = Convert-FindingBullets -Text $text -TitleMap $titleMap -Count $cnt
+            $text = Convert-FindingBullet -Text $text -TitleMap $titleMap -Count $cnt
             $reformatted += $cnt.Value
 
             $ecnt = [ref]0
-            $text = Convert-StatusWords -Text $text -Count $ecnt
+            $text = Convert-StatusWord -Text $text -Count $ecnt
             $recoloured += $ecnt.Value
         }
         $dest = Join-Path $work ('{0:D4}-{1}' -f $idx, (Split-Path $p -Leaf))

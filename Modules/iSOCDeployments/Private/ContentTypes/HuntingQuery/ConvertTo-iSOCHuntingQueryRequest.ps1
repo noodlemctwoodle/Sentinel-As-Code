@@ -63,21 +63,21 @@ function ConvertTo-iSOCHuntingQueryRequest {
     $tags = @()
 
     if ($hq.Contains('description') -and -not [string]::IsNullOrWhiteSpace($hq['description'])) {
-        $tags += @{ name = "description"; value = $hq['description'] }
+        $tags += @{ name = 'description'; value = $hq['description'] }
     }
     if ($hq.Contains('tactics') -and $hq['tactics']) {
         $tacticsValue = ([array]$hq['tactics']) -join ','
-        $tags += @{ name = "tactics"; value = $tacticsValue }
+        $tags += @{ name = 'tactics'; value = $tacticsValue }
     }
     if ($hq.Contains('techniques') -and $hq['techniques']) {
         $allTechs = [array]$hq['techniques']
         # Parent techniques (T####)
         $techniquesValue = ($allTechs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique) -join ','
-        $tags += @{ name = "techniques"; value = $techniquesValue }
+        $tags += @{ name = 'techniques'; value = $techniquesValue }
         # Sub-techniques (T####.###) as separate tag
         $subTechsValue = ($allTechs | Where-Object { $_ -match '\.' } | Select-Object -Unique) -join ','
         if ($subTechsValue) {
-            $tags += @{ name = "subTechniques"; value = $subTechsValue }
+            $tags += @{ name = 'subTechniques'; value = $subTechsValue }
         }
     }
     if ($hq.Contains('tags') -and $hq['tags']) {
@@ -87,7 +87,7 @@ function ConvertTo-iSOCHuntingQueryRequest {
     }
 
     $properties = @{
-        category    = "Hunting Queries"
+        category    = 'Hunting Queries'
         displayName = $hq['name']
         query       = $hq['query']
     }

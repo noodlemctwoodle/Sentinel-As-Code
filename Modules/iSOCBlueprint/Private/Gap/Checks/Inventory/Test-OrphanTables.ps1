@@ -57,7 +57,7 @@ function Test-OrphanTables {
             $type -eq 'CustomLog' -and -not $populated.ContainsKey($name)
         })
     if ($orphans.Count -gt 0) {
-        return New-Finding -Evidence "$(Format-BlueprintPlural $orphans.Count 'table') $(Select-GapWording $orphans.Count 'has' 'have') a schema but no data in the last $(Format-GapDays (Get-GapWindow $Inventory).Days)." -Detail @{ Count = $orphans.Count }
+        return New-Finding -Evidence "$(Format-BlueprintPlural $orphans.Count 'table') $(Select-GapWording $orphans.Count 'has' 'have') a schema but no data in the last $(Format-GapDay (Get-GapWindow $Inventory).Days)." -Detail @{ Count = $orphans.Count }
     }
     return $null
 }

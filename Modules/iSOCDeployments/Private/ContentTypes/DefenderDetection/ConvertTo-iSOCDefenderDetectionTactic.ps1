@@ -48,7 +48,7 @@ function ConvertTo-iSOCDefenderDetectionTactic {
         ConvertTo-iSOCDefenderDetectionTactic -Category CredentialAccess -MitreTechniques 'T1110.003'
     #>
     [CmdletBinding()]
-    [OutputType([object[]])]
+    [OutputType([object[]], [array])]
     param(
         [Parameter(Mandatory)]
         [string] $Category,

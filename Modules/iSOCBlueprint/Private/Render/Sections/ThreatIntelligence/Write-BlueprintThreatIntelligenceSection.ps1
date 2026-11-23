@@ -1,4 +1,4 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -107,7 +107,7 @@ $(($tiByTypeRows | ForEach-Object { "    `"$($_.Type)`" : $(ConvertTo-BlueprintN
     $tiHeadline = if ($tiTotal -and $tiTotal -gt 0) {
         "**Total active indicators:** $(Format-BlueprintCount $tiTotal)  ·  **Distinct breakdown rows:** $(Format-BlueprintCount @($tiRows).Count)  ·  **Data source:** $tiSourceLabel"
     } else {
-        "_No threat intelligence indicators surfaced via either capture path._"
+        '_No threat intelligence indicators surfaced via either capture path._'
     }
     # Threat-type breakdown only renders when the metrics API path actually
     # returned a populated array — under the KQL fallback there is no
@@ -128,7 +128,7 @@ $(Format-BlueprintTable -Items @($tiTypeRows | ForEach-Object { [pscustomobject]
             $k = [string]$row.SourceSystem
             $tiBySource[$k] = $(if ($tiBySource.Contains($k)) { $tiBySource[$k] } else { 0 }) + [long]$row.IndicatorCount
         }
-        $tiPieRows = Format-PieSlices -Counts $tiBySource -Limit 6
+        $tiPieRows = Format-PieSlice -Counts $tiBySource -Limit 6
         @"
 
 ## Indicator distribution by source

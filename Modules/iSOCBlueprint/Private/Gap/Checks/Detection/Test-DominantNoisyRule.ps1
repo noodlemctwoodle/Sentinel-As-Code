@@ -49,5 +49,5 @@ function Test-DominantNoisyRule {
     $ratio = $topAlerts / [double]$totalAlerts
     if ($ratio -le 0.30) { return $null }
     $name = Get-EvidenceName $top 'AlertName' 'Unnamed alert'
-    return New-Finding -Evidence "Rule `"$name`" produced $(Format-BlueprintCount $topAlerts) of $(Format-BlueprintCount $totalAlerts) alerts in the last $(Format-GapDays (Get-GapWindow $Inventory).Days) ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
+    return New-Finding -Evidence "Rule `"$name`" produced $(Format-BlueprintCount $topAlerts) of $(Format-BlueprintCount $totalAlerts) alerts in the last $(Format-GapDay (Get-GapWindow $Inventory).Days) ($([math]::Round($ratio*100,0))%), tuning candidate." -Detail @{ AlertName = $name; Alerts = [int]$topAlerts; Total = [int]$totalAlerts; Ratio = $ratio }
 }

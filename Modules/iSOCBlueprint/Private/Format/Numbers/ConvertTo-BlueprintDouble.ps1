@@ -38,6 +38,7 @@ function ConvertTo-BlueprintDouble {
     .OUTPUTS
         [double] The number, or $null.
     #>
+    [OutputType([double])]
     [CmdletBinding()]
     param([AllowNull()] $Value)
     if ($null -eq $Value) { return $null }

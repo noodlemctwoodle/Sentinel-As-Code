@@ -37,6 +37,6 @@ function Invoke-RuleTableReferencesCapture {
     # Which tables each rule and each template reads, resolved here with
     # the vendored Sentinel.Common KQL helpers so the gap engine and the
     # renderers read plain JSON.
-    Save-Json -FileName 'rule-table-references.json' -Data (Get-RuleTableReferences -AlertRules $script:AlertRules)
-    Save-Json -FileName 'template-table-references.json' -Data (Get-TemplateTableReferences -Templates $script:AlertRuleTemplates -AlertRules $script:AlertRules)
+    Save-Json -FileName 'rule-table-references.json' -Data (Get-RuleTableReference -AlertRules $script:AlertRules)
+    Save-Json -FileName 'template-table-references.json' -Data (Get-TemplateTableReference -Templates $script:AlertRuleTemplates -AlertRules $script:AlertRules)
 }

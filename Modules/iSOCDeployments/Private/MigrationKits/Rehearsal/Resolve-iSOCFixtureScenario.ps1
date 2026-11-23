@@ -46,7 +46,7 @@ function Resolve-iSOCFixtureScenario {
         Resolve-iSOCFixtureScenario -Scenario Hunt
     #>
     [CmdletBinding()]
-    [OutputType([string[]])]
+    [OutputType([string[]], [array])]
     param(
         [AllowEmptyCollection()]
         [AllowNull()]

@@ -45,6 +45,6 @@ function Test-CefSplitOpportunity {
         } | Select-Object -First 1)
     if ($cef.Count -eq 0) { return $null }
     $gb30 = Get-GapBillable30d $cef[0]
-    if ((ConvertTo-GapPer30Days $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
-    return New-Finding -Evidence "CommonSecurityLog ingested $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days) at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
+    if ((ConvertTo-GapPer30Day $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }
+    return New-Finding -Evidence "CommonSecurityLog ingested $(Format-BlueprintGb $gb30) GB in the last $(Format-GapDay (Get-GapWindow $Inventory).Days) at the Sentinel security-data rate, routine vendor records could split to a `<Vendor>_CL` custom table via a DCR filter+split transformation." -Detail @{ Gb30d = $gb30 }
 }

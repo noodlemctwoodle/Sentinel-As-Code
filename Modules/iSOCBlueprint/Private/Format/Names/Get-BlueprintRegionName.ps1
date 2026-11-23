@@ -33,6 +33,7 @@ function Get-BlueprintRegionName {
     .OUTPUTS
         [string]
     #>
+    [OutputType([string])]
     [CmdletBinding()]
     param([AllowNull()] [AllowEmptyString()] [string] $Region)
     if (-not $Region) { return [string]$Region }

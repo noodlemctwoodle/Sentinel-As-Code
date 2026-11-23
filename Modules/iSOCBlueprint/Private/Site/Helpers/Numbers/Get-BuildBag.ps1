@@ -42,6 +42,7 @@ function Get-BuildBag {
     .OUTPUTS
         [ordered] A dictionary of name to [long].
     #>
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param($Value)
     $bag = [ordered]@{}

@@ -49,7 +49,7 @@ function Invoke-iSOCSchemaRepair {
         $columns = @(Invoke-iSOCSchemaRepair -Column @($spec.Columns))
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject[]])]
+    [OutputType([pscustomobject[]], [object[]])]
     param(
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
