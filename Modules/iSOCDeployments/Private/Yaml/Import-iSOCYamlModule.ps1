@@ -45,7 +45,7 @@ function Import-iSOCYamlModule {
 
     if (Get-Command -Name ConvertFrom-Yaml -ErrorAction SilentlyContinue) { return }
 
-    $requirement = Get-iSOCRequirement | Where-Object Name -eq 'powershell-yaml' | Select-Object -First 1
+    $requirement = Get-iSOCRequirement | Where-Object Name -EQ 'powershell-yaml' | Select-Object -First 1
     $minimum = [version]$requirement.MinimumVersion
     $installed = Get-Module -ListAvailable -Name powershell-yaml |
         Where-Object { $_.Version -ge $minimum } |

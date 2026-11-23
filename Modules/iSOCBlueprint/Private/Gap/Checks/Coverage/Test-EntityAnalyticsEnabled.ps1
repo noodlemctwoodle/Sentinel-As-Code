@@ -39,7 +39,7 @@ function Test-EntityAnalyticsEnabled {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Two signals: identity providers on the EntityAnalytics settings
     # resource, and IdentityInfo rows. Either capture missing is unknown.
     if ($Inventory.RawFiles -notcontains 'settings.json' -or $Inventory.RawFiles -notcontains 'ueba-data-presence.json') { return $null }

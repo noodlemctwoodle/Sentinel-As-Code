@@ -55,8 +55,8 @@ function Save-Json {
     # breaks downstream array-shaped readers (Read-RawArray + ForEach-Object).
     $target = Join-Path $script:RawOut $FileName
     $singleObjectFiles = @(
-        'workspace.json','run-context.json','settings.json','cost-estimate.json',
-        'subscription.json','dedicated-cluster.json','maturity.json','bookmarks-count.json',
+        'workspace.json', 'run-context.json', 'settings.json', 'cost-estimate.json',
+        'subscription.json', 'dedicated-cluster.json', 'maturity.json', 'bookmarks-count.json',
         'whats-new.json'
     )
     if ($null -eq $Data) {
@@ -65,11 +65,9 @@ function Save-Json {
         } else {
             '[]' | Set-Content -Path $target -Encoding UTF8
         }
-    }
-    elseif ($singleObjectFiles -contains $FileName) {
+    } elseif ($singleObjectFiles -contains $FileName) {
         $Data | ConvertTo-Json -Depth 32 -EnumsAsStrings | Set-Content -Path $target -Encoding UTF8
-    }
-    else {
+    } else {
         # Collection-shape file. Pipe through ConvertTo-Json so each item is
         # treated as a separate input, pipe + -AsArray always emits a JSON
         # array, including the single-element and empty cases. Using

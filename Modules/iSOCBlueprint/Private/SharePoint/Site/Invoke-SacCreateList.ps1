@@ -50,8 +50,7 @@ function Invoke-SacCreateList {
     try {
         $null = & $Create
         return (Get-PnPList -Identity $Url -ErrorAction Stop)
-    }
-    catch {
+    } catch {
         $failure = $_
         for ($i = 0; $i -lt 6; $i++) {
             Start-Sleep -Seconds 10

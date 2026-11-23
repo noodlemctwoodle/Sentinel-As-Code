@@ -287,8 +287,7 @@ Describe 'Invoke-iSOCRestRequest against a cmdlet that honours -WhatIf' {
                 Invoke-iSOCRestRequest -Method GET -Path $P -ApiVersion v
             }
             $result.ran | Should -BeTrue
-        }
-        finally {
+        } finally {
             InModuleScope iSOCDeployments { Remove-Item -Path function:script:Invoke-AzRestMethod }
         }
     }

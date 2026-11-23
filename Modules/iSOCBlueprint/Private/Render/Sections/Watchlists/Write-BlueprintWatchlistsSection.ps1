@@ -51,22 +51,22 @@ function Write-BlueprintWatchlistsSection {
     foreach ($f in $wlFresh) { if ($f.Alias) { $wlFreshByAlias[$f.Alias] = $f } }
     $wlStatusRank = @{ 'Stale, used by rules' = 0; 'Stale' = 1; 'Current' = 2; 'Content Hub' = 3 }
     $wlRows = @($watchlists | Where-Object { $_ -and $_.properties } | ForEach-Object {
-        $alias = $_.properties.watchlistAlias
-        $f = if ($alias -and $wlFreshByAlias.ContainsKey($alias)) { $wlFreshByAlias[$alias] } else { $null }
-        [pscustomobject]@{
-            Name            = $_.properties.displayName
-            Freshness       = $(if ($f) { $f.Status } else { '' })
-            'Age (days)'    = $(if ($f -and $null -ne $f.AgeDays) { $f.AgeDays } else { '' })
-            Updated         = Format-DateUtc $_.properties.updated
-            'Enabled rules' = $(if ($f) { $f.EnabledRules } else { 0 })
-            'Maintained by' = $(if ($f) { $f.MaintainedBy } else { '' })
-            'Search key'    = $_.properties.itemsSearchKey
-            Provider        = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
-            Description     = if ($_.properties.description) { [string]$_.properties.description } else { '' }
-            _Rank           = $(if ($f) { $wlStatusRank[$f.Status] } else { 9 })
-            _Age            = $(if ($f -and $null -ne $f.AgeDays) { $f.AgeDays } else { -1 })
-        }
-    } | Sort-Object _Rank, @{ Expression = '_Age'; Descending = $true }, Name)
+            $alias = $_.properties.watchlistAlias
+            $f = if ($alias -and $wlFreshByAlias.ContainsKey($alias)) { $wlFreshByAlias[$alias] } else { $null }
+            [pscustomobject]@{
+                Name            = $_.properties.displayName
+                Freshness       = $(if ($f) { $f.Status } else { '' })
+                'Age (days)'    = $(if ($f -and $null -ne $f.AgeDays) { $f.AgeDays } else { '' })
+                Updated         = Format-DateUtc $_.properties.updated
+                'Enabled rules' = $(if ($f) { $f.EnabledRules } else { 0 })
+                'Maintained by' = $(if ($f) { $f.MaintainedBy } else { '' })
+                'Search key'    = $_.properties.itemsSearchKey
+                Provider        = if ($_.properties.provider) { [string]$_.properties.provider } else { '' }
+                Description     = if ($_.properties.description) { [string]$_.properties.description } else { '' }
+                _Rank           = $(if ($f) { $wlStatusRank[$f.Status] } else { 9 })
+                _Age            = $(if ($f -and $null -ne $f.AgeDays) { $f.AgeDays } else { -1 })
+            }
+        } | Sort-Object _Rank, @{ Expression = '_Age'; Descending = $true }, Name)
     $wlOwn = @($wlFresh | Where-Object MaintainedBy -EQ 'Workspace').Count
     $wlStale = @($wlFresh | Where-Object { $_.Status -like 'Stale*' }).Count
     $wlStaleUsed = @($wlFresh | Where-Object Status -EQ 'Stale, used by rules').Count
@@ -84,10 +84,10 @@ function Write-BlueprintWatchlistsSection {
         if (-not $alias) { continue }
         $ruleNames = if ($rulesByWatchlistAlias.ContainsKey($alias)) { @($rulesByWatchlistAlias[$alias]) } else { @() }
         $wlUsageRows.Add([pscustomobject]@{
-            Alias     = $alias
-            RuleCount = $ruleNames.Count
-            Rules     = if ($ruleNames.Count -gt 0) { ($ruleNames | Sort-Object -Unique) -join '; ' } else { '_(no analytics rule references)_' }
-        })
+                Alias     = $alias
+                RuleCount = $ruleNames.Count
+                Rules     = if ($ruleNames.Count -gt 0) { ($ruleNames | Sort-Object -Unique) -join '; ' } else { '_(no analytics rule references)_' }
+            })
     }
 
     # Watchlist aliases referenced by rules but NOT present in the captured
@@ -102,10 +102,10 @@ function Write-BlueprintWatchlistsSection {
     foreach ($alias in $rulesByWatchlistAlias.Keys) {
         if (-not $wlAliasSet.ContainsKey($alias)) {
             $brokenWatchlistRefs.Add([pscustomobject]@{
-                MissingAlias = $alias
-                RuleCount    = $rulesByWatchlistAlias[$alias].Count
-                Rules        = ($rulesByWatchlistAlias[$alias] | Sort-Object -Unique) -join '; '
-            })
+                    MissingAlias = $alias
+                    RuleCount    = $rulesByWatchlistAlias[$alias].Count
+                    Rules        = ($rulesByWatchlistAlias[$alias] | Sort-Object -Unique) -join '; '
+                })
         }
     }
 
@@ -137,14 +137,16 @@ $($wlPieRows -join [Environment]::NewLine)
 "@
     } else { '' }
 
-    $brokenRefsBlock = if ($brokenWatchlistRefs.Count -gt 0) { @"
+    $brokenRefsBlock = if ($brokenWatchlistRefs.Count -gt 0) {
+        @"
 
 ## Broken watchlist references
 
 The analytics rules below reference watchlist aliases that don't exist in this workspace. These rule queries will fail at runtime: investigate whether the watchlist was deleted or the alias is mistyped.
 
 $(Format-BlueprintTable -Items $brokenWatchlistRefs -Columns 'MissingAlias','RuleCount','Rules')
-"@ } else { '' }
+"@
+    } else { '' }
 
     Write-BlueprintSection '50-watchlists.md' (@"
 $(Format-Banner -Title "Watchlists")

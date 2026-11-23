@@ -43,13 +43,13 @@ function Write-BlueprintDataExportSection {
     $dataExports = Read-BlueprintRawArray 'data-exports.json'
     $linkedServices = Read-BlueprintRawArray 'linked-services.json'
     $linkedRows = @($linkedServices | ForEach-Object {
-        $lp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
-        [pscustomobject]@{
-            Name                  = $_.name
-            ResourceId            = if ($lp -and $lp.PSObject.Properties['resourceId']) { $lp.resourceId } else { '' }
-            WriteAccessResourceId = if ($lp -and $lp.PSObject.Properties['writeAccessResourceId']) { $lp.writeAccessResourceId } else { '' }
-        }
-    })
+            $lp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
+            [pscustomobject]@{
+                Name                  = $_.name
+                ResourceId            = if ($lp -and $lp.PSObject.Properties['resourceId']) { $lp.resourceId } else { '' }
+                WriteAccessResourceId = if ($lp -and $lp.PSObject.Properties['writeAccessResourceId']) { $lp.writeAccessResourceId } else { '' }
+            }
+        })
     $exportRows = $dataExports | ForEach-Object {
         $dest = [string]$_.properties.destination.resourceId
         [pscustomobject]@{
@@ -61,15 +61,15 @@ function Write-BlueprintDataExportSection {
         }
     }
     $linkedStorageRows = @(Read-BlueprintRawArray 'linked-storage-accounts.json' | Where-Object { $_ } | ForEach-Object {
-        $lp = Get-BlueprintRawProperty $_ 'properties'
-        [pscustomobject]@{
-            DataSource      = [string](Get-BlueprintRawProperty $lp 'dataSourceType' $_.name)
-            StorageAccounts = (@(Get-BlueprintRawProperty $lp 'storageAccountIds' @()) | ForEach-Object { ([string]$_ -split '/')[-1] }) -join ', '
-        }
-    })
+            $lp = Get-BlueprintRawProperty $_ 'properties'
+            [pscustomobject]@{
+                DataSource      = [string](Get-BlueprintRawProperty $lp 'dataSourceType' $_.name)
+                StorageAccounts = (@(Get-BlueprintRawProperty $lp 'storageAccountIds' @()) | ForEach-Object { ([string]$_ -split '/')[-1] }) -join ', '
+            }
+        })
     $adxRows = @($linkedRows | Where-Object { $_.ResourceId -match '/providers/Microsoft\.Kusto/' } | ForEach-Object {
-        [pscustomobject]@{ Name = $_.Name; Cluster = ($_.ResourceId -split '/')[-1]; ResourceId = $_.ResourceId }
-    })
+            [pscustomobject]@{ Name = $_.Name; Cluster = ($_.ResourceId -split '/')[-1]; ResourceId = $_.ResourceId }
+        })
     Write-BlueprintSection '36-data-export.md' (@"
 $(Format-Banner -Title "Data Export  (TOC 4.3.3)")
 

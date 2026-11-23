@@ -117,8 +117,7 @@ function Invoke-iSOCFixtureStream {
                 Send-iSOCDataCollectorBatch -IngestUri $IngestUri -WorkspaceId $WorkspaceId -SharedKey $SharedKey -LogType $LogType -Record $records
                 $sent += $RecordCount
                 Write-iSOCLog "[$((Get-Date).ToString('HH:mm:ss'))] legacy batch $batchIndex OK (+$RecordCount, total $sent)"
-            }
-            catch {
+            } catch {
                 $failed++
                 Write-iSOCLog "legacy batch $batchIndex failed: $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             }
@@ -126,8 +125,7 @@ function Invoke-iSOCFixtureStream {
             $moreToDo = (-not ($BatchCount -and $batchIndex -ge $BatchCount)) -and (-not ($deadline -and [datetimeoffset]::UtcNow -ge $deadline))
             if ($moreToDo) { Start-Sleep -Seconds $IntervalSeconds }
         }
-    }
-    finally {
+    } finally {
         Write-iSOCLog "Streamed $sent records in $batchIndex batches to $Table." -Level Success
     }
     [pscustomobject]@{ BatchesSent = $batchIndex; BatchesFailed = $failed; RecordsSent = $sent }

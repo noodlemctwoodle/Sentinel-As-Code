@@ -61,49 +61,50 @@ function Write-BlueprintDeprecatedLegacyFeaturesSection {
     $tiCaptured = (& $has01 'threat-intel-tables.json') -or (& $has01 'alert-rules.json')
     $tipConnectors = @($connectors | Where-Object { $_ -and [string]$_.kind -eq 'ThreatIntelligence' }).Count
     $runwayVisualLine = Format-VisualLine -Kind 'runway' -Data ([ordered]@{ today = $today; items = @(
-        [ordered]@{
-            label = 'MMA / OMS agent retired'
-            date = '2024-08-31'
-            state = 'done'
-            inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0))
-            evidence = (Format-BlueprintPlural $mmaMachines01 'machine')
-        }
-        [ordered]@{
-            label = 'MMA ingestion degraded'
-            date = '2025-02-01'
-            state = 'done'
-            inUse = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0))
-            evidence = (Format-BlueprintPlural $mmaMachines01 'machine')
-        }
-        [ordered]@{
-            label = 'Legacy threat intelligence ingestion stopped'
-            date = '2025-07-31'
-            state = 'done'
-            inUse = (& $runwayUse $tiCaptured ($tiLegacyRows01 -gt 0 -or $tiLegacyRules01 -gt 0))
-            evidence = "$(Format-BlueprintPlural $tiLegacyRows01 'record'), $(Format-BlueprintPlural $tiLegacyRules01 'rule')"
-        }
-        [ordered]@{
-            label = 'HTTP Data Collector API retires'
-            date = '2026-09-14'
-            state = 'crit'
-            inUse = (& $runwayUse (& $has01 'workspace-tables.json') ($classicTables01.Count -gt 0))
-            evidence = (Format-BlueprintPlural $classicTables01.Count 'classic table')
-        }
-        [ordered]@{
-            label = 'Sentinel in the Azure portal retires (move to the Defender portal)'
-            date = '2027-03-31'
-            state = 'crit'
-            inUse = $null
-            evidence = ''
-        }
-        [ordered]@{
-            label = 'Legacy threat intelligence platform connector deprecates'
-            date = '2027-06-30'
-            state = 'active'
-            inUse = (& $runwayUse (& $has01 'data-connectors-classic.json') ($tipConnectors -gt 0))
-            evidence = 'connector connected'
-        }
-    ) })
+                [ordered]@{
+                    label    = 'MMA / OMS agent retired'
+                    date     = '2024-08-31'
+                    state    = 'done'
+                    inUse    = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0))
+                    evidence = (Format-BlueprintPlural $mmaMachines01 'machine')
+                }
+                [ordered]@{
+                    label    = 'MMA ingestion degraded'
+                    date     = '2025-02-01'
+                    state    = 'done'
+                    inUse    = (& $runwayUse $mmaCaptured ($mmaMachines01 -gt 0))
+                    evidence = (Format-BlueprintPlural $mmaMachines01 'machine')
+                }
+                [ordered]@{
+                    label    = 'Legacy threat intelligence ingestion stopped'
+                    date     = '2025-07-31'
+                    state    = 'done'
+                    inUse    = (& $runwayUse $tiCaptured ($tiLegacyRows01 -gt 0 -or $tiLegacyRules01 -gt 0))
+                    evidence = "$(Format-BlueprintPlural $tiLegacyRows01 'record'), $(Format-BlueprintPlural $tiLegacyRules01 'rule')"
+                }
+                [ordered]@{
+                    label    = 'HTTP Data Collector API retires'
+                    date     = '2026-09-14'
+                    state    = 'crit'
+                    inUse    = (& $runwayUse (& $has01 'workspace-tables.json') ($classicTables01.Count -gt 0))
+                    evidence = (Format-BlueprintPlural $classicTables01.Count 'classic table')
+                }
+                [ordered]@{
+                    label    = 'Sentinel in the Azure portal retires (move to the Defender portal)'
+                    date     = '2027-03-31'
+                    state    = 'crit'
+                    inUse    = $null
+                    evidence = ''
+                }
+                [ordered]@{
+                    label    = 'Legacy threat intelligence platform connector deprecates'
+                    date     = '2027-06-30'
+                    state    = 'active'
+                    inUse    = (& $runwayUse (& $has01 'data-connectors-classic.json') ($tipConnectors -gt 0))
+                    evidence = 'connector connected'
+                }
+            )
+        })
 
     $legacyBody = @"
 $(Format-Banner -Title "Deprecated and Legacy Features")

@@ -52,12 +52,10 @@ function ConvertFrom-BpMermaidXy {
             if ($Matches['title']) { $x.title = ConvertTo-BpMermaidText $Matches['title'] }
             $rest = $Matches['rest'].Trim()
             if ($rest.StartsWith('[')) { $x.labels = @(ConvertFrom-BpMermaidList $rest) }
-        }
-        elseif ($t -match '^y-axis\s+(?:(?<title>"[^"]*"|[^\d\s"-][^\s]*)\s*)?(?:(?<min>[-+0-9.]+)\s*-->\s*(?<max>[-+0-9.]+))?\s*$') {
+        } elseif ($t -match '^y-axis\s+(?:(?<title>"[^"]*"|[^\d\s"-][^\s]*)\s*)?(?:(?<min>[-+0-9.]+)\s*-->\s*(?<max>[-+0-9.]+))?\s*$') {
             if ($Matches['title']) { $y.title = ConvertTo-BpMermaidText $Matches['title'] }
             if ($Matches['min']) { $y.min = ConvertTo-BpNumber $Matches['min']; $y.max = ConvertTo-BpNumber $Matches['max'] }
-        }
-        elseif ($t -match '^(?<kind>bar|line)\s+(?:(?<name>"[^"]*"|[^\[\s]+)\s+)?(?<values>\[.*\])\s*$') {
+        } elseif ($t -match '^(?<kind>bar|line)\s+(?:(?<name>"[^"]*"|[^\[\s]+)\s+)?(?<values>\[.*\])\s*$') {
             $series.Add([ordered]@{
                     kind   = $Matches['kind']
                     name   = $(if ($Matches['name']) { ConvertTo-BpMermaidText $Matches['name'] } else { $null })

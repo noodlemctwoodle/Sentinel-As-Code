@@ -83,8 +83,7 @@ function Get-iSOCDcrSchemaReview {
     $existingTable = $null
     try {
         $existingTable = Get-iSOCWorkspaceTableSchema -Context $Context -Table $TableName
-    }
-    catch {
+    } catch {
         $reason = ($_.Exception.Message -replace '\s+', ' ').Trim()
         Write-iSOCLog "Could not read the existing table: $reason" -Level Warning
         Write-iSOCLog 'Continuing without it. Two checks are skipped for this run: whether the table is a Classic table a DCR cannot target, and whether any column type differs from the live table. Azure rejects both regardless, so the risk is a less clear error later rather than a bad deployment.' -Level Warning

@@ -117,8 +117,7 @@ function Get-iSOCParserAliasIndex {
         if ($verdict.Alias) { $verdictOf[$verdict.Alias] = $verdict }
         if ($verdict.IsSafe) {
             [void]$safe.Add($verdict.Alias)
-        }
-        elseif ($verdict.Alias -and $seenSkip.Add($verdict.Alias)) {
+        } elseif ($verdict.Alias -and $seenSkip.Add($verdict.Alias)) {
             $skipInfo.Add([pscustomobject]@{
                     Alias  = $verdict.Alias
                     Parser = ((& $read $parser 'properties.displayName') ?? (& $read $parser 'name'))
@@ -156,8 +155,8 @@ function Get-iSOCParserAliasIndex {
     }
     foreach ($parser in @($Content.Parsers)) {
         $raw.Add([pscustomobject]@{
-                Type = 'Parsers'
-                Name = ((& $read $parser 'properties.functionAlias') ?? (& $read $parser 'properties.displayName') ?? (& $read $parser 'name'))
+                Type  = 'Parsers'
+                Name  = ((& $read $parser 'properties.functionAlias') ?? (& $read $parser 'properties.displayName') ?? (& $read $parser 'name'))
                 ResourceId = (& $read $parser 'id'); Alias = (& $read $parser 'properties.functionAlias')
                 Parts = @([string](& $read $parser 'properties.query'))
                 Enabled = $null; Severity = $null; Category = $null; State = $null
@@ -217,8 +216,7 @@ function Get-iSOCParserAliasIndex {
         if ($n.Alias) {
             $aliasVerdict = if ($trimmedAlias -and $verdictOf.ContainsKey($trimmedAlias)) {
                 $verdictOf[$trimmedAlias]
-            }
-            else {
+            } else {
                 Get-iSOCFunctionAliasSafety -Alias ([string]$n.Alias) -MinimumLength $MinimumAliasLength `
                     -WorkspaceTableName $WorkspaceTableName -WorkspaceColumnName $WorkspaceColumnName
             }

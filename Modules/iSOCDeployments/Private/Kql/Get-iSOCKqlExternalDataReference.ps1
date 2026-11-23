@@ -29,7 +29,7 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-iSOCKqlExternalDataReference {
-<#
+    <#
 .SYNOPSIS
     Extract every URL referenced by an `externaldata(...)` operator's
     bracket list in the supplied KQL query.
@@ -53,7 +53,7 @@ function Get-iSOCKqlExternalDataReference {
     # Match the whole 'externaldata(...) [ ... ]' block, then pull URL
     # literals from the bracket list. Singleline so the match spans newlines.
     $blockRegex = [regex]::new('externaldata\s*\([^)]+\)\s*\[(?<urls>[^\]]+)\]', 'IgnoreCase, Singleline')
-    $urlRegex   = [regex]::new('["''](?<url>https?://[^"'']+)["'']')
+    $urlRegex = [regex]::new('["''](?<url>https?://[^"'']+)["'']')
 
     $found = [System.Collections.Generic.List[string]]::new()
     foreach ($block in $blockRegex.Matches($clean)) {

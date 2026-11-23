@@ -39,13 +39,13 @@ function Test-SecurityEventDuplicates {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'security-event-duplicates.json') { return $null }
     $hosts = @($Inventory.SecurityEventDuplicates | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'Computer' '') })
     if ($hosts.Count -eq 0) { return $null }
     $names = @($hosts | ForEach-Object {
-        $n = Get-PropOrDefault $_ 'DuplicateRecords' $null
-        if ($null -ne $n) { "$([string]$_.Computer) ($(Format-BlueprintPlural (ConvertTo-GapInt $n) 'duplicated event'))" } else { [string]$_.Computer }
-    })
+            $n = Get-PropOrDefault $_ 'DuplicateRecords' $null
+            if ($null -ne $n) { "$([string]$_.Computer) ($(Format-BlueprintPlural (ConvertTo-GapInt $n) 'duplicated event'))" } else { [string]$_.Computer }
+        })
     return New-Finding -Evidence "$(Format-BlueprintPlural $hosts.Count 'host') sent the same SecurityEvent record more than once in the last hour: $($names -join ', ')." -Detail @{ Hosts = @($hosts | ForEach-Object { [string]$_.Computer }) }
 }

@@ -75,8 +75,7 @@ function Write-BlueprintWhatsNewSection {
         $parsed = [datetime]::MinValue
         if ($D -match '^\d{4}-\d{2}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM-dd', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
             $shown = $parsed.ToString('d MMM yyyy', $inv)
-        }
-        elseif ($D -match '^\d{4}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+        } elseif ($D -match '^\d{4}-\d{2}$' -and [datetime]::TryParseExact($D, 'yyyy-MM', $inv, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
             $shown = $parsed.ToString('MMM yyyy', $inv)
         }
         if ($D.Length -le $wnToday.Length -and [string]::CompareOrdinal($D, $wnToday.Substring(0, $D.Length)) -lt 0) { "$shown (passed)" } else { $shown }
@@ -88,19 +87,19 @@ function Write-BlueprintWhatsNewSection {
         } catch { $M }
     }
     $wnRows = @($wnItems | ForEach-Object {
-        $rel = Get-WhatsNewRelations -Item $_
-        [pscustomobject]@{
-            Product   = [string]$_.Product
-            Month     = (& $wnMonth ([string]$_.Month))
-            Status    = [string]$_.Status
-            Item      = "[$(([string]$_.Title) -replace '\|', '/')]($([string]$_.Link))"
-            Summary   = ((& $wnFirstSentence ([string]$_.Summary)) -replace '\|', '/')
-            Deadline  = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { & $wnDeadline ([string]$_.Deadline) } else { '' })
-            DeadlineKey = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { [string]$_.Deadline } else { '' })
-            'Relates to here' = $rel
-            Gap       = [bool]($rel -match '\b(gap|unknown)\b')
-        }
-    })
+            $rel = Get-WhatsNewRelations -Item $_
+            [pscustomobject]@{
+                Product           = [string]$_.Product
+                Month             = (& $wnMonth ([string]$_.Month))
+                Status            = [string]$_.Status
+                Item              = "[$(([string]$_.Title) -replace '\|', '/')]($([string]$_.Link))"
+                Summary           = ((& $wnFirstSentence ([string]$_.Summary)) -replace '\|', '/')
+                Deadline          = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { & $wnDeadline ([string]$_.Deadline) } else { '' })
+                DeadlineKey       = $(if ($_.PSObject.Properties['Deadline'] -and $_.Deadline) { [string]$_.Deadline } else { '' })
+                'Relates to here' = $rel
+                Gap               = [bool]($rel -match '\b(gap|unknown)\b')
+            }
+        })
     $wnStatusOrder = 'Action needed', 'Retiring', 'Generally available', 'Preview', 'Update'
     $wnCount = { param([string]$S, [string]$P) @($wnRows | Where-Object { $_.Status -eq $S -and (-not $P -or $_.Product -eq $P) }).Count }
     $wnActionRows = @(
@@ -111,34 +110,34 @@ function Write-BlueprintWhatsNewSection {
     $wnGapCount = @($wnRows | Where-Object Gap).Count
     $wnTone = @{ 'Action needed' = 'warn'; 'Retiring' = 'bad'; 'Generally available' = 'ok'; 'Preview' = 'info'; 'Update' = 'neutral' }
     $wnVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{
-        meters = @(foreach ($p in 'Microsoft Sentinel', 'Microsoft Defender XDR') {
-            [ordered]@{
-                title = $p
-                caption = "Items in the last $(if ($whatsNew) { $whatsNew.Months } else { 12 }) months"
-                total = @($wnRows | Where-Object Product -EQ $p).Count
-                parts = @(foreach ($s in $wnStatusOrder) { [ordered]@{ label = $s; value = (& $wnCount $s $p); tone = $wnTone[$s] } })
-            }
+            meters  = @(foreach ($p in 'Microsoft Sentinel', 'Microsoft Defender XDR') {
+                    [ordered]@{
+                        title   = $p
+                        caption = "Items in the last $(if ($whatsNew) { $whatsNew.Months } else { 12 }) months"
+                        total   = @($wnRows | Where-Object Product -EQ $p).Count
+                        parts   = @(foreach ($s in $wnStatusOrder) { [ordered]@{ label = $s; value = (& $wnCount $s $p); tone = $wnTone[$s] } })
+                    }
+                })
+            figures = @(
+                [ordered]@{ label = 'Retiring or needing action'; value = $wnActionRows.Count; caption = 'Listed first below, soonest deadline first' }
+                [ordered]@{
+                    label   = 'Touching a criterion not met here'
+                    value   = $wnGapCount
+                    caption = 'A linked maturity criterion is a gap or unknown on this workspace'
+                }
+            )
         })
-        figures = @(
-            [ordered]@{ label = 'Retiring or needing action'; value = $wnActionRows.Count; caption = 'Listed first below, soonest deadline first' }
-            [ordered]@{
-                label = 'Touching a criterion not met here'
-                value = $wnGapCount
-                caption = 'A linked maturity criterion is a gap or unknown on this workspace'
-            }
-        )
-    })
     $wnSources = @(if ($whatsNew -and $whatsNew.PSObject.Properties['Sources']) { @($whatsNew.Sources) })
     $wnFetched = if ($whatsNew -and $whatsNew.PSObject.Properties['FetchedUtc']) { Format-BlueprintDate $whatsNew.FetchedUtc -Time } else { '' }
     $wnPages = if ($wnSources.Count) { $wnSources } else {
         @([pscustomobject]@{ Product = 'Microsoft Sentinel'; Url = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new' }
-          [pscustomobject]@{ Product = 'Microsoft Defender XDR'; Url = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new' })
+            [pscustomobject]@{ Product = 'Microsoft Defender XDR'; Url = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new' })
     }
     $wnSourceLines = (@($wnPages | ForEach-Object {
-        "- [What's new in $($_.Product) (Microsoft Learn)]($($_.Url))$(if ($_.PSObject.Properties['Ok'] -and -not $_.Ok) { ', which could not be read in this run' })"
-    }) -join [Environment]::NewLine)
+                "- [What's new in $($_.Product) (Microsoft Learn)]($($_.Url))$(if ($_.PSObject.Properties['Ok'] -and -not $_.Ok) { ', which could not be read in this run' })"
+            }) -join [Environment]::NewLine)
     $wnBody = if (-not $wnItems.Count) {
-    @"
+        @"
 $(Format-Banner -Title "What's New")
 
 What Microsoft has released, previewed and announced for retirement in Microsoft Sentinel and Microsoft Defender XDR, read from their What's new pages on Microsoft Learn and linked to this report's pages and maturity criteria.
@@ -148,7 +147,7 @@ _Not captured in this snapshot: the collector reads the two What's new pages whe
 $wnSourceLines
 "@
     } else {
-    @"
+        @"
 $(Format-Banner -Title "What's New")
 
 What Microsoft has released, previewed and announced for retirement in Microsoft Sentinel and Microsoft Defender XDR over the last $($whatsNew.Months) months, read from their What's new pages on Microsoft Learn on $wnFetched. Each item links to its entry on Learn and to the pages of this report and the maturity criteria it touches, with this workspace's status for each criterion; a criterion whose finding fired links to the finding.

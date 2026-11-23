@@ -51,7 +51,7 @@ function Add-SacSnapshotEntry {
     )
     $date = [string]$Entry.date
     $all = @(@(@($Index.entries | Where-Object { $_ -and [string]$_.date -and [string]$_.date -ne $date }) + @($Entry)) |
-        Sort-Object @{ Expression = { [string]$_.date }; Descending = $true })
+            Sort-Object @{ Expression = { [string]$_.date }; Descending = $true })
     $newest = [datetime]::ParseExact([string]$all[0].date, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
     $cutoff = $newest.AddDays(1 - $Days).ToString('yyyy-MM-dd')
     $kept = @($all | Where-Object { [string]::CompareOrdinal([string]$_.date, $cutoff) -ge 0 })

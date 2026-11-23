@@ -124,15 +124,13 @@ function Get-iSOCWorkspaceOnboarding {
     $found.ResourceGroupExists = & $exists "$groupPath/$ResourceGroup" ResourceGroups
     if (-not $found.ResourceGroupExists) {
         Write-iSOCLog "  Sentinel resource group '$ResourceGroup' missing."
-    }
-    else {
+    } else {
         Write-iSOCLog "  Sentinel resource group '$ResourceGroup' exists."
         $workspacePath = "$groupPath/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
         $found.WorkspaceExists = & $exists $workspacePath OperationalInsights
         if (-not $found.WorkspaceExists) {
             Write-iSOCLog "  Workspace '$WorkspaceName' missing."
-        }
-        else {
+        } else {
             Write-iSOCLog "  Workspace '$WorkspaceName' exists."
             $found.SolutionExists = & $exists "$groupPath/$ResourceGroup/providers/Microsoft.OperationsManagement/solutions/SecurityInsights($WorkspaceName)" OperationsManagement
             $found.OnboardingStateExists = & $exists "$workspacePath/providers/Microsoft.SecurityInsights/onboardingStates/default" SecurityInsights

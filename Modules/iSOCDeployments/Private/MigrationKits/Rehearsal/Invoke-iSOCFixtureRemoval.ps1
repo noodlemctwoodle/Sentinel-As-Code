@@ -101,8 +101,7 @@ function Invoke-iSOCFixtureRemoval {
                     Write-iSOCLog "Deleted $Label $($row.Name)." -Level Success
                     $removed.Add($row.ResourceId)
                 }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "Failed to delete $($row.ResourceId): $($_.Exception.Message.Split([char]10)[0])" -Level Warning
                 $failed.Add($row.ResourceId)
             }
@@ -153,8 +152,7 @@ function Invoke-iSOCFixtureRemoval {
                 Write-iSOCLog "Deleted $tableName." -Level Success
                 $removed.Add($row.ResourceId)
             }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Failed to remove $tableName : $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             $failed.Add($row.ResourceId)
         }

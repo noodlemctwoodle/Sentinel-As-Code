@@ -250,7 +250,7 @@ Describe 'Absorbed rule files' {
         $script:orphan = New-WorkspaceRule -Name '6F1C2A3B-0000-4000-8000-000000000001' -Properties @{
             displayName = 'Portal: odd name'; techniques = @('T1078', 'T1110'); subTechniques = @('T1110.003', 'T1078.004')
             tactics = @('InitialAccess'); query = "SigninLogs`n| take 1`n"
-            entityMappings = @(@{ entityType = 'Account'; fieldMappings = @(@{ identifier = 'FullName'; columnName = 'UserPrincipalName' }) })
+            entityMappings        = @(@{ entityType = 'Account'; fieldMappings = @(@{ identifier = 'FullName'; columnName = 'UserPrincipalName' }) })
             incidentConfiguration = @{ createIncident = $true; groupingConfiguration = @{ enabled = $false; lookbackDuration = 'PT5H' } }
         }
         $script:orphanYaml = Invoke-InModule { param($R) ConvertTo-iSOCAnalyticsRuleYaml -WorkspaceItem $R -Provenance Orphan } @{ R = $script:orphan }
@@ -421,8 +421,7 @@ Describe 'Whole runs against a workspace built from this repository' {
             $edit = $null
             if ($entry.Body.kind -eq 'Scheduled' -and -not $isCommunity -and $scheduledIndex -lt $edits.Count -and $entry.Item.RelativePath -notlike '*AzureVmRunCommand*') {
                 $edit = $edits[$scheduledIndex]; $scheduledIndex++
-            }
-            elseif ($entry.Body.kind -eq 'NRT' -and -not $script:mutated.Contains('nrt')) { $edit = @{ query = 'APPEND' }; $script:mutated['nrt'] = $entry.Item.RelativePath }
+            } elseif ($entry.Body.kind -eq 'NRT' -and -not $script:mutated.Contains('nrt')) { $edit = @{ query = 'APPEND' }; $script:mutated['nrt'] = $entry.Item.RelativePath }
             elseif ($isCommunity -and -not $script:mutated.Contains('community')) { $edit = @{ severity = 'High' }; $script:mutated['community'] = $entry.Item.RelativePath }
             if ($edit) {
                 foreach ($key in $edit.Keys) {
@@ -481,7 +480,7 @@ Describe 'Whole runs against a workspace built from this repository' {
         $deployed.Add((& $hubRule 'd1d1d1d1-0000-4000-8000-000000000006' 'tmpl-x'))
         $deployed.Add((& $hubRule 'e1e1e1e1-0000-4000-8000-000000000007' 'tmpl-gone'))
         $orphanProps = & $templateRule 'Portal orphan: brute force' 'High' "SigninLogs`n| where ResultType == 50126`n| summarize count() by UserPrincipalName" 'Scheduled' @{
-            entityMappings = @([ordered]@{ entityType = 'Account'; fieldMappings = @([ordered]@{ identifier = 'FullName'; columnName = 'UserPrincipalName' }) })
+            entityMappings        = @([ordered]@{ entityType = 'Account'; fieldMappings = @([ordered]@{ identifier = 'FullName'; columnName = 'UserPrincipalName' }) })
             incidentConfiguration = [ordered]@{ createIncident = $true; groupingConfiguration = [ordered]@{ enabled = $false; lookbackDuration = 'PT5H'; matchingMethod = 'AllEntities' } }
             eventGroupingSettings = [ordered]@{ aggregationKind = 'SingleAlert' }
         }

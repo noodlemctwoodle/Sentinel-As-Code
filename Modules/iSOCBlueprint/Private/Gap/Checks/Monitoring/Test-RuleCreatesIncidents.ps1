@@ -39,15 +39,15 @@ function Test-RuleCreatesIncidents {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $rules = @(Get-GapEnabledQueryRule $Inventory)
     if ($rules.Count -eq 0) { return $null }
     # createIncident defaults to true when the block is absent, so only an
     # explicit false counts.
     $alertOnly = @($rules | Where-Object {
-        $ic = Get-PropOrDefault $_ 'properties.incidentConfiguration' $null
-        ($null -ne $ic) -and ($ic.PSObject.Properties.Name -contains 'createIncident') -and (-not (ConvertTo-GapBool $ic.createIncident))
-    })
+            $ic = Get-PropOrDefault $_ 'properties.incidentConfiguration' $null
+            ($null -ne $ic) -and ($ic.PSObject.Properties.Name -contains 'createIncident') -and (-not (ConvertTo-GapBool $ic.createIncident))
+        })
     if ($alertOnly.Count -eq 0) { return $null }
     $names = @($alertOnly | ForEach-Object { Get-GapRuleLabel $_ })
     $sample = $names -join '; '

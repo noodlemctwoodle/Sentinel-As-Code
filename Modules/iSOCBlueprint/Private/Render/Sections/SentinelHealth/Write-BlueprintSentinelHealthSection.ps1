@@ -44,12 +44,12 @@ function Write-BlueprintSentinelHealthSection {
     $health = Read-BlueprintRawArray 'sentinel-health.json'
     $healthRows = $health | ForEach-Object {
         [pscustomobject]@{
-            Resource = $_.SentinelResourceName
-            Kind     = $_.SentinelResourceKind
-            Type     = $_.SentinelResourceType
-            Events   = Format-BlueprintCount $_.Events
-            Failures = Format-BlueprintCount (Get-BlueprintRawProperty $_ 'Failures' '')
-            Statuses = ((Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses')) -join ', ')
+            Resource           = $_.SentinelResourceName
+            Kind               = $_.SentinelResourceKind
+            Type               = $_.SentinelResourceType
+            Events             = Format-BlueprintCount $_.Events
+            Failures           = Format-BlueprintCount (Get-BlueprintRawProperty $_ 'Failures' '')
+            Statuses           = ((Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses')) -join ', ')
             'Last event (UTC)' = Format-DateUtc $_.LastEvent
         }
     }
@@ -57,21 +57,21 @@ function Write-BlueprintSentinelHealthSection {
     # captures; an older snapshot falls back to a non-Success status.
     $healthFailuresCaptured = @($health | Where-Object { $_ -and $_.PSObject.Properties['Failures'] }).Count -gt 0
     $connectorHealthRows = @($health | Where-Object {
-        $_ -and (([string]$_.SentinelResourceType + ' ' + [string]$_.SentinelResourceKind) -match 'connector') -and
-        $(
-            if ($_.PSObject.Properties['Failures']) {
-                [long]$_.Failures -gt 0
-            } else { @(Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses') | Where-Object { $_ -ne 'Success' }).Count -gt 0 }
-        )
-    } | ForEach-Object {
-        [pscustomobject]@{
-            Connector   = $_.SentinelResourceName
-            Kind        = $_.SentinelResourceKind
-            Failures    = Get-BlueprintRawProperty $_ 'Failures' 'not captured'
-            'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure')
-            Statuses    = ((Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses')) -join ', ')
-        }
-    } |
+            $_ -and (([string]$_.SentinelResourceType + ' ' + [string]$_.SentinelResourceKind) -match 'connector') -and
+            $(
+                if ($_.PSObject.Properties['Failures']) {
+                    [long]$_.Failures -gt 0
+                } else { @(Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses') | Where-Object { $_ -ne 'Success' }).Count -gt 0 }
+            )
+        } | ForEach-Object {
+            [pscustomobject]@{
+                Connector            = $_.SentinelResourceName
+                Kind                 = $_.SentinelResourceKind
+                Failures             = Get-BlueprintRawProperty $_ 'Failures' 'not captured'
+                'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure')
+                Statuses             = ((Get-BlueprintRawList (Get-BlueprintRawProperty $_ 'Statuses')) -join ', ')
+            }
+        } |
         Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Failures }; Descending = $true }, Connector |
         ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
     $healthSummary = Read-BlueprintRawArray 'sentinel-health-summary.json'
@@ -80,8 +80,8 @@ function Write-BlueprintSentinelHealthSection {
     }
     $laQueryLogs = Read-BlueprintRawArray 'la-query-logs.json' | Select-Object -First 1
     $ingestionFailureRows = @(Read-BlueprintRawArray 'ingestion-latency.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{ OperationKey = $_.OperationKey; Resource = $_.Resource; Failures = $_.Failures; 'Last failure (UTC)' = Format-DateUtc $_.Last }
-    } | Sort-Object { ConvertTo-BlueprintNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
+            [pscustomobject]@{ OperationKey = $_.OperationKey; Resource = $_.Resource; Failures = $_.Failures; 'Last failure (UTC)' = Format-DateUtc $_.Last }
+        } | Sort-Object { ConvertTo-BlueprintNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
     $laQueryLine = if ($laQueryLogs -and $laQueryLogs.QueryCount) {
         "**LAQueryLogs activity ({lookback-d}):** $(Format-BlueprintCount $laQueryLogs.QueryCount) query records (query logging is active)."
     } elseif ($laQueryLogs) {

@@ -39,12 +39,12 @@ function Test-WindowsEventXPathFilterOpportunity {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # 5 GB / day across SecurityEvent + WindowsEvent is the trigger, the
     # AMA DCRs that ship Microsoft's own SecurityEvent collection ('All
     # Events') easily clear that on a domain controller, and the XPath
     # change is a documented, low-risk DCR edit.
-    $tables = @('SecurityEvent','WindowsEvent','Event')
+    $tables = @('SecurityEvent', 'WindowsEvent', 'Event')
     $totalGb30 = 0.0
     foreach ($t in @($Inventory.TablesWithData)) {
         if ($tables -contains (Get-PropOrDefault $t 'DataType' '')) {

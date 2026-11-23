@@ -32,9 +32,9 @@ BeforeAll {
     $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-        "`n"
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
     . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
@@ -139,19 +139,19 @@ Describe 'The build carries the daily series' {
     }
 
     It 'describes each table, alert, incident group and rule as the cards need' {
-        $t = @($script:model.daily.tables | Where-Object t -eq 'SigninLogs')[0]
+        $t = @($script:model.daily.tables | Where-Object t -EQ 'SigninLogs')[0]
         $t.f | Should -Be 'Entra ID / Identity'
         $t.plan | Should -Be 'Analytics'
         $t.pl | Should -Not -BeNullOrEmpty
         $t.cov | Should -BeTrue
-        $a = @($script:model.daily.alerts | Where-Object n -eq 'Anonymous IP address')[0]
+        $a = @($script:model.daily.alerts | Where-Object n -EQ 'Anonymous IP address')[0]
         $a.pf | Should -Be 'Entra ID / Identity'
         $a.pv | Should -Be 'IPC'
-        $s = @($script:model.daily.alerts | Where-Object n -eq 'Suspicious sign-in from rare country')[0]
+        $s = @($script:model.daily.alerts | Where-Object n -EQ 'Suspicious sign-in from rare country')[0]
         $s.r | Should -Be 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
         $s.pf | Should -Be ''
-        @($script:model.daily.incidents | Where-Object st -eq 'Closed' | Where-Object by -eq 'AutomationRule').Count | Should -BeGreaterThan 0
-        $r = @($script:model.daily.rules | Where-Object id -eq 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')[0]
+        @($script:model.daily.incidents | Where-Object st -EQ 'Closed' | Where-Object by -EQ 'AutomationRule').Count | Should -BeGreaterThan 0
+        $r = @($script:model.daily.rules | Where-Object id -EQ 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')[0]
         $r.src | Should -Be 'Analytics rule'
         $r.n | Should -Be 'Suspicious sign-in from rare country'
     }
@@ -161,7 +161,7 @@ Describe 'The build carries the daily series' {
         [math]::Round((Get-SeriesSum $d.tables 1), 1) | Should -Be ([math]::Round([double]$m.estate.totalGb, 1))
         Get-SeriesSum $d.alerts 1 | Should -Be $m.estate.alerts
         Get-SeriesSum $d.incidents 1 | Should -Be $m.estate.incidents
-        Get-SeriesSum @($d.incidents | Where-Object st -eq 'Closed') 1 | Should -Be $m.estate.incidentsClosed
+        Get-SeriesSum @($d.incidents | Where-Object st -EQ 'Closed') 1 | Should -Be $m.estate.incidentsClosed
         Get-SeriesSum $d.health 1 | Should -Be $m.health.totalEvents
         Get-SeriesSum @($d.playbooks | Where-Object { -not $_.unavailable }) 1 | Should -Be $m.playbookHealth.runs7d
         Get-SeriesSum @($d.playbooks | Where-Object { -not $_.unavailable }) 2 | Should -Be $m.playbookHealth.failed7d
@@ -170,8 +170,8 @@ Describe 'The build carries the daily series' {
     }
 
     It 'names the rule id behind each detection outcome' {
-        @($script:model.detectionOutcomes | Where-Object source -eq 'Sentinel' | Where-Object { -not $_.key }).Count | Should -Be 0
-        @($script:model.detectionOutcomes | Where-Object source -eq 'Defender XDR' | Where-Object { $_.key }).Count | Should -Be 0
+        @($script:model.detectionOutcomes | Where-Object source -EQ 'Sentinel' | Where-Object { -not $_.key }).Count | Should -Be 0
+        @($script:model.detectionOutcomes | Where-Object source -EQ 'Defender XDR' | Where-Object { $_.key }).Count | Should -Be 0
     }
 
     It 'prices each table from the estimate when it carries every table' {
@@ -185,8 +185,8 @@ Describe 'The build carries the daily series' {
             $c | ConvertTo-Json -Depth 10 | Set-Content $p
         }
         $m.daily.costed | Should -BeTrue
-        (@($m.daily.tables | Where-Object t -eq 'FirewallLogs_CL')[0]).u | Should -Be 2.3
-        (@($m.daily.tables | Where-Object t -eq 'SecurityEvent')[0]).u | Should -Be 0
+        (@($m.daily.tables | Where-Object t -EQ 'FirewallLogs_CL')[0]).u | Should -Be 2.3
+        (@($m.daily.tables | Where-Object t -EQ 'SecurityEvent')[0]).u | Should -Be 0
     }
 
     It 'carries no series for a run collected before them' {
@@ -205,16 +205,16 @@ Describe 'The build carries the daily series' {
             param($raw)
             $p = Join-Path $raw 'alert-rules.json'
             $rules = @(Get-Content $p -Raw | ConvertFrom-Json)
-            (@($rules | Where-Object name -eq 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')[0]).properties.enabled = $false
+            (@($rules | Where-Object name -EQ 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')[0]).properties.enabled = $false
             ConvertTo-Json -InputObject $rules -Depth 20 | Set-Content $p
         }
         $m.estate.rulesFired | Should -Be 1
         $m.estate.rings.alerts.max | Should -Be 1
         $m.estate.rings.alerts.pct | Should -Be 100
         $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
-            Sort-Object FullName |
-            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
-            "`n"
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+        "`n"
         $renderer | Should -Match 'RulesFired\s+= \$firedEnabled'
     }
 }
@@ -250,8 +250,8 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
         # Cost and the flow only when the estimate priced every table.
         $script:html | Should -Match 'if\(M\.cost && D\.costed\)\{'
         foreach ($field in 'M\.flow=\{nodes, links\}', 'M\.flowTables=', 'E\.sources=', 'E\.productAlerts=', 'M\.topRules=', 'M\.health=\{',
-                'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=',
-                        'L\.mttrMinutes=', 'M\.usageDaily=') {
+            'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=',
+            'L\.mttrMinutes=', 'M\.usageDaily=') {
             $script:html | Should -Match $field
         }
         # Sentences name the window: the last N days, or the N days to a date.

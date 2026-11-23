@@ -53,14 +53,14 @@ function Write-BlueprintAnalyticsRulesSection {
     $volChartBlock = if ($ruleVolumes.Count -gt 0) {
         $top10 = $ruleVolumes | Select-Object -First 10
         $volAxis = ($top10 | ForEach-Object {
-            $n = $_.AlertName
-            # Use first significant word, max 12 chars, no parens
-            $clean = ($n -replace '\(.*?\)', '' -replace '\[.*?\]', '').Trim()
-            $words = $clean -split '\s+'
-            $label = if ($words.Count -gt 0) { $words[0] } else { 'rule' }
-            if ($label.Length -gt 12) { $label = $label.Substring(0,12) }
-            "`"$label`""
-        }) -join ', '
+                $n = $_.AlertName
+                # Use first significant word, max 12 chars, no parens
+                $clean = ($n -replace '\(.*?\)', '' -replace '\[.*?\]', '').Trim()
+                $words = $clean -split '\s+'
+                $label = if ($words.Count -gt 0) { $words[0] } else { 'rule' }
+                if ($label.Length -gt 12) { $label = $label.Substring(0, 12) }
+                "`"$label`""
+            }) -join ', '
         $volBars = ($top10 | ForEach-Object { [long]$_.Alerts }) -join ', '
         $volMax = [long]1
         foreach ($r in $top10) { if ([long]$r.Alerts -gt $volMax) { $volMax = [long]$r.Alerts } }
@@ -111,10 +111,10 @@ $(Format-BlueprintTable -Items @($effectivenessRows | Where-Object { $_.Source -
 
     # Section 22 — Microsoft security rules (TOC 4.11.3)
     $msRules = @($rules | Where-Object {
-        $kind = $_.kind
-        $tn = $_.properties.alertRuleTemplateName
-        ($tn -and ($tn -match '^[a-f0-9-]{36}$')) -or ($kind -in @('Fusion','MicrosoftSecurityIncidentCreation','MLBehaviorAnalytics','ThreatIntelligence'))
-    })
+            $kind = $_.kind
+            $tn = $_.properties.alertRuleTemplateName
+            ($tn -and ($tn -match '^[a-f0-9-]{36}$')) -or ($kind -in @('Fusion', 'MicrosoftSecurityIncidentCreation', 'MLBehaviorAnalytics', 'ThreatIntelligence'))
+        })
     # Microsoft rules by severity for the headline pie.
     $msSevCounts = @{ 'High' = 0; 'Medium' = 0; 'Low' = 0; 'Informational' = 0 }
     foreach ($r in $msRules) {
@@ -123,11 +123,11 @@ $(Format-BlueprintTable -Items @($effectivenessRows | Where-Object { $_.Source -
         $msSevCounts[$sev]++
     }
     $msPieRows = $msSevCounts.GetEnumerator() |
-            Where-Object { $_.Value -gt 0 } |
-            Sort-Object @{ Expression = 'Value'; Descending = $true }, Key |
-            ForEach-Object {
-        "    `"$($_.Key)`" : $($_.Value)"
-    }
+        Where-Object { $_.Value -gt 0 } |
+        Sort-Object @{ Expression = 'Value'; Descending = $true }, Key |
+        ForEach-Object {
+            "    `"$($_.Key)`" : $($_.Value)"
+        }
     $msChartBlock = if ($msRules.Count -gt 0) {
         @"
 
@@ -159,11 +159,11 @@ $(Format-BlueprintTable -Items ($msRules | ForEach-Object { [pscustomobject]@{ K
         $lm = $null
         if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'lastModifiedUtc')) { $lm = $_.properties.lastModifiedUtc }
         [pscustomobject]@{
-            Name = $_.properties.displayName
-            Kind = $_.kind
+            Name         = $_.properties.displayName
+            Kind         = $_.kind
             LastModified = Format-DateUtc $lm
-            SortKey = ConvertTo-UtcDateTime $lm
-            Enabled = if ($_.properties.enabled) {'Yes'} else {'No'}
+            SortKey      = ConvertTo-UtcDateTime $lm
+            Enabled      = if ($_.properties.enabled) { 'Yes' } else { 'No' }
         }
     } | Where-Object { $_.LastModified } | Sort-Object -Property SortKey -Descending
     # Modifications-per-month bar over the last 12 months.
@@ -226,7 +226,7 @@ $(Format-BlueprintTable -Items $modifiedRows -Columns 'Name','Kind','LastModifie
         [pscustomobject]@{
             Solution = $sol
             Rule     = $_.properties.displayName
-            Enabled  = if ($_.properties.enabled) {'Yes'} else {'No'}
+            Enabled  = if ($_.properties.enabled) { 'Yes' } else { 'No' }
             Severity = $_.properties.severity
         }
     } | Sort-Object Solution, Rule

@@ -49,11 +49,11 @@ function ConvertTo-LifecycleList {
     #>
     [CmdletBinding()]
     param([System.Collections.IDictionary]$Bag, [string[]]$Order, [hashtable]$Labels)
-    if (-not $Bag -or -not $Bag.Count) { return ,@() }
+    if (-not $Bag -or -not $Bag.Count) { return , @() }
     $keys = @($Bag.Keys | ForEach-Object { [string]$_ })
     $sorted = if ($Order) { @($Order | Where-Object { $keys -contains $_ }) + @($keys | Where-Object { $Order -notcontains $_ } | Sort-Object) }
-              else { @($keys | Sort-Object @{ Expression = { [long]$Bag[$_] }; Descending = $true }, @{ Expression = { $_ } }) }
-    return ,@($sorted | Where-Object { [long]$Bag[$_] -gt 0 } | ForEach-Object {
-        [ordered]@{ label = $(if ($Labels -and $Labels.ContainsKey($_)) { $Labels[$_] } else { $_ }); count = [long]$Bag[$_] }
-    })
+    else { @($keys | Sort-Object @{ Expression = { [long]$Bag[$_] }; Descending = $true }, @{ Expression = { $_ } }) }
+    return , @($sorted | Where-Object { [long]$Bag[$_] -gt 0 } | ForEach-Object {
+            [ordered]@{ label = $(if ($Labels -and $Labels.ContainsKey($_)) { $Labels[$_] } else { $_ }); count = [long]$Bag[$_] }
+        })
 }

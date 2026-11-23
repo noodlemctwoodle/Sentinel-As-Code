@@ -60,8 +60,7 @@ function Set-iSOCDeploymentItemState {
             lastDeployed = (Get-Date -Format 'o')
             status       = 'success'
         }
-    }
-    elseif ($State.Items.ContainsKey($Key)) {
+    } elseif ($State.Items.ContainsKey($Key)) {
         $State.Items.Remove($Key)
     }
 }

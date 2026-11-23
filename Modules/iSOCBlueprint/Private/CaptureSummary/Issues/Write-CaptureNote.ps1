@@ -46,7 +46,7 @@ function Write-CaptureNote {
 
     switch ($Kind) {
         'NotAvailable' { Write-Host "  ↳ not available: $Text" -ForegroundColor DarkCyan }
-        'Permission'   { Write-Host "  ↳ no permission: $Text" -ForegroundColor Magenta }
-        default        { Write-Warning "[$Label] FAILED: $Text" }
+        'Permission' { Write-Host "  ↳ no permission: $Text" -ForegroundColor Magenta }
+        default { Write-Warning "[$Label] FAILED: $Text" }
     }
 }

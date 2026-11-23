@@ -46,12 +46,14 @@ function Write-BlueprintRetentionSection {
     # Section 89: retention. The workspace-level checks and per-table overrides
     # (formerly on section 81) and the retention that rolls into the lake
     # (formerly on section 88), in one place.
-    $retentionLakeBlock = if ($retentionChartBlock) { $retentionChartBlock } else { @"
+    $retentionLakeBlock = if ($retentionChartBlock) { $retentionChartBlock } else {
+        @"
 
 ## Retention that rolls into the lake
 
 _No table keeps data beyond its analytics retention, so nothing rolls into the lake or into long-term retention._
-"@ }
+"@
+    }
     $retentionBody = @"
 $(Format-Banner -Title "Data Retention")
 

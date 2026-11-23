@@ -150,15 +150,13 @@ function Invoke-iSOCIngestionStream {
                         $qr = Invoke-iSOCAzLogQuery -WorkspaceId $FollowWorkspaceId -Query $q
                         $rows = Get-iSOCPropertyValue -InputObject $qr -Path 'Results'
                         $seen = [int](@($rows) | Select-Object -First 1).Count
-                    }
-                    catch {
+                    } catch {
                         Write-iSOCLog "Follow query failed: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
                     }
                     $line += "  | arrived: $seen"
                 }
                 Write-iSOCLog $line
-            }
-            else {
+            } else {
                 $failBatches++
                 $bodyText = if ($response.Content) { ([string]$response.Content).Split([char]10)[0] } else { '' }
                 Write-iSOCLog "batch $batchIndex FAILED: HTTP $($response.StatusCode) $bodyText" -Level Warning
@@ -167,8 +165,7 @@ function Invoke-iSOCIngestionStream {
             $moreToDo = (-not ($BatchCount -and $batchIndex -ge $BatchCount)) -and (-not ($deadline -and [datetimeoffset]::UtcNow -ge $deadline))
             if ($moreToDo) { Start-Sleep -Seconds $IntervalSeconds }
         }
-    }
-    finally {
+    } finally {
         Write-iSOCLog ''
         Write-iSOCLog 'Summary' -Level Section
         Write-iSOCLog "Batches sent : $batchIndex ($okBatches ok, $failBatches failed)"

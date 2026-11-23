@@ -38,7 +38,6 @@ function Get-MermaidHash {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
         $hex = [System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', ''
-    }
-    finally { $sha.Dispose() }
+    } finally { $sha.Dispose() }
     return $hex.Substring(0, 12).ToLower()
 }

@@ -44,21 +44,21 @@ function Invoke-KqlSavedsearchesCapture {
         # 'functionAlias' on their PSObject, so a bare $_.properties.functionAlias
         # throws under StrictMode 'Latest'. Use HasMember-style probing.
         $hunting = @($all | Where-Object {
-            $cat = $null
-            if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'category')) {
-                $cat = $_.properties.category
-            }
-            $cat -eq 'Hunting Queries'
-        })
+                $cat = $null
+                if ($_.properties -and ($_.properties.PSObject.Properties.Name -contains 'category')) {
+                    $cat = $_.properties.category
+                }
+                $cat -eq 'Hunting Queries'
+            })
         $parsers = @($all | Where-Object {
-            $cat = $null; $alias = $null
-            if ($_.properties) {
-                if ($_.properties.PSObject.Properties.Name -contains 'category')      { $cat   = $_.properties.category }
-                if ($_.properties.PSObject.Properties.Name -contains 'functionAlias') { $alias = $_.properties.functionAlias }
-            }
-            ($cat -eq 'Functions') -or $alias
-        })
-        Save-Json -FileName 'hunting-queries.json'  -Data $hunting
+                $cat = $null; $alias = $null
+                if ($_.properties) {
+                    if ($_.properties.PSObject.Properties.Name -contains 'category') { $cat = $_.properties.category }
+                    if ($_.properties.PSObject.Properties.Name -contains 'functionAlias') { $alias = $_.properties.functionAlias }
+                }
+                ($cat -eq 'Functions') -or $alias
+            })
+        Save-Json -FileName 'hunting-queries.json' -Data $hunting
         Save-Json -FileName 'parsers-functions.json' -Data $parsers
     }
 }

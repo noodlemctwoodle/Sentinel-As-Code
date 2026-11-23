@@ -45,11 +45,11 @@ function Write-BlueprintAzureMonitorAgentsSection {
     $amaAgents = Read-BlueprintRawArray 'ama-agents.json'
     $agentRows = $amaAgents | ForEach-Object {
         [pscustomobject]@{
-            Computer  = $_.Computer
-            OS        = $_.OS
-            Version   = $_.Version
-            Resource  = $_.Resource
-            LastSeen  = Format-DateUtc $_.LastHeartbeat
+            Computer = $_.Computer
+            OS       = $_.OS
+            Version  = $_.Version
+            Resource = $_.Resource
+            LastSeen = Format-DateUtc $_.LastHeartbeat
         }
     }
 
@@ -96,15 +96,15 @@ Two bars per machine type: AMA first, MMA second. A workspace mid-migration show
     }
 
     $heartbeatMixRows = @(Read-BlueprintRawArray 'agent-heartbeat-mix.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{
-            OSType    = $_.OSType
-            Agent     = $(switch ([string]$_.Category) { 'Direct Agent' { 'Direct Agent (MMA, legacy)' } 'SCOM Agent' { 'SCOM Agent (legacy)' } default { $_ } })
-            Version   = $_.Version
-            OSVersion = $_.OSVersion
-            Computers = Format-BlueprintCount $_.Computers
-            LastSeen  = Format-DateUtc $_.LastSeen
-        }
-    })
+            [pscustomobject]@{
+                OSType    = $_.OSType
+                Agent     = $(switch ([string]$_.Category) { 'Direct Agent' { 'Direct Agent (MMA, legacy)' } 'SCOM Agent' { 'SCOM Agent (legacy)' } default { $_ } })
+                Version   = $_.Version
+                OSVersion = $_.OSVersion
+                Computers = Format-BlueprintCount $_.Computers
+                LastSeen  = Format-DateUtc $_.LastSeen
+            }
+        })
 
     Write-BlueprintSection '87-azure-monitor-agents.md' (@"
 $(Format-Banner -Title "Azure Monitor Agents  (TOC 4.5)")

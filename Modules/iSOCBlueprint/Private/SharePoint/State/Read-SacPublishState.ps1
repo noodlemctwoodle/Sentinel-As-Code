@@ -38,8 +38,7 @@ function Read-SacPublishState {
             if ($parsed.pages) { $state.pages = $parsed.pages }
             if ($parsed.navSignature) { $state.navSignature = [string]$parsed.navSignature }
             if ($parsed.appVersion) { $state.appVersion = [string]$parsed.appVersion }
-        }
-        catch {
+        } catch {
             Write-Verbose "Unreadable publish state, starting fresh: $($_.Exception.Message)"
         }
     }

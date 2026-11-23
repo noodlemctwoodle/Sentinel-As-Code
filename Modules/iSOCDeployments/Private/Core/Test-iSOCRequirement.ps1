@@ -71,8 +71,7 @@ function Test-iSOCRequirement {
                 if ("$text" -match '(\d+\.\d+(\.\d+)?)') {
                     $version = $Matches[1]
                     $found = ($null -eq $minimum) -or ([version]$version -ge $minimum)
-                }
-                else {
+                } else {
                     $found = $null -eq $minimum
                 }
             }

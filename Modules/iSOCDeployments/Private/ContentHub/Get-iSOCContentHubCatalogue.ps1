@@ -66,8 +66,7 @@ function Get-iSOCContentHubCatalogue {
     try {
         $installedPackages = @(Invoke-iSOCRestRequest -Method GET -Path "$root/contentPackages" -ApiVersion $apiVersion)
         Write-iSOCLog "Found $($installedPackages.Count) installed solutions."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not fetch installed solutions: $($_.Exception.Message). Treating all as new." -Level Warning
         $installedPackages = @()
     }

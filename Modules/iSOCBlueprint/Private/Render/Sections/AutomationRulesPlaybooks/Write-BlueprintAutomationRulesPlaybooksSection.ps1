@@ -59,8 +59,8 @@ function Write-BlueprintAutomationRulesPlaybooksSection {
     $pbRows = $playbooks | ForEach-Object {
         $pbName = if ($_.PSObject.Properties.Name -contains 'Name') { $_.Name } else { $_.name }
         $pbState = if ($_.PSObject.Properties.Name -contains 'State') { $_.State }
-                   elseif ($_.PSObject.Properties.Name -contains 'properties' -and $_.properties) { $_.properties.state }
-                   else { '' }
+        elseif ($_.PSObject.Properties.Name -contains 'properties' -and $_.properties) { $_.properties.state }
+        else { '' }
         # Closure-scoping note: `Where-Object { $_.Playbook -eq $_.Name }` is
         # ambiguous because $_ inside Where-Object refers to the miAssignment.
         # Capture the outer playbook name first.
@@ -79,19 +79,19 @@ function Write-BlueprintAutomationRulesPlaybooksSection {
         }
     }
     $autoCount = $arRows.Count
-    $pbCount   = $pbRows.Count
+    $pbCount = $pbRows.Count
     # Run health from playbook-runs.json (7-day window, written by the collector
     # per enabled workflow).
     $pbRunRows = @($playbookRuns | ForEach-Object {
-        [pscustomobject]@{
-            Playbook       = $_.Playbook
-            Runs7d         = [int](ConvertTo-BlueprintNumber $_.Runs7d)
-            Failed7d       = [int](ConvertTo-BlueprintNumber $_.Failed7d)
-            LastRunStatus  = $_.LastRunStatus
-            LastFailureUtc = Format-DateUtc $_.LastFailureUtc
-            Note           = if ($_.PSObject.Properties['Note'] -and $_.Note) { [string]$_.Note } else { '' }
-        }
-    } | Sort-Object -Property Failed7d -Descending)
+            [pscustomobject]@{
+                Playbook       = $_.Playbook
+                Runs7d         = [int](ConvertTo-BlueprintNumber $_.Runs7d)
+                Failed7d       = [int](ConvertTo-BlueprintNumber $_.Failed7d)
+                LastRunStatus  = $_.LastRunStatus
+                LastFailureUtc = Format-DateUtc $_.LastFailureUtc
+                Note           = if ($_.PSObject.Properties['Note'] -and $_.Note) { [string]$_.Note } else { '' }
+            }
+        } | Sort-Object -Property Failed7d -Descending)
     $pbUnavailable = @($pbRunRows | Where-Object { $_.LastRunStatus -eq 'Unavailable' }).Count
     $pbRunsTotal = 0; $pbFailedTotal = 0
     foreach ($r in $pbRunRows) { $pbRunsTotal += $r.Runs7d; $pbFailedTotal += $r.Failed7d }
@@ -100,7 +100,7 @@ function Write-BlueprintAutomationRulesPlaybooksSection {
         "> **$(Format-BlueprintPlural $pbFailingCount 'playbook') had failed runs in the last {lookback}.** A failing playbook is a response step that is quietly not happening; [SAC-AUT-02] carries the detail.`n"
     } else { '' }
     $pbRunsPie = if ($pbRunsTotal -gt 0) {
-    @"
+        @"
 ``````mermaid
 pie showData title Playbook runs by outcome ({lookback-d})
     "Succeeded" : $($pbRunsTotal - $pbFailedTotal)
@@ -114,75 +114,75 @@ pie showData title Playbook runs by outcome ({lookback-d})
     # contributed by thinkndle.
     $autoPlaybookMap = @(
         @{
-            Pattern = 'brute.?force|password.?spray|failed.?(sign|log).?in'
-            Action = 'Disable the account on threshold, require an MFA reset, notify IAM and tag the incident as identity attack'
+            Pattern  = 'brute.?force|password.?spray|failed.?(sign|log).?in'
+            Action   = 'Disable the account on threshold, require an MFA reset, notify IAM and tag the incident as identity attack'
             Playbook = 'Disable-AADUser / Confirm-AADRiskyUser'
         }
         @{
-            Pattern = 'impossible travel|atypical travel|anomalous (sign|log).?in'
-            Action = 'Trigger an MFA challenge, revoke sessions, raise the Entra ID Protection risk and notify the manager'
+            Pattern  = 'impossible travel|atypical travel|anomalous (sign|log).?in'
+            Action   = 'Trigger an MFA challenge, revoke sessions, raise the Entra ID Protection risk and notify the manager'
             Playbook = 'Block-AADUser-Sessions'
         }
         @{
-            Pattern = 'phish|suspicious mail|mail.?flow'
-            Action = 'Soft-delete similar messages through Defender for Office 365, block the sender, scan clicked URLs and isolate affected devices'
+            Pattern  = 'phish|suspicious mail|mail.?flow'
+            Action   = 'Soft-delete similar messages through Defender for Office 365, block the sender, scan clicked URLs and isolate affected devices'
             Playbook = 'ZAP-Phish-Mail / Defender-Submission'
         }
         @{
-            Pattern = 'malware|ransom|trojan|suspicious process'
-            Action = 'Isolate the device through Defender for Endpoint, run a full scan, block the file hash as a custom indicator and open an IR ticket'
+            Pattern  = 'malware|ransom|trojan|suspicious process'
+            Action   = 'Isolate the device through Defender for Endpoint, run a full scan, block the file hash as a custom indicator and open an IR ticket'
             Playbook = 'Isolate-MDEDevice'
         }
         @{
-            Pattern = 'data exfil|dlp|mass download|unusual upload'
-            Action = 'Suspend the session, block egress at the proxy, restrict sharing and escalate to the DLP team'
+            Pattern  = 'data exfil|dlp|mass download|unusual upload'
+            Action   = 'Suspend the session, block egress at the proxy, restrict sharing and escalate to the DLP team'
             Playbook = 'Block-AADUser + Restrict-Sharing'
         }
         @{
-            Pattern = 'lateral movement|pass.?the.?hash|kerberoast|golden ticket'
-            Action = 'Isolate the source host, reset affected service accounts and review a krbtgt rotation'
+            Pattern  = 'lateral movement|pass.?the.?hash|kerberoast|golden ticket'
+            Action   = 'Isolate the source host, reset affected service accounts and review a krbtgt rotation'
             Playbook = 'Isolate-Host + Reset-Account'
         }
         @{
-            Pattern = 'privilege escal|added to (admin|privileged)|role assign'
-            Action = 'Revert the role assignment outside a change window, notify the PIM owner and require a ticket reference'
+            Pattern  = 'privilege escal|added to (admin|privileged)|role assign'
+            Action   = 'Revert the role assignment outside a change window, notify the PIM owner and require a ticket reference'
             Playbook = 'Remove-AADRole'
         }
         @{ Pattern = 'token theft|refresh token|primary refresh'; Action = 'Revoke refresh tokens, force re-authentication with MFA and audit OAuth grants'; Playbook = 'Revoke-AADUserTokens' }
         @{
-            Pattern = 'c2|command.?and.?control|beacon|dns tunneling'
-            Action = 'Isolate the device, sinkhole the domain in DNS and block the indicator at the firewall and proxy'
+            Pattern  = 'c2|command.?and.?control|beacon|dns tunneling'
+            Action   = 'Isolate the device, sinkhole the domain in DNS and block the indicator at the firewall and proxy'
             Playbook = 'Isolate-MDEDevice + Block-IoC'
         }
         @{ Pattern = 'defender|av disabled|tamper'; Action = 'Isolate the device, re-enable antivirus through Intune and escalate to the endpoint team'; Playbook = 'Isolate-MDEDevice' }
         @{ Pattern = 'guest|external user|b2b'; Action = 'Disable the guest pending review, audit external sharing and notify identity governance'; Playbook = 'Block-AADUser' }
         @{
-            Pattern = 'deprecated|legacy auth|basic auth'
-            Action = 'Block legacy authentication with Conditional Access and notify the owner of the affected app or account'
+            Pattern  = 'deprecated|legacy auth|basic auth'
+            Action   = 'Block legacy authentication with Conditional Access and notify the owner of the affected app or account'
             Playbook = 'Enforce-CAPolicy'
         }
     )
     $autoOppRows = @(Read-BlueprintRawArray 'incident-title-stats.json' | Where-Object { $_ } | ForEach-Object {
-        $title = [string](Get-BlueprintRawProperty $_ 'Title' '')
-        $total = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Total' 0); $closed = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Closed' 0)
-        $fast = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'ClosedWithinHour' 0); $fp = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'FP' 0)
-        $signal = if ($closed -gt 0 -and $fp / $closed -ge 0.5) { 'Mostly false positive' } elseif ($closed -gt 0 -and $fast / $closed -ge 0.5) { 'Fast-closing' } else { 'Volume' }
-        $match = $autoPlaybookMap | Where-Object { $title -match $_.Pattern } | Select-Object -First 1
-        [pscustomobject]@{
-            Title = $title; Severity = [string](Get-BlueprintRawProperty $_ 'Severity' ''); Total = [int]$total; Closed = [int]$closed
-            AvgMinsToClose = Format-BlueprintNumber (Get-BlueprintRawProperty $_ 'AvgMinsToClose' '')
-            ClosedWithinHour = [int]$fast
-            FP = [int]$fp
-            TP = [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'TP' 0))
-            Signal = $signal
-            SuggestedAutomation = if ($match) {
-                $match.Action
-            } elseif ($signal -eq 'Mostly false positive') {
-                'Tune the rule or auto-close with a classification and comment through an automation rule'
-            } else { 'Automation rule to assign, tag and enrich (TI, watchlists), then close on a verified benign pattern' }
-            Playbook = if ($match) { $match.Playbook } else { 'Generic-Enrich-And-Close' }
-        }
-    } | Sort-Object -Property @{ Expression = 'Total'; Descending = $true })
+            $title = [string](Get-BlueprintRawProperty $_ 'Title' '')
+            $total = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Total' 0); $closed = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Closed' 0)
+            $fast = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'ClosedWithinHour' 0); $fp = ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'FP' 0)
+            $signal = if ($closed -gt 0 -and $fp / $closed -ge 0.5) { 'Mostly false positive' } elseif ($closed -gt 0 -and $fast / $closed -ge 0.5) { 'Fast-closing' } else { 'Volume' }
+            $match = $autoPlaybookMap | Where-Object { $title -match $_.Pattern } | Select-Object -First 1
+            [pscustomobject]@{
+                Title = $title; Severity = [string](Get-BlueprintRawProperty $_ 'Severity' ''); Total = [int]$total; Closed = [int]$closed
+                AvgMinsToClose      = Format-BlueprintNumber (Get-BlueprintRawProperty $_ 'AvgMinsToClose' '')
+                ClosedWithinHour    = [int]$fast
+                FP                  = [int]$fp
+                TP                  = [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'TP' 0))
+                Signal              = $signal
+                SuggestedAutomation = if ($match) {
+                    $match.Action
+                } elseif ($signal -eq 'Mostly false positive') {
+                    'Tune the rule or auto-close with a classification and comment through an automation rule'
+                } else { 'Automation rule to assign, tag and enrich (TI, watchlists), then close on a verified benign pattern' }
+                Playbook            = if ($match) { $match.Playbook } else { 'Generic-Enrich-And-Close' }
+            }
+        } | Sort-Object -Property @{ Expression = 'Total'; Descending = $true })
     $autoOppCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'incident-title-stats.json')
     # The alert-to-response chain as data for the SharePoint graphic: the target
     # shape's steps by phase, each marked where a fired finding says this
@@ -195,23 +195,29 @@ pie showData title Playbook runs by outcome ({lookback-d})
     }
     $aut01 = & $chainState 'SAC-AUT-01' 'missing'
     $responseChainVisualLine = Format-VisualLine -Kind 'response-chain' -Data ([ordered]@{ phases = @(
-        [ordered]@{ name = 'Ingest'; figure = (Format-BlueprintPlural @($connectors).Count 'data connector'); steps = @(
-            (& $chainStep 1 'Data source' 'DCR / Logs Ingestion' 'Event sent' $null),
-            (& $chainStep 2 'DCR / Logs Ingestion' 'Workspace table' 'Ingested after transform, about 5 minutes' $null)) }
-        [ordered]@{ name = 'Detect'; figure = (Format-BlueprintPlural $enabledRules.Count 'enabled analytics rule'); steps = @(
-            (& $chainStep 3 'Analytics rule' 'Workspace table' 'KQL query on a schedule' $null),
-            (& $chainStep 4 'Analytics rule' 'Incident' 'Incident created' $null)) }
-        [ordered]@{ name = 'Automate'; figure = "$(Format-BlueprintPlural $autoCount 'automation rule'), $(Format-BlueprintPlural $pbCount 'playbook')"; steps = @(
-            (& $chainStep 5 'Incident' 'Automation rule' 'Trigger: incident created' $null),
-            (& $chainStep 6 'Automation rule' 'Incident' 'Assign owner, tag tactic, set Active' $aut01),
-            (& $chainStep 7 'Automation rule' 'Playbook' 'Run playbook' $aut01),
-            (& $chainStep 8 'Playbook' 'Incident' 'Add an enrichment comment' $aut01)) }
-        [ordered]@{ name = 'Notify'; figure = ''; steps = @(
-            (& $chainStep 9 'Playbook' 'Microsoft Teams' 'Post to the SOC channel' (& $chainState 'SAC-AUT-05' 'risk')),
-            (& $chainStep 10 'Microsoft Teams' 'SOC analyst' 'Notification' $null)) }
-        [ordered]@{ name = 'Respond'; figure = ''; steps = @(
-            (& $chainStep 11 'SOC analyst' 'Incident' 'Acknowledge and investigate' (& $chainState 'SAC-INC-05' 'risk'))) }
-    ) })
+                [ordered]@{ name = 'Ingest'; figure = (Format-BlueprintPlural @($connectors).Count 'data connector'); steps = @(
+                        (& $chainStep 1 'Data source' 'DCR / Logs Ingestion' 'Event sent' $null),
+                        (& $chainStep 2 'DCR / Logs Ingestion' 'Workspace table' 'Ingested after transform, about 5 minutes' $null))
+                }
+                [ordered]@{ name = 'Detect'; figure = (Format-BlueprintPlural $enabledRules.Count 'enabled analytics rule'); steps = @(
+                        (& $chainStep 3 'Analytics rule' 'Workspace table' 'KQL query on a schedule' $null),
+                        (& $chainStep 4 'Analytics rule' 'Incident' 'Incident created' $null))
+                }
+                [ordered]@{ name = 'Automate'; figure = "$(Format-BlueprintPlural $autoCount 'automation rule'), $(Format-BlueprintPlural $pbCount 'playbook')"; steps = @(
+                        (& $chainStep 5 'Incident' 'Automation rule' 'Trigger: incident created' $null),
+                        (& $chainStep 6 'Automation rule' 'Incident' 'Assign owner, tag tactic, set Active' $aut01),
+                        (& $chainStep 7 'Automation rule' 'Playbook' 'Run playbook' $aut01),
+                        (& $chainStep 8 'Playbook' 'Incident' 'Add an enrichment comment' $aut01))
+                }
+                [ordered]@{ name = 'Notify'; figure = ''; steps = @(
+                        (& $chainStep 9 'Playbook' 'Microsoft Teams' 'Post to the SOC channel' (& $chainState 'SAC-AUT-05' 'risk')),
+                        (& $chainStep 10 'Microsoft Teams' 'SOC analyst' 'Notification' $null))
+                }
+                [ordered]@{ name = 'Respond'; figure = ''; steps = @(
+                        (& $chainStep 11 'SOC analyst' 'Incident' 'Acknowledge and investigate' (& $chainState 'SAC-INC-05' 'risk')))
+                }
+            )
+        })
     Write-BlueprintSection '60-automation-rules-playbooks.md' (@"
 $(Format-Banner -Title "Automation Rules and Playbooks")
 

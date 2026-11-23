@@ -39,10 +39,10 @@ function Test-AzureDiagnosticsResourceSpecific {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $ad = @($Inventory.TablesWithData | Where-Object {
-        (Get-PropOrDefault $_ 'DataType' '') -eq 'AzureDiagnostics'
-    } | Select-Object -First 1)
+            (Get-PropOrDefault $_ 'DataType' '') -eq 'AzureDiagnostics'
+        } | Select-Object -First 1)
     if ($ad.Count -eq 0) { return $null }
     $gb30 = Get-GapBillable30d $ad[0]
     if ((ConvertTo-GapPer30Days $gb30 $Inventory) -lt 10.0) { return $null }    # smaller threshold, even 10 GB per 30 days across many RPs is messy

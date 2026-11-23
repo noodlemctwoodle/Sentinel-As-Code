@@ -325,7 +325,7 @@ Describe 'The permission commands over a stand-in tenant' {
             $roles['Incident-Inherited|Microsoft Sentinel Responder'] | Should -Be 'Unchanged'
             $roles['Incident-Race|Microsoft Sentinel Responder'] | Should -Be 'Unchanged'
             $roles['Incident-Refused|Microsoft Sentinel Responder'] | Should -Be 'Failed'
-            @($script:run.Results | Where-Object Name -eq 'Untagged-App').Count | Should -Be 0
+            @($script:run.Results | Where-Object Name -EQ 'Untagged-App').Count | Should -Be 0
         }
 
         It 'assigns nothing with -WhatIf and says what would be' {
@@ -336,7 +336,7 @@ Describe 'The permission commands over a stand-in tenant' {
 
         It 'skips Key Vault roles without -KeyVaultName' {
             $run = Invoke-ModulePermission { Grant-iSOCPlaybookPermission -Context $script:context -Name 'Module-GetSecret' }
-            ($run.Results | Where-Object Role -eq 'Key Vault Secrets User').Reason | Should -Be 'no Key Vault named (-KeyVaultName)'
+            ($run.Results | Where-Object Role -EQ 'Key Vault Secrets User').Reason | Should -Be 'no Key Vault named (-KeyVaultName)'
             $script:moduleWrites.Count | Should -Be 0
         }
     }
@@ -361,11 +361,10 @@ Describe 'The permission commands over a stand-in tenant' {
             )
             try {
                 $run = Invoke-ModulePermission { Revoke-iSOCRunbookPermission -Context $script:context -AutomationAccountName 'aa-dcr-watchlist-sync' -AutomationResourceGroup 'rg-dcr-watchlist-sync' -Confirm:$false }
-            }
-            finally { $script:standIn.Assignments = @() }
+            } finally { $script:standIn.Assignments = @() }
             @($run.Results | ForEach-Object { "$($_.Role) $($_.Scope)" } | Sort-Object) | Should -Be @("Microsoft Sentinel Contributor $($script:rgScope)", "Monitoring Reader $($script:subScope)")
             @($script:moduleWrites | ForEach-Object { $_.Id }) | Should -Be @("$($script:subScope)/providers/Microsoft.Authorization/roleAssignments/$($script:automation)-$($script:roleIds['Monitoring Reader'])")
-            ($run.Results | Where-Object Role -eq 'Microsoft Sentinel Contributor').Reason | Should -Be 'not assigned at this scope'
+            ($run.Results | Where-Object Role -EQ 'Microsoft Sentinel Contributor').Reason | Should -Be 'not assigned at this scope'
         }
 
         It 'asks before changing anything, where the script asked with Read-Host (MIGRATION.md edit E33)' {
@@ -380,9 +379,8 @@ Describe 'The permission commands over a stand-in tenant' {
             $script:standIn.Assignments = @([ordered]@{ Scope = $script:subScope; PrincipalId = $script:automation; RoleDefinitionId = $script:roleIds['Monitoring Reader'] })
             try {
                 $run = Invoke-ModulePermission { Grant-iSOCRunbookPermission -Context $script:context -AutomationAccountName 'aa-dcr-watchlist-sync' -AutomationResourceGroup 'rg-dcr-watchlist-sync' -Confirm:$false }
-            }
-            finally { $script:standIn.Assignments = @() }
-            ($run.Results | Where-Object Role -eq 'Monitoring Reader').Outcome | Should -Be 'Unchanged'
+            } finally { $script:standIn.Assignments = @() }
+            ($run.Results | Where-Object Role -EQ 'Monitoring Reader').Outcome | Should -Be 'Unchanged'
             @($script:moduleWrites).Count | Should -Be 1
             @($run.Assignments | ForEach-Object { $_.Role }) | Should -Be @('Monitoring Reader')
         }

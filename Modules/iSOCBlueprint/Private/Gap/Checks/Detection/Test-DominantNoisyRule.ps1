@@ -39,7 +39,7 @@ function Test-DominantNoisyRule {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.AnalyticsRuleVolumes -or @($Inventory.AnalyticsRuleVolumes).Count -eq 0) { return $null }
     $rows = @($Inventory.AnalyticsRuleVolumes)
     $totalAlerts = ($rows | ForEach-Object { [double](Get-PropOrDefault $_ 'Alerts' 0) } | Measure-Object -Sum).Sum

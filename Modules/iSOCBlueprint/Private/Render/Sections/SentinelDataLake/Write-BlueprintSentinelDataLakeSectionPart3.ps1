@@ -59,14 +59,16 @@ function Write-BlueprintSentinelDataLakeSectionPart3 {
     # Asset-data block — present when at least one asset-family table is
     # detected. Helps confirm the Lake's auto-onboarded system tables
     # (Entra, M365, Azure Resource Graph) are flowing.
-    $assetDataBlock = if ($assetDataRows.Count -gt 0) { @"
+    $assetDataBlock = if ($assetDataRows.Count -gt 0) {
+        @"
 
 ## Auto-ingested asset data
 
 Sentinel Data Lake automatically creates and ingests asset-data tables on tenant onboarding (Microsoft Entra identity records, Microsoft 365 activity, Azure Resource Graph asset snapshots, plus UEBA enrichment). These tables appear in the Lake exploration UI as *System tables*. Receiving-data status confirms each pipeline is active.
 
 $(Format-BlueprintTable -Items $assetDataRows -Columns 'Table','Family','IngestState','Retention')
-"@ } else { '' }
+"@
+    } else { '' }
 
     $lakeBody = @"
 $(Format-Banner -Title "Microsoft Sentinel Data Lake")

@@ -49,8 +49,7 @@ function Connect-PublishSite {
 
     if ($parameterSetName -eq 'Token') {
         Connect-PnPOnline -Url $SiteUrl -AccessToken $AccessToken
-    }
-    else {
+    } else {
         Connect-PnPOnline -Url $SiteUrl -ClientId $ClientId -Tenant $Tenant -Interactive
     }
     $script:ConnectedAt = Get-Date

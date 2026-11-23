@@ -85,24 +85,24 @@ function New-CollectorRunContext {
     )
 
     return [pscustomobject]@{
-        SubscriptionId    = $SubscriptionId
-        TenantId          = $TenantId
+        SubscriptionId      = $SubscriptionId
+        TenantId            = $TenantId
         # Who ran the collector: a user, a service principal or a managed identity.
-        Account           = [string]$AzureContext.Account.Id
-        AccountType       = [string]$AzureContext.Account.Type
-        ResourceGroup     = $ResourceGroup
-        WorkspaceName     = $WorkspaceName
+        Account             = [string]$AzureContext.Account.Id
+        AccountType         = [string]$AzureContext.Account.Type
+        ResourceGroup       = $ResourceGroup
+        WorkspaceName       = $WorkspaceName
         WorkspaceResourceId = $WorkspaceResourceId
-        StartedAtUtc      = (Get-Date).ToUniversalTime().ToString('o')
-        ApiVersions       = $ApiVersions
-        BlueprintVersion = $BlueprintVersion
-        AzPSVersion       = (Get-Module -ListAvailable Az.Accounts | Sort-Object Version -Descending | Select-Object -First 1).Version.ToString()
-        IncludePreview    = [bool]$IncludePreview
-        LookbackDays      = $script:LookbackDays
-        RecentDays        = $script:RecentDays
-        DailyDays         = $script:DailyDays
-        Currency          = $Currency
-        ScriptCommit      = $(
+        StartedAtUtc        = (Get-Date).ToUniversalTime().ToString('o')
+        ApiVersions         = $ApiVersions
+        BlueprintVersion    = $BlueprintVersion
+        AzPSVersion         = (Get-Module -ListAvailable Az.Accounts | Sort-Object Version -Descending | Select-Object -First 1).Version.ToString()
+        IncludePreview      = [bool]$IncludePreview
+        LookbackDays        = $script:LookbackDays
+        RecentDays          = $script:RecentDays
+        DailyDays           = $script:DailyDays
+        Currency            = $Currency
+        ScriptCommit        = $(
             if (Get-Command git -ErrorAction SilentlyContinue) { (& git -C $ResourcesFolder rev-parse HEAD 2>$null) -as [string] } else { $null }
         )
     }

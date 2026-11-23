@@ -612,7 +612,7 @@ Describe 'Defender detection deploy' {
 
     It 'reads the tenant''s rules once per run' {
         Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ContentType DefenderDetection | Out-Null
-        @($script:calls | Where-Object Method -eq 'GET').Count | Should -Be 1
+        @($script:calls | Where-Object Method -EQ 'GET').Count | Should -Be 1
     }
 
     It 'fails a new rule whose file has no id, and forgets it in the state' {
@@ -622,7 +622,7 @@ Describe 'Defender detection deploy' {
         $result.Outcome | Should -Be 'Failed'
         $result.Reason | Should -BeExactly "'Fixture: mail rule the tenant already has' does not exist yet and the file has no 'id'; Graph needs a client-provided id to create a rule."
         $run.ExitCode | Should -Be 1
-        @($script:calls | Where-Object Method -ne 'GET').Count | Should -Be 2
+        @($script:calls | Where-Object Method -NE 'GET').Count | Should -Be 2
         $state = Get-Content -LiteralPath (Join-Path $script:copy 'deployment-state.json') -Raw | ConvertFrom-Json
         $state.deployedItems.PSObject.Properties['Content/DefenderCustomDetections/Email/FixtureExistingNoId.yaml'] | Should -BeNullOrEmpty
         $state.deployedItems.PSObject.Properties['Content/DefenderCustomDetections/Endpoint/FixtureEncodedPowerShell.yaml'] | Should -Not -BeNullOrEmpty
@@ -632,7 +632,7 @@ Describe 'Defender detection deploy' {
         $script:tenant = @([pscustomobject]@{ id = 'tenant-rule-2'; displayName = 'Fixture: encoded PowerShell' })
         $run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ContentType DefenderDetection -WhatIf
         @($script:calls.Method) | Should -Be @('GET')
-        @($run.Results | Where-Object Outcome -eq 'WhatIf').Count | Should -Be 3
+        @($run.Results | Where-Object Outcome -EQ 'WhatIf').Count | Should -Be 3
         (Get-Outcome $run 'FixtureExistingNoId.yaml').Reason | Should -BeLike "would fail: 'Fixture: mail rule the tenant already has' does not exist yet*"
         (Get-Outcome $run 'FixtureEncodedPowerShell.yaml').Reason | Should -BeNullOrEmpty
         $run.ExitCode | Should -Be 0
@@ -646,7 +646,7 @@ Describe 'Defender detection deploy' {
         $run = Deploy-iSOCContent -Context $script:context -RepoPath $script:copy -ContentType DefenderDetection
         Should -Invoke -ModuleName iSOCDeployments Write-iSOCLog -ParameterFilter { $Level -eq 'Warning' -and $Message -like 'Could not fetch existing rules: HTTP 403*All rules will be created as new.' }
         (Get-Outcome $run 'FixtureExistingNoId.yaml').Outcome | Should -Be 'Failed'
-        @($script:calls | Where-Object Method -eq 'POST').Count | Should -Be 2
+        @($script:calls | Where-Object Method -EQ 'POST').Count | Should -Be 2
     }
 
     It 'logs the body Graph refused, and fails the rule' {

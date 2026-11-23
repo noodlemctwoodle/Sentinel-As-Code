@@ -91,7 +91,7 @@ Describe 'The move out of Tools/Blueprint' {
     }
 
     It 'lists no Copy row, because every copied file has since moved' {
-        @($script:map | Where-Object Action -eq 'Copy').Count | Should -Be 0
+        @($script:map | Where-Object Action -EQ 'Copy').Count | Should -Be 0
     }
 
     It 'documents every edit a row names' {
@@ -102,6 +102,6 @@ Describe 'The move out of Tools/Blueprint' {
 
     It 'sends no two rows to the same destination' {
         $dest = @($script:map | Where-Object { $_.Destination } | ForEach-Object Destination)
-        @($dest | Group-Object | Where-Object Count -gt 1).Name | Should -BeNullOrEmpty
+        @($dest | Group-Object | Where-Object Count -GT 1).Name | Should -BeNullOrEmpty
     }
 }

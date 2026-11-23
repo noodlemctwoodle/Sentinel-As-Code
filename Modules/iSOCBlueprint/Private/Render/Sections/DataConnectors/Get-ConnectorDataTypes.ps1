@@ -43,7 +43,7 @@ function Get-ConnectorDataTypes {
     [CmdletBinding()]
     param([psobject]$Connector)
     # RestApiPoller / Push schema: single string at properties.dataType.
-    if ($Connector.kind -in @('RestApiPoller','Push')) {
+    if ($Connector.kind -in @('RestApiPoller', 'Push')) {
         if ($Connector.properties.PSObject.Properties.Name -contains 'dataType' -and $Connector.properties.dataType) {
             return [string]$Connector.properties.dataType
         }

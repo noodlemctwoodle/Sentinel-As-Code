@@ -39,7 +39,7 @@ function Test-AccessModeConsistent {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Informational, surface the flag value so the reviewer can confirm it matches intent.
     $flag = Get-PropOrDefault $Inventory.Workspace 'properties.features.enableLogAccessUsingOnlyResourcePermissions' $null
     if ($null -eq $flag) {

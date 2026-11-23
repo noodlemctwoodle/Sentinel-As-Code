@@ -39,17 +39,17 @@ function Test-HighSeverityTemplatesDeployed {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $deployedTemplateNames = @{}
     foreach ($r in @($Inventory.AlertRules)) {
         $tn = Get-PropOrDefault $r 'properties.alertRuleTemplateName' ''
         if ($tn) { $deployedTemplateNames[$tn] = $true }
     }
     $missing = @($Inventory.AlertRuleTemplates | Where-Object {
-        $sev = Get-PropOrDefault $_ 'properties.severity' 'Low'
-        $name = Get-PropOrDefault $_ 'name' ''
-        ($sev -eq 'High') -and ($name) -and (-not $deployedTemplateNames.ContainsKey($name))
-    })
+            $sev = Get-PropOrDefault $_ 'properties.severity' 'Low'
+            $name = Get-PropOrDefault $_ 'name' ''
+            ($sev -eq 'High') -and ($name) -and (-not $deployedTemplateNames.ContainsKey($name))
+        })
     if ($missing.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $missing.Count 'High-severity template') not deployed." -Detail @{ Count = $missing.Count }
     }

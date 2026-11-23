@@ -170,8 +170,7 @@ function Resolve-iSOCIndirectTableImpact {
                     if ($node.Alias -and $Index.References.ContainsKey($node.Alias) -and $seen.Add($node.Alias)) {
                         $chainOf[$node.Alias] = [string[]](@($node.Alias) + @($via))
                         $next.Add($node.Alias)
-                    }
-                    elseif (-not $node.Alias -and $node.RawAlias) {
+                    } elseif (-not $node.Alias -and $node.RawAlias) {
                         & $recordSevered ([string]$node.RawAlias) ([string]$node.Name) $via
                     }
                 }

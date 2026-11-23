@@ -58,9 +58,9 @@ function ConvertFrom-BpMermaidState {
         $parent = if ($parents.Count) { $parents[$parents.Count - 1] } else { $null }
         if ($t -match '^note\s+(?<pos>right|left)\s+of\s+(?<state>[^:]+?)(?:\s*:\s*(?<text>.*))?$') {
             $n = [ordered]@{
-                state = $Matches['state'].Trim()
+                state    = $Matches['state'].Trim()
                 position = $Matches['pos']
-                text = $(if ($Matches['text']) { ConvertTo-BpMermaidText $Matches['text'] } else { '' })
+                text     = $(if ($Matches['text']) { ConvertTo-BpMermaidText $Matches['text'] } else { '' })
             }
             if ($Matches['text']) { $notes.Add($n) } else { $note = $n }
             continue

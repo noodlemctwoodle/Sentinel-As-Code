@@ -74,8 +74,7 @@ Describe 'iSOCDeployments outside the repository' {
                 $requests = @($valid | ForEach-Object { Invoke-iSOCContentTypeHandler -ContentType $type -Handler ToRequest -Parameters @{ Item = $_ } })
                 [pscustomobject]@{ Repo = $repo; Items = $items.Count; Valid = $valid.Count; Requests = $requests }
             }
-        }
-        finally { Pop-Location }
+        } finally { Pop-Location }
         $result.Repo | Should -Be ([System.IO.Path]::GetFullPath($script:work))
         $result.Items | Should -Be 5
         $result.Valid | Should -Be 3

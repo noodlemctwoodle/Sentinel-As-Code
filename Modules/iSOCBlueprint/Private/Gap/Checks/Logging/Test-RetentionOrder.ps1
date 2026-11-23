@@ -39,15 +39,15 @@ function Test-RetentionOrder {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'workspace-tables.json') { return $null }
     $bad = @($Inventory.WorkspaceTables | Where-Object { $null -ne $_ } | ForEach-Object {
-        $analytics = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.retentionInDays' 0)
-        $total = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0)
-        if ($analytics -gt 0 -and $total -gt 0 -and $analytics -gt $total) {
-            [pscustomobject]@{ Table = [string](Get-PropOrDefault $_ 'name' ''); AnalyticsDays = $analytics; TotalDays = $total }
-        }
-    } | Sort-Object Table)
+            $analytics = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.retentionInDays' 0)
+            $total = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0)
+            if ($analytics -gt 0 -and $total -gt 0 -and $analytics -gt $total) {
+                [pscustomobject]@{ Table = [string](Get-PropOrDefault $_ 'name' ''); AnalyticsDays = $analytics; TotalDays = $total }
+            }
+        } | Sort-Object Table)
     if ($bad.Count -eq 0) { return $null }
     $names = @($bad | ForEach-Object { "$($_.Table) (analytics $(Format-BlueprintPlural $_.AnalyticsDays 'day'), total $(Format-BlueprintPlural $_.TotalDays 'day'))" })
     return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'table') $(Select-GapWording $bad.Count 'has' 'have') analytics retention longer than total retention: $($names -join ', ')." -Detail @{ Tables = $bad }

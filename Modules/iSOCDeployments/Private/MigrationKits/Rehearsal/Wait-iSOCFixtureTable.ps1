@@ -69,8 +69,7 @@ function Wait-iSOCFixtureTable {
             $detail = Invoke-iSOCRestRequest -Method GET -Path "$($Context.WorkspaceResourceId)/tables/$Table" -ApiVersion (Get-iSOCApiVersion OperationalInsights)
             $subType = [string](Get-iSOCPropertyValue -InputObject $detail -Path 'properties.schema.tableSubType')
             if ($subType) { return $subType }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Table not present yet: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
         }
         Start-Sleep -Seconds 15

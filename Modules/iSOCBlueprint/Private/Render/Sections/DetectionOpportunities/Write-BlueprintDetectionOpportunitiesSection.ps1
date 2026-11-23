@@ -71,27 +71,27 @@ function Write-BlueprintDetectionOpportunitiesSection {
     # Sentinel's own operational tables are outputs, not detection sources.
     $operationalOnlyTables = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
     $uncoveredTables = @($tablesWithData | Where-Object {
-        $_.DataType -and (ConvertTo-BlueprintNumber $_.BillableLast30d) -gt 0 -and
-        -not $enabledTableSet.ContainsKey([string]$_.DataType) -and
-        ([string]$_.DataType) -notin $operationalOnlyTables
-    } | Sort-Object { ConvertTo-BlueprintNumber $_.BillableLast30d } -Descending)
+            $_.DataType -and (ConvertTo-BlueprintNumber $_.BillableLast30d) -gt 0 -and
+            -not $enabledTableSet.ContainsKey([string]$_.DataType) -and
+            ([string]$_.DataType) -notin $operationalOnlyTables
+        } | Sort-Object { ConvertTo-BlueprintNumber $_.BillableLast30d } -Descending)
     # The Content Hub solution each template comes from, and whether it is
     # installed, from the packages' own content lists (Get-TemplateSolution).
     # Templates that read a table with data but only a deprecated solution ships:
     # left out above, listed on their own with the solution replacing it.
     $retiredReady = @($templateTableRefs | Where-Object {
-        $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and
-        (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) -and
-        @(@($_.Tables) | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
-    } | Sort-Object DisplayName | ForEach-Object {
-        $sol = Get-TemplateSolution -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)
-        [pscustomobject]@{
-            Template              = $_.DisplayName
-            'Deprecated solution' = $sol.Solution
-            'Replaced by'         = $(if ($sol.ReplacedBy) { $sol.ReplacedBy } else { '' })
-            Tables                = (@($_.Tables) -join ', ')
-        }
-    })
+            $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and
+            (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) -and
+            @(@($_.Tables) | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
+        } | Sort-Object DisplayName | ForEach-Object {
+            $sol = Get-TemplateSolution -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)
+            [pscustomobject]@{
+                Template              = $_.DisplayName
+                'Deprecated solution' = $sol.Solution
+                'Replaced by'         = $(if ($sol.ReplacedBy) { $sol.ReplacedBy } else { '' })
+                Tables                = (@($_.Tables) -join ', ')
+            }
+        })
     $retiredBlock = if ($retiredReady.Count -gt 0) {
         $replaced = @($retiredReady | Where-Object { $_.'Replaced by' }).Count
         @"
@@ -103,53 +103,53 @@ $(Format-BlueprintTable -Items $retiredReady -Columns 'Template','Deprecated sol
 "@
     } else { '' }
     $opportunityRows = @($uncoveredTables | ForEach-Object {
-        $name = [string]$_.DataType
-        $cands = @(
-            $undeployedTemplates |
-                Where-Object { @($_.Tables) -contains $name } |
-                Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName
-        )
-        [pscustomobject]@{
-            Table                       = $name
-            'GB ({lookback-d})'                  = [math]::Round((ConvertTo-BlueprintNumber $_.BillableLast30d), 2)
-            Templates                   = $cands.Count
-            'From solutions'            = (Format-TemplateSolutionSummary -Templates $cands -Map $templateSolutionMap)
-            TemplateCount               = $cands.Count
-            Gb30d                       = [math]::Round((ConvertTo-BlueprintNumber $_.BillableLast30d), 2)
-        }
-    })
-    $installedSolutionNames = @(
-        Read-BlueprintRawArray 'content-packages.json' |
-            Where-Object { $_ } |
-            ForEach-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'displayName' '') } |
-            Where-Object { $_ }
+            $name = [string]$_.DataType
+            $cands = @(
+                $undeployedTemplates |
+                    Where-Object { @($_.Tables) -contains $name } |
+                    Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName
+                )
+                [pscustomobject]@{
+                    Table               = $name
+                    'GB ({lookback-d})' = [math]::Round((ConvertTo-BlueprintNumber $_.BillableLast30d), 2)
+                    Templates           = $cands.Count
+                    'From solutions'    = (Format-TemplateSolutionSummary -Templates $cands -Map $templateSolutionMap)
+                    TemplateCount       = $cands.Count
+                    Gb30d               = [math]::Round((ConvertTo-BlueprintNumber $_.BillableLast30d), 2)
+                }
+            })
+        $installedSolutionNames = @(
+            Read-BlueprintRawArray 'content-packages.json' |
+                Where-Object { $_ } |
+                ForEach-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'displayName' '') } |
+                Where-Object { $_ }
     )
     $noTemplateRows = @($opportunityRows | Where-Object { $_.TemplateCount -eq 0 } | ForEach-Object {
-        [pscustomobject]@{
-            Table      = $_.Table
-            'GB ({lookback-d})' = $_.Gb30d
-            Solutions  = $(
-                if ($connectorCatalogue) {
-                    Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames
-                } else { '' }
-            )
-        }
-    })
+            [pscustomobject]@{
+                Table               = $_.Table
+                'GB ({lookback-d})' = $_.Gb30d
+                Solutions           = $(
+                    if ($connectorCatalogue) {
+                        Get-TableSolutionLabel -Catalogue $connectorCatalogue -Table ([string]$_.Table) -InstalledSolutions $installedSolutionNames
+                    } else { '' }
+                )
+            }
+        })
     $readyTemplates = @($undeployedTemplates | Where-Object {
-        $tbls = @($_.Tables)
-        @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
-    } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName | ForEach-Object {
-        $sol = Get-TemplateSolution -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)
-        [pscustomobject]@{
-            Template             = $_.DisplayName
-            Solution             = $sol.Solution
-            'Solution installed' = $(if ($sol.Installed -eq $true) { 'Yes' } elseif ($sol.Installed -eq $false) { 'No' } else { '' })
-            Severity             = $_.Severity
-            Kind                 = $_.Kind
-            Tactics              = (Format-TacticList $_.Tactics)
-            Tables               = (@($_.Tables) -join ', ')
-        }
-    })
+            $tbls = @($_.Tables)
+            @($tbls | Where-Object { $dataTableSet.ContainsKey([string]$_) }).Count -gt 0
+        } | Sort-Object { $sv = [string]$_.Severity; if ($sevRank.ContainsKey($sv)) { $sevRank[$sv] } else { 9 } }, DisplayName | ForEach-Object {
+            $sol = Get-TemplateSolution -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)
+            [pscustomobject]@{
+                Template             = $_.DisplayName
+                Solution             = $sol.Solution
+                'Solution installed' = $(if ($sol.Installed -eq $true) { 'Yes' } elseif ($sol.Installed -eq $false) { 'No' } else { '' })
+                Severity             = $_.Severity
+                Kind                 = $_.Kind
+                Tactics              = (Format-TacticList $_.Tactics)
+                Tables               = (@($_.Tables) -join ', ')
+            }
+        })
     $readyInstalled = @($readyTemplates | Where-Object { $_.'Solution installed' -eq 'Yes' }).Count
     $readyNotInstalled = @($readyTemplates | Where-Object { $_.'Solution installed' -eq 'No' }).Count
     $readyBuiltIn = @($readyTemplates | Where-Object { $_.'Solution installed' -eq '' }).Count
@@ -157,28 +157,31 @@ $(Format-BlueprintTable -Items $retiredReady -Columns 'Template','Deprecated sol
     # template catalogue is deployed, and of what is ready to enable, how much
     # comes from a solution already installed.
     $headroomVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters = @(
-        [ordered]@{ title = 'Applicable templates'
-        caption = 'Rule templates in the catalogue, deprecated ones left out'
-        total = $applicableTemplates.Count
-        parts = @(
-            [ordered]@{ label = 'Deployed'; value = ($applicableTemplates.Count - $undeployedTemplates.Count); tone = 'ok' }
-            [ordered]@{ label = 'Not yet deployed'; value = $undeployedTemplates.Count; tone = 'violet' }
-        ) }
-        [ordered]@{ title = 'Ready to enable'; caption = 'Not yet deployed, and their tables have data'; total = $readyTemplates.Count; parts = @(
-            [ordered]@{ label = 'Solution installed'; value = $readyInstalled; tone = 'ok' }
-            [ordered]@{ label = 'Solution not installed'; value = $readyNotInstalled; tone = 'warn' }
-            [ordered]@{ label = 'Built-in'; value = $readyBuiltIn; tone = 'info' }
-        ) }
-    ); figures = @(
-        [ordered]@{ label = 'Enabled analytics rules'; value = $enabledRules.Count; caption = 'Of every kind, on this workspace' }
-        [ordered]@{
-            label = 'Tables with data and no detection'
-            value = $opportunityRows.Count
-            caption = 'Read by no enabled rule or custom detection, last {lookback}'
-        }
-    ) })
+                [ordered]@{ title = 'Applicable templates'
+                    caption       = 'Rule templates in the catalogue, deprecated ones left out'
+                    total         = $applicableTemplates.Count
+                    parts         = @(
+                        [ordered]@{ label = 'Deployed'; value = ($applicableTemplates.Count - $undeployedTemplates.Count); tone = 'ok' }
+                        [ordered]@{ label = 'Not yet deployed'; value = $undeployedTemplates.Count; tone = 'violet' }
+                    )
+                }
+                [ordered]@{ title = 'Ready to enable'; caption = 'Not yet deployed, and their tables have data'; total = $readyTemplates.Count; parts = @(
+                        [ordered]@{ label = 'Solution installed'; value = $readyInstalled; tone = 'ok' }
+                        [ordered]@{ label = 'Solution not installed'; value = $readyNotInstalled; tone = 'warn' }
+                        [ordered]@{ label = 'Built-in'; value = $readyBuiltIn; tone = 'info' }
+                    )
+                }
+            ); figures                                                               = @(
+                [ordered]@{ label = 'Enabled analytics rules'; value = $enabledRules.Count; caption = 'Of every kind, on this workspace' }
+                [ordered]@{
+                    label   = 'Tables with data and no detection'
+                    value   = $opportunityRows.Count
+                    caption = 'Read by no enabled rule or custom detection, last {lookback}'
+                }
+            )
+        })
     $headroomChart = if ($applicableTemplates.Count -gt 0 -or $enabledRules.Count -gt 0) {
-    @"
+        @"
 
 ``````mermaid
 ---
@@ -197,13 +200,13 @@ $headroomVisualLine
 "@
     } else { '' }
     $opportunityBody = if ($ruleTableRefs.Count -eq 0 -and $templateTableRefs.Count -eq 0) {
-    @"
+        @"
 $(Format-Banner -Title "Detection Opportunities")
 
 _Table-to-rule mapping was not computed in this run (``rule-table-references.json`` and ``template-table-references.json`` are absent), so there is nothing to compare. The collector writes both; they are missing from an inventory taken by an older collector or when that capture failed._
 "@
     } else {
-    @"
+        @"
 $(Format-Banner -Title "Detection Opportunities")
 
 Which ingested tables no enabled analytics rule reads, and which rule templates would cover them. The template list is the workspace's own alert-rule template catalogue, so a suggestion here can be enabled from Content Hub without a new data source. Deprecated templates and templates already deployed are never suggested.

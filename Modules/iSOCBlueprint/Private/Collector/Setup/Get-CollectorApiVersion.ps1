@@ -48,10 +48,10 @@ function Get-CollectorApiVersion {
     # external file as a moving part. Keep these values in sync with the
     # 'ApiVersions' block in Blueprint.psd1 and the table in Blueprint-References.md.
     return @{
-        Sentinel              = '2024-09-01'
-        SentinelPreview       = '2024-10-01-preview'
-        OperationalInsights   = '2025-02-01'
-        Tables                = '2025-02-01'
-        DataCollection        = '2023-03-11'
+        Sentinel            = '2024-09-01'
+        SentinelPreview     = '2024-10-01-preview'
+        OperationalInsights = '2025-02-01'
+        Tables              = '2025-02-01'
+        DataCollection      = '2023-03-11'
     }
 }

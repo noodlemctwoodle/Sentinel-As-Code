@@ -55,7 +55,7 @@ function Write-BlueprintDataCollectionSection {
     # ---------------------------------------------------------------------------
     $dces = Read-BlueprintRawArray 'dces.json'
 
-    $dcrsInScope    = @()
+    $dcrsInScope = @()
     $dcrsOutOfScope = @()
     foreach ($d in $dcrs) {
         if (Test-BlueprintDcrTargetsWorkspace -Dcr $d -WorkspaceId $workspaceResourceId) { $dcrsInScope += $d } else { $dcrsOutOfScope += $d }
@@ -102,7 +102,7 @@ function Write-BlueprintDataCollectionSection {
     # Order: highest item-count first, with the "Other sources" catch-all
     # always last regardless of count.
     $sortedBuckets = $sourceBuckets.GetEnumerator() |
-        Sort-Object @{ Expression = { if ($_.Key -eq 'Other sources') { 1 } else { 0 } } }, @{ Expression = { -$_.Value } }, Key |
+        Sort-Object @{ Expression = { if ($_.Key -eq 'Other sources') { 1 } else { 0 } } }, @{ Expression = { - $_.Value } }, Key |
         ForEach-Object { @{ Name = $_.Key; Count = $_.Value } }
     $displayBuckets = @($sortedBuckets | Select-Object -First 15)
     $overflowBuckets = @($sortedBuckets | Select-Object -Skip 15)
@@ -157,23 +157,23 @@ function Write-BlueprintDataCollectionSection {
     foreach ($t in $workspaceTables) {
         $p = $t.properties.plan
         if ($p) { $plansInUse[[string]$p] = $true }
-        $r  = [int]($t.properties.retentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
+        $r = [int]($t.properties.retentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
         $tr = [int]($t.properties.totalRetentionInDays | ForEach-Object { if ($_) { $_ } else { 0 } })
         if ($tr -gt $r -and $tr -gt 0) { $archiveTables++ }
     }
-    $hasBasic     = $plansInUse.ContainsKey('Basic')
+    $hasBasic = $plansInUse.ContainsKey('Basic')
     $hasAuxiliary = $plansInUse.ContainsKey('Auxiliary')
-    $hasDataLake  = $plansInUse.ContainsKey('DataLake') -or @($sentinelDataLake).Count -gt 0 -or $unifiedBilling
-    $hasArchive   = $archiveTables -gt 0
+    $hasDataLake = $plansInUse.ContainsKey('DataLake') -or @($sentinelDataLake).Count -gt 0 -or $unifiedBilling
+    $hasArchive = $archiveTables -gt 0
 
     $wspNodes = @(
         '        WS[(Log Analytics workspace)]', "        RUL[Analytics rules · $(Format-BlueprintCount $enabledRules.Count)]", '        INC[Incidents]'
     )
     $wspEdges = @('    WS --> RUL', '    RUL --> INC')
-    if ($hasBasic)     { $wspNodes += '        BAS[Basic plan tables]';     $wspEdges += '    WS --> BAS' }
+    if ($hasBasic) { $wspNodes += '        BAS[Basic plan tables]'; $wspEdges += '    WS --> BAS' }
     if ($hasAuxiliary) { $wspNodes += '        AUX[Auxiliary plan tables]'; $wspEdges += '    WS --> AUX' }
-    if ($hasDataLake)  { $wspNodes += '        DL[(Sentinel Data Lake)]';   $wspEdges += '    WS --> DL' }
-    if ($hasArchive)   { $wspNodes += "        ARC[(Long-term archive · $(Format-BlueprintPlural $archiveTables 'table'))]"; $wspEdges += '    WS --> ARC' }
+    if ($hasDataLake) { $wspNodes += '        DL[(Sentinel Data Lake)]'; $wspEdges += '    WS --> DL' }
+    if ($hasArchive) { $wspNodes += "        ARC[(Long-term archive · $(Format-BlueprintPlural $archiveTables 'table'))]"; $wspEdges += '    WS --> ARC' }
 
     # Downstream — render only the destinations the capture supports.
     $dataExports = Read-BlueprintRawArray 'data-exports.json'
@@ -214,23 +214,23 @@ function Write-BlueprintDataCollectionSection {
         } else { 'In use' }
     }
     $topologyVisualLine = Format-VisualLine -Kind 'topology' -Data ([ordered]@{
-        sources     = @($sortedBuckets | ForEach-Object { [ordered]@{ name = [string]$_.Name; count = [int]$_.Count } })
-        sourceTotal = @($effective).Count
-        rules       = $enabledRules.Count
-        plans       = @(
-            [ordered]@{ name = 'Analytics'; inUse = $true; detail = 'Default plan' }
-            [ordered]@{ name = 'Basic'; inUse = $hasBasic; detail = (& $planDetail 'Basic') }
-            [ordered]@{ name = 'Auxiliary'; inUse = $hasAuxiliary; detail = (& $planDetail 'Auxiliary') }
-            [ordered]@{ name = 'Data Lake'; inUse = $hasDataLake; detail = 'Enrolled' }
-            [ordered]@{ name = 'Long-term archive'; inUse = $hasArchive; detail = "$archiveTables table$(if ($archiveTables -ne 1) { 's' })" }
-        )
-        downstream  = @(
-            [ordered]@{ name = 'Defender XDR portal'; inUse = [bool]$m365DefenderConnected; detail = 'Connected' }
-            [ordered]@{ name = 'Playbooks'; inUse = $hasPlaybooks; detail = (Format-BlueprintCount @($playbooks).Count) }
-            [ordered]@{ name = 'Data export'; inUse = ($dataExportCount -gt 0); detail = "$dataExportCount destination$(if ($dataExportCount -ne 1) { 's' })" }
-            [ordered]@{ name = 'Workbooks'; inUse = (@($workbooksSaved).Count -gt 0); detail = (Format-BlueprintCount @($workbooksSaved).Count) }
-        )
-    })
+            sources     = @($sortedBuckets | ForEach-Object { [ordered]@{ name = [string]$_.Name; count = [int]$_.Count } })
+            sourceTotal = @($effective).Count
+            rules       = $enabledRules.Count
+            plans       = @(
+                [ordered]@{ name = 'Analytics'; inUse = $true; detail = 'Default plan' }
+                [ordered]@{ name = 'Basic'; inUse = $hasBasic; detail = (& $planDetail 'Basic') }
+                [ordered]@{ name = 'Auxiliary'; inUse = $hasAuxiliary; detail = (& $planDetail 'Auxiliary') }
+                [ordered]@{ name = 'Data Lake'; inUse = $hasDataLake; detail = 'Enrolled' }
+                [ordered]@{ name = 'Long-term archive'; inUse = $hasArchive; detail = "$archiveTables table$(if ($archiveTables -ne 1) { 's' })" }
+            )
+            downstream  = @(
+                [ordered]@{ name = 'Defender XDR portal'; inUse = [bool]$m365DefenderConnected; detail = 'Connected' }
+                [ordered]@{ name = 'Playbooks'; inUse = $hasPlaybooks; detail = (Format-BlueprintCount @($playbooks).Count) }
+                [ordered]@{ name = 'Data export'; inUse = ($dataExportCount -gt 0); detail = "$dataExportCount destination$(if ($dataExportCount -ne 1) { 's' })" }
+                [ordered]@{ name = 'Workbooks'; inUse = (@($workbooksSaved).Count -gt 0); detail = (Format-BlueprintCount @($workbooksSaved).Count) }
+            )
+        })
     $dstClassLine = ''
     if ($hasDownstream) {
         $dstIds = $dstNodes | ForEach-Object { ($_ -split '\[')[0].Trim() }

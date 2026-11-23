@@ -61,8 +61,7 @@ function ConvertTo-iSOCCanonicalDuration {
     $trimmed = $Value.Trim()
     try {
         [System.Xml.XmlConvert]::ToString([System.Xml.XmlConvert]::ToTimeSpan($trimmed.ToUpperInvariant()))
-    }
-    catch {
+    } catch {
         $trimmed
     }
 }

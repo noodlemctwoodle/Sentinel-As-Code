@@ -47,21 +47,21 @@ function Write-BlueprintSocOptimizationSection {
     # user-action drivers cluster — Coverage rows drive content-hub installs,
     # DataValue rows drive ingestion-tuning.
     $socOpt = Read-BlueprintRawArray 'soc-optimization.json'
-    $socCovRows = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_Coverage'  } | ForEach-Object { Format-BlueprintSocOptRow $_ 'UseCaseName' }
-    $socDvRows  = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_DataValue' } | ForEach-Object { Format-BlueprintSocOptRow $_ 'TableName'   }
-    $socOther   = $socOpt | Where-Object { $_.properties.recommendationTypeId -notin @('Precision_Coverage','Precision_DataValue') } | ForEach-Object {
+    $socCovRows = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_Coverage' } | ForEach-Object { Format-BlueprintSocOptRow $_ 'UseCaseName' }
+    $socDvRows = $socOpt | Where-Object { $_.properties.recommendationTypeId -eq 'Precision_DataValue' } | ForEach-Object { Format-BlueprintSocOptRow $_ 'TableName' }
+    $socOther = $socOpt | Where-Object { $_.properties.recommendationTypeId -notin @('Precision_Coverage', 'Precision_DataValue') } | ForEach-Object {
         [pscustomobject]@{
-            Kind         = $_.properties.recommendationTypeId
-            Title        = $_.properties.title
-            State        = $_.properties.state
-            Description  = ($_.properties.description -replace '\s+', ' ')
+            Kind        = $_.properties.recommendationTypeId
+            Title       = $_.properties.title
+            State       = $_.properties.state
+            Description = ($_.properties.description -replace '\s+', ' ')
         }
     }
     # Chart input: bucket recommendations by category for the headline pie.
     $socCategoryCounts = [ordered]@{
-        'Coverage' = $socCovRows.Count
+        'Coverage'   = $socCovRows.Count
         'Data Value' = $socDvRows.Count
-        'Other' = $socOther.Count
+        'Other'      = $socOther.Count
     }
     $socPieRows = $socCategoryCounts.GetEnumerator() | ForEach-Object {
         "    `"$($_.Key)`" : $($_.Value)"

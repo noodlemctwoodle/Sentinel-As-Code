@@ -43,14 +43,16 @@ function Write-BlueprintThreatIntelligenceSection {
     # Section 27 — Threat Intelligence (TOC 4.17)
     # Indicators by observable type (IP, domain, URL, file hash, email).
     $tiByTypeRows = @(Read-BlueprintRawArray 'threat-intel-by-type.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{ Type = $_.Type; Count = $_.Count; Indicators = Get-BlueprintRawProperty $_ 'Indicators' '' }
-    } | Sort-Object { ConvertTo-BlueprintNumber $_.Count } -Descending)
-    $tiByTypePie = if ($tiByTypeRows.Count -ge 2) { @"
+            [pscustomobject]@{ Type = $_.Type; Count = $_.Count; Indicators = Get-BlueprintRawProperty $_ 'Indicators' '' }
+        } | Sort-Object { ConvertTo-BlueprintNumber $_.Count } -Descending)
+    $tiByTypePie = if ($tiByTypeRows.Count -ge 2) {
+        @"
 ``````mermaid
 pie showData title Indicators by type (last {lookback-d})
 $(($tiByTypeRows | ForEach-Object { "    `"$($_.Type)`" : $(ConvertTo-BlueprintNumber $_.Count)" }) -join [Environment]::NewLine)
 ``````
-"@ } else { '' }
+"@
+    } else { '' }
     # Two capture sources are tried in turn:
     # 1. `threat-intel-metrics.json` — the Sentinel TI metrics REST endpoint.
     #    Independent of the workspace KQL path so it survives KQL-side failures
@@ -66,9 +68,9 @@ $(($tiByTypeRows | ForEach-Object { "    `"$($_.Type)`" : $(ConvertTo-BlueprintN
     # `threatType` / `threatTypeCount` fields — those field names appear nowhere
     # in the real API surface and resulted in zero rows being rendered.
     $tiMetrics = Read-BlueprintRawArray 'threat-intel-metrics.json'
-    $tiCounts  = Read-BlueprintRawArray 'threat-intel-counts.json'
+    $tiCounts = Read-BlueprintRawArray 'threat-intel-counts.json'
     $tiSourceRows = @()
-    $tiTypeRows   = @()
+    $tiTypeRows = @()
     if ($tiMetrics.Count -gt 0) {
         foreach ($m in $tiMetrics) {
             if ($m.PSObject.Properties.Name -notcontains 'properties' -or -not $m.properties) { continue }
@@ -92,7 +94,7 @@ $(($tiByTypeRows | ForEach-Object { "    `"$($_.Type)`" : $(ConvertTo-BlueprintN
         }
         # Sort both tables by count desc so the loudest entry surfaces first.
         $tiSourceRows = @($tiSourceRows) | Sort-Object -Property IndicatorCount -Descending
-        $tiTypeRows   = @($tiTypeRows)   | Sort-Object -Property IndicatorCount -Descending
+        $tiTypeRows = @($tiTypeRows) | Sort-Object -Property IndicatorCount -Descending
         $tiRows = $tiSourceRows
         $tiSourceLabel = 'TI metrics API (`threatIntelligence/main/metrics`)'
     } else {
@@ -141,7 +143,7 @@ $($tiPieRows -join [Environment]::NewLine)
     # STIX objects beyond indicators, and the feeds that bring indicators in.
     $tiObjects = Read-BlueprintRawArray 'threat-intel-objects.json'
     $tiObjectsBlock = if ($tiObjects.Count -gt 0) {
-    @"
+        @"
 
 ## Indicators by type (last {lookback-d})
 
@@ -160,7 +162,7 @@ $(Format-BlueprintTable -Items ($tiObjects | ForEach-Object { [pscustomobject]@{
     } else { '' }
     $tiFeedKinds = @(
         'MicrosoftThreatIntelligence', 'PremiumMicrosoftDefenderForThreatIntelligence', 'ThreatIntelligenceTaxii', 'ThreatIntelligence',
-            'ThreatIntelligenceUploadIndicatorsAPI'
+        'ThreatIntelligenceUploadIndicatorsAPI'
     )
     $tiFeedRows = @($connectors | Where-Object { $_.kind -in $tiFeedKinds } | ForEach-Object { [pscustomobject]@{ Kind = $_.kind; Name = $_.name } })
 
@@ -169,34 +171,32 @@ $(Format-BlueprintTable -Items ($tiObjects | ForEach-Object { [pscustomobject]@{
     # missing from the capture is not in the workspace at all.
     $tiTableRaw = @(Read-BlueprintRawArray 'threat-intel-tables.json' | Where-Object { $_ })
     $tiTableRows = @(foreach ($name in 'ThreatIntelIndicators', 'ThreatIntelObjects', 'ThreatIntelligenceIndicator') {
-        $row = $tiTableRaw | Where-Object { [string]$_.Table -eq $name } | Select-Object -First 1
-        $n30 = if ($row) { [long](Get-BlueprintRawProperty $row 'Records30d' 0) } else { 0 }
-        [pscustomobject]@{
-            Table      = $(if ($name -eq 'ThreatIntelligenceIndicator') { "$name (retired)" } else { $name })
-            Records30d = $(if ($row) { $n30 } else { '' })
-            Records7d  = $(if ($row) { [long](Get-BlueprintRawProperty $row 'Records7d' 0) } else { '' })
-            FirstSeen  = $(if ($row) { Format-DateUtc (Get-BlueprintRawProperty $row 'FirstSeen') } else { '' })
-            LastSeen   = $(if ($row) { Format-DateUtc (Get-BlueprintRawProperty $row 'LastSeen') } else { '' })
-            Status     = $(if (-not $row) { 'Not in workspace' } elseif ($n30 -gt 0) { 'Ingesting' } else { 'No data in {lookback}' })
-        }
-    })
+            $row = $tiTableRaw | Where-Object { [string]$_.Table -eq $name } | Select-Object -First 1
+            $n30 = if ($row) { [long](Get-BlueprintRawProperty $row 'Records30d' 0) } else { 0 }
+            [pscustomobject]@{
+                Table      = $(if ($name -eq 'ThreatIntelligenceIndicator') { "$name (retired)" } else { $name })
+                Records30d = $(if ($row) { $n30 } else { '' })
+                Records7d  = $(if ($row) { [long](Get-BlueprintRawProperty $row 'Records7d' 0) } else { '' })
+                FirstSeen  = $(if ($row) { Format-DateUtc (Get-BlueprintRawProperty $row 'FirstSeen') } else { '' })
+                LastSeen   = $(if ($row) { Format-DateUtc (Get-BlueprintRawProperty $row 'LastSeen') } else { '' })
+                Status     = $(if (-not $row) { 'Not in workspace' } elseif ($n30 -gt 0) { 'Ingesting' } else { 'No data in {lookback}' })
+            }
+        })
     $tiCurrent = [long](@(
-        $tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelIndicators' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }
-    ) |
-        Measure-Object -Sum).Sum
+            $tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelIndicators' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }
+        ) |
+            Measure-Object -Sum).Sum
     $tiLegacy = [long](@(
-        $tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelligenceIndicator' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }
-    ) |
-        Measure-Object -Sum).Sum
+            $tiTableRaw | Where-Object { [string]$_.Table -eq 'ThreatIntelligenceIndicator' } | ForEach-Object { Get-BlueprintRawProperty $_ 'Records30d' 0 }
+        ) |
+            Measure-Object -Sum).Sum
     $tiMigration = if (-not (Test-Path (Join-Path $rawRoot 'threat-intel-tables.json'))) { '_Not captured in this snapshot._' }
-        elseif ($tiCurrent -gt 0 -and $tiLegacy -gt 0) {
-            '**Both tables carry data.** `ThreatIntelIndicators` is current; confirm nothing still writes to or reads the retired table ([SAC-TI-01], [SAC-TI-02]).'
-        }
-        elseif ($tiCurrent -gt 0) { '**Current.** Threat intelligence is flowing into `ThreatIntelIndicators`.' }
-        elseif ($tiLegacy -gt 0) {
-            '**Retired table only.** Indicators land in `ThreatIntelligenceIndicator` but not `ThreatIntelIndicators`; check the TI connector configuration ([SAC-TI-01]).'
-        }
-        else { '**No threat intelligence** in either table over the last {lookback}.' }
+    elseif ($tiCurrent -gt 0 -and $tiLegacy -gt 0) {
+        '**Both tables carry data.** `ThreatIntelIndicators` is current; confirm nothing still writes to or reads the retired table ([SAC-TI-01], [SAC-TI-02]).'
+    } elseif ($tiCurrent -gt 0) { '**Current.** Threat intelligence is flowing into `ThreatIntelIndicators`.' }
+    elseif ($tiLegacy -gt 0) {
+        '**Retired table only.** Indicators land in `ThreatIntelligenceIndicator` but not `ThreatIntelIndicators`; check the TI connector configuration ([SAC-TI-01]).'
+    } else { '**No threat intelligence** in either table over the last {lookback}.' }
 
     $tiHealth = Read-BlueprintRawArray 'threat-intel-health.json' | Select-Object -First 1
     $tiHealthBlock = if ($tiHealth) {
@@ -212,26 +212,26 @@ $(Format-BlueprintTable -Items ($tiObjects | ForEach-Object { [pscustomobject]@{
     } else { Get-BlueprintEmptyMessage 'threat-intel-health.json' '_No indicators in `ThreatIntelIndicators` over the last {lookback}._' }
 
     $tiKqlSourceRows = @($tiCounts | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{
-            SourceSystem = $_.SourceSystem
-            Records = $_.Count
-            Indicators = Get-BlueprintRawProperty $_ 'Indicators' ''
-            LastSeen = Format-DateUtc $_.Last
-        }
-    } |
-        Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Records }; Descending = $true }, SourceSystem |
-        ForEach-Object { $_.Records = Format-BlueprintCount $_.Records; $_.Indicators = Format-BlueprintCount $_.Indicators; $_ })
+            [pscustomobject]@{
+                SourceSystem = $_.SourceSystem
+                Records      = $_.Count
+                Indicators   = Get-BlueprintRawProperty $_ 'Indicators' ''
+                LastSeen     = Format-DateUtc $_.Last
+            }
+        } |
+            Sort-Object @{ Expression = { ConvertTo-BlueprintNumber $_.Records }; Descending = $true }, SourceSystem |
+            ForEach-Object { $_.Records = Format-BlueprintCount $_.Records; $_.Indicators = Format-BlueprintCount $_.Indicators; $_ })
 
     $taxiiRows = @(Read-BlueprintRawArray 'taxii-clients.json' | Where-Object { $_ } | ForEach-Object {
-        $tp = Get-BlueprintRawProperty $_ 'properties'
-        [pscustomobject]@{
-            Name        = [string](Get-BlueprintRawProperty $tp 'friendlyName' $_.name)
-            Collection  = [string](Get-BlueprintRawProperty $tp 'collectionId' '')
-            Polling     = [string](Get-BlueprintRawProperty $tp 'pollingFrequency' '')
-            Server      = [string](Get-BlueprintRawProperty $tp 'taxiiServer' '')
-            Description = [string](Get-BlueprintRawProperty $tp 'description' '')
-        }
-    })
+            $tp = Get-BlueprintRawProperty $_ 'properties'
+            [pscustomobject]@{
+                Name        = [string](Get-BlueprintRawProperty $tp 'friendlyName' $_.name)
+                Collection  = [string](Get-BlueprintRawProperty $tp 'collectionId' '')
+                Polling     = [string](Get-BlueprintRawProperty $tp 'pollingFrequency' '')
+                Server      = [string](Get-BlueprintRawProperty $tp 'taxiiServer' '')
+                Description = [string](Get-BlueprintRawProperty $tp 'description' '')
+            }
+        })
 
     # Left in the render context for later sections.
     $Context.m = $m

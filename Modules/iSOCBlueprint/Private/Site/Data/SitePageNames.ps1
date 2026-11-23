@@ -21,6 +21,6 @@
     This file defines values rather than running.
 #>
 
-$script:DashboardPage   = 'Dashboard'
+$script:DashboardPage = 'Dashboard'
 $script:FindingsListUrl = 'Lists/SentinelFindings'
-$script:FindingsTitle   = 'Sentinel Findings'
+$script:FindingsTitle = 'Sentinel Findings'

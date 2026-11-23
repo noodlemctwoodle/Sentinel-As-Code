@@ -93,8 +93,7 @@ function Get-iSOCDcrDefaultTransform {
         if ($streamType -ne $tableType) {
             if ($castByType.ContainsKey($tableType)) {
                 '{0} = {1}({0})' -f $name, $castByType[$tableType]
-            }
-            else {
+            } else {
                 Write-iSOCLog "Column '$name' has table type '$tableType' with no known cast; leaving it to passthrough." -Level Warning
             }
         }

@@ -96,13 +96,11 @@ function ConvertTo-iSOCWorkbookRequest {
             if ($inner) {
                 $serializedData = $inner
                 Write-iSOCLog "ARM-wrapped workbook detected for '$folderName'; extracted inner serializedData."
-            }
-            else {
+            } else {
                 Write-iSOCLog "Workbook '$folderName' has a top-level 'resources' array but no Microsoft.Insights/workbooks serializedData; deploying file content as-is." -Level Warning
             }
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Workbook '$folderName' could not be parsed for ARM detection ($($_.Exception.Message)); deploying file content as-is." -Level Warning
     }
 

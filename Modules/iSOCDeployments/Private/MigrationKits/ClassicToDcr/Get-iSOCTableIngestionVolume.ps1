@@ -67,8 +67,7 @@ Usage
             if ($null -eq $row) { continue }
             $result[[string]$row.DataType] = [double]$row.GB
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not read ingestion volume ($($_.Exception.Message.Split([char]10)[0])). Continuing without it." -Level Warning
         return $null
     }

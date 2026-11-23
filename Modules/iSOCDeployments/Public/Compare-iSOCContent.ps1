@@ -139,8 +139,7 @@ function Compare-iSOCContent {
     if ($ContentType) {
         $cannot = @($types | Where-Object { $_.Capabilities -notcontains 'Compare' })
         if ($cannot.Count -gt 0) { throw "The module cannot compare $(($cannot | ForEach-Object { $_.Name }) -join ', ') yet." }
-    }
-    else {
+    } else {
         $types = @($types | Where-Object { $_.Capabilities -contains 'Compare' })
     }
     Assert-iSOCPrerequisite -Step Connect, Read

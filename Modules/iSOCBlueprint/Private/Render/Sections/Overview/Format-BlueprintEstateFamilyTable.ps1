@@ -50,24 +50,24 @@ function Format-BlueprintEstateFamilyTable {
         $alertsByFamily[$fam].Add("$($p.Product) $(Format-BlueprintCount $p.Alerts)")
     }
     $rows = @($Estate.Sources | ForEach-Object {
-        $fam = [string]$_.Category
-        [pscustomobject]@{
-            Family           = $fam
-            Tables           = $_.Tables
-            Gb30d            = Format-BlueprintGb $_.Gb
-            TablesRead       = $_.Covered
-            GbRead           = Format-BlueprintGb $_.CoveredGb
-            FirstPartyAlerts = $(if ($alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] -join '; ' } else { '' })
-        }
-    })
+            $fam = [string]$_.Category
+            [pscustomobject]@{
+                Family           = $fam
+                Tables           = $_.Tables
+                Gb30d            = Format-BlueprintGb $_.Gb
+                TablesRead       = $_.Covered
+                GbRead           = Format-BlueprintGb $_.CoveredGb
+                FirstPartyAlerts = $(if ($alertsByFamily.ContainsKey($fam)) { $alertsByFamily[$fam] -join '; ' } else { '' })
+            }
+        })
     foreach ($fam in @($alertsByFamily.Keys | Sort-Object)) {
         if (-not @($rows | Where-Object { $_.Family -eq $fam }).Count) {
             $rows += [pscustomobject]@{
-                Family = $fam
-                Tables = 0
-                Gb30d = Format-BlueprintGb 0
-                TablesRead = 0
-                GbRead = Format-BlueprintGb 0
+                Family           = $fam
+                Tables           = 0
+                Gb30d            = Format-BlueprintGb 0
+                TablesRead       = 0
+                GbRead           = Format-BlueprintGb 0
                 FirstPartyAlerts = ($alertsByFamily[$fam] -join '; ')
             }
         }
@@ -77,7 +77,7 @@ function Format-BlueprintEstateFamilyTable {
     } else {
         '**Defender XDR custom detections:** not captured in this run (the identity needs the Microsoft Graph permission CustomDetection.Read.All), so coverage counts Sentinel rules only.'
     }
-@"
+    @"
 ### Source families
 
 Each family's share of the last {lookback} of billable data, how many of its tables an enabled Sentinel rule or Defender custom detection reads, and the first-party alerts (Defender XDR, Entra ID Protection, Defender for Identity, Defender for Cloud) raised beside it in the same window. First-party detections run inside their product and read no workspace table, so they never move a table into the covered column.

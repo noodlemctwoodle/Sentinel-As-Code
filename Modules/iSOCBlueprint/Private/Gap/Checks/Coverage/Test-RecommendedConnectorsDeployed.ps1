@@ -39,14 +39,14 @@ function Test-RecommendedConnectorsDeployed {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # $Inventory.DataConnectors can be $null when the workspace has no classic
     # connectors at all (some tenants run pure CCF). Coerce to an empty array
     # so Get-PropOrDefault doesn't see a $null Object.
     $connectors = @()
     if ($Inventory.DataConnectors) { $connectors = @($Inventory.DataConnectors) }
     $deployedKinds = @($connectors | ForEach-Object { Get-PropOrDefault $_ 'kind' '' }) | Sort-Object -Unique
-    $recommended = @('AzureActiveDirectory','MicrosoftThreatProtection','AzureSecurityCenter','Office365','MicrosoftDefenderAdvancedThreatProtection','ThreatIntelligence')
+    $recommended = @('AzureActiveDirectory', 'MicrosoftThreatProtection', 'AzureSecurityCenter', 'Office365', 'MicrosoftDefenderAdvancedThreatProtection', 'ThreatIntelligence')
     $missing = @($recommended | Where-Object { $deployedKinds -notcontains $_ })
     if ($missing.Count -gt 0) {
         return New-Finding -Evidence "Recommended $(Select-GapWording $missing.Count 'connector kind' 'connector kinds') not deployed: $($missing -join ', ')." -Detail @{ Missing = $missing }

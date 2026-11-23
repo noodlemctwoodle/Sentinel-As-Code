@@ -32,7 +32,7 @@ function Get-SacGeneratedPageNames {
     param()
     $items = Get-PnPListItem -List 'SitePages' -PageSize 500 -Fields 'FileLeafRef'
     return , @($items |
-        ForEach-Object { [string]$_.FieldValues['FileLeafRef'] } |
-        Where-Object { $_ -match '^sac-.+\.aspx$' } |
-        ForEach-Object { $_ -replace '\.aspx$', '' })
+            ForEach-Object { [string]$_.FieldValues['FileLeafRef'] } |
+            Where-Object { $_ -match '^sac-.+\.aspx$' } |
+            ForEach-Object { $_ -replace '\.aspx$', '' })
 }

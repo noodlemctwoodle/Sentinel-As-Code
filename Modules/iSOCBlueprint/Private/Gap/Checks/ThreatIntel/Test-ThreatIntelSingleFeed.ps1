@@ -39,7 +39,7 @@ function Test-ThreatIntelSingleFeed {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Connector inventory is the primary signal; without it the check
     # would report "no feed" on every failed capture.
     if ($Inventory.RawFiles -notcontains 'data-connectors-classic.json') { return $null }

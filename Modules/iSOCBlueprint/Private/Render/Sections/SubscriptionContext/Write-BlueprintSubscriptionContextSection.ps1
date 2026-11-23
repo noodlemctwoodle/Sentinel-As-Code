@@ -44,10 +44,10 @@ function Write-BlueprintSubscriptionContextSection {
     # ---------------------------------------------------------------------------
     # Section: 86 — subscription context
     # ---------------------------------------------------------------------------
-    $sub        = Read-BlueprintRaw 'subscription.json'
-    $rps        = Read-BlueprintRawArray 'resource-providers.json'
-    $locks      = Read-BlueprintRawArray 'subscription-locks.json'
-    $policies   = Read-BlueprintRawArray 'policy-assignments.json'
+    $sub = Read-BlueprintRaw 'subscription.json'
+    $rps = Read-BlueprintRawArray 'resource-providers.json'
+    $locks = Read-BlueprintRawArray 'subscription-locks.json'
+    $policies = Read-BlueprintRawArray 'policy-assignments.json'
 
     $rpRows = $rps | ForEach-Object { [pscustomobject]@{ Provider = $_.ProviderNamespace; State = $_.RegistrationState } }
     $lockRows = $locks | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Level = $_.Properties.level; Notes = $_.Properties.notes } }
@@ -56,11 +56,11 @@ function Write-BlueprintSubscriptionContextSection {
         # whichever displayName/scope tier is present.
         $name = $null; $scope = $null
         if ($_.Properties) {
-            $name  = $_.Properties.DisplayName
+            $name = $_.Properties.DisplayName
             $scope = $_.Properties.Scope
         }
-        if (-not $name)  { $name  = $_.DisplayName }
-        if (-not $name)  { $name  = $_.Name }
+        if (-not $name) { $name = $_.DisplayName }
+        if (-not $name) { $name = $_.Name }
         if (-not $scope) { $scope = $_.Scope }
         [pscustomobject]@{ Name = $name; Scope = $scope }
     }

@@ -73,75 +73,74 @@ function Invoke-WordPandoc {
         $tocProbe = Join-Path $work '_toc.md'
 
         $passA = @($inputPaths) + @(
-        '-f', $reader, '-t', 'gfm', '--standalone'
-        '--wrap=none'
-        '--toc', "--toc-depth=$TocDepth"
-        '-o', $tocProbe
-    )
-    Write-WordLog "Running pandoc (contents pass)..." -Level Info
-    $passAOut = & pandoc @passA 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        foreach ($line in $passAOut) { Write-WordLog "  $line" -Level Error }
-        Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
-        throw 'pandoc contents pass failed.'
-    }
-
-    # The contents list is every line before the first top-level heading.
-    $tocLines = [System.Collections.Generic.List[string]]::new()
-    foreach ($line in (Get-Content -LiteralPath $tocProbe)) {
-        if ($line -match '^#\s') { break }
-        $tocLines.Add($line)
-    }
-
-    # Turn the bullet list into TOC-styled paragraphs: each entry becomes a
-    # fenced div carrying a TOCEntry<level> paragraph style (indented, no
-    # bullet marker), so it reads as a table of contents rather than a list.
-    # The nesting unit is the smallest positive indent pandoc emitted.
-    $unit = 0
-    foreach ($line in $tocLines) {
-        if ($line -match '^(?<i>[ \t]+)-[ \t]+\[') {
-            $n = $Matches['i'].Length
-            if ($unit -eq 0 -or $n -lt $unit) { $unit = $n }
+            '-f', $reader, '-t', 'gfm', '--standalone'
+            '--wrap=none'
+            '--toc', "--toc-depth=$TocDepth"
+            '-o', $tocProbe
+        )
+        Write-WordLog "Running pandoc (contents pass)..." -Level Info
+        $passAOut = & pandoc @passA 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            foreach ($line in $passAOut) { Write-WordLog "  $line" -Level Error }
+            Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+            throw 'pandoc contents pass failed.'
         }
-    }
-    if ($unit -le 0) { $unit = 2 }
 
-    $contentsMd = [System.Collections.Generic.List[string]]::new()
-    $contentsMd.Add('# Contents')
-    $contentsMd.Add('')
-    foreach ($line in $tocLines) {
-        if ($line -match '^(?<i>[ \t]*)-[ \t]+(?<entry>\[.*\]\(#.*\))[ \t]*$') {
-            $level = [math]::Floor($Matches['i'].Length / $unit) + 1
-            if ($level -gt 3) { $level = 3 }
-            $contentsMd.Add("::: {custom-style=`"TOCEntry$level`"}")
-            $contentsMd.Add($Matches['entry'])
-            $contentsMd.Add(':::')
-            $contentsMd.Add('')
+        # The contents list is every line before the first top-level heading.
+        $tocLines = [System.Collections.Generic.List[string]]::new()
+        foreach ($line in (Get-Content -LiteralPath $tocProbe)) {
+            if ($line -match '^#\s') { break }
+            $tocLines.Add($line)
         }
-    }
-    # Page break so the first section starts on a fresh page after the contents.
-    $contentsMd.Add('```{=openxml}')
-    $contentsMd.Add('<w:p><w:r><w:br w:type="page" /></w:r></w:p>')
-    $contentsMd.Add('```')
-    $contentsMd.Add('')
-    $contentsFile = Join-Path $work '_contents.md'
-    Set-Content -LiteralPath $contentsFile -Value $contentsMd -Encoding utf8
 
-    $passB = @($contentsFile) + @($inputPaths) + @(
-        '-f', $reader, '-t', 'docx', '--standalone'
-        '--resource-path', $resourcePath
-        '--metadata', "title=$Title"
-        '-o', $OutputPath
-    )
-    if ($ReferenceDoc) {
-        $passB += @('--reference-doc', (Get-Item -LiteralPath $ReferenceDoc).FullName)
-    }
+        # Turn the bullet list into TOC-styled paragraphs: each entry becomes a
+        # fenced div carrying a TOCEntry<level> paragraph style (indented, no
+        # bullet marker), so it reads as a table of contents rather than a list.
+        # The nesting unit is the smallest positive indent pandoc emitted.
+        $unit = 0
+        foreach ($line in $tocLines) {
+            if ($line -match '^(?<i>[ \t]+)-[ \t]+\[') {
+                $n = $Matches['i'].Length
+                if ($unit -eq 0 -or $n -lt $unit) { $unit = $n }
+            }
+        }
+        if ($unit -le 0) { $unit = 2 }
+
+        $contentsMd = [System.Collections.Generic.List[string]]::new()
+        $contentsMd.Add('# Contents')
+        $contentsMd.Add('')
+        foreach ($line in $tocLines) {
+            if ($line -match '^(?<i>[ \t]*)-[ \t]+(?<entry>\[.*\]\(#.*\))[ \t]*$') {
+                $level = [math]::Floor($Matches['i'].Length / $unit) + 1
+                if ($level -gt 3) { $level = 3 }
+                $contentsMd.Add("::: {custom-style=`"TOCEntry$level`"}")
+                $contentsMd.Add($Matches['entry'])
+                $contentsMd.Add(':::')
+                $contentsMd.Add('')
+            }
+        }
+        # Page break so the first section starts on a fresh page after the contents.
+        $contentsMd.Add('```{=openxml}')
+        $contentsMd.Add('<w:p><w:r><w:br w:type="page" /></w:r></w:p>')
+        $contentsMd.Add('```')
+        $contentsMd.Add('')
+        $contentsFile = Join-Path $work '_contents.md'
+        Set-Content -LiteralPath $contentsFile -Value $contentsMd -Encoding utf8
+
+        $passB = @($contentsFile) + @($inputPaths) + @(
+            '-f', $reader, '-t', 'docx', '--standalone'
+            '--resource-path', $resourcePath
+            '--metadata', "title=$Title"
+            '-o', $OutputPath
+        )
+        if ($ReferenceDoc) {
+            $passB += @('--reference-doc', (Get-Item -LiteralPath $ReferenceDoc).FullName)
+        }
 
         Write-WordLog "Running pandoc (docx pass)..." -Level Info
         $pandocOut = & pandoc @passB 2>&1
         $exit = $LASTEXITCODE
-    }
-    else {
+    } else {
         # Real Word TOC field. Prepend a page break so that once the field is
         # populated, the first section still starts on a fresh page after it.
         $pageBreak = Join-Path $work '_pagebreak.md'

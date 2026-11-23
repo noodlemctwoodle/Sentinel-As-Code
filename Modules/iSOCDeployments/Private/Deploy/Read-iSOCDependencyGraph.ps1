@@ -75,8 +75,7 @@ function Read-iSOCDependencyGraph {
             }
         }
         Write-iSOCLog "Loaded dependencies for $($graph.Count) content items."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to parse dependencies.json: $($_.Exception.Message)" -Level Warning
         Write-iSOCLog 'Continuing without dependency checks.' -Level Warning
         $graph = @{}

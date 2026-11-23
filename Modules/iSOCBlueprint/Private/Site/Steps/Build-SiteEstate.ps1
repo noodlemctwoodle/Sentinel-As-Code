@@ -49,27 +49,27 @@ function Build-SiteEstate {
     $rulesEnabled = $Context.rulesEnabled
     $volumes = $Context.volumes
 
-    $ruleRefs      = Read-SiteRawArray 'rule-table-references.json'
-    $templateRefs  = Read-SiteRawArray 'template-table-references.json'
+    $ruleRefs = Read-SiteRawArray 'rule-table-references.json'
+    $templateRefs = Read-SiteRawArray 'template-table-references.json'
     $customDetRefs = Read-SiteRawArray 'custom-detection-table-references.json'
     $customDetCaptured = Test-Path -LiteralPath (Join-Path $script:RawRoot 'defender-custom-detections.json')
     $customDetRaw = Read-SiteRawArray 'defender-custom-detections.json'
-    $effectRows    = Read-SiteRawArray 'rule-effectiveness.json'
-    $firedRows     = Read-SiteRawArray 'rules-fired.json'
-    $runRows       = Read-SiteRawArray 'playbook-runs.json'
-    $huntRows      = Read-SiteRawArray 'hunts.json'
-    $bookmarkRows  = Read-SiteRawArray 'bookmarks.json'
-    $usageRows     = Read-SiteRawArray 'workspace-usage-daily.json'
-    $tablesData    = Read-SiteRawArray 'tables-with-data.json'
+    $effectRows = Read-SiteRawArray 'rule-effectiveness.json'
+    $firedRows = Read-SiteRawArray 'rules-fired.json'
+    $runRows = Read-SiteRawArray 'playbook-runs.json'
+    $huntRows = Read-SiteRawArray 'hunts.json'
+    $bookmarkRows = Read-SiteRawArray 'bookmarks.json'
+    $usageRows = Read-SiteRawArray 'workspace-usage-daily.json'
+    $tablesData = Read-SiteRawArray 'tables-with-data.json'
     # Read-SiteRawArray emits the array as one object, so take the first row by index.
     $incSummaryRows = @(Read-SiteRawArray 'incidents-summary.json')
     $incSummaryRow = if ($incSummaryRows.Count -gt 0) { $incSummaryRows[0] } else { $null }
-    $tiCountRows   = Read-SiteRawArray 'threat-intel-counts.json'
-    $tiObjectRows  = Read-SiteRawArray 'threat-intel-objects.json'
-    $maturityRaw   = Read-SiteRaw 'maturity.json'
+    $tiCountRows = Read-SiteRawArray 'threat-intel-counts.json'
+    $tiObjectRows = Read-SiteRawArray 'threat-intel-objects.json'
+    $maturityRaw = Read-SiteRaw 'maturity.json'
     # A failed maturity capture writes '{}', which is truthy, so test for the
     # members the dashboard needs.
-    $maturityOk    = ($null -ne $maturityRaw -and $null -ne $maturityRaw.PSObject.Properties['areas'] -and $null -ne
+    $maturityOk = ($null -ne $maturityRaw -and $null -ne $maturityRaw.PSObject.Properties['areas'] -and $null -ne
         $maturityRaw.PSObject.Properties['overall'])
 
     # Estate: source families -> ingestion -> detection -> alerts -> incidents,
@@ -119,23 +119,23 @@ function Build-SiteEstate {
         $isCovered = $referencedTables.ContainsKey([string]$t.DataType)
         if ($isCovered) { if ($isActive) { $tablesCovered++ }; $estateCoveredGb += $gb; $famAgg2[$fam].covered++; $famAgg2[$fam].coveredGb += $gb }
         $estateTableRows += [ordered]@{
-            table   = [string]$t.DataType
-            family  = $fam
-            gb      = [math]::Round($gb, 2)
-            rules   = $(if ($rulesPerTableBuild.ContainsKey([string]$t.DataType)) { $rulesPerTableBuild[[string]$t.DataType] } else { 0 })
+            table            = [string]$t.DataType
+            family           = $fam
+            gb               = [math]::Round($gb, 2)
+            rules            = $(if ($rulesPerTableBuild.ContainsKey([string]$t.DataType)) { $rulesPerTableBuild[[string]$t.DataType] } else { 0 })
             customDetections = $(if ($customDetPerTable.ContainsKey([string]$t.DataType)) { $customDetPerTable[[string]$t.DataType] } else { 0 })
-            covered = $isCovered
+            covered          = $isCovered
         }
     }
     $sortedFams = @($famAgg2.Values | Sort-Object { $_.gb } -Descending)
     $estateSources = @()
     foreach ($f in $sortedFams) {
         $estateSources += [ordered]@{
-            category = $f.category
-            tables = $f.tables
-            gb = [math]::Round($f.gb, 2)
+            category  = $f.category
+            tables    = $f.tables
+            gb        = [math]::Round($f.gb, 2)
             coveredGb = [math]::Round($f.coveredGb, 2)
-            covered = $f.covered
+            covered   = $f.covered
         }
     }
     $alerts30d = [long]0
@@ -170,9 +170,9 @@ function Build-SiteEstate {
         if (-not $productAgg.Contains($key)) { $productAgg[$key] = [ordered]@{ family = $famName; product = $prod; alerts = [long]0; detections = 0 } }
         $productAgg[$key].alerts += [long](ConvertTo-BuildNumber $v.Alerts); $productAgg[$key].detections++
     }
-    $productAlerts = @($productAgg.Values | Sort-Object { -$_.alerts })
-    $incidents30d = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Count'])  { [int](ConvertTo-BuildNumber $incSummaryRow.Count) }  else { 0 }
-    $closed30d    = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Closed']) { [int](ConvertTo-BuildNumber $incSummaryRow.Closed) } else { 0 }
+    $productAlerts = @($productAgg.Values | Sort-Object { - $_.alerts })
+    $incidents30d = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Count']) { [int](ConvertTo-BuildNumber $incSummaryRow.Count) }  else { 0 }
+    $closed30d = if ($incSummaryRow -and $incSummaryRow.PSObject.Properties['Closed']) { [int](ConvertTo-BuildNumber $incSummaryRow.Closed) } else { 0 }
     $rulesQueryEnabled = @($alertRaw | Where-Object { $_.properties -and $_.properties.enabled -and $_.kind -in @('Scheduled', 'NRT') }).Count
     # Fired, of the enabled Scheduled and NRT rules (by rule id, or by name for an
     # alert without one), as the ring says: a rule disabled or deleted since it
@@ -183,44 +183,44 @@ function Build-SiteEstate {
         if ($r.properties.PSObject.Properties['displayName'] -and $r.properties.displayName) { $queryRuleKeys["name:$($r.properties.displayName)"] = $true }
     }
     $rulesFiredCount = @($firedRows | Where-Object {
-        if (-not $_) { return $false }
-        $k = ([string]$(if ($_.PSObject.Properties['AlertRuleId']) { $_.AlertRuleId } else { '' })).ToLowerInvariant()
-        if ($k -match '/') { $k = ($k -split '/')[-1] }
-        if ($k) {
-            $queryRuleKeys.ContainsKey($k)
-        } else { $queryRuleKeys.ContainsKey("name:$([string]$(if ($_.PSObject.Properties['AlertName']) { $_.AlertName } else { '' }))") }
-    }).Count
+            if (-not $_) { return $false }
+            $k = ([string]$(if ($_.PSObject.Properties['AlertRuleId']) { $_.AlertRuleId } else { '' })).ToLowerInvariant()
+            if ($k -match '/') { $k = ($k -split '/')[-1] }
+            if ($k) {
+                $queryRuleKeys.ContainsKey($k)
+            } else { $queryRuleKeys.ContainsKey("name:$([string]$(if ($_.PSObject.Properties['AlertName']) { $_.AlertName } else { '' }))") }
+        }).Count
     $estate = [ordered]@{
-        window          = "$($lookbackDays)d"
-        sources         = $estateSources
-        tables          = @($estateTableRows | Sort-Object { $_.gb } -Descending)
-        productAlerts   = $productAlerts
+        window           = "$($lookbackDays)d"
+        sources          = $estateSources
+        tables           = @($estateTableRows | Sort-Object { $_.gb } -Descending)
+        productAlerts    = $productAlerts
         customDetections = [ordered]@{
             captured = $customDetCaptured
-            total = @($customDetRaw | Where-Object { $_ }).Count
-            enabled = @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true }).Count
+            total    = @($customDetRaw | Where-Object { $_ }).Count
+            enabled  = @($customDetRefs | Where-Object { $_ -and $_.Enabled -eq $true }).Count
         }
-        totalGb         = [math]::Round($estateTotalGb, 2)
-        coveredGb       = [math]::Round($estateCoveredGb, 2)
-        uncoveredGb     = [math]::Round($estateTotalGb - $estateCoveredGb, 2)
-        rings           = [ordered]@{
+        totalGb          = [math]::Round($estateTotalGb, 2)
+        coveredGb        = [math]::Round($estateCoveredGb, 2)
+        uncoveredGb      = [math]::Round($estateTotalGb - $estateCoveredGb, 2)
+        rings            = [ordered]@{
             ingestion = New-EstateRing "Tables still receiving data ($($recentDays)d, of those with data in $($lookbackDays)d)" $tablesActive $tablesSeen
             detection = New-EstateRing 'Active tables read by an enabled Sentinel rule or custom detection' $tablesCovered $tablesActive
             alerts    = New-EstateRing 'Enabled Scheduled/NRT Sentinel rules that fired' $rulesFiredCount $rulesQueryEnabled
             incidents = New-EstateRing 'Incidents closed, of those created' $closed30d $incidents30d
         }
-        rulesEnabled    = $rulesEnabled
-        rulesFired      = $rulesFiredCount
-        alerts          = $allAlerts30d
-        alertsSentinel  = $sentinelAlerts30d
-        alertsXdr       = $xdrAlerts30d
-        ruleAlerts      = $alerts30d
-        incidents       = $incidents30d
-        incidentsClosed = $closed30d
-        incidentsOpen   = [math]::Max(0, $incidents30d - $closed30d)
-        dcrs            = $counts.dcrs
-        automationRules = $counts.automationRules
-        playbooks       = Measure-Count (Read-SiteRaw 'playbooks.json')
+        rulesEnabled     = $rulesEnabled
+        rulesFired       = $rulesFiredCount
+        alerts           = $allAlerts30d
+        alertsSentinel   = $sentinelAlerts30d
+        alertsXdr        = $xdrAlerts30d
+        ruleAlerts       = $alerts30d
+        incidents        = $incidents30d
+        incidentsClosed  = $closed30d
+        incidentsOpen    = [math]::Max(0, $incidents30d - $closed30d)
+        dcrs             = $counts.dcrs
+        automationRules  = $counts.automationRules
+        playbooks        = Measure-Count (Read-SiteRaw 'playbooks.json')
     }
 
     # Left in the build context for later steps.

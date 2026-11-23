@@ -104,8 +104,7 @@ function Get-iSOCWorkbookSource {
         }
         $result.SourceRef = $found[0].RelativePath
         $result.SourcePath = $found[0].Path
-    }
-    else {
+    } else {
         $id = [string](Get-iSOCPropertyValue -InputObject $WorkspaceItem -Path 'id')
         $hub = $cache["$key.ContentHub"]
         if ($id -and $hub.ContainsKey($id)) {
@@ -116,8 +115,7 @@ function Get-iSOCWorkbookSource {
                 $result.Reason = 'a Content Hub workbook, which belongs to its solution (-IncludeContentHub exports it)'
                 return $result
             }
-        }
-        else {
+        } else {
             $result.Source = 'Orphan'
         }
     }

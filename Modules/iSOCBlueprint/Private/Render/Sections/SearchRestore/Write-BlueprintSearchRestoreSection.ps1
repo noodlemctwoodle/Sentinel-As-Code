@@ -70,12 +70,12 @@ function Write-BlueprintSearchRestoreSection {
     $searchRows = @($searchJobs | ForEach-Object {
             $p = $_.properties; $s = & $srProp $p 'searchResults'
             [pscustomobject]@{
-                'Table'          = [string]$_.name
-                'Source table'   = [string](& $srProp $s 'sourceTable')
-                'Search window'  = & $srWindow (& $srProp $s 'startSearchTime') (& $srProp $s 'endSearchTime')
-                'Created (UTC)'  = Format-DateUtc (& $srProp $p 'createDate')
-                'Retention'      = $(if ($null -ne (& $srProp $p 'totalRetentionInDays')) { (Format-BlueprintPlural (& $srProp $p 'totalRetentionInDays') 'day') } else { '' })
-                'Query'          = $(if (& $srProp $s 'query') { '`' + ([string](& $srProp $s 'query')).Trim() + '`' } else { '' })
+                'Table'         = [string]$_.name
+                'Source table'  = [string](& $srProp $s 'sourceTable')
+                'Search window' = & $srWindow (& $srProp $s 'startSearchTime') (& $srProp $s 'endSearchTime')
+                'Created (UTC)' = Format-DateUtc (& $srProp $p 'createDate')
+                'Retention'     = $(if ($null -ne (& $srProp $p 'totalRetentionInDays')) { (Format-BlueprintPlural (& $srProp $p 'totalRetentionInDays') 'day') } else { '' })
+                'Query'         = $(if (& $srProp $s 'query') { '`' + ([string](& $srProp $s 'query')).Trim() + '`' } else { '' })
             }
         })
     $restoreRows = @($restoreJobs | ForEach-Object {

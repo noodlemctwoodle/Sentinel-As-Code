@@ -83,8 +83,7 @@ function New-iSOCFixtureSavedSearch {
             $verb = if ($parser.IsCycleClosure) { 'Closed the cycle on' } else { 'Created' }
             Write-iSOCLog "$verb parser $($parser.SavedSearchId) (alias $($parser.Alias))." -Level Success
             if (-not $parser.IsCycleClosure) { $created.Add($resource) }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Failed to write $($parser.SavedSearchId): $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             $failed.Add($resource)
         }
@@ -101,8 +100,7 @@ function New-iSOCFixtureSavedSearch {
             & $put $hunt.SavedSearchId $body
             Write-iSOCLog "Created hunting query $($hunt.SavedSearchId)." -Level Success
             $created.Add($resource)
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Failed to write $($hunt.SavedSearchId): $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             $failed.Add($resource)
         }

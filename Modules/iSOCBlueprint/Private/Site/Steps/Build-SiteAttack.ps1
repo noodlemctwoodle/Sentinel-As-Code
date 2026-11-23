@@ -92,14 +92,14 @@ function Build-SiteAttack {
                 }
             )
             techniques = @(foreach ($t in (@($attackCatalogue.techniques) |
-                    Where-Object { -not ($_.PSObject.Properties.Name -contains 'parentId' -and $_.parentId) } |
-                    Sort-Object id)) {
+                            Where-Object { -not ($_.PSObject.Properties.Name -contains 'parentId' -and $_.parentId) } |
+                            Sort-Object id)) {
                     [ordered]@{
-                        id = [string]$t.id
-                        name = [string]$t.name
-                        tactics = @($t.tacticsSentinel | Where-Object { $_ })
+                        id       = [string]$t.id
+                        name     = [string]$t.name
+                        tactics  = @($t.tacticsSentinel | Where-Object { $_ })
                         subTotal = [int]$cov.SubTotals[[string]$t.id]
-                        subs = @($subsByParent[[string]$t.id] | Sort-Object)
+                        subs     = @($subsByParent[[string]$t.id] | Sort-Object)
                     }
                 })
             subNames   = $usedSubs

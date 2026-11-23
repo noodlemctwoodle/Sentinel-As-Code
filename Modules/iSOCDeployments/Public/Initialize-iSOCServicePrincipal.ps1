@@ -156,8 +156,7 @@ function Initialize-iSOCServicePrincipal {
             $created = New-iSOCRoleAssignment -Context $ctx -Scope $subscription -RoleDefinitionId $grant.Id -PrincipalId $objectId -Condition $grant.Condition
             Write-iSOCLog "  $($grant.Role): $($created.ToLowerInvariant())." -Level Success
             & $add $grant.Role $subscription $(if ($created -eq 'Exists') { 'Unchanged' } else { 'Assigned' }) $(if ($created -eq 'Exists') { 'already assigned (conflict)' } else { '' })
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  $($grant.Role): failed - $($_.Exception.Message)" -Level Error
             & $add $grant.Role $subscription 'Failed' $_.Exception.Message
         }
@@ -185,17 +184,14 @@ function Initialize-iSOCServicePrincipal {
                 if ($held.Count -gt 0) {
                     Write-iSOCLog "  ${role}: already assigned."
                     & $add $role 'directory' 'Unchanged' 'already assigned'
-                }
-                elseif (-not $PSCmdlet.ShouldProcess('Security Administrator in Entra ID', "Assign to '$name'")) {
+                } elseif (-not $PSCmdlet.ShouldProcess('Security Administrator in Entra ID', "Assign to '$name'")) {
                     & $add $role 'directory' 'WhatIf' 'would be assigned'
-                }
-                else {
+                } else {
                     Invoke-iSOCGraphRequest -Method POST -Uri 'v1.0/roleManagement/directory/roleAssignments' -Body @{ principalId = $objectId; roleDefinitionId = $template; directoryScopeId = '/' } | Out-Null
                     Write-iSOCLog "  ${role}: assigned." -Level Success
                     & $add $role 'directory' 'Assigned'
                 }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "  ${role}: failed - $($_.Exception.Message). Privileged Role Administrator is needed to assign Entra ID roles; -SkipEntraRole leaves it out." -Level Error
                 & $add $role 'directory' 'Failed' $_.Exception.Message
             }
@@ -213,17 +209,14 @@ function Initialize-iSOCServicePrincipal {
                 if ($granted.Count -gt 0) {
                     Write-iSOCLog "  ${role}: already granted."
                     & $add $role 'Microsoft Graph' 'Unchanged' 'already granted'
-                }
-                elseif (-not $PSCmdlet.ShouldProcess("$($setup.GraphAppRole) on Microsoft Graph", "Grant to '$name' with admin consent")) {
+                } elseif (-not $PSCmdlet.ShouldProcess("$($setup.GraphAppRole) on Microsoft Graph", "Grant to '$name' with admin consent")) {
                     & $add $role 'Microsoft Graph' 'WhatIf' 'would be granted'
-                }
-                else {
+                } else {
                     Invoke-iSOCGraphRequest -Method POST -Uri "v1.0/servicePrincipals/$($graph.id)/appRoleAssignedTo" -Body @{ principalId = $objectId; resourceId = $graph.id; appRoleId = $appRole.id } | Out-Null
                     Write-iSOCLog "  ${role}: granted with admin consent." -Level Success
                     & $add $role 'Microsoft Graph' 'Assigned'
                 }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "  ${role}: failed - $($_.Exception.Message). Application Administrator or Global Administrator may be needed; -SkipGraphPermission leaves it out." -Level Error
                 & $add $role 'Microsoft Graph' 'Failed' $_.Exception.Message
             }

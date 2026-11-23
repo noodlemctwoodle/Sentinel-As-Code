@@ -87,7 +87,7 @@ Describe 'ConvertTo-iSOCYamlSubtree' {
             entityMappings = @(
                 [ordered]@{ entityType = 'Account'; fieldMappings = @([ordered]@{ identifier = 'FullName'; columnName = 'UserPrincipalName' }) }
             )
-            grouping = [ordered]@{ enabled = $false; lookbackDuration = 'PT5H' }
+            grouping       = [ordered]@{ enabled = $false; lookbackDuration = 'PT5H' }
         }
     }
 

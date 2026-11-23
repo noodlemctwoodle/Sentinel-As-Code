@@ -53,7 +53,7 @@ function Build-SiteDetection {
     $effectSorted = @(
         $effectRows |
             Where-Object { $_ } |
-            Sort-Object { -(ConvertTo-BuildNumber $_.Incidents) } |
+            Sort-Object { - (ConvertTo-BuildNumber $_.Incidents) } |
             Sort-Object { if ($_.PSObject.Properties['AlertRuleId'] -and $_.AlertRuleId) { 0 } else { 1 } } -Stable
     )
     foreach ($e in $effectSorted) {
@@ -72,9 +72,9 @@ function Build-SiteDetection {
     $usageDaily = @()
     foreach ($u in ($usageRows | Where-Object { $_ } | Sort-Object { [datetime]$_.Day } | Select-Object -Last 90)) {
         $usageDaily += [ordered]@{
-            day = ([datetime]$u.Day).ToUniversalTime().ToString('yyyy-MM-dd')
+            day      = ([datetime]$u.Day).ToUniversalTime().ToString('yyyy-MM-dd')
             billable = [math]::Round((ConvertTo-BuildNumber $u.BillableGB), 2)
-            free = [math]::Round((ConvertTo-BuildNumber $u.FreeGB), 2)
+            free     = [math]::Round((ConvertTo-BuildNumber $u.FreeGB), 2)
         }
     }
 
@@ -96,15 +96,15 @@ function Build-SiteDetection {
             $templateRefs |
                 Where-Object {
                     $_ -and $_.Deprecated -ne $true -and $_.AlreadyDeployed -ne $true -and
-                        -not (Test-TemplateRetired -Map $tplSolutions -TemplateId ([string]$_.TemplateId))
+                    -not (Test-TemplateRetired -Map $tplSolutions -TemplateId ([string]$_.TemplateId))
                 }
         )
         $sevRank2 = @{ High = 0; Medium = 1; Low = 2; Informational = 3 }
         $operationalOnly = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
         $uncovered = @($tablesData | Where-Object {
-            $_ -and $_.DataType -and (ConvertTo-BuildNumber $_.BillableLast30d) -gt 0 -and
-            -not $referencedTables.ContainsKey([string]$_.DataType) -and ([string]$_.DataType) -notin $operationalOnly
-        } | Sort-Object { ConvertTo-BuildNumber $_.BillableLast30d } -Descending)
+                $_ -and $_.DataType -and (ConvertTo-BuildNumber $_.BillableLast30d) -gt 0 -and
+                -not $referencedTables.ContainsKey([string]$_.DataType) -and ([string]$_.DataType) -notin $operationalOnly
+            } | Sort-Object { ConvertTo-BuildNumber $_.BillableLast30d } -Descending)
         $uncoveredTotal = $uncovered.Count
         foreach ($t in $uncovered) {
             $name = [string]$t.DataType
@@ -165,7 +165,8 @@ function Build-SiteDetection {
         $inc = & $num $e 'Incidents'; $closed = & $num $e 'Closed'
         $tp = & $num $e 'TruePositive'; $fp = & $num $e 'FalsePositive'; $bp = & $num $e 'BenignPositive'; $und = & $num $e 'Undetermined'
         [ordered]@{ incidents = $inc; closed = $closed; tp = $tp; fp = $fp; bp = $bp; undetermined = $und
-            unclassified = [math]::Max(0, $closed - $tp - $fp - $bp - $und); open = [math]::Max(0, $inc - $closed) }
+            unclassified = [math]::Max(0, $closed - $tp - $fp - $bp - $und); open = [math]::Max(0, $inc - $closed)
+        }
     }
     $detectionOutcomes = @()
     foreach ($r in @($ruleRefs | Where-Object { $_ -and $_.Enabled -eq $true -and @($_.Tables | Where-Object { $_ }).Count -gt 0 })) {
@@ -191,7 +192,7 @@ function Build-SiteDetection {
     }
     $healthRank = @{ Failing = 0; Working = 1; Silent = 2 }
     $detectionOutcomes = @(
-        $detectionOutcomes | Sort-Object @{ Expression = { $healthRank[$_.health] } }, @{ Expression = { -[long]$_.incidents } }, @{ Expression = { $_.name } }
+        $detectionOutcomes | Sort-Object @{ Expression = { $healthRank[$_.health] } }, @{ Expression = { - [long]$_.incidents } }, @{ Expression = { $_.name } }
     )
     # The source family of every table they read, for the matrix's columns: a
     # rule can read a table that has no ingestion, so the estate cannot say.

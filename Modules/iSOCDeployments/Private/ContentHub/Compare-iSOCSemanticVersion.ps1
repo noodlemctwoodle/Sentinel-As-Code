@@ -72,8 +72,7 @@ function Compare-iSOCSemanticVersion {
         }
 
         return 0
-    }
-    catch {
+    } catch {
         return [string]::Compare($Version1, $Version2, [StringComparison]::Ordinal)
     }
 }

@@ -93,8 +93,7 @@ function New-iSOCDataCollectorSignature {
     $hmac = [System.Security.Cryptography.HMACSHA256]::new($keyBytes)
     try {
         $encoded = [System.Convert]::ToBase64String($hmac.ComputeHash($bytesToHash))
-    }
-    finally {
+    } finally {
         $hmac.Dispose()
     }
     "SharedKey ${WorkspaceId}:${encoded}"

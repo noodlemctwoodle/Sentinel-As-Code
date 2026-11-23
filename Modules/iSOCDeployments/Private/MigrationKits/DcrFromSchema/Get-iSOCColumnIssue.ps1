@@ -76,8 +76,7 @@ function Get-iSOCColumnIssue {
 
     if ([string]::IsNullOrWhiteSpace($Name)) {
         $issues.Add([pscustomobject]@{ Severity = 'Error'; Message = 'the column name is empty' })
-    }
-    else {
+    } else {
         if ($setting.ReservedColumns -contains $Name) {
             $issues.Add([pscustomobject]@{ Severity = 'Error'; Message = "'$Name' conflicts with a system or reserved column name" })
         }

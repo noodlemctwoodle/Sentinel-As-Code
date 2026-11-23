@@ -53,7 +53,7 @@ function Invoke-SentinelDataLakeCapture {
         if ($visibleSubs.Count -eq 0) { $visibleSubs = @($SubscriptionId) }
         $rgBody = @{
             subscriptions = $visibleSubs
-            query = 'Resources | where type =~ "microsoft.sentinelplatformservices/sentinelplatformservices" | project id, name, location, resourceGroup, subscriptionId, properties, identity, systemData'
+            query         = 'Resources | where type =~ "microsoft.sentinelplatformservices/sentinelplatformservices" | project id, name, location, resourceGroup, subscriptionId, properties, identity, systemData'
         } | ConvertTo-Json -Compress -Depth 5
         $raw = Invoke-AzRestMethod -Path '/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' -Method POST -Payload $rgBody -ErrorAction Stop
         if ($raw.StatusCode -lt 400 -and $raw.Content) {

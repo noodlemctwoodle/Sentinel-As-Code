@@ -40,8 +40,7 @@ function Read-SacSnapshotIndex {
             $parsed = $text | ConvertFrom-Json -AsHashtable
             if ($parsed.entries) { $index.entries = @($parsed.entries) }
         }
-    }
-    catch {
+    } catch {
         Write-Verbose "No snapshot index yet: $($_.Exception.Message)"
     }
     return $index

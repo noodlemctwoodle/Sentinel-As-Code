@@ -39,21 +39,21 @@ function Test-LegacyThreatIntelligenceTable {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.TablesWithData) { return $null }
     $legacy = @($Inventory.TablesWithData | Where-Object {
-        (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelligenceIndicator' -and
-        [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
-    } | Select-Object -First 1)
+            (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelligenceIndicator' -and
+            [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
+        } | Select-Object -First 1)
     if ($legacy.Count -eq 0) { return $null }
     $gb30 = [double](Get-PropOrDefault $legacy[0] 'BillableLast30d' 0)
     # Detect whether the workspace has ALSO started receiving into the new
     # ThreatIntelIndicators table, if yes the finding evidence calls out
     # that the migration is half done; if no, fresh ingestion is broken.
     $newPresent = @($Inventory.TablesWithData | Where-Object {
-        (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelIndicators' -and
-        [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
-    }).Count -gt 0
+            (Get-PropOrDefault $_ 'DataType' '') -eq 'ThreatIntelIndicators' -and
+            [double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0
+        }).Count -gt 0
     $statusNote = if ($newPresent) {
         'New ThreatIntelIndicators table is also active, partial migration; ensure all detections, hunting queries and workbooks read from the new tables.'
     } else {

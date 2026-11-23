@@ -72,8 +72,7 @@ function Get-iSOCTableRowCount {
         $first = @($rows)[0]
         if ($first -and $first.PSObject.Properties['Count']) { return [int]$first.Count }
         0
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not count rows in $Table ($($_.Exception.Message.Split([char]10)[0])). Emptiness unknown." -Level Warning
         $null
     }

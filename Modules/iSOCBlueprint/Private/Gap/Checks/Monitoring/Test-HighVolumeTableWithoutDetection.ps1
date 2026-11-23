@@ -39,7 +39,7 @@ function Test-HighVolumeTableWithoutDetection {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Without the reference file there is no way to tell "no rule reads
     # this" from "the mapping was not computed", so stay quiet.
     if ($Inventory.RawFiles -notcontains 'rule-table-references.json') { return $null }
@@ -59,10 +59,10 @@ function Test-HighVolumeTableWithoutDetection {
     # Sentinel's own operational tables are outputs, not detection sources.
     $operational = @('SecurityIncident', 'SecurityAlert', 'Usage', 'Operation', 'LAQueryLogs', 'SentinelHealth', 'SentinelAudit', 'AzureMetrics')
     $uncovered = @($Inventory.TablesWithData | Where-Object {
-        $t = [string](Get-PropOrDefault $_ 'DataType' '')
-        $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and
+            $t = [string](Get-PropOrDefault $_ 'DataType' '')
+            $t -and ($operational -notcontains $t) -and (-not $referenced.Contains($t)) -and
             ((ConvertTo-GapPer30Days (Get-GapBillable30d $_) $Inventory) -ge $threshold)
-    } | Sort-Object { -(Get-GapBillable30d $_) })
+        } | Sort-Object { - (Get-GapBillable30d $_) })
     if ($uncovered.Count -eq 0) { return $null }
 
     # The figure the dashboard shows for data no detection reads: every table
@@ -89,28 +89,28 @@ function Test-HighVolumeTableWithoutDetection {
         ) -Catalogue @(Get-PropOrDefault $Inventory 'ContentProductPackages' @() | Where-Object { $null -ne $_ })
     } else { $null }
     $templates = @($Inventory.TemplateTableReferences | Where-Object {
-        $null -ne $_ -and -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and
+            $null -ne $_ -and -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'Deprecated' $false)) -and
             -not (ConvertTo-GapBool (Get-PropOrDefault $_ 'AlreadyDeployed' $false)) -and
-        -not ($solutionMap -and (Test-TemplateRetired -Map $solutionMap -TemplateId ([string](Get-PropOrDefault $_ 'TemplateId' ''))))
-    })
+            -not ($solutionMap -and (Test-TemplateRetired -Map $solutionMap -TemplateId ([string](Get-PropOrDefault $_ 'TemplateId' ''))))
+        })
     $rows = @(foreach ($table in $uncovered) {
-        $name = [string](Get-PropOrDefault $table 'DataType' '')
-        $candidates = @($templates | Where-Object { @(Get-PropOrDefault $_ 'Tables' @()) -contains $name } | Sort-Object {
-            $sev = [string](Get-PropOrDefault $_ 'Severity' '')
-            if ($severityRank.ContainsKey($sev)) { $severityRank[$sev] } else { 9 }
-        }, { [string](Get-PropOrDefault $_ 'DisplayName' '') })
-        [pscustomobject]@{
-            Table              = $name
-            Gb30d              = [math]::Round((Get-GapBillable30d $table), 2)
-            SuggestedTemplates = @($candidates | ForEach-Object { [string](Get-PropOrDefault $_ 'DisplayName' '') })
-        }
-    })
+            $name = [string](Get-PropOrDefault $table 'DataType' '')
+            $candidates = @($templates | Where-Object { @(Get-PropOrDefault $_ 'Tables' @()) -contains $name } | Sort-Object {
+                    $sev = [string](Get-PropOrDefault $_ 'Severity' '')
+                    if ($severityRank.ContainsKey($sev)) { $severityRank[$sev] } else { 9 }
+                }, { [string](Get-PropOrDefault $_ 'DisplayName' '') })
+            [pscustomobject]@{
+                Table              = $name
+                Gb30d              = [math]::Round((Get-GapBillable30d $table), 2)
+                SuggestedTemplates = @($candidates | ForEach-Object { [string](Get-PropOrDefault $_ 'DisplayName' '') })
+            }
+        })
     # Summed unrounded and rounded once, so the total is the tables' true sum.
     $totalGb = (($uncovered | ForEach-Object { Get-GapBillable30d $_ }) | Measure-Object -Sum).Sum
     $sample = ($rows | ForEach-Object {
-        $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
-        "$($_.Table) $(Format-BlueprintGb $_.Gb30d) GB$hint"
-    }) -join '; '
+            $hint = if ($_.SuggestedTemplates.Count -gt 0) { " (templates: $($_.SuggestedTemplates -join ', '))" } else { '' }
+            "$($_.Table) $(Format-BlueprintGb $_.Gb30d) GB$hint"
+        }) -join '; '
     # Say what the finding covers, and the dashboard's larger figure when
     # there is one, so the two numbers reconcile.
     $ofAll = ''
@@ -119,9 +119,9 @@ function Test-HighVolumeTableWithoutDetection {
     }
     return New-Finding -Evidence "$(Format-BlueprintPlural $rows.Count 'table') of $(Format-BlueprintCount $threshold) GB a month or more $(Select-GapWording `
             $rows.Count 'ingests' 'ingest') $(Format-BlueprintGb $totalGb) GB in the last $(Format-GapDays (Get-GapWindow $Inventory).Days) with no enabled Sentinel rule or Defender custom detection reading $(Select-GapWording $rows.Count 'it' 'them')$($ofAll): $sample." -Detail @{
-        Count = $rows.Count
-        TotalGb30d = [math]::Round($totalGb, 2)
+        Count          = $rows.Count
+        TotalGb30d     = [math]::Round($totalGb, 2)
         AllTablesGb30d = [math]::Round($allTablesGb, 2)
-        Tables = $rows
+        Tables         = $rows
     }
 }

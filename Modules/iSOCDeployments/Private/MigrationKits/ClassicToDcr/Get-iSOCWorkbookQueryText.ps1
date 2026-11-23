@@ -54,8 +54,7 @@ function Get-iSOCWorkbookQueryText {
     if (-not $SerializedData) { return @() }
     try {
         $parsed = $SerializedData | ConvertFrom-Json -Depth 20
-    }
-    catch { return @() }
+    } catch { return @() }
 
     $queries = [System.Collections.Generic.List[string]]::new()
     $walk = {

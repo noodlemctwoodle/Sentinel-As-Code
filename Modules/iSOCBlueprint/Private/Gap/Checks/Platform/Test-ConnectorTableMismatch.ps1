@@ -39,7 +39,7 @@ function Test-ConnectorTableMismatch {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.DataConnectors -or -not $Inventory.TablesWithData) { return $null }
     # Volume per table over the recent window, free tables (OfficeActivity,
     # SecurityAlert) included: billable volume alone made them look silent.
@@ -48,11 +48,11 @@ function Test-ConnectorTableMismatch {
 
     # The core tables these connectors must fill, checked one by one.
     $kindToTables = @{
-        'AzureActiveDirectory'                       = @('SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs')
-        'Office365'                                  = @('OfficeActivity')
-        'AzureSecurityCenter'                        = @('SecurityAlert')
-        'MicrosoftDefenderAdvancedThreatProtection'  = @('SecurityAlert')
-        'MicrosoftThreatProtection'                  = @('SecurityIncident','SecurityAlert')
+        'AzureActiveDirectory'                      = @('SigninLogs', 'AuditLogs', 'AADNonInteractiveUserSignInLogs')
+        'Office365'                                 = @('OfficeActivity')
+        'AzureSecurityCenter'                       = @('SecurityAlert')
+        'MicrosoftDefenderAdvancedThreatProtection' = @('SecurityAlert')
+        'MicrosoftThreatProtection'                 = @('SecurityIncident', 'SecurityAlert')
     }
     $bad = [System.Collections.Generic.List[string]]::new()
     $silent = [System.Collections.Generic.List[object]]::new()
@@ -84,10 +84,10 @@ function Test-ConnectorTableMismatch {
     if ($silent.Count) {
         $parts += "$(Format-BlueprintPlural $silent.Count 'connector') with no data in any table $(Select-GapWording $silent.Count 'it writes' `
             'they write'): " +
-            (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ')
+        (@($silent | ForEach-Object { "$($_.Connector) ($($_.Tables -join ', '))" }) -join '; ')
     }
     return New-Finding -Evidence "Connected data connectors that are not delivering, $($parts -join '; and ')." -Detail @{
-        Mismatches = @($bad)
+        Mismatches       = @($bad)
         SilentConnectors = @($silent | ForEach-Object { [pscustomobject]@{ Connector = $_.Connector; Id = $_.Id; Tables = $_.Tables } })
     }
 }

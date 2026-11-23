@@ -64,13 +64,13 @@ function ConvertFrom-BpMermaidClass {
         }
         if ($t -match '^note\s+"(?<text>[^"]*)"') { $notes.Add([ordered]@{ for = $null; text = ConvertTo-BpMermaidText $Matches['text'] }); continue }
         if ($t -match
-                '^(?<from>\S+)\s*(?<kind><\|--|--\|>|\*--|--\*|o--|--o|<--|-->|\.\.\|>|<\|\.\.|\.\.>|<\.\.|--|\.\.)\s*(?<to>[^:\s]+)(?:\s*:\s*(?<label>.*))?$') {
+            '^(?<from>\S+)\s*(?<kind><\|--|--\|>|\*--|--\*|o--|--o|<--|-->|\.\.\|>|<\|\.\.|\.\.>|<\.\.|--|\.\.)\s*(?<to>[^:\s]+)(?:\s*:\s*(?<label>.*))?$') {
             $relations.Add([ordered]@{
-                from = $Matches['from']
-                to = $Matches['to']
-                kind = $Matches['kind']
-                label = $(if ($Matches['label']) { $Matches['label'].Trim() } else { $null })
-            })
+                    from  = $Matches['from']
+                    to    = $Matches['to']
+                    kind  = $Matches['kind']
+                    label = $(if ($Matches['label']) { $Matches['label'].Trim() } else { $null })
+                })
         }
     }
     return [ordered]@{

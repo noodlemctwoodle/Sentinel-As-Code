@@ -72,8 +72,7 @@ function Get-iSOCWorkspaceInventory {
                 Write-iSOCLog "Deployment state claims $stateRuleCount rules deployed but workspace has 0; state is stale. Resetting." -Level Warning
                 $Run.State.Items = @{}
             }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  Could not validate deployment state against workspace: $($_.Exception.Message)" -Level Warning
         }
     }
@@ -84,8 +83,7 @@ function Get-iSOCWorkspaceInventory {
             $found = @(Invoke-iSOCRestRequest -Method GET -Path $Path -ApiVersion $ApiVersion | ForEach-Object $Select | Where-Object { $_ })
             Write-iSOCLog "  Workspace has $($found.Count) $Label."
             , $found
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  Failed to list workspace ${Label}: $($_.Exception.Message)" -Level Warning
             Write-iSOCLog "  Dependency checks on $Label will be skipped." -Level Warning
             $null

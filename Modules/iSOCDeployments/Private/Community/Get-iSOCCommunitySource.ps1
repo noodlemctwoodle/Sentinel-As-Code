@@ -67,11 +67,11 @@ function Get-iSOCCommunitySource {
             Attribution = "Community rule by David Alonso (https://github.com/davidalonsod/Dalonso-Security-Repo). Licensed under The Unlicense.`n`n"
             Tags        = @('Community', 'Dalonso', 'ThreatHunting')
             YamlFolders = [ordered]@{
-                'Use Cases Threat Hunting/SigninLogs-ThreatHunting'                          = 'SigninLogs'
-                'Use Cases Threat Hunting/AadNonInteractiveUserSigninLogs/rules'             = 'NonInteractiveSigninLogs'
+                'Use Cases Threat Hunting/SigninLogs-ThreatHunting'                         = 'SigninLogs'
+                'Use Cases Threat Hunting/AadNonInteractiveUserSigninLogs/rules'            = 'NonInteractiveSigninLogs'
                 'Use Cases Threat Hunting/ADFSSignInLogs/Sentinel-AnalyticRules-ADFS/rules' = 'ADFSSignInLogs'
-                'Use Cases Threat Hunting/CommonSecurityLog-ThreatHunting'                   = 'CommonSecurityLog'
-                'Use Cases Threat Hunting/DNSEvents/Analytic-Rules/rules'                    = 'DNSEvents'
+                'Use Cases Threat Hunting/CommonSecurityLog-ThreatHunting'                  = 'CommonSecurityLog'
+                'Use Cases Threat Hunting/DNSEvents/Analytic-Rules/rules'                   = 'DNSEvents'
             }
             ArmFolders  = [ordered]@{
                 'Use Cases Threat Hunting/ADSecurityEvents/AnalyticRules'      = 'ADSecurityEvents'

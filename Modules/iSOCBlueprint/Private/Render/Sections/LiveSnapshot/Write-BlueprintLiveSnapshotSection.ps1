@@ -78,21 +78,21 @@ function Write-BlueprintLiveSnapshotSection {
     # Today + days-until calculations drive the deprecation gantt bar widths.
     $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
     $clv1Days = Get-BlueprintDaysUntil '2026-09-14'
-    $tipDays  = Get-BlueprintDaysUntil '2027-06-30'
-    $xdrDays  = Get-BlueprintDaysUntil '2027-03-31'
+    $tipDays = Get-BlueprintDaysUntil '2027-06-30'
+    $xdrDays = Get-BlueprintDaysUntil '2027-03-31'
 
     # MITRE coverage rollup. Reuse $mitreRowsRich from section 25 — that view
     # already does the intersect-with-catalogue (rules' tactic shortnames must
     # match a catalogue.sentinelShortName) and categorises each tactic as
     # Covered / Thin / None against the 3-rule threshold. Counting from the
     # same source guarantees the headline and the section-25 matrix agree.
-    $tacticsTotal         = if ($tactics) { $tactics.Count } else { 14 }
-    $tacticsCoveredFull   = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Covered' }).Count
-    $tacticsThin          = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin'    }).Count
-    $tacticsNone          = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None'    }).Count
-    $thinTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin'    } | Select-Object -ExpandProperty Tactic)
-    $noneTacticNames      = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None'    } | Select-Object -ExpandProperty Tactic)
-    $mitreSuffix          = if ($thinTacticNames.Count -gt 0 -or $noneTacticNames.Count -gt 0) {
+    $tacticsTotal = if ($tactics) { $tactics.Count } else { 14 }
+    $tacticsCoveredFull = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Covered' }).Count
+    $tacticsThin = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin' }).Count
+    $tacticsNone = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None' }).Count
+    $thinTacticNames = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin' } | Select-Object -ExpandProperty Tactic)
+    $noneTacticNames = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None' } | Select-Object -ExpandProperty Tactic)
+    $mitreSuffix = if ($thinTacticNames.Count -gt 0 -or $noneTacticNames.Count -gt 0) {
         $parts = @()
         if ($noneTacticNames.Count -gt 0) { $parts += "uncovered: $($noneTacticNames -join ', ')" }
         if ($thinTacticNames.Count -gt 0) { $parts += "thin: $($thinTacticNames -join ', ')" }
@@ -100,24 +100,24 @@ function Write-BlueprintLiveSnapshotSection {
     } else { '' }
 
     $mmaMachines01 = [long](@(
-        Read-BlueprintRawArray 'ama-mma-migration.json' |
-            Where-Object { $_ } |
-            ForEach-Object { ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'MMACount' 0) }
-    ) |
-        Measure-Object -Sum).Sum
+            Read-BlueprintRawArray 'ama-mma-migration.json' |
+                Where-Object { $_ } |
+                ForEach-Object { ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'MMACount' 0) }
+            ) |
+                Measure-Object -Sum).Sum
     $classicTables01 = @(
         $workspaceTables |
             Where-Object {
                 $_ -and [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'schema') 'tableSubType' '') -eq
-                    'Classic'
+                'Classic'
             }
     )
     $tiLegacyRows01 = [long](@(
-        Read-BlueprintRawArray 'threat-intel-tables.json' |
-            Where-Object { $_ -and [string]$_.Table -eq 'ThreatIntelligenceIndicator' } |
-            ForEach-Object { ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Records30d' 0) }
-    ) |
-        Measure-Object -Sum).Sum
+            Read-BlueprintRawArray 'threat-intel-tables.json' |
+                Where-Object { $_ -and [string]$_.Table -eq 'ThreatIntelligenceIndicator' } |
+                ForEach-Object { ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'Records30d' 0) }
+            ) |
+                Measure-Object -Sum).Sum
     $tiLegacyRules01 = @(
         $enabledRules |
             Where-Object { [string](Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'query' '') -match 'ThreatIntelligenceIndicator(?!s)' }
@@ -126,21 +126,21 @@ function Write-BlueprintLiveSnapshotSection {
         $rules |
             Where-Object {
                 $_ -and $_.kind -eq 'MicrosoftSecurityIncidentCreation' -and
-                    (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'enabled' $false)
+                (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'enabled' $false)
             }
     ).Count
     $ascAlerts01 = [long](@(
-        Read-BlueprintRawArray 'analytics-rule-volumes.json' |
-            Where-Object { $_ -and [string]$_.ProductName -eq 'Azure Security Center' } |
-            ForEach-Object { ConvertTo-BlueprintNumber $_.Alerts }
-    ) |
-        Measure-Object -Sum).Sum
+            Read-BlueprintRawArray 'analytics-rule-volumes.json' |
+                Where-Object { $_ -and [string]$_.ProductName -eq 'Azure Security Center' } |
+                ForEach-Object { ConvertTo-BlueprintNumber $_.Alerts }
+            ) |
+                Measure-Object -Sum).Sum
     $fwLegacy01 = [long](@(
-        Read-BlueprintRawArray 'azure-firewall-categories.json' |
-            Where-Object { $_ -and [string]$_.Category -like 'AzureFirewall*' } |
-            ForEach-Object { ConvertTo-BlueprintNumber $_.LogCount }
-    ) |
-        Measure-Object -Sum).Sum
+            Read-BlueprintRawArray 'azure-firewall-categories.json' |
+                Where-Object { $_ -and [string]$_.Category -like 'AzureFirewall*' } |
+                ForEach-Object { ConvertTo-BlueprintNumber $_.LogCount }
+            ) |
+                Measure-Object -Sum).Sum
     $has01 = { param($f) Test-Path (Join-Path $rawRoot $f) }
     $deprecatedConnectors01 = @($catalogueStatus | Where-Object Deprecated | ForEach-Object { $_.Connector } | Sort-Object -Unique)
     $legacyRows = @(
@@ -149,13 +149,13 @@ function Write-BlueprintLiveSnapshotSection {
         Format-BlueprintLegacyRow 'Legacy Log Analytics agent (MMA / OMS), retired 31 Aug 2024' $mmaMachines01 (& $has01 'ama-mma-migration.json') `
             "$(Format-BlueprintPlural $mmaMachines01 'machine') still heartbeating through it in {lookback}" '[87-azure-monitor-agents.md](87-azure-monitor-agents.md), [SAC-PLT-03]'
         Format-BlueprintLegacyRow 'Classic custom tables (HTTP Data Collector API), retiring 14 Sep 2026' $classicTables01.Count `
-            (& $has01 'workspace-tables.json') "$(Format-BlueprintPlural $classicTables01.Count 'table') with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
+        (& $has01 'workspace-tables.json') "$(Format-BlueprintPlural $classicTables01.Count 'table') with tableSubType Classic" '[81-table-plans-retention.md](81-table-plans-retention.md), [SAC-PLT-02]'
         Format-BlueprintLegacyRow 'Retired ThreatIntelligenceIndicator table (ingestion)' $tiLegacyRows01 (& $has01 'threat-intel-tables.json') `
             "$(Format-BlueprintPlural $tiLegacyRows01 'record') in {lookback}" '[27-threat-intelligence.md](27-threat-intelligence.md), [SAC-TI-01]'
         Format-BlueprintLegacyRow 'Retired ThreatIntelligenceIndicator table (rules reading it)' $tiLegacyRules01 (& $has01 'alert-rules.json') `
             "$(Format-BlueprintPlural $tiLegacyRules01 'enabled rule') $(if ($tiLegacyRules01 -eq 1) { 'queries' } else { 'query' }) it" '[20-analytics-rules.md](20-analytics-rules.md), [SAC-TI-02]'
         Format-BlueprintLegacyRow 'Microsoft incident-creation rules (pre-unification)' $msIncidentRules01 (& $has01 'alert-rules.json') `
-            (Format-BlueprintPlural $msIncidentRules01 'enabled rule') '[20-analytics-rules.md](20-analytics-rules.md), [SAC-DET-08]'
+        (Format-BlueprintPlural $msIncidentRules01 'enabled rule') '[20-analytics-rules.md](20-analytics-rules.md), [SAC-DET-08]'
         Format-BlueprintLegacyRow 'Azure Security Center alert path (replaced by Defender for Cloud)' $ascAlerts01 (& $has01 'analytics-rule-volumes.json') `
             "$(Format-BlueprintPlural $ascAlerts01 'alert') in {lookback}" '[10-data-connectors.md](10-data-connectors.md)'
         Format-BlueprintLegacyRow 'Azure Firewall legacy AzureDiagnostics categories' $fwLegacy01 (& $has01 'azure-firewall-categories.json') `
@@ -181,7 +181,7 @@ $(Format-Banner -Title "Live snapshot")
 | Tables receiving data ({lookback-d}) | $(Format-BlueprintCount $populatedTables.Count) populated · $(Format-BlueprintCount $operationalTables.Count) operational · $(Format-BlueprintCount $workspaceTables.Count) catalogue |
 | Findings (Critical / Warning / Info) | $($gapBySeverity.Critical) / $($gapBySeverity.Warning) / $($gapBySeverity.Info) |
 | Maturity (overall / target) | $maturityCell |
-| Legacy features still in use | $(@($legacyRows | Where-Object Status -eq 'In use').Count) of $(@($legacyRows | Where-Object Status -ne 'Not captured').Count) checked; see [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
+| Legacy features still in use | $(@($legacyRows | Where-Object Status -EQ 'In use').Count) of $(@($legacyRows | Where-Object Status -NE 'Not captured').Count) checked; see [02-deprecated-legacy-features.md](02-deprecated-legacy-features.md) |
 
 The findings by severity and the estate flow, from source families through detection to incidents, are on [00-overview.md](00-overview.md).
 

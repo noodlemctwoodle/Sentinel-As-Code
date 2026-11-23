@@ -47,7 +47,7 @@ function Write-BlueprintMaturityAssessmentSection {
     # Private/Maturity/Get-SentinelMaturity.ps1; methodology and criteria:
     # Docs/Modules/iSOCBlueprint/Sentinel-Maturity-Model.md.
     $maturityBody = if (-not $maturityOk) {
-    @"
+        @"
 $(Format-Banner -Title "Maturity Assessment")
 
 _The maturity assessment was not produced in this run (``_raw/maturity.json`` is absent or empty). The collector writes it after the gap analysis; when that capture fails this page stays empty rather than scoring a workspace it cannot see._
@@ -57,74 +57,74 @@ _The maturity assessment was not produced in this run (``_raw/maturity.json`` is
         $areaAxis = ($mAreas | ForEach-Object { "`"$($_.id)`"" }) -join ', '
         $areaBars = ($mAreas | ForEach-Object { if ($null -eq $_.score) { 0 } else { $_.score } }) -join ', '
         $areaRows = @($mAreas | ForEach-Object {
-            [pscustomobject]@{
-                Id          = $_.id
-                Area        = $_.name
-                Score       = if ($null -eq $_.score) { 'n/a' } else { Format-BlueprintNumber $_.score }
-                Level       = if ($null -eq $_.level) { 'Not assessed' } else { "$($_.level) $($_.levelName)" }
-                Evaluated   = "$($_.met) met of $($_.evaluated)"
-                Unknown     = $_.unknown
-                Confidence  = $_.confidence
-                GapToTarget = if ($null -eq $_.score) {
-                    'n/a'
-                } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { Format-BlueprintNumber ($maturity.targetLevel - $_.score) }
-            }
-        })
+                [pscustomobject]@{
+                    Id          = $_.id
+                    Area        = $_.name
+                    Score       = if ($null -eq $_.score) { 'n/a' } else { Format-BlueprintNumber $_.score }
+                    Level       = if ($null -eq $_.level) { 'Not assessed' } else { "$($_.level) $($_.levelName)" }
+                    Evaluated   = "$($_.met) met of $($_.evaluated)"
+                    Unknown     = $_.unknown
+                    Confidence  = $_.confidence
+                    GapToTarget = if ($null -eq $_.score) {
+                        'n/a'
+                    } elseif ($_.level -ge $maturity.targetLevel) { 'met' } else { Format-BlueprintNumber ($maturity.targetLevel - $_.score) }
+                }
+            })
         $roadmapRows = @(@($maturity.roadmap) | ForEach-Object {
-            [pscustomobject]@{
-                Priority = $_.priority
-                Criterion = "$($_.criterionId) $($_.name)"
-                Area = $_.area
-                Effort = $_.effort
-                Lift = (Format-BlueprintNumber $_.overallLift)
-                Projected = (Format-BlueprintNumber $_.projectedScore)
-                Guidance = $_.guidance
-            }
-        })
+                [pscustomobject]@{
+                    Priority  = $_.priority
+                    Criterion = "$($_.criterionId) $($_.name)"
+                    Area      = $_.area
+                    Effort    = $_.effort
+                    Lift      = (Format-BlueprintNumber $_.overallLift)
+                    Projected = (Format-BlueprintNumber $_.projectedScore)
+                    Guidance  = $_.guidance
+                }
+            })
         $quickWinLines = if (@($maturity.quickWins).Count -gt 0) {
             (@($maturity.quickWins) |
                 ForEach-Object { "- **$($_.criterionId)** $($_.name) ($($_.area), lift $(Format-BlueprintNumber $_.overallLift)): $($_.guidance)" }) -join
-                [Environment]::NewLine
+            [Environment]::NewLine
         } else { '_No Low-effort gaps remain; the rest of the roadmap is Medium or High effort._' }
         $csfRows = @(@($maturity.csf.functions) | ForEach-Object {
-            [pscustomobject]@{ Function = "$($_.id) $($_.name)"; Criteria = $_.criteria; Met = $_.met; Gap = $_.gap; Unknown = $_.unknown }
-        })
+                [pscustomobject]@{ Function = "$($_.id) $($_.name)"; Criteria = $_.criteria; Met = $_.met; Gap = $_.gap; Unknown = $_.unknown }
+            })
         $criteriaRows = @($mAreas | ForEach-Object {
-            $areaId = $_.id
-            @($_.criteria) | ForEach-Object {
-                [pscustomobject]@{
-                    Id = $_.id
-                    Area = $areaId
-                    Kind = $_.kind
-                    Criterion = $_.name
-                    Status = $_.status
-                    Effort = $_.effort
-                    Evidence = $_.evidence
+                $areaId = $_.id
+                @($_.criteria) | ForEach-Object {
+                    [pscustomobject]@{
+                        Id        = $_.id
+                        Area      = $areaId
+                        Kind      = $_.kind
+                        Criterion = $_.name
+                        Status    = $_.status
+                        Effort    = $_.effort
+                        Evidence  = $_.evidence
+                    }
                 }
-            }
-        })
+            })
         $outOfScopeLines = (@($maturity.outOfScope) | ForEach-Object { "- **$($_.area)**: $($_.reason)" }) -join [Environment]::NewLine
         # The scale, with the score band each level covers and the target marked.
         $scaleRows = @(@($maturity.levels) | ForEach-Object {
-            $lv = [int]$_.level
-            [pscustomobject]@{
-                Level  = $lv
-                Name   = $_.name
-                Scores = $(if ($lv -ge 5) { '5.00' } else { "$lv.00 to $lv.99" })
-                Target = $(if ($lv -eq [int]$maturity.targetLevel) { 'Target' } else { '' })
-            }
-        })
+                $lv = [int]$_.level
+                [pscustomobject]@{
+                    Level  = $lv
+                    Name   = $_.name
+                    Scores = $(if ($lv -ge 5) { '5.00' } else { "$lv.00 to $lv.99" })
+                    Target = $(if ($lv -eq [int]$maturity.targetLevel) { 'Target' } else { '' })
+                }
+            })
         # Every open gap with what it costs the SOC today and what closes it.
         $openGapRows = @($mAreas | ForEach-Object {
-            $areaId = $_.id
-            @($_.criteria) | Where-Object { $_.status -eq 'Gap' } | ForEach-Object {
-                [pscustomobject]@{ Id = $_.id; Area = $areaId; Criterion = $_.name; Effort = $_.effort; Impact = $_.impact; Guidance = $_.guidance }
-            }
-        })
+                $areaId = $_.id
+                @($_.criteria) | Where-Object { $_.status -eq 'Gap' } | ForEach-Object {
+                    [pscustomobject]@{ Id = $_.id; Area = $areaId; Criterion = $_.name; Effort = $_.effort; Impact = $_.impact; Guidance = $_.guidance }
+                }
+            })
         $overallText = if ($null -eq $maturity.overall.score) {
             'not assessed'
         } else { "$(Format-BlueprintNumber $maturity.overall.score) / 5 ($($maturity.overall.levelName))" }
-    @"
+        @"
 $(Format-Banner -Title "Maturity Assessment")
 
 > **$($maturity.methodology.name)** v$($maturity.methodology.version), criteria v$($maturity.methodology.criteriaVersion). $(if ($maturityBasis) { "$maturityBasis " })$($maturity.methodology.scaleNote)

@@ -220,12 +220,10 @@ function Deploy-iSOCWorkspace {
     foreach ($entry in $stages) {
         $result = if ($selected -notcontains $entry.Name) {
             @{ Outcome = 'Excluded'; Reason = 'left out'; ExitCode = 0; Run = $null }
-        }
-        elseif ($entry.Gate -and $outcomes[$entry.Gate] -eq 'Failed') {
+        } elseif ($entry.Gate -and $outcomes[$entry.Gate] -eq 'Failed') {
             Write-iSOCLog "Not deploying $($entry.DisplayName): the $($entry.Gate) stage failed." -Level Warning
             @{ Outcome = 'NotRun'; Reason = "the $($entry.Gate) stage failed"; ExitCode = 0; Run = $null }
-        }
-        else {
+        } else {
             $number++
             Write-iSOCLog ''
             Write-iSOCLog "Stage $number of $($selected.Count): $($entry.DisplayName)" -Level Section

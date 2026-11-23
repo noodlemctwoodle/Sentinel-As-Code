@@ -63,8 +63,7 @@ function Wait-iSOCWorkspaceOnboarding {
             [void](Invoke-iSOCRestRequest -Method GET -Path $path -ApiVersion (Get-iSOCApiVersion SecurityInsights) -MaxAttempts 1)
             Write-iSOCLog 'Sentinel onboarding confirmed.' -Level Success
             return
-        }
-        catch {
+        } catch {
             $elapsed += $interval
             if ($elapsed -ge $maxWait) {
                 throw "Sentinel workspace '$($Context.WorkspaceName)' is not onboarded after waiting ${maxWait}s. Ensure Bicep deployment completed successfully."

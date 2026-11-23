@@ -90,10 +90,10 @@ function Invoke-PlaybooksCapture {
                 $assignments = Get-AzRoleAssignment -ObjectId $principalId -ErrorAction SilentlyContinue
                 $workspaceRoles = @($assignments | Where-Object { $_.Scope -eq $workspaceResourceId } | Select-Object -ExpandProperty RoleDefinitionName)
                 $miAssignments += [pscustomobject]@{
-                    Playbook         = $wf.name
-                    PrincipalId      = $principalId
-                    AllAssignments   = $assignments
-                    WorkspaceRoles   = $workspaceRoles
+                    Playbook       = $wf.name
+                    PrincipalId    = $principalId
+                    AllAssignments = $assignments
+                    WorkspaceRoles = $workspaceRoles
                 }
             } catch {
                 $rbacFailures += [pscustomobject]@{ Name = [string]$wf.name; Message = $_.Exception.Message }

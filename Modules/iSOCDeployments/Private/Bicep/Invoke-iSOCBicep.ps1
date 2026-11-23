@@ -107,8 +107,7 @@ function Invoke-iSOCBicep {
                 Warnings  = @($mine | Where-Object { $_ -match ' : Warning ' })
             }
         }
-    }
-    finally {
+    } finally {
         Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue -WhatIf:$false -Confirm:$false
     }
 }

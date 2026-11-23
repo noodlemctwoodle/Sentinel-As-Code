@@ -148,8 +148,7 @@ function Invoke-iSOCBlueprintSiteInitialize {
     $existing = Get-PnPTenantSite -Identity $SiteUrl -ErrorAction SilentlyContinue
     if ($existing) {
         Write-Host '  Site exists.'
-    }
-    elseif ($PSCmdlet.ShouldProcess($SiteUrl, 'Create communication site')) {
+    } elseif ($PSCmdlet.ShouldProcess($SiteUrl, 'Create communication site')) {
         New-PnPSite -Type CommunicationSite -Title $Title -Url $SiteUrl -Owner $Owner -SiteDesign Blank -Wait | Out-Null
         Write-Host '  Site created.'
     }
@@ -163,8 +162,7 @@ function Invoke-iSOCBlueprintSiteInitialize {
         Where-Object { ([string]$_.AbsoluteUrl).TrimEnd('/') -eq $SiteUrl }
     if ($siteCatalog) {
         Write-Host '  Site collection app catalog exists.'
-    }
-    elseif ($PSCmdlet.ShouldProcess($SiteUrl, 'Add site collection app catalog')) {
+    } elseif ($PSCmdlet.ShouldProcess($SiteUrl, 'Add site collection app catalog')) {
         Add-PnPSiteCollectionAppCatalog -Site $SiteUrl
         Write-Host '  Site collection app catalog added.'
     }
@@ -175,14 +173,12 @@ function Invoke-iSOCBlueprintSiteInitialize {
         Select-Object -First 1
     if ($grant -and (@($grant.Roles) -contains 'fullcontrol')) {
         Write-Host '  Publisher already has FullControl on the site.'
-    }
-    elseif ($grant) {
+    } elseif ($grant) {
         if ($PSCmdlet.ShouldProcess($SiteUrl, "Raise $PublisherAppName to FullControl")) {
             Set-PnPEntraIDAppSitePermission -Site $SiteUrl -PermissionId $grant.Id -Permissions FullControl | Out-Null
             Write-Host '  Publisher raised to FullControl.'
         }
-    }
-    elseif ($PSCmdlet.ShouldProcess($SiteUrl, "Grant $PublisherAppName FullControl")) {
+    } elseif ($PSCmdlet.ShouldProcess($SiteUrl, "Grant $PublisherAppName FullControl")) {
         Grant-PnPEntraIDAppSitePermission -AppId $PublisherAppId -DisplayName $PublisherAppName -Site $SiteUrl -Permissions FullControl | Out-Null
         Write-Host '  Publisher granted FullControl.'
     }

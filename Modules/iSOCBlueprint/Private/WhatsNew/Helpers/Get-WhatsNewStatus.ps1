@@ -47,7 +47,7 @@ function Get-WhatsNewStatus {
     param([AllowEmptyString()] [string] $Title, [AllowEmptyString()] [string] $Text, [AllowEmptyString()] [string] $Prefix)
     if ($Title -match '(?i)call to action') { return 'Action needed' }
     if ("$Title $Text" -match
-            '(?i)\bretir(e|ed|es|ing|ement)\b|\bdeprecat|end of support|no longer (be )?(supported|available)|\btransitioning\b|will stop (delivering|working|being)') {
+        '(?i)\bretir(e|ed|es|ing|ement)\b|\bdeprecat|end of support|no longer (be )?(supported|available)|\btransitioning\b|will stop (delivering|working|being)') {
         return 'Retiring'
     }
     if ($Prefix -match '(?i)^GA$' -or $Title -match '(?i)generally available|\(GA\)') { return 'Generally available' }

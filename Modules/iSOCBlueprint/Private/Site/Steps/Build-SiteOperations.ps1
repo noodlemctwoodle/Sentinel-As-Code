@@ -73,11 +73,11 @@ function Build-SiteOperations {
         }
     }
     $playbookHealth = [ordered]@{
-        runs7d = $pbRuns
-        failed7d = $pbFailed
-        playbooks = @($runRows | Where-Object { $_ }).Count
+        runs7d      = $pbRuns
+        failed7d    = $pbFailed
+        playbooks   = @($runRows | Where-Object { $_ }).Count
         unavailable = $pbUnavailable
-        failing = @($pbFailing | Sort-Object { $_.failed } -Descending)
+        failing     = @($pbFailing | Sort-Object { $_.failed } -Descending)
     }
 
     $tiBySource = @()

@@ -79,40 +79,40 @@ function Build-SiteModel {
     $generatedBuildUtc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC'
 
     $model = [ordered]@{
-        product      = $ProductName
-        title        = $Title
-        workspace    = $workspace
-        counts       = $counts
-        cost         = $costModel
-        findings     = $findings
-        mitre        = $mitre
-        mitreCovered = $mitreCovered
-        mitreCoveredThreshold = $script:MitreCoveredThreshold
-        flow         = $flow
-        flowTables   = $flowTables
-        topRules     = $topRules
-        health       = [ordered]@{ pct = $healthPct; totalEvents = [int]$healthTotal; rows = @($healthSum | Where-Object { $_ }) }
-        estate       = $estate
-        effectiveness = $effectiveness
-        usageDaily   = $usageDaily
-        maturity     = $maturityModel
-        detectionOpportunities = $detectionOpportunities
-        detectionOutcomes = $detectionOutcomes
-        detectionTableFamily = $detectionTableFamily
-        window       = $window
-        daily        = $daily
-        huntsSummary = $huntsSummary
-        playbookHealth = $playbookHealth
-        tiBySource   = $tiBySource
-        tiObjects    = $tiObjects
+        product                   = $ProductName
+        title                     = $Title
+        workspace                 = $workspace
+        counts                    = $counts
+        cost                      = $costModel
+        findings                  = $findings
+        mitre                     = $mitre
+        mitreCovered              = $mitreCovered
+        mitreCoveredThreshold     = $script:MitreCoveredThreshold
+        flow                      = $flow
+        flowTables                = $flowTables
+        topRules                  = $topRules
+        health                    = [ordered]@{ pct = $healthPct; totalEvents = [int]$healthTotal; rows = @($healthSum | Where-Object { $_ }) }
+        estate                    = $estate
+        effectiveness             = $effectiveness
+        usageDaily                = $usageDaily
+        maturity                  = $maturityModel
+        detectionOpportunities    = $detectionOpportunities
+        detectionOutcomes         = $detectionOutcomes
+        detectionTableFamily      = $detectionTableFamily
+        window                    = $window
+        daily                     = $daily
+        huntsSummary              = $huntsSummary
+        playbookHealth            = $playbookHealth
+        tiBySource                = $tiBySource
+        tiObjects                 = $tiObjects
         incidentsByClassification = $incidentsByClassification
-        alertLifecycle = $alertLifecycle
-        attack       = $attackModel
-        familyOrder  = @(Get-SectionFamilyOrder)
-        sections     = $sections
-        dataLakeEnrolled = $lakeEnrolled
-        dataLake     = $dataLakeModel
-        generatedBlueprintUtc = $generatedBuildUtc
+        alertLifecycle            = $alertLifecycle
+        attack                    = $attackModel
+        familyOrder               = @(Get-SectionFamilyOrder)
+        sections                  = $sections
+        dataLakeEnrolled          = $lakeEnrolled
+        dataLake                  = $dataLakeModel
+        generatedBlueprintUtc     = $generatedBuildUtc
     }
 
     # This run's progress record (Private/SiteShared/Get-SacProgress.ps1): the headline

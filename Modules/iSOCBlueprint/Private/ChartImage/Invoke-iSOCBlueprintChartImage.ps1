@@ -134,37 +134,37 @@ function Invoke-iSOCBlueprintChartImage {
             $count.Seen += $matchCount
 
             $newContent = $rx.Replace($content, {
-                param($m)
-                $body = $m.Groups[1].Value.TrimEnd()
-                $hash = Get-MermaidHash $body
-                $imgPath = Join-Path $assetsPath "$hash.$Format"
-                if (-not (Test-Path $imgPath)) {
-                    $temp = Join-Path ([System.IO.Path]::GetTempPath()) "mmd-$hash.mmd"
-                    Set-Content -Path $temp -Value $body -Encoding UTF8 -NoNewline
-                    try {
-                        $mmdcArgs = @(
-                            '-i', $temp
-                            '-o', $imgPath
-                            '-t', $Theme
-                            '-b', $Background
-                            '-w', $Width
-                            '-p', $puppeteerCfg
-                        )
-                        # -s (scale) only affects raster output.
-                        if ($Format -eq 'png') { $mmdcArgs += @('-s', $Scale) }
-                        & mmdc @mmdcArgs 2>&1 | Out-Null
-                    } finally {
-                        Remove-Item $temp -Force -ErrorAction SilentlyContinue
+                    param($m)
+                    $body = $m.Groups[1].Value.TrimEnd()
+                    $hash = Get-MermaidHash $body
+                    $imgPath = Join-Path $assetsPath "$hash.$Format"
+                    if (-not (Test-Path $imgPath)) {
+                        $temp = Join-Path ([System.IO.Path]::GetTempPath()) "mmd-$hash.mmd"
+                        Set-Content -Path $temp -Value $body -Encoding UTF8 -NoNewline
+                        try {
+                            $mmdcArgs = @(
+                                '-i', $temp
+                                '-o', $imgPath
+                                '-t', $Theme
+                                '-b', $Background
+                                '-w', $Width
+                                '-p', $puppeteerCfg
+                            )
+                            # -s (scale) only affects raster output.
+                            if ($Format -eq 'png') { $mmdcArgs += @('-s', $Scale) }
+                            & mmdc @mmdcArgs 2>&1 | Out-Null
+                        } finally {
+                            Remove-Item $temp -Force -ErrorAction SilentlyContinue
+                        }
+                        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $imgPath)) {
+                            Write-Warning "mmdc failed for hash $hash, leaving fence in place"
+                            $count.Failed++
+                            return $m.Value
+                        }
                     }
-                    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $imgPath)) {
-                        Write-Warning "mmdc failed for hash $hash, leaving fence in place"
-                        $count.Failed++
-                        return $m.Value
-                    }
-                }
-                $count.Rewritten++
-                return "![Diagram]($AssetsDir/$hash.$Format)"
-            })
+                    $count.Rewritten++
+                    return "![Diagram]($AssetsDir/$hash.$Format)"
+                })
 
             if ($newContent -ne $content) {
                 Set-Content -Path $md.FullName -Value $newContent -Encoding UTF8

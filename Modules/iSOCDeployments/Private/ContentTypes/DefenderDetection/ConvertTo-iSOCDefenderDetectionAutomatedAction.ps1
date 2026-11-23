@@ -68,8 +68,7 @@ function ConvertTo-iSOCDefenderDetectionAutomatedAction {
         $tokens = @(([string]$action['identifier']) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         if ($target.Column -and $tokens.Count -eq 1) {
             $entry[$target.Column] = ConvertTo-iSOCDefenderDetectionColumn -Identifier $tokens[0]
-        }
-        else {
+        } else {
             foreach ($token in $tokens) {
                 if (-not $contract.LegacyMultiIdentifierColumns.ContainsKey($token)) {
                     throw "responseActions '$type' identifier '$token' has no automated action column property."

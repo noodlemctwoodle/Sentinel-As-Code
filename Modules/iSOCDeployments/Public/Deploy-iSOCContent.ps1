@@ -161,8 +161,7 @@ function Deploy-iSOCContent {
     if ($ContentType) {
         $cannot = @($types | Where-Object { $_.Capabilities -notcontains 'Deploy' })
         if ($cannot.Count -gt 0) { throw "The module cannot deploy $(($cannot | ForEach-Object { $_.Name }) -join ', ') yet." }
-    }
-    else {
+    } else {
         $types = @($types | Where-Object { $_.Capabilities -contains 'Deploy' })
     }
     if ($ExcludeContentType) {
@@ -199,10 +198,8 @@ function Deploy-iSOCContent {
         if ($changed.Count -gt 0) {
             Write-iSOCLog "  Detected $($changed.Count) changed file(s):"
             foreach ($cf in $changed) { Write-iSOCLog "    - $cf" }
-        }
-        else { $changed = $null }
-    }
-    else {
+        } else { $changed = $null }
+    } else {
         Write-iSOCLog 'Smart deployment disabled; all content will be deployed.'
     }
 
@@ -223,8 +220,7 @@ function Deploy-iSOCContent {
         $before = $run.Results.Count
         $ordered = if ($type.Handlers.ContainsKey('Order')) {
             Invoke-iSOCContentTypeHandler -ContentType $type -Handler Order -Parameters @{ Item = $items }
-        }
-        else {
+        } else {
             Get-iSOCDeployOrder -Run $run -Item $items
         }
         foreach ($item in $ordered) {

@@ -45,7 +45,7 @@ function Format-BlueprintRbacPrincipal {
     [CmdletBinding()]
     param($Row)
     if ($Row.DisplayName) { return [string]$Row.DisplayName }
-    if ($Row.SignInName)  { return [string]$Row.SignInName }
-    if ($Row.ObjectId)    { return "_(no display name)_ ``$($Row.ObjectId)``" }
+    if ($Row.SignInName) { return [string]$Row.SignInName }
+    if ($Row.ObjectId) { return "_(no display name)_ ``$($Row.ObjectId)``" }
     return '_(unknown)_'
 }

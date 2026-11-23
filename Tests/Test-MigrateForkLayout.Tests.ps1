@@ -105,13 +105,13 @@ Describe 'Migrate-ForkLayout moving the static files to Resources' {
         New-Item -ItemType Directory -Path $script:repo | Out-Null
         git -C $script:repo init -q
         $files = [ordered]@{
-            'Tools/Blueprint/Private/Resources/best-practices.json'   = 'rules'
-            'Tools/Blueprint/Schemas/section.schema.json'             = 'schema'
-            'Tools/Blueprint/Report/templates/reference.docx'         = 'docx'
-            'Tools/Blueprint/Report/Update-WordToc.py'                = 'py'
-            'Tools/Blueprint/SharePoint/templates/dashboard/01.html'  = 'html'
-            'Tools/Blueprint/Blueprint.psd1'                          = 'psd1'
-            'Tools/Blueprint/Private/Custom.ps1'                      = 'script'
+            'Tools/Blueprint/Private/Resources/best-practices.json'    = 'rules'
+            'Tools/Blueprint/Schemas/section.schema.json'              = 'schema'
+            'Tools/Blueprint/Report/templates/reference.docx'          = 'docx'
+            'Tools/Blueprint/Report/Update-WordToc.py'                 = 'py'
+            'Tools/Blueprint/SharePoint/templates/dashboard/01.html'   = 'html'
+            'Tools/Blueprint/Blueprint.psd1'                           = 'psd1'
+            'Tools/Blueprint/Private/Custom.ps1'                       = 'script'
             'Modules/iSOCBlueprint/Engine/Private/Resources/mine.json' = 'mine'
         }
         foreach ($rel in $files.Keys) {

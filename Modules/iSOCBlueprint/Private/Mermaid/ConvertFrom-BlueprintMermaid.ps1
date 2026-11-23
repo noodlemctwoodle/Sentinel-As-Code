@@ -93,17 +93,17 @@ function ConvertFrom-BlueprintMermaid {
     $body = @($lines | Select-Object -Skip 1)
     $keyword = ($header -split '\s+')[0]
     switch -Regex ($keyword) {
-        '^pie$'              { return (ConvertFrom-BpMermaidPie -Header $header -Body $body) }
-        '^sankey(-beta)?$'   { return (ConvertFrom-BpMermaidSankey -Body $body) }
-        '^xychart(-beta)?$'  { return (ConvertFrom-BpMermaidXy -Body $body -FullLabels $fullLabels) }
-        '^timeline$'         { return (ConvertFrom-BpMermaidTimeline -Body $body) }
-        '^gantt$'            { return (ConvertFrom-BpMermaidGantt -Body $body) }
-        '^mindmap$'          { return (ConvertFrom-BpMermaidMindmap -Body $body) }
+        '^pie$' { return (ConvertFrom-BpMermaidPie -Header $header -Body $body) }
+        '^sankey(-beta)?$' { return (ConvertFrom-BpMermaidSankey -Body $body) }
+        '^xychart(-beta)?$' { return (ConvertFrom-BpMermaidXy -Body $body -FullLabels $fullLabels) }
+        '^timeline$' { return (ConvertFrom-BpMermaidTimeline -Body $body) }
+        '^gantt$' { return (ConvertFrom-BpMermaidGantt -Body $body) }
+        '^mindmap$' { return (ConvertFrom-BpMermaidMindmap -Body $body) }
         '^(flowchart|graph)$' { return (ConvertFrom-BpMermaidFlowchart -Header $header -Body $body) }
-        '^sequenceDiagram$'  { return (ConvertFrom-BpMermaidSequence -Body $body) }
+        '^sequenceDiagram$' { return (ConvertFrom-BpMermaidSequence -Body $body) }
         '^stateDiagram(-v2)?$' { return (ConvertFrom-BpMermaidState -Body $body) }
-        '^classDiagram$'     { return (ConvertFrom-BpMermaidClass -Body $body) }
-        '^journey$'          { return (ConvertFrom-BpMermaidJourney -Body $body) }
+        '^classDiagram$' { return (ConvertFrom-BpMermaidClass -Body $body) }
+        '^journey$' { return (ConvertFrom-BpMermaidJourney -Body $body) }
     }
     return [ordered]@{ kind = 'other'; title = $null; data = $null }
 }

@@ -126,14 +126,12 @@ function ConvertFrom-iSOCArmExpression {
             if ($next -eq '.') {
                 $state.Pos++
                 $node = [pscustomobject]@{ Kind = 'Member'; Target = $node; Name = (& $readIdentifier) }
-            }
-            elseif ($next -eq '[') {
+            } elseif ($next -eq '[') {
                 $state.Pos++
                 $index = & $parseExpression
                 & $expect ']'
                 $node = [pscustomobject]@{ Kind = 'Index'; Target = $node; Index = $index }
-            }
-            else { break }
+            } else { break }
         }
         $node
     }

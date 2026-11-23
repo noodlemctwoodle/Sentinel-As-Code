@@ -49,31 +49,31 @@ function Write-BlueprintRbacSection {
     $wsRows = $rbacWs | ForEach-Object {
         [pscustomobject]@{
             Principal = (Format-BlueprintRbacPrincipal $_)
-            SignIn = [string](Get-BlueprintRawProperty $_ 'SignInName' '')
-            Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
-            Role = $_.RoleDefinitionName
+            SignIn    = [string](Get-BlueprintRawProperty $_ 'SignInName' '')
+            Type      = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
+            Role      = $_.RoleDefinitionName
         }
     }
     # Counts per role by principal type, and the three views the access review
     # starts from: Sentinel roles, Log Analytics and monitoring roles, and the
     # roles that can change or delete the workspace.
     $roleCountRows = @($rbacWs | Where-Object { $_ } | Group-Object RoleDefinitionName | ForEach-Object {
-        [pscustomobject]@{
-            Role              = $_.Name
-            Total             = $_.Count
-            Users             = @($_.Group | Where-Object { $_.ObjectType -eq 'User' }).Count
-            Groups            = @($_.Group | Where-Object { $_.ObjectType -eq 'Group' }).Count
-            ServicePrincipals = @($_.Group | Where-Object { $_.ObjectType -eq 'ServicePrincipal' }).Count
-        }
-    } | Sort-Object @{ Expression = 'Total'; Descending = $true }, Role)
+            [pscustomobject]@{
+                Role              = $_.Name
+                Total             = $_.Count
+                Users             = @($_.Group | Where-Object { $_.ObjectType -eq 'User' }).Count
+                Groups            = @($_.Group | Where-Object { $_.ObjectType -eq 'Group' }).Count
+                ServicePrincipals = @($_.Group | Where-Object { $_.ObjectType -eq 'ServicePrincipal' }).Count
+            }
+        } | Sort-Object @{ Expression = 'Total'; Descending = $true }, Role)
     $sentinelRoleRows = @($wsRows | Where-Object { $_.Role -match 'Sentinel' })
     $lawRoleRows = @($wsRows | Where-Object { $_.Role -match 'Log Analytics|Monitoring (Reader|Contributor)' })
     $highPrivRows = @($wsRows | Where-Object { $_.Role -in @('Owner', 'Contributor', 'User Access Administrator') })
     $rgRows = $rbacRg | ForEach-Object {
         [pscustomobject]@{
             Principal = (Format-BlueprintRbacPrincipal $_)
-            Type = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
-            Role = $_.RoleDefinitionName
+            Type      = (ConvertTo-BlueprintWords ([string]$_.ObjectType))
+            Role      = $_.RoleDefinitionName
         }
     }
 
@@ -136,21 +136,22 @@ function Write-BlueprintRbacSection {
     }
     $accessRoles = { param([string]$Band)
         @($rolesSeen | Where-Object { (& $accessBand $_) -eq $Band } | ForEach-Object {
-            $c = $principalsByRole[$_]
-            [ordered]@{ role = [string]$_; users = [int]$c['User']; groups = [int]$c['Group']; servicePrincipals = [int]$c['ServicePrincipal'] }
-        } | Sort-Object { -($_.users + $_.groups + $_.servicePrincipals) }, { $_.role })
+                $c = $principalsByRole[$_]
+                [ordered]@{ role = [string]$_; users = [int]$c['User']; groups = [int]$c['Group']; servicePrincipals = [int]$c['ServicePrincipal'] }
+            } | Sort-Object { - ($_.users + $_.groups + $_.servicePrincipals) }, { $_.role })
     }
     $accessVisualLine = Format-VisualLine -Kind 'access' -Data ([ordered]@{ bands = @(
-        [ordered]@{
-            name = 'Broad roles'
-            tone = 'bad'
-            findings = @(@('SAC-GOV-05', 'SAC-GOV-06') | Where-Object { $script:FiredFindingIds.ContainsKey($_) })
-            roles = @(& $accessRoles 'broad')
-        }
-        [ordered]@{ name = 'Microsoft Sentinel roles'; tone = 'ok'; findings = @(); roles = @(& $accessRoles 'sentinel') }
-        [ordered]@{ name = 'Log Analytics and monitoring'; tone = 'info'; findings = @(); roles = @(& $accessRoles 'monitor') }
-        [ordered]@{ name = 'Other roles'; tone = 'neutral'; findings = @(); roles = @(& $accessRoles 'other') }
-    ) })
+                [ordered]@{
+                    name     = 'Broad roles'
+                    tone     = 'bad'
+                    findings = @(@('SAC-GOV-05', 'SAC-GOV-06') | Where-Object { $script:FiredFindingIds.ContainsKey($_) })
+                    roles    = @(& $accessRoles 'broad')
+                }
+                [ordered]@{ name = 'Microsoft Sentinel roles'; tone = 'ok'; findings = @(); roles = @(& $accessRoles 'sentinel') }
+                [ordered]@{ name = 'Log Analytics and monitoring'; tone = 'info'; findings = @(); roles = @(& $accessRoles 'monitor') }
+                [ordered]@{ name = 'Other roles'; tone = 'neutral'; findings = @(); roles = @(& $accessRoles 'other') }
+            )
+        })
 
     # Headline figures for the access review: how many assignments and to whom,
     # then the ones that carry risk. A principal is counted once however many

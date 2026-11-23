@@ -34,52 +34,56 @@ BeforeAll {
     . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
     $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-        "`n"
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
     $script:sacSharePoint = (Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
-        "`n"
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+    "`n"
 
     # A model with just the parts the record reads.
     $script:model = [ordered]@{
-        counts        = [ordered]@{ rulesEnabled = 3; rulesTotal = 4; connectors = 5 }
-        cost          = [ordered]@{ monthlyTotal = 1234.5; currency = 'GBP' }
-        findings      = [ordered]@{ total = 2; bySeverity = [ordered]@{ Critical = 1; Warning = 1 }
+        counts         = [ordered]@{ rulesEnabled = 3; rulesTotal = 4; connectors = 5 }
+        cost           = [ordered]@{ monthlyTotal = 1234.5; currency = 'GBP' }
+        findings       = [ordered]@{ total = 2; bySeverity = [ordered]@{ Critical = 1; Warning = 1 }
             items = @(
                 [ordered]@{
-                    id = 'SAC-LOG-03'
+                    id       = 'SAC-LOG-03'
                     severity = 'Warning'
-                    title = 'Daily cap'
+                    title    = 'Daily cap'
                 }, [ordered]@{ id = 'SAC-DET-01'; severity = 'Critical'; title = 'No rules' }
-            ) }
-        mitre         = @(1, 2, 3)
-        mitreCovered  = 2
-        estate        = [ordered]@{ totalGb = 100.0; uncoveredGb = 40.0; customDetections = [ordered]@{ captured = $false; enabled = 9 }
-            tables = @([ordered]@{ table = 'SigninLogs'; covered = $true }, [ordered]@{ table = 'Syslog'; covered = $false }) }
-        maturity      = [ordered]@{ overall = [ordered]@{ score = 2.5; level = 2 }
-            areas = @([ordered]@{ id = 'DET'; score = 2.0 })
-            criteria = @(
+            )
+        }
+        mitre          = @(1, 2, 3)
+        mitreCovered   = 2
+        estate         = [ordered]@{ totalGb = 100.0; uncoveredGb = 40.0; customDetections = [ordered]@{ captured = $false; enabled = 9 }
+            tables = @([ordered]@{ table = 'SigninLogs'; covered = $true }, [ordered]@{ table = 'Syslog'; covered = $false })
+        }
+        maturity       = [ordered]@{ overall = [ordered]@{ score = 2.5; level = 2 }
+            areas                            = @([ordered]@{ id = 'DET'; score = 2.0 })
+            criteria                         = @(
                 [ordered]@{
-                    id = 'SAC-DET-01'
-                    name = 'Rules'
+                    id     = 'SAC-DET-01'
+                    name   = 'Rules'
                     status = 'Gap'
                 }, [ordered]@{ id = 'SAC-LOG-01'; name = 'Logs'; status = 'Met' }, [ordered]@{ id = 'SAC-HNT-02'; name = 'Bookmarks'; status = 'Unknown' }
-            ) }
-        attack        = [ordered]@{
+            )
+        }
+        attack         = [ordered]@{
             rules = @(
                 [ordered]@{ name = 'Rule A'; enabled = $true }, [ordered]@{ name = 'Rule B'; enabled = $false }, [ordered]@{ name = 'Rule A'; enabled = $true }
             )
             cells = @(
                 [ordered]@{
                     technique = 'T1078'
-                    rules = @(0)
+                    rules     = @(0)
                 }, [ordered]@{ technique = 'T1110'; rules = @(1) }, [ordered]@{ technique = 'T1059'; rules = @(1, 2) }
-            ) }
+            )
+        }
         alertLifecycle = [ordered]@{ openBySeverity = [ordered]@{ High = 2; Medium = 3 }; mttrMinutes = 90.0 }
-        usageDaily    = @([ordered]@{ billable = 10.0 }, [ordered]@{ billable = 20.0 })
-        window        = [ordered]@{ days = 30 }
+        usageDaily     = @([ordered]@{ billable = 10.0 }, [ordered]@{ billable = 20.0 })
+        window         = [ordered]@{ days = 30 }
     }
     $script:record = New-SacProgressRecord -Model $script:model -Date '2026-10-15' -GeneratedUtc '2026-10-15 09:00 UTC'
     function New-Rec([string]$Date, [int]$Findings = 1) { [ordered]@{ schemaVersion = 1; date = $Date; metrics = [ordered]@{ findings = $Findings } } }
@@ -119,17 +123,17 @@ Describe 'A run''s progress record' {
 
     It 'codes each criterion Met, Gap or Unknown, with its name' {
         $c = @($script:record.sets.criteria)
-        ($c | Where-Object id -eq 'SAC-DET-01').status | Should -Be 'G'
-        ($c | Where-Object id -eq 'SAC-LOG-01').status | Should -Be 'M'
-        ($c | Where-Object id -eq 'SAC-HNT-02').status | Should -Be 'U'
-        ($c | Where-Object id -eq 'SAC-LOG-01').name | Should -Be 'Logs'
+        ($c | Where-Object id -EQ 'SAC-DET-01').status | Should -Be 'G'
+        ($c | Where-Object id -EQ 'SAC-LOG-01').status | Should -Be 'M'
+        ($c | Where-Object id -EQ 'SAC-HNT-02').status | Should -Be 'U'
+        ($c | Where-Object id -EQ 'SAC-LOG-01').name | Should -Be 'Logs'
         $script:record.metrics.criteriaMet | Should -Be 1
     }
 
     It 'lists the findings with their severity and title' {
         $f = @($script:record.sets.findings)
         $f.Count | Should -Be 2
-        ($f | Where-Object id -eq 'SAC-DET-01').severity | Should -Be 'Critical'
+        ($f | Where-Object id -EQ 'SAC-DET-01').severity | Should -Be 'Critical'
     }
 }
 
@@ -139,7 +143,7 @@ Describe 'The progress history' {
             entries = @((New-Rec '2026-10-14' 5), (New-Rec '2026-10-13' 7))
         } -Records @((New-Rec '2026-10-14' 4), (New-Rec '2026-10-15' 3))
         @($h.entries | ForEach-Object date) | Should -Be @('2026-10-13', '2026-10-14', '2026-10-15')
-        ($h.entries | Where-Object date -eq '2026-10-14').metrics.findings | Should -Be 4
+        ($h.entries | Where-Object date -EQ '2026-10-14').metrics.findings | Should -Be 4
     }
 
     It 'drops records older than the days kept before the newest' {

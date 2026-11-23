@@ -219,7 +219,7 @@ Describe 'Get-iSOCWorkspaceOnboarding beside the GitHub step: <Case>' -ForEach $
     }
 
     It 'logs the GitHub step''s errors, naming the deployment rather than the workflow' {
-        $moduleErrors = @($script:module.Logs | Where-Object Level -eq 'Error' | ForEach-Object { $_.Message })
+        $moduleErrors = @($script:module.Logs | Where-Object Level -EQ 'Error' | ForEach-Object { $_.Message })
         $expected = @($script:gitHub.Errors | ForEach-Object { $_.Replace('re-run this workflow', 're-run the deployment') })
         if ($Status -eq 'SolutionMissing') { $expected.Count | Should -BeGreaterThan 0 }
         ($moduleErrors -join "`n") | Should -BeExactly ($expected -join "`n")

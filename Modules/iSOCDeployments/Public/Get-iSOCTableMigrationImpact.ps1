@@ -150,8 +150,7 @@ function Get-iSOCTableMigrationImpact {
     try {
         $packages = @(Read-iSOCContentHubPackage -Context $ctx)
         Write-iSOCLog "Loaded $($packages.Count) Content Hub packages" -Level Success
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Content Hub query failed: $($_.Exception.Message)" -Level Warning
         $packages = @()
     }

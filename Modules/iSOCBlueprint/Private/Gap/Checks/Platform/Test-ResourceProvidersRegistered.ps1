@@ -39,13 +39,13 @@ function Test-ResourceProvidersRegistered {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
-    $required = @('Microsoft.SecurityInsights','Microsoft.OperationalInsights','Microsoft.Insights')
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
+    $required = @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights', 'Microsoft.Insights')
     $bad = @($Inventory.ResourceProviders | Where-Object {
-        $name = Get-PropOrDefault $_ 'ProviderNamespace' ''
-        $state = Get-PropOrDefault $_ 'RegistrationState' ''
-        ($required -contains $name) -and ($state -ne 'Registered')
-    })
+            $name = Get-PropOrDefault $_ 'ProviderNamespace' ''
+            $state = Get-PropOrDefault $_ 'RegistrationState' ''
+            ($required -contains $name) -and ($state -ne 'Registered')
+        })
     if ($bad.Count -gt 0) {
         $names = ($bad | Select-Object -ExpandProperty ProviderNamespace) -join ', '
         return New-Finding -Evidence "$(Select-GapWording $bad.Count 'Resource provider' 'Resource providers') not registered: $names." -Detail @{ Providers = $names }

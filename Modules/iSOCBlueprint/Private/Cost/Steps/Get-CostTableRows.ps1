@@ -54,10 +54,10 @@ function Get-CostTableRows {
         if ($billable30d -le 0 -or -not $name) { continue }
         $plan = if ($planByTable.ContainsKey($name) -and $planByTable[$name]) { $planByTable[$name] } else { 'Analytics' }
         $unit = switch ($plan) {
-            'Basic'     { $basicUnit }
+            'Basic' { $basicUnit }
             'Auxiliary' { $auxUnit }
-            'DataLake'  { $lakeUnit }
-            default     { $analyticsUnit }
+            'DataLake' { $lakeUnit }
+            default { $analyticsUnit }
         }
         [pscustomobject]@{ Table = $name; Plan = $plan; Gb = $billable30d; Cost = $billable30d * $unit * $toMonth
             Benefit = $(
@@ -65,7 +65,8 @@ function Get-CostTableRows {
                     $g = $benefitOf[$name]
                     if ($g.PSObject.Properties.Name -contains 'short' -and $g.short) { [string]$g.short } else { [string]$g.name }
                 } else { '' }
-            ) }
+            )
+        }
     }
     $rows = @($rows)
 

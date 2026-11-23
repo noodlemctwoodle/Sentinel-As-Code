@@ -43,8 +43,7 @@ function Join-BpTableChunk {
         $last = if ($out.Count) { $out[$out.Count - 1] } else { $null }
         if ($joinNext -and $b.type -eq 'table' -and $last -and $last.type -eq 'table') {
             $last.rows = @($last.rows) + @($b.rows)
-        }
-        else { $out.Add($b) }
+        } else { $out.Add($b) }
         $joinNext = $false
     }
     return $out.ToArray()

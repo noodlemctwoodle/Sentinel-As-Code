@@ -39,12 +39,12 @@ function Test-NoisyTableHasTransform {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.TablesWithData) { return $null }
     $threshold = 50.0
     $candidates = @($Inventory.TablesWithData | Where-Object {
-        (ConvertTo-GapPer30Days ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -ge $threshold
-    })
+            (ConvertTo-GapPer30Days ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -ge $threshold
+        })
     if (-not $candidates) { return $null }
 
     $tablesWithTransform = @{}
@@ -52,7 +52,7 @@ function Test-NoisyTableHasTransform {
         $flows = Get-PropOrDefault $dcr 'properties.dataFlows' @()
         foreach ($flow in @($flows)) {
             $transform = Get-PropOrDefault $flow 'transformKql' ''
-            $output    = Get-PropOrDefault $flow 'outputStream' ''
+            $output = Get-PropOrDefault $flow 'outputStream' ''
             if ($transform -and $output) {
                 $tablesWithTransform[$output] = $true
             }
@@ -60,9 +60,9 @@ function Test-NoisyTableHasTransform {
     }
 
     $missing = @($candidates | Where-Object {
-        -not $tablesWithTransform.ContainsKey("Microsoft-Table-$($_.DataType)") -and
-        -not $tablesWithTransform.ContainsKey("Custom-$($_.DataType)")
-    })
+            -not $tablesWithTransform.ContainsKey("Microsoft-Table-$($_.DataType)") -and
+            -not $tablesWithTransform.ContainsKey("Custom-$($_.DataType)")
+        })
     if ($missing.Count -gt 0) {
         $names = ($missing | Select-Object -ExpandProperty DataType) -join ', '
         return New-Finding -Evidence "$(Select-GapWording $missing.Count 'High-volume Analytics-plan table' 'High-volume Analytics-plan tables') with no DCR transform: $names." -Detail @{ Tables = $names }

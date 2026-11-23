@@ -70,21 +70,21 @@ function Write-BlueprintCostEstimateSection {
         } else { '' }
         $costCurrencySource = [string](& $costField 'CurrencySource')
         $costCurrencyText = switch ($costCurrencySource) {
-            'Region'    {
+            'Region' {
                 "Prices are in $($cost.Currency), taken from the workspace's region ($(Get-BlueprintRegionName $cost.Region)); billing currency follows the billing account, so set the collector's ``-Currency`` (the pipelines' currency setting) when that is wrong."
             }
             'Parameter' { "Prices are in $($cost.Currency), as the run's ``-Currency`` setting asked." }
-            default     { '' }
+            default { '' }
         }
         $grantRows = @(@(& $costField 'BenefitEligible') | Where-Object { $_ } | ForEach-Object {
-            [pscustomobject]@{
-                Grant = [string]$_.Benefit
-                Allowance = [string]$_.Allowance
-                Gb30d = $_.Gb30d
-                MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency)
-                Tables = [string]$_.Tables
-            }
-        })
+                [pscustomobject]@{
+                    Grant       = [string]$_.Benefit
+                    Allowance   = [string]$_.Allowance
+                    Gb30d       = $_.Gb30d
+                    MonthlyCost = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency)
+                    Tables      = [string]$_.Tables
+                }
+            })
 
         # ---------------------------------------------------------------------
 
@@ -105,11 +105,11 @@ function Write-BlueprintCostEstimateSection {
                 'Basic' { 'Basic rate' } 'Auxiliary' { 'Auxiliary rate' } 'DataLake' { 'Data lake rate' } default { 'Analytics rate' }
             }
             $flowFiltered.Add([pscustomobject]@{
-                Table  = $t.Table
-                Gb     = $gb
-                Source = (Get-BlueprintCostSource $t.Table)
-                Tier   = $tier
-            })
+                    Table  = $t.Table
+                    Gb     = $gb
+                    Source = (Get-BlueprintCostSource $t.Table)
+                    Tier   = $tier
+                })
         }
 
         # Decide which tables keep their own middle-column node. On a busy
@@ -158,7 +158,7 @@ function Write-BlueprintCostEstimateSection {
         }
 
         $bySourceTable = @{}
-        $byTableTier   = @{}
+        $byTableTier = @{}
         foreach ($r in $flowFiltered) {
             $tableNode = if ($keepIndividual.ContainsKey($r.Table)) {
                 $r.Table
@@ -168,9 +168,9 @@ function Write-BlueprintCostEstimateSection {
             $stKey = "$($r.Source)||$tableNode"
             $ttKey = "$tableNode||$($r.Tier)"
             if (-not $bySourceTable.ContainsKey($stKey)) { $bySourceTable[$stKey] = 0.0 }
-            if (-not $byTableTier.ContainsKey($ttKey))   { $byTableTier[$ttKey]   = 0.0 }
+            if (-not $byTableTier.ContainsKey($ttKey)) { $byTableTier[$ttKey] = 0.0 }
             $bySourceTable[$stKey] += $r.Gb
-            $byTableTier[$ttKey]   += $r.Gb
+            $byTableTier[$ttKey] += $r.Gb
         }
 
         $flowRowsList = New-Object System.Collections.Generic.List[string]
@@ -189,35 +189,35 @@ function Write-BlueprintCostEstimateSection {
         # the configured height. Scale with the middle-column count (the wide
         # axis) and the source-column count, whichever's larger.
         $middleNodeCount = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[1] }) | Sort-Object -Unique).Count
-        $sourceCount     = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[0] }) | Sort-Object -Unique).Count
-        $tallestColumn   = [Math]::Max($middleNodeCount, $sourceCount)
-        $sankeyHeight    = [Math]::Max(720, 24 * $tallestColumn + 200)
+        $sourceCount = @(($bySourceTable.Keys | ForEach-Object { ($_ -split '\|\|')[0] }) | Sort-Object -Unique).Count
+        $tallestColumn = [Math]::Max($middleNodeCount, $sourceCount)
+        $sankeyHeight = [Math]::Max(720, 24 * $tallestColumn + 200)
 
         # The cost as data for the SharePoint graphic: the total, GB and cost by
         # plan, and every source family with every one of its tables (no tail
         # buckets: the graphic lists them all behind each family).
         $costVisualLine = Format-VisualLine -Kind 'cost-breakdown' -Data ([ordered]@{
-            windowDays   = (Get-BlueprintWindow).Days
-            currency     = [string]$cost.Currency
-            monthlyTotal = $cost.MonthlyTotal
-            totalGb      = [math]::Round([double]$totalGb, 2)
-            plans        = @(
-                $planRows |
-                    Sort-Object { -[double]$_.Gb30d } |
-                    ForEach-Object { [ordered]@{ name = [string]$_.Plan; gb = [double]$_.Gb30d; cost = $_.MonthlyCost } }
-            )
-            sources      = @($flowFiltered | Group-Object Source | ForEach-Object {
-                [ordered]@{
-                    name   = [string]$_.Name
-                    gb     = [math]::Round([double](($_.Group | Measure-Object -Property Gb -Sum).Sum), 2)
-                    tables = @(
-                        $_.Group |
-                            Sort-Object -Property Gb -Descending |
-                            ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = [string]$_.Tier } }
-                    )
-                }
-            } | Sort-Object { -$_.gb })
-        })
+                windowDays   = (Get-BlueprintWindow).Days
+                currency     = [string]$cost.Currency
+                monthlyTotal = $cost.MonthlyTotal
+                totalGb      = [math]::Round([double]$totalGb, 2)
+                plans        = @(
+                    $planRows |
+                        Sort-Object { - [double]$_.Gb30d } |
+                        ForEach-Object { [ordered]@{ name = [string]$_.Plan; gb = [double]$_.Gb30d; cost = $_.MonthlyCost } }
+                )
+                sources      = @($flowFiltered | Group-Object Source | ForEach-Object {
+                        [ordered]@{
+                            name   = [string]$_.Name
+                            gb     = [math]::Round([double](($_.Group | Measure-Object -Property Gb -Sum).Sum), 2)
+                            tables = @(
+                                $_.Group |
+                                    Sort-Object -Property Gb -Descending |
+                                    ForEach-Object { [ordered]@{ table = [string]$_.Table; gb = [math]::Round([double]$_.Gb, 2); tier = [string]$_.Tier } }
+                                )
+                            }
+                        } | Sort-Object { - $_.gb })
+            })
 
     }
 

@@ -53,8 +53,7 @@ function Merge-iSOCCommunityTag {
     $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     if ($Existing -is [System.Collections.IEnumerable] -and $Existing -isnot [string]) {
         foreach ($tag in $Existing) { [void]$set.Add($tag.ToString()) }
-    }
-    elseif ($Existing -is [string] -and $Existing -ne '') {
+    } elseif ($Existing -is [string] -and $Existing -ne '') {
         [void]$set.Add($Existing)
     }
     foreach ($tag in $Required) { [void]$set.Add($tag) }

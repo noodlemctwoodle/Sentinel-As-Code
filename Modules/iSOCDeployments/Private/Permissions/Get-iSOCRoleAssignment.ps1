@@ -60,8 +60,7 @@ function Get-iSOCRoleAssignment {
 
     $path = if ($PrincipalId) {
         "/subscriptions/$($Context.SubscriptionId)/providers/Microsoft.Authorization/roleAssignments?`$filter=assignedTo('$PrincipalId')"
-    }
-    else {
+    } else {
         "$($Scope.TrimEnd('/'))/providers/Microsoft.Authorization/roleAssignments?`$filter=atScope()"
     }
     foreach ($assignment in @(Invoke-iSOCRestRequest -Method GET -Path $path -ApiVersion (Get-iSOCApiVersion Authorization) -Context $Context)) {

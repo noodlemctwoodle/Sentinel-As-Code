@@ -79,16 +79,14 @@ function Import-iSOCTableSpec {
 
     try {
         $json = $raw | ConvertFrom-Json
-    }
-    catch {
+    } catch {
         $repaired = Repair-iSOCJsonText -Text $raw
         if ($repaired.Applied.Count -eq 0) {
             throw "Schema file is not valid JSON ($Path): $($_.Exception.Message.Split([char]10)[0])"
         }
         try {
             $json = $repaired.Text | ConvertFrom-Json
-        }
-        catch {
+        } catch {
             throw ("Schema file is not valid JSON ($Path), even after removing $($repaired.Applied -join ', '): " +
                 $_.Exception.Message.Split([char]10)[0])
         }
@@ -101,8 +99,7 @@ function Import-iSOCTableSpec {
 
     if ($json -is [array]) {
         $columns = $json
-    }
-    else {
+    } else {
         $properties = $json.PSObject.Properties
 
         if ($properties['properties'] -and $properties['properties'].Value) {
@@ -122,11 +119,9 @@ function Import-iSOCTableSpec {
             foreach ($key in @('plan', 'retentionInDays', 'totalRetentionInDays')) {
                 if ($inner.PSObject.Properties[$key]) { $extra[$key] = $inner.$key }
             }
-        }
-        elseif ($properties['name'] -and $properties['type'] -and -not $properties['columns'] -and -not $properties['tableName']) {
+        } elseif ($properties['name'] -and $properties['type'] -and -not $properties['columns'] -and -not $properties['tableName']) {
             $columns = @($json)
-        }
-        else {
+        } else {
             foreach ($key in @('tableName', 'name', 'table')) {
                 if ($properties[$key] -and $properties[$key].Value) {
                     $name = [string]$properties[$key].Value

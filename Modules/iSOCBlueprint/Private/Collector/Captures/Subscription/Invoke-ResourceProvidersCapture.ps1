@@ -35,7 +35,7 @@ function Invoke-ResourceProvidersCapture {
 
 
     $rps = Get-AzResourceProvider -ListAvailable -ErrorAction SilentlyContinue |
-        Where-Object { $_.ProviderNamespace -in @('Microsoft.SecurityInsights','Microsoft.OperationalInsights','Microsoft.Insights','Microsoft.OperationsManagement') } |
+        Where-Object { $_.ProviderNamespace -in @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights', 'Microsoft.Insights', 'Microsoft.OperationsManagement') } |
         Select-Object ProviderNamespace, RegistrationState
     Save-Json -FileName 'resource-providers.json' -Data $rps
 }

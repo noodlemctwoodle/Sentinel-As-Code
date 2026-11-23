@@ -39,7 +39,7 @@ function Test-WorkspaceRetentionMeetsSentinelBenefit {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $retention = Get-PropOrDefault $Inventory.Workspace 'properties.retentionInDays' 0
     if ([int]$retention -lt 90) {
         return New-Finding -Evidence "Workspace default retention is $(Format-BlueprintPlural $retention 'day'); Sentinel includes the 30->90d upgrade at no extra cost on eligible tables." -Detail @{ RetentionInDays = [int]$retention }

@@ -67,20 +67,20 @@ function Get-CostMeterPrices {
     if ($metersCatalog.skipMeters) { foreach ($s in $metersCatalog.skipMeters) { $skipMeters[$s] = $true } }
 
     $currency = 'unknown'
-    $asOfUtc  = $null
-    $region   = $null
+    $asOfUtc = $null
+    $region = $null
     # Where the currency came from: the region (-Currency Auto) or the run's
     # setting; an older price list does not say.
     $currencySource = $null
 
     if ($pricesBlob) {
-        $region  = $pricesBlob.Region
+        $region = $pricesBlob.Region
         $asOfUtc = $pricesBlob.FetchedAtUtc
         if ($pricesBlob.PSObject.Properties.Name -contains 'CurrencySource') { $currencySource = [string]$pricesBlob.CurrencySource }
         foreach ($p in @($pricesBlob.Prices)) {
-            $meter = ($p.meterName)    -as [string]
-            $price = ($p.unitPrice)    -as [double]
-            $cc    = ($p.currencyCode) -as [string]
+            $meter = ($p.meterName) -as [string]
+            $price = ($p.unitPrice) -as [double]
+            $cc = ($p.currencyCode) -as [string]
             if ($cc) { $currency = $cc }
             if (-not $meter -or $skipMeters.ContainsKey($meter)) { continue }
 

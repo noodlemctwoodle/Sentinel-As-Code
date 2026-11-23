@@ -39,26 +39,26 @@ function Test-PlaybookRunFailures {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (@($Inventory.PlaybookRuns).Count -eq 0) { return $null }
     $failing = @($Inventory.PlaybookRuns | Where-Object {
-        $null -ne $_ -and (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0)) -gt 0
-    } | Sort-Object { -(ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0)) })
+            $null -ne $_ -and (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0)) -gt 0
+        } | Sort-Object { - (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0)) })
     if ($failing.Count -eq 0) { return $null }
     $sample = ($failing | ForEach-Object {
-        $last = ConvertTo-GapIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
-        $when = if ($last) { ", last $(Format-BlueprintDate $last -Time)" } else { '' }
-        "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(Format-BlueprintCount (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0))) of $(Format-BlueprintPlural (ConvertTo-GapInt (Get-PropOrDefault $_ 'Runs7d' 0)) 'run') failed$when)"
-    }) -join '; '
+            $last = ConvertTo-GapIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
+            $when = if ($last) { ", last $(Format-BlueprintDate $last -Time)" } else { '' }
+            "$(Get-EvidenceName $_ 'Playbook' 'Unnamed playbook') ($(Format-BlueprintCount (ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0))) of $(Format-BlueprintPlural (ConvertTo-GapInt (Get-PropOrDefault $_ 'Runs7d' 0)) 'run') failed$when)"
+        }) -join '; '
     return New-Finding -Evidence "$(Format-BlueprintPlural $failing.Count 'playbook') had failed runs in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $sample." -Detail @{
         Count     = $failing.Count
         Playbooks = @($failing | ForEach-Object {
-            [pscustomobject]@{
-                Playbook       = [string](Get-PropOrDefault $_ 'Playbook' '')
-                Runs7d         = ConvertTo-GapInt (Get-PropOrDefault $_ 'Runs7d' 0)
-                Failed7d       = ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0)
-                LastFailureUtc = ConvertTo-GapIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
-            }
-        })
+                [pscustomobject]@{
+                    Playbook       = [string](Get-PropOrDefault $_ 'Playbook' '')
+                    Runs7d         = ConvertTo-GapInt (Get-PropOrDefault $_ 'Runs7d' 0)
+                    Failed7d       = ConvertTo-GapInt (Get-PropOrDefault $_ 'Failed7d' 0)
+                    LastFailureUtc = ConvertTo-GapIsoTime (Get-PropOrDefault $_ 'LastFailureUtc' $null)
+                }
+            })
     }
 }

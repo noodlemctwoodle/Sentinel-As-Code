@@ -66,8 +66,7 @@ function New-iSOCFixtureRuleId {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
         $hash = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($seed))
-    }
-    finally {
+    } finally {
         $sha.Dispose()
     }
     ([guid]::new([byte[]]$hash[0..15])).ToString()

@@ -108,14 +108,12 @@ function Get-iSOCContentHubRuleAction {
         if (-not $update) {
             return @{ Action = 'Unchanged'; ExistingRule = $existingRule; Reason = 'current'; Modifications = @() }
         }
-    }
-    elseif ($displayName -and $RulesByName.ContainsKey($displayName)) {
+    } elseif ($displayName -and $RulesByName.ContainsKey($displayName)) {
         if ($ProtectCustomisedRules) {
             return @{ Action = 'Protected'; ExistingRule = $RulesByName[$displayName]; Reason = 'a rule of that name is not linked to the template'; Modifications = @() }
         }
         $existingRule = $RulesByName[$displayName]
-    }
-    else {
+    } else {
         return @{ Action = 'Create'; ExistingRule = $null; Reason = ''; Modifications = @() }
     }
 

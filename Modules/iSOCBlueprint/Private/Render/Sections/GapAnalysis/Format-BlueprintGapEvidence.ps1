@@ -63,8 +63,8 @@ function Format-BlueprintGapEvidence {
     #   -> "Recommended connectors not deployed:\n- A\n- B\n- C"
     $leadEnd = $Evidence.IndexOf(':')
     if ($leadEnd -gt 0 -and $leadEnd -lt 200) {
-        $lead  = $Evidence.Substring(0, $leadEnd + 1).Trim()
-        $tail  = $Evidence.Substring($leadEnd + 1).Trim()
+        $lead = $Evidence.Substring(0, $leadEnd + 1).Trim()
+        $tail = $Evidence.Substring($leadEnd + 1).Trim()
         $items = $tail -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
         return @"
 $lead

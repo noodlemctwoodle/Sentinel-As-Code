@@ -49,12 +49,12 @@ Describe 'Invoke-iSOCBlueprintConnectorCatalogueUpdate' {
     }
 
     It 'turns a single-table string into a list and sorts and de-duplicates the tables' {
-        @(($script:doc.connectors | Where-Object id -eq 'Alpha').tables) | Should -Be @('OnlyOne')
-        @(($script:doc.connectors | Where-Object id -eq 'Beta').tables) | Should -Be @('T1', 'T2')
+        @(($script:doc.connectors | Where-Object id -EQ 'Alpha').tables) | Should -Be @('OnlyOne')
+        @(($script:doc.connectors | Where-Object id -EQ 'Beta').tables) | Should -Be @('T1', 'T2')
     }
 
     It 'records a deprecated title without the marker and drops the Solutions/ prefix' {
-        $beta = $script:doc.connectors | Where-Object id -eq 'Beta'
+        $beta = $script:doc.connectors | Where-Object id -EQ 'Beta'
         $beta.deprecated | Should -BeTrue
         $beta.title | Should -Be 'Beta'
         $beta.solution | Should -Be 'Beta'

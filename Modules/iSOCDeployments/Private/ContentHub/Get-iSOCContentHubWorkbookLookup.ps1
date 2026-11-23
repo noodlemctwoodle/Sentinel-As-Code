@@ -58,8 +58,7 @@ function Get-iSOCContentHubWorkbookLookup {
     Write-iSOCLog 'Querying Sentinel metadata to identify Content Hub workbooks...'
     try {
         $records = @(Invoke-iSOCRestRequest -Method GET -Path "$($Context.WorkspaceResourceId)/providers/Microsoft.SecurityInsights/metadata" -ApiVersion (Get-iSOCApiVersion SecurityInsights) -Context $Context)
-    }
-    catch {
+    } catch {
         Write-iSOCLog "  Could not enumerate Sentinel metadata: $($_.Exception.Message)" -Level Warning
         Write-iSOCLog '  Continuing without Content Hub filtering.' -Level Warning
         return $lookup

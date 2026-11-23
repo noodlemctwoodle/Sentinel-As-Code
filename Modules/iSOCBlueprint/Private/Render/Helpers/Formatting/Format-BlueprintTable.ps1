@@ -72,7 +72,7 @@ function Format-BlueprintTable {
             elseif ($item.PSObject.Properties.Name -contains $col) { $val = $item.$col }
             $cell = if ($null -eq $val) {
                 ''
-            } else { (Format-TableCell $val $identifierColumn[$col] $gbColumn[$col]) -replace '\|','\|' -replace '[\r\n]+',' ' }
+            } else { (Format-TableCell $val $identifierColumn[$col] $gbColumn[$col]) -replace '\|', '\|' -replace '[\r\n]+', ' ' }
             $cell
         }
         [void]$sb.AppendLine('| ' + ($row -join ' | ') + ' |')

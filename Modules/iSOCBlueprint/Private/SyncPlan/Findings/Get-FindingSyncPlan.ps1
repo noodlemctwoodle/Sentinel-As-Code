@@ -120,12 +120,10 @@ function Get-FindingSyncPlan {
             $values.FirstSeen = $now
             $values.ResolvedOn = $null
             $plan.Add([pscustomobject]@{ Action = 'Add'; FindingId = $id; ItemId = $null; Values = $values })
-        }
-        elseif ([string]$match.Status -ne 'Open') {
+        } elseif ([string]$match.Status -ne 'Open') {
             $values.ResolvedOn = $null
             $plan.Add([pscustomobject]@{ Action = 'Reopen'; FindingId = $id; ItemId = $match.ItemId; Values = $values })
-        }
-        else {
+        } else {
             $plan.Add([pscustomobject]@{ Action = 'Update'; FindingId = $id; ItemId = $match.ItemId; Values = $values })
         }
     }
@@ -140,11 +138,9 @@ function Get-FindingSyncPlan {
         $action = $null
         if ($null -eq $checksById) {
             $action = 'Resolve'
-        }
-        elseif (-not $checksById.ContainsKey($id)) {
+        } elseif (-not $checksById.ContainsKey($id)) {
             $action = 'Retire'
-        }
-        elseif ($checksById[$id] -eq 'Passed') {
+        } elseif ($checksById[$id] -eq 'Passed') {
             $action = 'Resolve'
         }
         # Errored / Undefined: the engine could not evaluate the check, so

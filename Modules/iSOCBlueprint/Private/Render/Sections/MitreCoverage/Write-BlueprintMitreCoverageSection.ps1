@@ -55,15 +55,15 @@ function Write-BlueprintMitreCoverageSection {
 
     # Per-kind / per-state aggregate counts. Microsoft-managed kinds (Fusion etc)
     # are excluded from the Scheduled/NRT counts because they aren't user-editable.
-    $schedEnabled  = @($rules | Where-Object { $_.kind -eq 'Scheduled' -and $_.properties.enabled }).Count
+    $schedEnabled = @($rules | Where-Object { $_.kind -eq 'Scheduled' -and $_.properties.enabled }).Count
     $schedDisabled = @($rules | Where-Object { $_.kind -eq 'Scheduled' -and -not $_.properties.enabled }).Count
-    $nrtEnabled    = @($rules | Where-Object { $_.kind -eq 'NRT' -and $_.properties.enabled }).Count
-    $nrtDisabled   = @($rules | Where-Object { $_.kind -eq 'NRT' -and -not $_.properties.enabled }).Count
+    $nrtEnabled = @($rules | Where-Object { $_.kind -eq 'NRT' -and $_.properties.enabled }).Count
+    $nrtDisabled = @($rules | Where-Object { $_.kind -eq 'NRT' -and -not $_.properties.enabled }).Count
 
     # Mouldy rules — Scheduled / NRT rules enabled but last-modified > 1 year ago.
     $yearAgo = (Get-Date).ToUniversalTime().AddYears(-1)
     $mouldyRows = $rules | Where-Object {
-        $_.kind -in @('Scheduled','NRT') -and
+        $_.kind -in @('Scheduled', 'NRT') -and
         $_.properties.enabled -and
         $_.properties.lastModifiedUtc -and
         ([datetime]$_.properties.lastModifiedUtc) -lt $yearAgo
@@ -82,12 +82,12 @@ function Write-BlueprintMitreCoverageSection {
     # filter fields explicitly since they don't fit the standard row schema.
     $msIncidentRows = $rules | Where-Object { $_.kind -eq 'MicrosoftSecurityIncidentCreation' } | ForEach-Object {
         [pscustomobject]@{
-            Name              = $_.properties.displayName
-            Product           = $_.properties.productFilter
-            Severities        = (@($_.properties.severitiesFilter) -join ', ')
-            Includes          = (@($_.properties.displayNamesFilter) -join '; ')
-            Excludes          = (@($_.properties.displayNamesExcludeFilter) -join '; ')
-            Enabled           = if ($_.properties.enabled) { 'Yes' } else { 'No' }
+            Name       = $_.properties.displayName
+            Product    = $_.properties.productFilter
+            Severities = (@($_.properties.severitiesFilter) -join ', ')
+            Includes   = (@($_.properties.displayNamesFilter) -join '; ')
+            Excludes   = (@($_.properties.displayNamesExcludeFilter) -join '; ')
+            Enabled    = if ($_.properties.enabled) { 'Yes' } else { 'No' }
         }
     }
 
@@ -123,7 +123,7 @@ function Write-BlueprintMitreCoverageSection {
         $ruleKindCounts[$k]++
     }
     $schedNote = if ($ruleKindCounts.ContainsKey('Scheduled')) { "$($ruleKindCounts['Scheduled']) deployed" } else { 'not deployed' }
-    $msicNote  = if ($ruleKindCounts.ContainsKey('MicrosoftSecurityIncidentCreation')) {
+    $msicNote = if ($ruleKindCounts.ContainsKey('MicrosoftSecurityIncidentCreation')) {
         "$($ruleKindCounts['MicrosoftSecurityIncidentCreation']) deployed"
     } else { 'not deployed' }
 
@@ -137,9 +137,9 @@ function Write-BlueprintMitreCoverageSection {
     #     (kind = MicrosoftThreatProtection) is enabled.
     # The four (fusion × defender) cells map to four reader-facing narratives
     # below.
-    $fusionRules    = @($rules | Where-Object { $_.kind -eq 'Fusion' })
-    $fusionPresent  = $fusionRules.Count -gt 0
-    $fusionEnabled  = @($fusionRules | Where-Object { $_.properties.enabled }).Count -gt 0
+    $fusionRules = @($rules | Where-Object { $_.kind -eq 'Fusion' })
+    $fusionPresent = $fusionRules.Count -gt 0
+    $fusionEnabled = @($fusionRules | Where-Object { $_.properties.enabled }).Count -gt 0
 
     $m365DefenderConnected = $false
     foreach ($c in $connectors) {
@@ -176,46 +176,46 @@ function Write-BlueprintMitreCoverageSection {
     }
     $ruleKindDefs = @(
         [ordered]@{
-            kind = 'Scheduled'
-            label = 'Scheduled'
+            kind    = 'Scheduled'
+            label   = 'Scheduled'
             summary = 'A KQL query on a schedule; raises an alert when its results pass a threshold.'
-            fields = @('queryFrequency', 'queryPeriod', 'triggerThreshold', 'query')
-            legacy = $false
+            fields  = @('queryFrequency', 'queryPeriod', 'triggerThreshold', 'query')
+            legacy  = $false
         }
         [ordered]@{
-            kind = 'NRT'
-            label = 'Near real time'
+            kind    = 'NRT'
+            label   = 'Near real time'
             summary = 'A KQL query run every minute with no threshold, for detections that cannot wait.'
-            fields = @('query', 'eventGrouping')
-            legacy = $false
+            fields  = @('query', 'eventGrouping')
+            legacy  = $false
         }
         [ordered]@{
-            kind = 'Fusion'
-            label = 'Fusion'
+            kind    = 'Fusion'
+            label   = 'Fusion'
             summary = 'Microsoft machine learning that correlates low-fidelity alerts into high-fidelity incidents.'
-            fields = @('alertRuleTemplateName', 'sourceSettings')
-            legacy = $false
+            fields  = @('alertRuleTemplateName', 'sourceSettings')
+            legacy  = $false
         }
         [ordered]@{
-            kind = 'MicrosoftSecurityIncidentCreation'
-            label = 'Microsoft incident creation'
+            kind    = 'MicrosoftSecurityIncidentCreation'
+            label   = 'Microsoft incident creation'
             summary = 'Turns alerts from a Microsoft security product into incidents: the pattern from before Defender XDR.'
-            fields = @('productFilter', 'severitiesFilter', 'displayNamesFilter', 'displayNamesExcludeFilter')
-            legacy = $true
+            fields  = @('productFilter', 'severitiesFilter', 'displayNamesFilter', 'displayNamesExcludeFilter')
+            legacy  = $true
         }
         [ordered]@{
-            kind = 'ThreatIntelligence'
-            label = 'Threat intelligence'
+            kind    = 'ThreatIntelligence'
+            label   = 'Threat intelligence'
             summary = 'Matches Microsoft threat intelligence indicators against the workspace logs.'
-            fields = @('templateVersion')
-            legacy = $false
+            fields  = @('templateVersion')
+            legacy  = $false
         }
         [ordered]@{
-            kind = 'MLBehaviorAnalytics'
-            label = 'ML behaviour analytics'
+            kind    = 'MLBehaviorAnalytics'
+            label   = 'ML behaviour analytics'
             summary = 'Built-in machine learning anomaly detections, such as unusual SSH or RDP sign-ins.'
-            fields = @('alertRuleTemplateName')
-            legacy = $false
+            fields  = @('alertRuleTemplateName')
+            legacy  = $false
         }
     )
     $ruleKindItems = [System.Collections.Generic.List[object]]::new()
@@ -230,20 +230,20 @@ function Write-BlueprintMitreCoverageSection {
     }
     foreach ($k in @($ruleKindCounts.Keys | Where-Object { $_ -notin @($ruleKindDefs | ForEach-Object { $_.kind }) } | Sort-Object)) {
         $ruleKindItems.Add([ordered]@{
-            kind = $k
-            label = $k
-            summary = 'A rule kind this report does not describe.'
-            fields = @()
-            legacy = $false
-            deployed = $ruleKindCounts[$k]
-            enabled = $(if ($ruleKindEnabled.ContainsKey($k)) { $ruleKindEnabled[$k] } else { 0 })
-        })
+                kind     = $k
+                label    = $k
+                summary  = 'A rule kind this report does not describe.'
+                fields   = @()
+                legacy   = $false
+                deployed = $ruleKindCounts[$k]
+                enabled  = $(if ($ruleKindEnabled.ContainsKey($k)) { $ruleKindEnabled[$k] } else { 0 })
+            })
     }
     $ruleKindsVisualLine = Format-VisualLine -Kind 'rule-kinds' -Data ([ordered]@{
-        total  = $rules.Count
-        common = @('id', 'kind', 'displayName', 'severity', 'enabled', 'lastModifiedUtc', 'tactics', 'techniques')
-        kinds  = $ruleKindItems.ToArray()
-    })
+            total  = $rules.Count
+            common = @('id', 'kind', 'displayName', 'severity', 'enabled', 'lastModifiedUtc', 'tactics', 'techniques')
+            kinds  = $ruleKindItems.ToArray()
+        })
 
     # Left in the render context for later sections.
     $Context.c = $c

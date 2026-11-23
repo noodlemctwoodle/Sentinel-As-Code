@@ -122,9 +122,9 @@ function Get-SentinelGap {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    if (-not (Test-Path $RulesPath))      { throw "Rules file not found: $RulesPath" }
-    if (-not (Test-Path $InputRoot))      { throw "Input root not found: $InputRoot" }
-    if (-not (Test-Path $ResourcesRoot))  { throw "Resources root not found: $ResourcesRoot" }
+    if (-not (Test-Path $RulesPath)) { throw "Rules file not found: $RulesPath" }
+    if (-not (Test-Path $InputRoot)) { throw "Input root not found: $InputRoot" }
+    if (-not (Test-Path $ResourcesRoot)) { throw "Resources root not found: $ResourcesRoot" }
 
     $rules = (Get-Content $RulesPath -Raw | ConvertFrom-Json).rules
 
@@ -182,5 +182,5 @@ function Get-SentinelGap {
         }
     }
 
-    return ,$findings
+    return , $findings
 }

@@ -47,7 +47,7 @@ function Get-ConnectorData7d {
     # RestApiPoller / Push connectors write to a single table at
     # properties.dataType. The table name itself is the join key — no
     # data-type-to-table mapping is needed.
-    if ($Connector.kind -in @('RestApiPoller','Push')) {
+    if ($Connector.kind -in @('RestApiPoller', 'Push')) {
         $tbl = $Connector.properties.dataType
         if (-not $tbl) { return '' }
         if ($tablesByNameForConnectors.ContainsKey($tbl)) {

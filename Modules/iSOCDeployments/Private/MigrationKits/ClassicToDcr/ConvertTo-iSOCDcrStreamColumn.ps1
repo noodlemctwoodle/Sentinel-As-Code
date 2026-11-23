@@ -74,11 +74,9 @@ function ConvertTo-iSOCDcrStreamColumn {
         $reason = $null
         if ($reserved -contains $name) {
             $reason = 'reserved column name'
-        }
-        elseif ($name -notmatch '^[A-Za-z]') {
+        } elseif ($name -notmatch '^[A-Za-z]') {
             $reason = 'stream column names must start with a letter'
-        }
-        else {
+        } else {
             $hiddenProperty = $column.PSObject.Properties['isHidden']
             if ($hiddenProperty -and $hiddenProperty.Value -eq $true) { $reason = 'hidden column' }
         }

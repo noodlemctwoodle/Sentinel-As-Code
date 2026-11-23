@@ -37,11 +37,11 @@
 #>
 
 BeforeAll {
-    $script:repoRoot   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
-    $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
+    $script:fixtureWs = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
     $script:fixtureRaw = Join-Path $script:fixtureWs '_raw'
-    $script:resources  = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
+    $script:resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
 
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-test-$(New-Guid)"
     New-Item -ItemType Directory -Path $script:outDir -Force | Out-Null
@@ -57,8 +57,8 @@ BeforeAll {
     # Run the renderer.
     ConvertTo-iSOCBlueprint `
         -WorkspaceName 'law-sentinel-test' `
-        -Path          $tempWsRoot `
-        -OutputPath    $tempWsRoot `
+        -Path $tempWsRoot `
+        -OutputPath $tempWsRoot `
         -ResourcesPath $script:resources `
         -InformationAction SilentlyContinue | Out-Null
 }
@@ -74,23 +74,23 @@ Describe 'iSOC Blueprint renderer' {
     Context 'produces every expected section file' {
 
         $expected = @(
-            'index.md','00-overview.md','01-live-snapshot.md','02-deprecated-legacy-features.md',
-            '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
+            'index.md', '00-overview.md', '01-live-snapshot.md', '02-deprecated-legacy-features.md',
+            '10-data-connectors.md', '11-sentinel-health.md', '12-soc-optimization.md',
             '13-data-source-hygiene.md',
             '14-coverage-breakdowns.md',
-            '15-incidents.md','16-alerts.md',
-            '20-analytics-rules.md','21-rule-performance.md','22-rule-health-quality.md',
-            '25-mitre-coverage.md','26-ueba.md','27-threat-intelligence.md',
+            '15-incidents.md', '16-alerts.md',
+            '20-analytics-rules.md', '21-rule-performance.md', '22-rule-health-quality.md',
+            '25-mitre-coverage.md', '26-ueba.md', '27-threat-intelligence.md',
             '28-detection-opportunities.md',
-            '30-hunting-queries.md','35-parsers-functions.md',
-            '36-data-export.md','37-search-restore.md','38-summary-rules.md',
-            '40-workbooks.md','50-watchlists.md','60-automation-rules-playbooks.md',
-            '70-content-hub.md','80-workspace.md','81-table-plans-retention.md',
-            '82-dedicated-cluster.md','83-data-collection.md','84-cost-estimate.md',
-            '85-rbac.md','86-subscription-context.md','87-azure-monitor-agents.md',
-            '88-sentinel-data-lake.md','89-retention.md',
-            '90-gap-analysis.md','91-maturity-assessment.md',
-            '96-references-microsoft.md','99-references.md'
+            '30-hunting-queries.md', '35-parsers-functions.md',
+            '36-data-export.md', '37-search-restore.md', '38-summary-rules.md',
+            '40-workbooks.md', '50-watchlists.md', '60-automation-rules-playbooks.md',
+            '70-content-hub.md', '80-workspace.md', '81-table-plans-retention.md',
+            '82-dedicated-cluster.md', '83-data-collection.md', '84-cost-estimate.md',
+            '85-rbac.md', '86-subscription-context.md', '87-azure-monitor-agents.md',
+            '88-sentinel-data-lake.md', '89-retention.md',
+            '90-gap-analysis.md', '91-maturity-assessment.md',
+            '96-references-microsoft.md', '99-references.md'
         )
 
         It 'creates <_>' -ForEach $expected {
@@ -727,9 +727,9 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'names a Sentinel rule in Rule effectiveness by its rule id, not its alert name' {
             $src = (Get-ChildItem (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse |
-                Sort-Object FullName |
-                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
-                "`n"
+                    Sort-Object FullName |
+                    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
             $src.Contains('if ($rid -and $rdn) { $ruleNameById[$rid] = $rdn }') | Should -BeTrue
             $src.Contains('Rule         = $(if ($rk -and $ruleNameById.ContainsKey($rk)) { $ruleNameById[$rk] } else { $_.RuleName })') | Should -BeTrue
             $script:perfMd | Should -Match '\| Failed logons across multiple accounts \| Analytics rule \|'
@@ -748,7 +748,7 @@ Describe 'iSOC Blueprint renderer' {
             # spread across multiple sources so the bucketing rule has
             # something to do.
             $busyOut = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-busy-$(New-Guid)"
-            $busyWs  = Join-Path $busyOut 'law-sentinel-busy'
+            $busyWs = Join-Path $busyOut 'law-sentinel-busy'
             New-Item -ItemType Directory -Path (Join-Path $busyWs '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | ForEach-Object {
                 Copy-Item -Path $_.FullName -Destination (Join-Path $busyWs '_raw') -Force
@@ -758,16 +758,16 @@ Describe 'iSOC Blueprint renderer' {
             $cost = Get-Content $costPath -Raw | ConvertFrom-Json
 
             $busyTables = @(
-                @{ Table='CommonSecurityLog'; Plan='Analytics'; Gb30d=2400.0; MonthlyCost=4800.0 },
-                @{ Table='Syslog';             Plan='Analytics'; Gb30d=1800.0; MonthlyCost=3600.0 },
-                @{ Table='SecurityEvent';      Plan='Analytics'; Gb30d=900.0;  MonthlyCost=1800.0 },
-                @{ Table='DeviceEvents';       Plan='Analytics'; Gb30d=750.0;  MonthlyCost=1500.0 },
-                @{ Table='EmailEvents';        Plan='Analytics'; Gb30d=600.0;  MonthlyCost=1200.0 },
-                @{ Table='SigninLogs';         Plan='Analytics'; Gb30d=420.0;  MonthlyCost=840.0 },
-                @{ Table='AuditLogs';          Plan='Analytics'; Gb30d=200.0;  MonthlyCost=400.0 },
-                @{ Table='AzureActivity';      Plan='Analytics'; Gb30d=140.0;  MonthlyCost=280.0 },
-                @{ Table='AzureDiagnostics';   Plan='Analytics'; Gb30d=130.0;  MonthlyCost=260.0 },
-                @{ Table='OfficeActivity';     Plan='Analytics'; Gb30d=110.0;  MonthlyCost=220.0 }
+                @{ Table = 'CommonSecurityLog'; Plan = 'Analytics'; Gb30d = 2400.0; MonthlyCost = 4800.0 },
+                @{ Table = 'Syslog'; Plan = 'Analytics'; Gb30d = 1800.0; MonthlyCost = 3600.0 },
+                @{ Table = 'SecurityEvent'; Plan = 'Analytics'; Gb30d = 900.0; MonthlyCost = 1800.0 },
+                @{ Table = 'DeviceEvents'; Plan = 'Analytics'; Gb30d = 750.0; MonthlyCost = 1500.0 },
+                @{ Table = 'EmailEvents'; Plan = 'Analytics'; Gb30d = 600.0; MonthlyCost = 1200.0 },
+                @{ Table = 'SigninLogs'; Plan = 'Analytics'; Gb30d = 420.0; MonthlyCost = 840.0 },
+                @{ Table = 'AuditLogs'; Plan = 'Analytics'; Gb30d = 200.0; MonthlyCost = 400.0 },
+                @{ Table = 'AzureActivity'; Plan = 'Analytics'; Gb30d = 140.0; MonthlyCost = 280.0 },
+                @{ Table = 'AzureDiagnostics'; Plan = 'Analytics'; Gb30d = 130.0; MonthlyCost = 260.0 },
+                @{ Table = 'OfficeActivity'; Plan = 'Analytics'; Gb30d = 110.0; MonthlyCost = 220.0 }
             )
             for ($i = 1; $i -le 70; $i++) {
                 $prefix = switch ($i % 5) {
@@ -791,12 +791,12 @@ Describe 'iSOC Blueprint renderer' {
 
             ConvertTo-iSOCBlueprint `
                 -WorkspaceName 'law-sentinel-busy' `
-                -Path          $busyWs `
-                -OutputPath    $busyWs `
+                -Path $busyWs `
+                -OutputPath $busyWs `
                 -ResourcesPath $script:resources `
                 -InformationAction SilentlyContinue | Out-Null
 
-            $script:busyOut    = $busyOut
+            $script:busyOut = $busyOut
             $script:busyCostMd = Get-Content (Join-Path $busyWs '84-cost-estimate.md') -Raw
         }
 
@@ -823,8 +823,8 @@ Describe 'iSOC Blueprint renderer' {
             # Strip the markdown to just the Sankey block before asserting —
             # the section narrative and methodology reference table names too.
             $sankeyStart = $script:busyCostMd.IndexOf('## Cost by source and plan')
-            $sankeyEnd   = $script:busyCostMd.IndexOf('Where the billable data comes from', $sankeyStart)
-            $sankey      = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
+            $sankeyEnd = $script:busyCostMd.IndexOf('Where the billable data comes from', $sankeyStart)
+            $sankey = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
             $sankey | Should -Match 'CommonSecurityLog'
             $sankey | Should -Match 'Syslog'
             $sankey | Should -Match 'SecurityEvent'
@@ -855,7 +855,7 @@ Describe 'iSOC Blueprint renderer' {
             # match to the Sankey block since other charts have their own
             # height config earlier in the file.
             $sankeyStart = $script:busyCostMd.IndexOf('sankey:')
-            $sankeyEnd   = $script:busyCostMd.IndexOf('sankey-beta', $sankeyStart)
+            $sankeyEnd = $script:busyCostMd.IndexOf('sankey-beta', $sankeyStart)
             $sankeyConfig = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
             $sankeyConfig | Should -Match 'height: \d+'
             $h = ([regex]'height: (\d+)').Match($sankeyConfig).Groups[1].Value -as [int]
@@ -1384,7 +1384,7 @@ Describe 'iSOC Blueprint renderer' {
         It 'is titled Microsoft References and tables its pages by topic, with what each is for' {
             (Get-Content (Join-Path $script:tempWsRoot '96-references-microsoft.md') -First 1) | Should -Be '# Microsoft References'
             foreach ($h in 'Microsoft Sentinel', 'Workspace design and resilience', 'Data connectors and coverage', 'Content and automation',
-                    'Log Analytics, tables and retention', 'Cost', 'Health and troubleshooting', 'Access and the wider platform') {
+                'Log Analytics, tables and retention', 'Cost', 'Health and troubleshooting', 'Access and the wider platform') {
                 $script:ref96 | Should -Match ('(?m)^## ' + [regex]::Escape($h) + '\r?$') -Because $h
             }
             $script:ref96 | Should -Match '\| Page \| Use it for \|'
@@ -1392,9 +1392,9 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'carries the best-practice pages the Conventions page used to list, each once' {
             foreach ($u in '/azure/sentinel/best-practices', '/azure/sentinel/deploy-overview', '/azure/azure-monitor/logs/workspace-design',
-                    '/azure/sentinel/mitre-coverage', '/azure/azure-monitor/fundamentals/best-practices-cost',
-                            '/azure/sentinel/datalake/sentinel-lake-overview', '/azure/sentinel/ci-cd-custom-content',
-                                    '/azure/azure-monitor/logs/logs-dedicated-clusters') {
+                '/azure/sentinel/mitre-coverage', '/azure/azure-monitor/fundamentals/best-practices-cost',
+                '/azure/sentinel/datalake/sentinel-lake-overview', '/azure/sentinel/ci-cd-custom-content',
+                '/azure/azure-monitor/logs/logs-dedicated-clusters') {
                 ([regex]::Matches($script:ref96, [regex]::Escape('https://learn.microsoft.com' + $u + ')'))).Count | Should -Be 1 -Because $u
             }
             $script:ref96 | Should -Not -Match ([string][char]0x2014)
@@ -1442,9 +1442,9 @@ Describe 'iSOC Blueprint renderer — empty-state safety' {
         }
         # Deliberately remove the files that caused phantom rows on the production run.
         # TI removal needs both sources gone — the renderer falls back from metrics to counts.
-        @('threat-intel-counts.json','threat-intel-metrics.json','playbooks.json','rbac-playbook-mi.json',
-          'maturity.json','hunts.json','playbook-runs.json','rule-effectiveness.json',
-          'rule-table-references.json','template-table-references.json','workspace-usage-daily.json') | ForEach-Object {
+        @('threat-intel-counts.json', 'threat-intel-metrics.json', 'playbooks.json', 'rbac-playbook-mi.json',
+            'maturity.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json',
+            'rule-table-references.json', 'template-table-references.json', 'workspace-usage-daily.json') | ForEach-Object {
             $f = Join-Path $emptyWsRoot "_raw/$_"
             if (Test-Path $f) { Remove-Item -Force $f }
         }
@@ -1452,8 +1452,8 @@ Describe 'iSOC Blueprint renderer — empty-state safety' {
 
         ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-empty' `
-            -Path          $emptyWsRoot `
-            -OutputPath    $emptyWsRoot `
+            -Path $emptyWsRoot `
+            -OutputPath $emptyWsRoot `
             -ResourcesPath $script:resources `
             -InformationAction SilentlyContinue | Out-Null
     }
@@ -1550,8 +1550,8 @@ Describe 'iSOC Blueprint renderer - snapshots from before the rename' {
 
         ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-legacy' `
-            -Path          $legacyWsRoot `
-            -OutputPath    $legacyWsRoot `
+            -Path $legacyWsRoot `
+            -OutputPath $legacyWsRoot `
             -ResourcesPath $script:resources `
             -InformationAction SilentlyContinue | Out-Null
         $script:legacyOverview = Get-Content -LiteralPath (Join-Path $legacyWsRoot '00-overview.md') -Raw
@@ -1571,9 +1571,9 @@ Describe 'iSOC Blueprint renderer - snapshots from before the rename' {
 Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
     BeforeAll {
         $script:bmOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-bookmarks-test-$(New-Guid)"
-        $listRoot  = Join-Path $script:bmOutDir 'law-sentinel-list'
+        $listRoot = Join-Path $script:bmOutDir 'law-sentinel-list'
         $countRoot = Join-Path $script:bmOutDir 'law-sentinel-count'
-        $logsRoot  = Join-Path $script:bmOutDir 'law-sentinel-logs'
+        $logsRoot = Join-Path $script:bmOutDir 'law-sentinel-logs'
         $emptyRoot = Join-Path $script:bmOutDir 'law-sentinel-empty'
         $quietRoot = Join-Path $script:bmOutDir 'law-sentinel-quiet'
         foreach ($root in $listRoot, $countRoot, $logsRoot, $emptyRoot, $quietRoot) {
@@ -1612,17 +1612,17 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         ) + [pscustomobject]@{ name = 'HuntingBookmark'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 90; totalRetentionInDays = 90 } }
         ConvertTo-Json -InputObject $tablesDoc -Depth 10 | Set-Content $quietTables -Encoding UTF8
         foreach ($pair in @(
-            @(
-                $listRoot, 'law-sentinel-list'
-            ), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'), @($quietRoot, 'law-sentinel-quiet')
-        )) {
+                @(
+                    $listRoot, 'law-sentinel-list'
+                ), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'), @($quietRoot, 'law-sentinel-quiet')
+            )) {
             ConvertTo-iSOCBlueprint -WorkspaceName $pair[1] -Path $pair[0] -OutputPath $pair[0] -ResourcesPath $script:resources -InformationAction `
                 SilentlyContinue |
                 Out-Null
         }
-        $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
+        $script:bmList = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
         $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
-        $script:bmLogs  = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
+        $script:bmLogs = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
         $script:bmEmpty = Get-Content (Join-Path $emptyRoot '30-hunting-queries.md') -Raw
         $script:bmQuiet = Get-Content (Join-Path $quietRoot '30-hunting-queries.md') -Raw
     }
@@ -1681,14 +1681,14 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $dir '_raw')
         }
         foreach ($name in 'linked-storage-accounts.json', 'agent-heartbeat-mix.json', 'threat-intel-tables.json', 'threat-intel-health.json',
-                'taxii-clients.json', 'azure-firewall-categories.json') {
+            'taxii-clients.json', 'azure-firewall-categories.json') {
             Remove-Item (Join-Path $old "_raw/$name") -Force
         }
         $inc = Get-Content (Join-Path $old '_raw/incidents-summary.json') -Raw | ConvertFrom-Json
         $inc[0].PSObject.Properties.Remove('Count7d'); $inc[0].PSObject.Properties.Remove('ByProvider')
         ConvertTo-Json -InputObject @($inc) -Depth 8 | Set-Content (Join-Path $old '_raw/incidents-summary.json')
         $tables = Get-Content (Join-Path $lake '_raw/workspace-tables.json') -Raw | ConvertFrom-Json
-        ($tables | Where-Object name -eq 'AuditLogs').properties.totalRetentionInDays = 365
+        ($tables | Where-Object name -EQ 'AuditLogs').properties.totalRetentionInDays = 365
         ConvertTo-Json -InputObject @($tables) -Depth 16 | Set-Content (Join-Path $lake '_raw/workspace-tables.json')
 
         foreach ($pair in @(@($full, 'law-hc-full'), @($old, 'law-hc-old'), @($lake, 'law-hc-lake'))) {
@@ -1697,8 +1697,8 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
         }
         $script:hc = @{}
         foreach ($n in '01-live-snapshot', '02-deprecated-legacy-features', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene',
-                '14-coverage-breakdowns', '15-incidents', '16-alerts', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention',
-                        '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '89-retention', '91-maturity-assessment') {
+            '14-coverage-breakdowns', '15-incidents', '16-alerts', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention',
+            '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '89-retention', '91-maturity-assessment') {
             $script:hc[$n] = & $page $full "$n.md"
         }
         $script:hcOld = @{}
@@ -1832,7 +1832,7 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
                     ForEach-Object -Begin {
                         $gb = 2400
                     } -Process { $gb -= 100; [pscustomobject]@{ Table = $_; Plan = 'Analytics'; Gb30d = $gb; MonthlyCost = $gb * 2 } }
-            )
+                )
         & $raw 'cost-estimate.json' $cost
         Remove-Item (Join-Path $wide '_raw/threat-intel-metrics.json') -Force
         & $raw 'threat-intel-counts.json' @(
@@ -1847,12 +1847,12 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
             1..25 |
                 ForEach-Object {
                     [pscustomobject]@{
-                        name = ('CatalogueOnly{0:D2}' -f $_)
+                        name       = ('CatalogueOnly{0:D2}' -f $_)
                         properties = [pscustomobject]@{
-                            plan = 'Analytics'
-                            retentionInDays = 30
+                            plan                 = 'Analytics'
+                            retentionInDays      = 30
                             totalRetentionInDays = 30
-                            schema = [pscustomobject]@{ tableType = 'Microsoft' }
+                            schema               = [pscustomobject]@{ tableType = 'Microsoft' }
                         }
                     }
                 }
@@ -1860,7 +1860,7 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
         & $raw 'workspace-tables.json' $tables
 
         ConvertTo-iSOCBlueprint -WorkspaceName 'law-wide' -Path $wide -OutputPath $wide -ResourcesPath $script:resources -Format Markdown,
-            Json -InformationAction SilentlyContinue *> $null
+        Json -InformationAction SilentlyContinue *> $null
         $script:wide = $wide
         $script:widePage = { param($Name) Get-Content (Join-Path $script:wide "$Name.md") -Raw }
     }
@@ -1931,35 +1931,35 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
         & $raw 'data-connectors-classic.json' $conn
         $tables = @(Get-Content (Join-Path $ws '_raw/workspace-tables.json') -Raw | ConvertFrom-Json)
         $tables += [pscustomobject]@{
-            name = 'Dynamics365Activity'
+            name       = 'Dynamics365Activity'
             properties = [pscustomobject]@{
-                plan = 'Analytics'
-                retentionInDays = 30
+                plan                 = 'Analytics'
+                retentionInDays      = 30
                 totalRetentionInDays = 30
-                schema = [pscustomobject]@{ tableType = 'Microsoft' }
+                schema               = [pscustomobject]@{ tableType = 'Microsoft' }
             }
         }
         & $raw 'workspace-tables.json' $tables
         & $raw 'kql-savedsearches.json' @(
             [pscustomobject]@{ name = 'h1'; properties = [pscustomobject]@{ category = 'Hunting Queries'; displayName = 'A hunt'; query = 'SigninLogs' } }
             [pscustomobject]@{
-                name = 'f1'
+                name       = 'f1'
                 properties = [pscustomobject]@{ category = 'Functions'; displayName = 'A parser'; functionAlias = 'MyParser'; query = 'Syslog' }
             }
             [pscustomobject]@{
-                name = 'l1'
+                name       = 'l1'
                 properties = [pscustomobject]@{
-                    category = 'Log Management'
+                    category    = 'Log Management'
                     displayName = 'Failed sign-ins by user'
-                    query = "SigninLogs`n| where ResultType != 0`n| summarize count() by UserPrincipalName"
+                    query       = "SigninLogs`n| where ResultType != 0`n| summarize count() by UserPrincipalName"
                 }
             }
             [pscustomobject]@{ name = 'g1'; properties = [pscustomobject]@{ category = 'General Exploration'; displayName = 'All syslog'; query = 'Syslog' } }
         )
         & $raw 'solutions-installed.json' @(
             [pscustomobject]@{
-                name = 'SecurityInsights(law-cat)'
-                plan = [pscustomobject]@{ product = 'OMSGallery/SecurityInsights' }
+                name       = 'SecurityInsights(law-cat)'
+                plan       = [pscustomobject]@{ product = 'OMSGallery/SecurityInsights' }
                 properties = [pscustomobject]@{ sku = [pscustomobject]@{ name = 'Unified' } }
             }
         )
@@ -2057,16 +2057,21 @@ Describe '37-search-restore.md lists the search job and restored tables' {
         $tables = @(Get-Content (Join-Path $script:fixtureRaw 'workspace-tables.json') -Raw | ConvertFrom-Json)
         $tables += [pscustomobject]@{ name = 'SigninLogs_1A2B_SRCH'; properties = [pscustomobject]@{
                 createDate = '2026-09-01T10:00:00Z'; totalRetentionInDays = 30
-                schema = [pscustomobject]@{ tableType = 'SearchResults' }
+                schema        = [pscustomobject]@{ tableType = 'SearchResults' }
                 searchResults = [pscustomobject]@{ sourceTable = 'SigninLogs'; query = 'SigninLogs | where ResultType != 0'
-                    startSearchTime = '2025-01-01T00:00:00Z'; endSearchTime = '2025-03-31T00:00:00Z' } } }
+                    startSearchTime = '2025-01-01T00:00:00Z'; endSearchTime = '2025-03-31T00:00:00Z'
+                }
+            }
+        }
         $tables += [pscustomobject]@{ name = 'Syslog_RST'; properties = [pscustomobject]@{
-                schema = [pscustomobject]@{ tableType = 'RestoredLogs' }
+                schema       = [pscustomobject]@{ tableType = 'RestoredLogs' }
                 restoredLogs = [pscustomobject]@{
-                    sourceTable = 'Syslog'
+                    sourceTable      = 'Syslog'
                     startRestoreTime = '2025-02-01T00:00:00Z'
-                    endRestoreTime = '2025-02-02T00:00:00Z'
-                } } }
+                    endRestoreTime   = '2025-02-02T00:00:00Z'
+                }
+            }
+        }
         ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $root '_raw/workspace-tables.json')
         ConvertTo-iSOCBlueprint -WorkspaceName 'law-sr' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown -InformationAction `
             SilentlyContinue *> $null
@@ -2151,7 +2156,7 @@ Describe 'Sentinel health statuses read as a plain list' {
 Describe 'Every report page opens with what it covers' {
     It 'puts a description under the title and workspace line of each page that had none' {
         foreach ($f in '00-overview.md', '10-data-connectors.md', '15-incidents.md', '20-analytics-rules.md', '84-cost-estimate.md',
-                '91-maturity-assessment.md') {
+            '91-maturity-assessment.md') {
             $md = Get-Content (Join-Path $script:tempWsRoot $f) -Raw
             # Title, workspace line, then the description as the first paragraph.
             $md | Should -Match '(?s)^# [^\n]+\n\n> \*\*Workspace\*\*[^\n]*\n\n[A-Z][^\n]{60,}\n' -Because $f
@@ -2192,7 +2197,7 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
             [pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('aaaa-1', 'aaaa-2')) } }
             [pscustomobject]@{
                 properties = [pscustomobject]@{
-                    displayName = 'Azure Activity'
+                    displayName  = 'Azure Activity'
                     dependencies = [pscustomobject]@{ criteria = @([pscustomobject]@{ operator = 'OR'; criteria = (& $dep @('bbbb-1')).criteria }) }
                 }
             }
@@ -2215,24 +2220,24 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
         $cat = @(
             [pscustomobject]@{
                 properties = [pscustomobject]@{
-                    contentId = 'ti-old'
-                    displayName = 'Threat Intelligence'
+                    contentId    = 'ti-old'
+                    displayName  = 'Threat Intelligence'
                     isDeprecated = 'true'
                     dependencies = (& $d @('tttt-1', 'tttt-2'))
                 }
             }
             [pscustomobject]@{
                 properties = [pscustomobject]@{
-                    contentId = 'ti-new'
-                    displayName = 'Threat Intelligence (NEW)'
+                    contentId    = 'ti-new'
+                    displayName  = 'Threat Intelligence (NEW)'
                     isDeprecated = $false
                     dependencies = (& $d @('tttt-2'))
                 }
             }
             [pscustomobject]@{
                 properties = [pscustomobject]@{
-                    contentId = 'feed'
-                    displayName = '[Deprecated] Legacy Feed'
+                    contentId    = 'feed'
+                    displayName  = '[Deprecated] Legacy Feed'
                     isDeprecated = $true
                     dependencies = (& $d @('xxxx-1'))
                 }
@@ -2313,51 +2318,51 @@ Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
         $old = (Get-Date).ToUniversalTime().AddDays(-200).ToString('o'); $new = (Get-Date).ToUniversalTime().AddDays(-5).ToString('o')
         @(
             [pscustomobject]@{
-                name = 'w1'
+                name       = 'w1'
                 properties = [pscustomobject]@{
-                    displayName = 'VIP accounts'
+                    displayName    = 'VIP accounts'
                     watchlistAlias = 'vips'
-                    source = 'vips.csv'
-                    provider = 'Custom'
+                    source         = 'vips.csv'
+                    provider       = 'Custom'
                     itemsSearchKey = 'UPN'
-                    updated = $old
-                    description = 'Executives'
+                    updated        = $old
+                    description    = 'Executives'
                 }
             }
             [pscustomobject]@{
-                name = 'w2'
+                name       = 'w2'
                 properties = [pscustomobject]@{
-                    displayName = 'Branch IPs'
+                    displayName    = 'Branch IPs'
                     watchlistAlias = 'branch'
-                    source = 'Manual'
-                    provider = 'Custom'
+                    source         = 'Manual'
+                    provider       = 'Custom'
                     itemsSearchKey = 'Ip'
-                    updated = $new
+                    updated        = $new
                 }
             }
             [pscustomobject]@{
-                name = 'w3'
+                name       = 'w3'
                 properties = [pscustomobject]@{
-                    displayName = 'SAP - Systems'
+                    displayName    = 'SAP - Systems'
                     watchlistAlias = 'SAPSystems'
-                    source = 'ContentHub'
-                    provider = 'Microsoft'
+                    source         = 'ContentHub'
+                    provider       = 'Microsoft'
                     itemsSearchKey = 'SystemID'
-                    updated = $old
+                    updated        = $old
                 }
             }
         ) | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $script:wlRoot '_raw/watchlists.json')
         $rules = @(Get-Content (Join-Path $script:fixtureRaw 'alert-rules.json') -Raw | ConvertFrom-Json)
         $rules += [pscustomobject]@{
-            name = 'vip-rule'
-            kind = 'Scheduled'
+            name       = 'vip-rule'
+            kind       = 'Scheduled'
             properties = [pscustomobject]@{
                 displayName = 'VIP sign-in'
-                enabled = $true
-                severity = 'High'
-                query = '_GetWatchlist("vips") | join SigninLogs on UPN'
-                tactics = @()
-                techniques = @()
+                enabled     = $true
+                severity    = 'High'
+                query       = '_GetWatchlist("vips") | join SigninLogs on UPN'
+                tactics     = @()
+                techniques  = @()
             }
         }
         ConvertTo-Json -InputObject $rules -Depth 10 | Set-Content (Join-Path $script:wlRoot '_raw/alert-rules.json')
@@ -2414,12 +2419,12 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         # A table on the data lake plan, and the lake's share of a large bill.
         $tables = & $read 'workspace-tables.json'
         $tables += [pscustomobject]@{
-            name = 'LakeOnly_CL'
+            name       = 'LakeOnly_CL'
             properties = [pscustomobject]@{
-                plan = 'DataLake'
-                retentionInDays = 30
+                plan                 = 'DataLake'
+                retentionInDays      = 30
                 totalRetentionInDays = 30
-                schema = [pscustomobject]@{ tableType = 'CustomLog' }
+                schema               = [pscustomobject]@{ tableType = 'CustomLog' }
             }
         }
         & $raw 'workspace-tables.json' $tables
@@ -2429,12 +2434,12 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         $cost.ByPlan.DataLake = [pscustomobject]@{ Gb30d = 10426.0977; MonthlyCost = 491.76 }
         $cost |
             Add-Member -NotePropertyName CommitmentTier -NotePropertyValue ([pscustomobject]@{
-                Level = 2000
-                DailyPrice = 4528.47
-                EffectivePerGb = 2.2642
-                DailyAverageGb = 1737.9
-                Utilisation = 86.9
-            })
+                    Level          = 2000
+                    DailyPrice     = 4528.47
+                    EffectivePerGb = 2.2642
+                    DailyAverageGb = 1737.9
+                    Utilisation    = 86.9
+                })
         & $raw 'cost-estimate.json' $cost
 
         # Log Analytics hands counts back as text; the page writes them the same way as numbers.
@@ -2444,11 +2449,11 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         )
         & $raw 'top-event-ids.json' @(
             [pscustomobject]@{
-                TableName = 'SecurityEvent'
-                EventID = 4624
+                TableName        = 'SecurityEvent'
+                EventID          = 4624
                 EventDescription = 'An account was successfully logged on'
-                BilledSizeGB = '1963.364'
-                LogCount = '3980413051'
+                BilledSizeGB     = '1963.364'
+                LogCount         = '3980413051'
             }
             [pscustomobject]@{ TableName = 'Event'; EventID = 1000; EventDescription = 'Application Error'; BilledSizeGB = 0.004; LogCount = 48810 }
         )
@@ -2456,28 +2461,28 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         # Alerts across the lookback; one name with none in it stays out.
         $volumes = & $read 'analytics-rule-volumes.json'
         $volumes += [pscustomobject]@{
-            AlertName = 'Quiet rule'
-            ProductName = 'Azure Sentinel'
+            AlertName     = 'Quiet rule'
+            ProductName   = 'Azure Sentinel'
             AlertSeverity = 'Low'
-            Alerts = 0
-            Alerts7d = 0
-            ProviderName = 'ASI Scheduled Alerts'
+            Alerts        = 0
+            Alerts7d      = 0
+            ProviderName  = 'ASI Scheduled Alerts'
         }
         $volumes += [pscustomobject]@{
-            AlertName = 'Busy rule'
-            ProductName = 'Azure Sentinel'
+            AlertName     = 'Busy rule'
+            ProductName   = 'Azure Sentinel'
             AlertSeverity = 'High'
-            Alerts = 3500
-            Alerts7d = 12
-            ProviderName = 'ASI Scheduled Alerts'
+            Alerts        = 3500
+            Alerts7d      = 12
+            ProviderName  = 'ASI Scheduled Alerts'
         }
         $volumes += [pscustomobject]@{
-            AlertName = 'Older rule'
-            ProductName = 'Microsoft Defender for Endpoint'
+            AlertName     = 'Older rule'
+            ProductName   = 'Microsoft Defender for Endpoint'
             AlertSeverity = 'Medium'
-            Alerts = 800
-            Alerts7d = 0
-            ProviderName = 'MDATP'
+            Alerts        = 800
+            Alerts7d      = 0
+            ProviderName  = 'MDATP'
         }
         & $raw 'analytics-rule-volumes.json' $volumes
 
@@ -2485,8 +2490,8 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         $rules = & $read 'alert-rules.json'
         foreach ($d in @(@('Nine Sep rule', '2026-09-09T10:00:00Z'), @('Ten Sep rule', '2026-09-10T10:00:00Z'))) {
             $rules += [pscustomobject]@{
-                name = "rule-$($d[0])"
-                kind = 'Scheduled'
+                name       = "rule-$($d[0])"
+                kind       = 'Scheduled'
                 properties = [pscustomobject]@{ displayName = $d[0]; severity = 'Low'; enabled = $false; tactics = @('Discovery'); lastModifiedUtc = $d[1] }
             }
         }

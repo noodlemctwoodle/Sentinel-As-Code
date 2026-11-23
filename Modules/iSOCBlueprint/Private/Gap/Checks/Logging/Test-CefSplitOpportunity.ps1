@@ -39,10 +39,10 @@ function Test-CefSplitOpportunity {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $cef = @($Inventory.TablesWithData | Where-Object {
-        (Get-PropOrDefault $_ 'DataType' '') -eq 'CommonSecurityLog'
-    } | Select-Object -First 1)
+            (Get-PropOrDefault $_ 'DataType' '') -eq 'CommonSecurityLog'
+        } | Select-Object -First 1)
     if ($cef.Count -eq 0) { return $null }
     $gb30 = Get-GapBillable30d $cef[0]
     if ((ConvertTo-GapPer30Days $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }

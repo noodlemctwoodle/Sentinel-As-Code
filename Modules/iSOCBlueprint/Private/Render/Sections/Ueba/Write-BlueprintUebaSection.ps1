@@ -57,8 +57,8 @@ function Write-BlueprintUebaSection {
     $uebaPresence = Read-BlueprintRawArray 'ueba-data-presence.json'
     $uebaPresenceRows = $uebaPresence | ForEach-Object {
         [pscustomobject]@{
-            Table = $_.TableName
-            Rows7d = Get-BlueprintRawProperty $_ 'Count7d' ''
+            Table   = $_.TableName
+            Rows7d  = Get-BlueprintRawProperty $_ 'Count7d' ''
             Rows12d = $_.Count
             Rows14d = Get-BlueprintRawProperty $_ 'Count14d' ''
         }

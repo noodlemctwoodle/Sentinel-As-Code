@@ -266,7 +266,7 @@ kind: Scheduled
             $changes = Resolve-Id $pending
             Get-PendingId $pending[1] | Should -Be 'taken'
             Get-PendingId $pending[0] | Should -Be (Get-DerivedId 'A/new.yaml')
-            ($changes | Where-Object RelativePath -eq 'Z/existing.yaml').Reason | Should -Be 'kept the id the repository file has'
+            ($changes | Where-Object RelativePath -EQ 'Z/existing.yaml').Reason | Should -Be 'kept the id the repository file has'
         }
 
         It 'derives an id when an in-house rule has the upstream one, changing only the id line' {
@@ -307,7 +307,7 @@ kind: Scheduled
             }
             Invoke-Private Resolve-iSOCCommunityRuleId @{ PendingRules = $pending; OutputPath = $script:dalonso; SourceRepo = 'https://github.com/davidalonsod/Dalonso-Security-Repo.git'; ReservedIds = $script:reserved } | Out-Null
             $ids = @($pending | ForEach-Object { ([regex]::Match($_.YamlContent, '(?m)^id:[ \t]*(\S+)')).Groups[1].Value })
-            @($ids | Group-Object | Where-Object Count -gt 1).Name | Should -BeNullOrEmpty
+            @($ids | Group-Object | Where-Object Count -GT 1).Name | Should -BeNullOrEmpty
             for ($i = 0; $i -lt $pending.Count; $i++) {
                 $ids[$i] | Should -Be (Invoke-Private Get-iSOCRuleFileId @{ Path = (Join-Path $script:dalonso $pending[$i].RelativePath) }) -Because $pending[$i].RelativePath
             }
@@ -336,7 +336,7 @@ Describe 'Sources, the README, git and the checkout' {
     }
 
     It 'checks git as a command, with its version' {
-        $git = Invoke-Private Test-iSOCRequirement @{ Requirement = (InModuleScope iSOCDeployments { Get-iSOCRequirement | Where-Object Name -eq 'git' }) }
+        $git = Invoke-Private Test-iSOCRequirement @{ Requirement = (InModuleScope iSOCDeployments { Get-iSOCRequirement | Where-Object Name -EQ 'git' }) }
         $git.Found | Should -BeTrue
         $git.Version | Should -Match '^\d+\.\d+'
         $missing = Invoke-Private Test-iSOCRequirement @{ Requirement = [pscustomobject]@{ Name = 'no-such-command-isoc'; Kind = 'Command'; Step = @('Import'); Required = $true; MinimumVersion = '1.0'; Hint = 'Install it.' } }
@@ -453,7 +453,7 @@ Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
     }
 
     It 'exercises every case' {
-        $reasons = @($script:run.Results | Where-Object Outcome -eq 'Skipped' | ForEach-Object Reason)
+        $reasons = @($script:run.Results | Where-Object Outcome -EQ 'Skipped' | ForEach-Object Reason)
         $reasons.Count | Should -Be 2
         $reasons[0] | Should -Match 'B-no-severity\.yaml'' is missing required fields: severity$'
         $reasons[1] | Should -BeExactly 'the YAML is not a mapping'
@@ -665,8 +665,8 @@ Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
         $before = Get-Snapshot $tree
         $run = Invoke-Module -Tree $tree -Url $script:upstream.Url -Parameters @{ IncludeKqlConversion = $true; WhatIf = $true }
         (ConvertTo-Json -InputObject (Get-Snapshot $tree) -Compress) | Should -BeExactly (ConvertTo-Json -InputObject $before -Compress)
-        @($run.Results | Where-Object Reason -eq 'would be created').Count | Should -Be 6
-        @($run.Results | Where-Object Reason -eq 'would be updated').Count | Should -Be 1
+        @($run.Results | Where-Object Reason -EQ 'would be created').Count | Should -Be 6
+        @($run.Results | Where-Object Reason -EQ 'would be updated').Count | Should -Be 1
         $run.Manifest | Should -Be 'WhatIf'
         $run.Readme | Should -Be 'WhatIf'
     }

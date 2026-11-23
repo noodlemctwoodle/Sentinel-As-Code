@@ -75,8 +75,7 @@ function Test-iSOCDefenderDetection {
 
     if (-not ($Rule['schedule'] -is [System.Collections.IDictionary]) -or [string]::IsNullOrWhiteSpace([string]$Rule['schedule']['frequency'])) {
         $issues.Add("missing required field 'schedule.frequency'")
-    }
-    elseif (-not (ConvertTo-iSOCDefenderDetectionFrequency -Value ([string]$Rule['schedule']['frequency']))) {
+    } elseif (-not (ConvertTo-iSOCDefenderDetectionFrequency -Value ([string]$Rule['schedule']['frequency']))) {
         $issues.Add("invalid schedule.frequency '$($Rule['schedule']['frequency'])'; use PT1H, PT3H, PT12H or P1D")
     }
 

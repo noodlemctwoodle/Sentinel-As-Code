@@ -39,7 +39,7 @@ function Test-SummaryRulesInUse {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'summary-rules.json') { return $null }
     if (@($Inventory.SummaryRules | Where-Object { $null -ne $_ }).Count -gt 0) { return $null }
     $threshold = 50.0

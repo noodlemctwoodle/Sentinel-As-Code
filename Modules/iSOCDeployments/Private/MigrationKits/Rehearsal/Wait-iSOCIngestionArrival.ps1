@@ -84,8 +84,7 @@ function Wait-iSOCIngestionArrival {
             $rows = Get-iSOCPropertyValue -InputObject $qr -Path 'Results'
             $arrived = [int](@($rows)[0].Count)
             Write-iSOCLog "  arrived $arrived / $Sent"
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  query not ready yet ($($_.Exception.Message.Split([char]10)[0]))"
         }
         if ($null -ne $arrived -and $arrived -ge $Sent) { break }

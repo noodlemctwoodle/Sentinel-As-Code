@@ -39,13 +39,13 @@ function Test-DcrTransformMissing {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $missing = @($Inventory.Dcrs | Where-Object {
-        $flows = @(Get-PropOrDefault $_ 'properties.dataFlows' @())
-        $hasCustom = $flows | Where-Object { (Get-PropOrDefault $_ 'outputStream' '') -match 'Custom-' }
-        $hasTransform = $flows | Where-Object { (Get-PropOrDefault $_ 'transformKql' '') }
-        ($hasCustom) -and (-not $hasTransform)
-    })
+            $flows = @(Get-PropOrDefault $_ 'properties.dataFlows' @())
+            $hasCustom = $flows | Where-Object { (Get-PropOrDefault $_ 'outputStream' '') -match 'Custom-' }
+            $hasTransform = $flows | Where-Object { (Get-PropOrDefault $_ 'transformKql' '') }
+            ($hasCustom) -and (-not $hasTransform)
+        })
     if ($missing.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $missing.Count 'DCR') $(Select-GapWording $missing.Count 'targets' 'target') a custom table without transformKql." -Detail @{ Count = $missing.Count }
     }

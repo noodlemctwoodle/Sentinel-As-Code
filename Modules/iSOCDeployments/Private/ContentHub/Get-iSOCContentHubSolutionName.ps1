@@ -59,8 +59,7 @@ function Get-iSOCContentHubSolutionName {
             if ($displayName -and $contentId) { $lookup[[string]$contentId] = [string]$displayName }
         }
         Write-iSOCLog "Mapped $($lookup.Count) Content Hub package IDs to solution names."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not fetch Content Hub solution catalogue: $($_.Exception.Message). Solution names will be unavailable in the report." -Level Warning
     }
     $lookup

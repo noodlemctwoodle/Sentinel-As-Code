@@ -68,7 +68,7 @@ Describe 'Invoke-iSOCBlueprintChartImage' {
     }
 
     It 'rewrites a chart as an image reference, shares one image between identical charts and leaves a failed chart in place' -Skip:(-not $IsLinux -and
-            -not $IsMacOS) {
+        -not $IsMacOS) {
         $log = Invoke-Step -Root $script:root
         $md = Get-Content -LiteralPath (Join-Path $script:root 'ws/a.md') -Raw
         ([regex]::Matches($md, '!\[Diagram\]\(assets/[0-9a-f]{12}\.png\)')).Count | Should -Be 2

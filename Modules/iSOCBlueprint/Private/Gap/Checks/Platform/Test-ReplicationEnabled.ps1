@@ -39,7 +39,7 @@ function Test-ReplicationEnabled {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $enabled = Get-PropOrDefault $Inventory.Workspace 'properties.replication.enabled' $false
     if (-not $enabled) {
         return New-Finding -Evidence 'Workspace replication is disabled.'

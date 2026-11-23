@@ -52,12 +52,14 @@ function Write-BlueprintCostEstimateSectionPart2 {
     $t = $Context.t
     $workspace = $Context.workspace
 
-    $costBody = if (-not $cost) { @"
+    $costBody = if (-not $cost) {
+        @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
 _Cost estimate not available. Confirm Export-iSOCBlueprintInventory ran with retail-prices fetch and tables-with-data KQL._
-"@ } else {
-    @"
+"@
+    } else {
+        @"
 $(Format-Banner -Title "Estimated Monthly Cost")
 
 > **Headline** **$(Format-BlueprintMoney $cost.MonthlyTotal $cost.Currency)** for the workspace, projected to a month from the last {lookback} of `Usage` × Azure Retail Prices for $(Get-BlueprintRegionName $cost.Region) as of $(Format-BlueprintDate $cost.AsOfUtc -Time).

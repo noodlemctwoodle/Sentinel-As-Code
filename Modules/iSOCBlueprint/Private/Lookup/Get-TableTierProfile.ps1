@@ -83,12 +83,12 @@ function Get-TableTierProfile {
         if ($plan -eq 'DataLake') { $lakeOnly.Add([string]$t.name) }
         if ($lakeOnlyDays -gt 0 -or $plan -eq 'DataLake') {
             $rows.Add([pscustomobject]@{
-                Table         = [string]$t.name
-                Plan          = $plan
-                AnalyticsDays = $r
-                LakeOnlyDays  = $lakeOnlyDays
-                TotalDays     = $tr
-            })
+                    Table         = [string]$t.name
+                    Plan          = $plan
+                    AnalyticsDays = $r
+                    LakeOnlyDays  = $lakeOnlyDays
+                    TotalDays     = $tr
+                })
         }
     }
 

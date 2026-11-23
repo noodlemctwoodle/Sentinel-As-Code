@@ -131,21 +131,18 @@ function Invoke-iSOCItemDeploy {
             $parameters = @{ Run = $Run; ContentType = $ContentType; Item = $Item }
             if ($disabled) { $parameters.Disabled = $true }
             $sent = Invoke-iSOCContentTypeHandler -ContentType $ContentType -Handler Deploy -Parameters $parameters
-        }
-        else {
+        } else {
             $parameters = @{ Item = $Item }
             if ((Get-Command -Name $ContentType.Handlers.ToRequest).Parameters.ContainsKey('Context')) { $parameters.Context = $Run.Context }
             $request = Invoke-iSOCContentTypeHandler -ContentType $ContentType -Handler ToRequest -Parameters $parameters
             $sent = if ($PSCmdlet.ShouldProcess($label, "Deploy $(Get-iSOCContentTypeNoun -ContentType $ContentType) '$($Item.Name)'")) {
                 Send-iSOCContentRequest -Context $Run.Context -ContentType $ContentType -Request $request | Out-Null
                 @{ Outcome = 'Deployed'; Reason = '' }
-            }
-            else {
+            } else {
                 @{ Outcome = 'WhatIf'; Reason = '' }
             }
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to deploy '$label': $($_.Exception.Message)" -Level Error
         & $setState 'failed'
         return (New-iSOCItemResult -ContentType $name -Item $Item -Outcome Failed -Reason $_.Exception.Message -Missing $missing)

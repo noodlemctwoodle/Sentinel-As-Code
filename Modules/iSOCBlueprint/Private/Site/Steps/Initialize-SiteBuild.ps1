@@ -60,7 +60,7 @@ function Initialize-SiteBuild {
     if (-not $WorkspaceName) {
         $WorkspaceName = if ($runCtx -and $runCtx.WorkspaceName) { $runCtx.WorkspaceName } else { Split-Path $Source -Leaf }
     }
-    if (-not $Title)      { $Title = "$WorkspaceName - $ProductName" }
+    if (-not $Title) { $Title = "$WorkspaceName - $ProductName" }
     if (-not $OutputRoot) { $OutputRoot = Join-Path $Source 'sharepoint' }
 
     Write-SiteLog "iSOC Blueprint -> SharePoint site bundle" Section

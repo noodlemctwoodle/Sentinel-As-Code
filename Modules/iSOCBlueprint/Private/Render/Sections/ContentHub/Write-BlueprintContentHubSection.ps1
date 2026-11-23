@@ -42,7 +42,7 @@ function Write-BlueprintContentHubSection {
 
     $contentPackages = Read-BlueprintRawArray 'content-packages.json'
     $contentCatalogue = Read-BlueprintRawArray 'content-product-packages.json'
-    $repos           = Read-BlueprintRawArray 'repositories.json'
+    $repos = Read-BlueprintRawArray 'repositories.json'
 
     # Index catalogue versions by contentId so installed packages can join for
     # "update available" detection.
@@ -58,37 +58,37 @@ function Write-BlueprintContentHubSection {
     # is nothing to compare, so the status stays blank.
     $cpStatusRank = @{ 'Deprecated' = 0; 'Not in catalogue' = 1; 'Update available' = 2; 'Up to date' = 3; '' = 4 }
     $cpRows = @($contentPackages | Where-Object { $_ } | ForEach-Object {
-        $installed = [string]$_.properties.version
-        $cid = $_.properties.contentId
-        $cat = if ($cid -and $catalogueByContentId.ContainsKey($cid)) { $catalogueByContentId[$cid] } else { $null }
-        $latest = if ($cat) { [string]$cat.properties.version } else { '' }
-        $deprecated = $cat -and $cat.properties.PSObject.Properties['isDeprecated'] -and [string]$cat.properties.isDeprecated -eq 'true'
-        $status = if ($contentCatalogue.Count -eq 0) { '' }
+            $installed = [string]$_.properties.version
+            $cid = $_.properties.contentId
+            $cat = if ($cid -and $catalogueByContentId.ContainsKey($cid)) { $catalogueByContentId[$cid] } else { $null }
+            $latest = if ($cat) { [string]$cat.properties.version } else { '' }
+            $deprecated = $cat -and $cat.properties.PSObject.Properties['isDeprecated'] -and [string]$cat.properties.isDeprecated -eq 'true'
+            $status = if ($contentCatalogue.Count -eq 0) { '' }
             elseif (-not $cat) { 'Not in catalogue' }
             elseif ($deprecated) { 'Deprecated' }
             elseif ($latest -and $installed -and (Compare-BlueprintVersion $installed $latest) -lt 0) { 'Update available' }
             else { 'Up to date' }
-        [pscustomobject]@{
-            Name      = $_.properties.displayName
-            Installed = $installed
-            Latest    = $latest
-            Status    = $status
-            Source    = $_.properties.source.kind
-        }
-    } | Sort-Object @{ Expression = { $cpStatusRank[[string]$_.Status] } }, Name)
+            [pscustomobject]@{
+                Name      = $_.properties.displayName
+                Installed = $installed
+                Latest    = $latest
+                Status    = $status
+                Source    = $_.properties.source.kind
+            }
+        } | Sort-Object @{ Expression = { $cpStatusRank[[string]$_.Status] } }, Name)
     $cpUpdates = @($cpRows | Where-Object Status -EQ 'Update available').Count
     $cpRetired = @($cpRows | Where-Object { $_.Status -in 'Deprecated', 'Not in catalogue' }).Count
     $omsSolutionRows = @(Read-BlueprintRawArray 'solutions-installed.json' | Where-Object { $_ } | ForEach-Object {
-        $plan = if ($_.PSObject.Properties['plan'] -and $_.plan) { $_.plan } else { $null }
-        $sp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
-        [pscustomobject]@{
-            Name         = $_.name
-            Product      = if ($plan -and $plan.PSObject.Properties['product']) { $plan.product } else { '' }
-            Publisher    = if ($plan -and $plan.PSObject.Properties['publisher']) { $plan.publisher } else { '' }
-            Provisioning = if ($sp -and $sp.PSObject.Properties['provisioningState']) { $sp.provisioningState } else { '' }
-            LastModified = if ($sp -and $sp.PSObject.Properties['lastModifiedTime']) { Format-DateUtc $sp.lastModifiedTime } else { '' }
-        }
-    })
+            $plan = if ($_.PSObject.Properties['plan'] -and $_.plan) { $_.plan } else { $null }
+            $sp = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $null }
+            [pscustomobject]@{
+                Name         = $_.name
+                Product      = if ($plan -and $plan.PSObject.Properties['product']) { $plan.product } else { '' }
+                Publisher    = if ($plan -and $plan.PSObject.Properties['publisher']) { $plan.publisher } else { '' }
+                Provisioning = if ($sp -and $sp.PSObject.Properties['provisioningState']) { $sp.provisioningState } else { '' }
+                LastModified = if ($sp -and $sp.PSObject.Properties['lastModifiedTime']) { Format-DateUtc $sp.lastModifiedTime } else { '' }
+            }
+        })
     $repoRows = $repos | ForEach-Object {
         [pscustomobject]@{ Name = $_.properties.displayName; Type = $_.properties.repoType; Url = $_.properties.repository.url }
     }
@@ -108,24 +108,27 @@ function Write-BlueprintContentHubSection {
     $cpStatusCount = { param([string]$S) @($cpRows | Where-Object { [string]$_.Status -eq $S }).Count }
     $sourceTone = @{ Solution = 'info'; Community = 'violet'; Standalone = 'teal' }
     $contentHubVisualLine = Format-VisualLine -Kind 'meters' -Data ([ordered]@{ meters = @(
-        [ordered]@{ title = 'Installed packages'; caption = 'Against the Content Hub catalogue'; total = $cpRows.Count; parts = @(
-            [ordered]@{ label = 'Up to date'; value = (& $cpStatusCount 'Up to date'); tone = 'ok' }
-            [ordered]@{ label = 'Update available'; value = (& $cpStatusCount 'Update available'); tone = 'warn' }
-            [ordered]@{ label = 'Deprecated'; value = (& $cpStatusCount 'Deprecated'); tone = 'bad' }
-            [ordered]@{ label = 'Not in catalogue'; value = (& $cpStatusCount 'Not in catalogue'); tone = 'rose' }
-            [ordered]@{ label = 'Not checked'; value = (& $cpStatusCount ''); tone = 'neutral' }
-        ) }
-        [ordered]@{ title = 'By source'
-        caption = 'Who publishes each package'
-        total = $cpRows.Count
-        parts = @($sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
-            [ordered]@{
-                label = [string]$_.Key
-                value = [int]$_.Value
-                tone = $(if ($sourceTone.ContainsKey([string]$_.Key)) { $sourceTone[[string]$_.Key] } else { 'neutral' })
-            }
-        }) }
-    ) })
+                [ordered]@{ title = 'Installed packages'; caption = 'Against the Content Hub catalogue'; total = $cpRows.Count; parts = @(
+                        [ordered]@{ label = 'Up to date'; value = (& $cpStatusCount 'Up to date'); tone = 'ok' }
+                        [ordered]@{ label = 'Update available'; value = (& $cpStatusCount 'Update available'); tone = 'warn' }
+                        [ordered]@{ label = 'Deprecated'; value = (& $cpStatusCount 'Deprecated'); tone = 'bad' }
+                        [ordered]@{ label = 'Not in catalogue'; value = (& $cpStatusCount 'Not in catalogue'); tone = 'rose' }
+                        [ordered]@{ label = 'Not checked'; value = (& $cpStatusCount ''); tone = 'neutral' }
+                    )
+                }
+                [ordered]@{ title = 'By source'
+                    caption       = 'Who publishes each package'
+                    total         = $cpRows.Count
+                    parts         = @($sourceCounts.GetEnumerator() | Sort-Object @{ Expression = 'Value'; Descending = $true }, Key | ForEach-Object {
+                            [ordered]@{
+                                label = [string]$_.Key
+                                value = [int]$_.Value
+                                tone  = $(if ($sourceTone.ContainsKey([string]$_.Key)) { $sourceTone[[string]$_.Key] } else { 'neutral' })
+                            }
+                        })
+                }
+            )
+        })
 
     Write-BlueprintSection '70-content-hub.md' (@"
 $(Format-Banner -Title "Content Hub and Repositories")

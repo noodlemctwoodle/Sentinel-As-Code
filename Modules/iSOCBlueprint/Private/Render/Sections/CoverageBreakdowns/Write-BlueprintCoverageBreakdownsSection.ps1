@@ -45,7 +45,7 @@ function Write-BlueprintCoverageBreakdownsSection {
     $workspaceTables = $Context.workspaceTables
 
     # Section 14 — Coverage breakdowns
-    $azAct  = Read-BlueprintRawArray 'azure-activity-coverage.json'
+    $azAct = Read-BlueprintRawArray 'azure-activity-coverage.json'
     $azDiag = Read-BlueprintRawArray 'azure-diagnostics-providers.json'
     $xdrPres = Read-BlueprintRawArray 'xdr-table-presence.json'
 
@@ -58,23 +58,23 @@ function Write-BlueprintCoverageBreakdownsSection {
     # Entra ID tables: which of the well-known identity tables exist in the
     # catalogue and which received data in the last 7 days.
     $entraTableNames = @(
-        'SigninLogs','AuditLogs','AADNonInteractiveUserSignInLogs','AADServicePrincipalSignInLogs','AADManagedIdentitySignInLogs','AADProvisioningLogs',
-            'ADFSSignInLogs','AADRiskyUsers','AADUserRiskEvents','AADRiskyServicePrincipals','AADServicePrincipalRiskEvents','MicrosoftGraphActivityLogs',
-            'IdentityInfo'
+        'SigninLogs', 'AuditLogs', 'AADNonInteractiveUserSignInLogs', 'AADServicePrincipalSignInLogs', 'AADManagedIdentitySignInLogs', 'AADProvisioningLogs',
+        'ADFSSignInLogs', 'AADRiskyUsers', 'AADUserRiskEvents', 'AADRiskyServicePrincipals', 'AADServicePrincipalRiskEvents', 'MicrosoftGraphActivityLogs',
+        'IdentityInfo'
     )
     $entraRows = @(foreach ($name in $entraTableNames) {
-        $cat = @($workspaceTables | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'name') -eq $name }) | Select-Object -First 1
-        $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
-        $gb7 = if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast7d' 0)), 2) } else { 0 }
-        $props = Get-BlueprintRawProperty $cat 'properties'
-        [pscustomobject]@{
-            Table     = $name
-            Plan      = if ($props) { [string](Get-BlueprintRawProperty $props 'plan' '') } else { '' }
-            Retention = if ($props) { [string](Get-BlueprintRawProperty $props 'retentionInDays' '') } else { '' }
-            Gb7d      = $gb7
-            Status    = if ($gb7 -gt 0) { 'Receiving data' } elseif ($cat) { 'Catalogue only' } else { 'Not in catalogue' }
-        }
-    })
+            $cat = @($workspaceTables | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'name') -eq $name }) | Select-Object -First 1
+            $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
+            $gb7 = if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast7d' 0)), 2) } else { 0 }
+            $props = Get-BlueprintRawProperty $cat 'properties'
+            [pscustomobject]@{
+                Table     = $name
+                Plan      = if ($props) { [string](Get-BlueprintRawProperty $props 'plan' '') } else { '' }
+                Retention = if ($props) { [string](Get-BlueprintRawProperty $props 'retentionInDays' '') } else { '' }
+                Gb7d      = $gb7
+                Status    = if ($gb7 -gt 0) { 'Receiving data' } elseif ($cat) { 'Catalogue only' } else { 'Not in catalogue' }
+            }
+        })
     $xdrRows = $xdrPres | ForEach-Object {
         [pscustomobject]@{ Table = $_.Type; RecordCount = $_.RecordCount }
     }
@@ -82,10 +82,10 @@ function Write-BlueprintCoverageBreakdownsSection {
     # names in the table below.
     $xdrChartBlock = if ($xdrPres.Count -gt 0) {
         $xdrAxis = ($xdrRows | ForEach-Object {
-            $n = $_.Table
-            $s = if ($n.Length -gt 12) { $n.Substring(0,12) } else { $n }
-            "`"$s`""
-        }) -join ', '
+                $n = $_.Table
+                $s = if ($n.Length -gt 12) { $n.Substring(0, 12) } else { $n }
+                "`"$s`""
+            }) -join ', '
         $xdrBars = ($xdrRows | ForEach-Object { [long]$_.RecordCount }) -join ', '
         $xdrYmax = [long]1
         foreach ($r in $xdrRows) { if ([long]$r.RecordCount -gt $xdrYmax) { $xdrYmax = [long]$r.RecordCount } }
@@ -115,29 +115,28 @@ A short bar means that XDR surface (email / device / identity / cloud-app) isn't
     # AzureDiagnostics by category, and Azure Firewall in both its forms: the
     # legacy AzureDiagnostics categories and the resource-specific AZFW* tables.
     $azDiagCategoryRows = @(Read-BlueprintRawArray 'azure-diagnostics-categories.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; Category = $_.Category; LogCount = Format-BlueprintCount $_.LogCount }
-    })
+            [pscustomobject]@{ ResourceProvider = $_.ResourceProvider; Category = $_.Category; LogCount = Format-BlueprintCount $_.LogCount }
+        })
     $fwCategoryRows = @(Read-BlueprintRawArray 'azure-firewall-categories.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{
-            Category = $_.Category
-            Form     = $(if ([string]$_.Category -like 'AZFW*') { 'Resource-specific category' } else { 'Legacy category' })
-            LogCount = Format-BlueprintCount $_.LogCount
-        }
-    })
+            [pscustomobject]@{
+                Category = $_.Category
+                Form     = $(if ([string]$_.Category -like 'AZFW*') { 'Resource-specific category' } else { 'Legacy category' })
+                LogCount = Format-BlueprintCount $_.LogCount
+            }
+        })
     $fwTableRows = @($tablesWithData | Where-Object { $_ -and [string](Get-BlueprintRawProperty $_ 'DataType' '') -like 'AZFW*' } | ForEach-Object {
-        [pscustomobject]@{
-            Table = $_.DataType
-            Gb7d = [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'BillableLast7d' 0)), 2)
-            LastIngested = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastIngested')
-        }
-    })
+            [pscustomobject]@{
+                Table        = $_.DataType
+                Gb7d         = [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $_ 'BillableLast7d' 0)), 2)
+                LastIngested = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastIngested')
+            }
+        })
     $fwLegacyRows = @($fwCategoryRows | Where-Object { $_.Form -eq 'Legacy category' })
     $fwVerdict = if (-not (Test-Path (Join-Path $rawRoot 'azure-firewall-categories.json'))) { '_Not captured in this snapshot._' }
-        elseif ($fwLegacyRows.Count -gt 0 -and ($fwTableRows.Count -gt 0 -or @($fwCategoryRows | Where-Object { $_.Form -ne 'Legacy category' }).Count -gt 0)) {
-            '**Collected twice.** Azure Firewall writes legacy categories into AzureDiagnostics and the resource-specific form as well; remove the legacy diagnostic setting to stop paying for the same events twice ([SAC-LOG-06]).'
-        }
-        elseif ($fwCategoryRows.Count -eq 0 -and $fwTableRows.Count -eq 0) { '_No Azure Firewall logs in the last {lookback}._' }
-        else { 'Azure Firewall logs arrive in one form only.' }
+    elseif ($fwLegacyRows.Count -gt 0 -and ($fwTableRows.Count -gt 0 -or @($fwCategoryRows | Where-Object { $_.Form -ne 'Legacy category' }).Count -gt 0)) {
+        '**Collected twice.** Azure Firewall writes legacy categories into AzureDiagnostics and the resource-specific form as well; remove the legacy diagnostic setting to stop paying for the same events twice ([SAC-LOG-06]).'
+    } elseif ($fwCategoryRows.Count -eq 0 -and $fwTableRows.Count -eq 0) { '_No Azure Firewall logs in the last {lookback}._' }
+    else { 'Azure Firewall logs arrive in one form only.' }
 
     Write-BlueprintSection '14-coverage-breakdowns.md' (@"
 $(Format-Banner -Title "Coverage Breakdowns")

@@ -48,20 +48,20 @@ function Resolve-AzureRetailCurrency {
     param([Parameter(Mandatory = $false)] [AllowEmptyString()] [string]$Region)
 
     switch -Regex (("$Region").ToLowerInvariant()) {
-        '^uk'                                                   { return 'GBP' }
-        '^switzerland'                                          { return 'CHF' }
-        '^norway'                                               { return 'NOK' }
-        '^denmark'                                              { return 'DKK' }
+        '^uk' { return 'GBP' }
+        '^switzerland' { return 'CHF' }
+        '^norway' { return 'NOK' }
+        '^denmark' { return 'DKK' }
         '^(westeurope|northeurope|france|germany|italy|spain|sweden|poland|austria|belgium|finland|greece)' { return 'EUR' }
-        '^canada'                                               { return 'CAD' }
-        '^brazil'                                               { return 'BRL' }
-        '^australia'                                            { return 'AUD' }
-        '^newzealand'                                           { return 'NZD' }
-        '^japan'                                                { return 'JPY' }
-        '^korea'                                                { return 'KRW' }
-        '^(centralindia|southindia|westindia|jioindia)'         { return 'INR' }
-        '^taiwan'                                               { return 'TWD' }
-        '^china'                                                { return 'CNY' }
-        default                                                 { return 'USD' }
+        '^canada' { return 'CAD' }
+        '^brazil' { return 'BRL' }
+        '^australia' { return 'AUD' }
+        '^newzealand' { return 'NZD' }
+        '^japan' { return 'JPY' }
+        '^korea' { return 'KRW' }
+        '^(centralindia|southindia|westindia|jioindia)' { return 'INR' }
+        '^taiwan' { return 'TWD' }
+        '^china' { return 'CNY' }
+        default { return 'USD' }
     }
 }

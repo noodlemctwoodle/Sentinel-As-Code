@@ -114,8 +114,7 @@ function Invoke-iSOCFixtureSeed {
             Write-iSOCLog "Posted $RecordCount records to $($table.TableName)." -Level Success
             $created.Add($resource)
             $seeded.Add($table.TableName)
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Failed to seed $($table.TableName): $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             $failed.Add($resource)
         }

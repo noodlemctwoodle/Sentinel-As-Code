@@ -135,8 +135,7 @@ function Invoke-iSOCDcrSchemaDeploy {
         if ($ingestion.Endpoint) {
             $result.Endpoint = $ingestion.Endpoint
             Write-iSOCLog "Ingestion  : $($result.Endpoint)"
-        }
-        else {
+        } else {
             Write-iSOCLog 'No logsIngestion endpoint was returned for this Direct DCR. Endpoints cannot be added to an existing DCR, so this one needs a Data Collection Endpoint or a replacement DCR.' -Level Warning
         }
 

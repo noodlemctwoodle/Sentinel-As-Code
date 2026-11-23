@@ -39,7 +39,7 @@ function Test-AnalyticsRuleTemplateDrift {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.AlertRules -or -not $Inventory.AlertRuleTemplates) { return $null }
     $latestByTemplate = @{}
     foreach ($t in $Inventory.AlertRuleTemplates) {

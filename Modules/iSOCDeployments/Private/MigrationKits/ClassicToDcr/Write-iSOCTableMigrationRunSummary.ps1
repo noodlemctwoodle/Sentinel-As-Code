@@ -85,8 +85,7 @@ function Write-iSOCTableMigrationRunSummary {
         $stream = "Custom-$($r.TableName)"
         if ($r.Endpoint -and $r.ImmutableId) {
             Write-iSOCLog "  $($r.Endpoint)/dataCollectionRules/$($r.ImmutableId)/streams/${stream}?api-version=2023-01-01"
-        }
-        else {
+        } else {
             Write-iSOCLog "  $($r.TableName): no ingestion endpoint on the DCR (needs a Data Collection Endpoint)." -Level Warning
         }
     }

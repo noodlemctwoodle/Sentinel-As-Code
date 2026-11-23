@@ -39,7 +39,7 @@ function Test-OnboardedToDefender {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # The defender-onboarding state is workspace-specific and exposed via a separate REST
     # surface that may not be in scope. Until we wire that detection, surface the deadline
     # universally as an Info finding so it appears in every report.

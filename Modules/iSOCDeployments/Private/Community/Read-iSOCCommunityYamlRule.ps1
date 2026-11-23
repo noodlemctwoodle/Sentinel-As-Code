@@ -62,8 +62,7 @@ function Read-iSOCCommunityYamlRule {
         $rule = ConvertFrom-Yaml $raw -Ordered
         if ($null -eq $rule -or $rule -isnot [System.Collections.IDictionary]) { throw 'the YAML is not a mapping' }
         [pscustomobject]@{ YamlContent = (ConvertTo-iSOCCommunityRuleYaml -Rule $rule -SourceFile $Path -Source $Source); Error = $null }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Skipping '$Path': $($_.Exception.Message)" -Level Warning
         [pscustomobject]@{ YamlContent = $null; Error = $_.Exception.Message }
     }

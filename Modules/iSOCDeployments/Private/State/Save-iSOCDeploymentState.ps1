@@ -52,8 +52,7 @@ function Save-iSOCDeploymentState {
     try {
         Write-iSOCTextFile -Path $State.Path -Content (@{ deployedItems = $State.Items } | ConvertTo-Json -Depth 5)
         Write-iSOCLog "Deployment state saved ($($State.Items.Count) item(s))." -Level Debug
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to save deployment state: $($_.Exception.Message)" -Level Warning
     }
 }

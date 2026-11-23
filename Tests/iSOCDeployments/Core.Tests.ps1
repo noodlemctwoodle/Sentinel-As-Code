@@ -365,8 +365,7 @@ Describe 'Context' {
                 { Resolve-iSOCContext } | Should -Throw -ExpectedMessage '*Run Connect-iSOCWorkspace first*'
                 $script:iSOCContext = New-iSOCContext -Value $Values
                 (Resolve-iSOCContext).WorkspaceName | Should -Be 'ws'
-            }
-            finally { $script:iSOCContext = $saved }
+            } finally { $script:iSOCContext = $saved }
         }
     }
 
@@ -418,8 +417,7 @@ Describe 'Connect-iSOCWorkspace' {
         Mock -ModuleName iSOCDeployments Invoke-iSOCRestRequest {
             if ($Path -like '*/workspaces/*') {
                 [pscustomobject]@{ location = 'uksouth'; properties = [pscustomobject]@{ customerId = 'workspace-customer-id' } }
-            }
-            elseif ($Path -like '*/resourceGroups/rg-playbooks') { [pscustomobject]@{ name = 'rg-playbooks' } }
+            } elseif ($Path -like '*/resourceGroups/rg-playbooks') { [pscustomobject]@{ name = 'rg-playbooks' } }
         }
     }
 
@@ -515,7 +513,7 @@ Describe 'Connect-iSOCWorkspace' {
 
 Describe 'Requirements' {
     It 'finds this PowerShell' {
-        $result = InModuleScope iSOCDeployments { Test-iSOCRequirement -Requirement (Get-iSOCRequirement | Where-Object Kind -eq 'PowerShell' | Select-Object -First 1) }
+        $result = InModuleScope iSOCDeployments { Test-iSOCRequirement -Requirement (Get-iSOCRequirement | Where-Object Kind -EQ 'PowerShell' | Select-Object -First 1) }
         $result.Found | Should -BeTrue
         $result.Name | Should -Be 'PowerShell 7.6+'
     }

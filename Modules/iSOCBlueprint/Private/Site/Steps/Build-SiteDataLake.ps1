@@ -56,11 +56,11 @@ function Build-SiteDataLake {
         }
     }
     $operationalTables = @($wsTablesRaw | Where-Object {
-        $_ -and $_.PSObject.Properties['name'] -and $_.name -and $_.PSObject.Properties['properties'] -and $_.properties -and (
-            ($_.properties.PSObject.Properties['schema'] -and $_.properties.schema -and $_.properties.schema.PSObject.Properties['tableType'] -and
+            $_ -and $_.PSObject.Properties['name'] -and $_.name -and $_.PSObject.Properties['properties'] -and $_.properties -and (
+                ($_.properties.PSObject.Properties['schema'] -and $_.properties.schema -and $_.properties.schema.PSObject.Properties['tableType'] -and
                 $_.properties.schema.tableType -eq 'CustomLog') -or
-            $populatedNames.ContainsKey([string]$_.name))
-    })
+                $populatedNames.ContainsKey([string]$_.name))
+        })
     $tierProfile = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $lakeEnrolled
     $lakeResource = @($dataLake | Where-Object { $_ }) | Select-Object -First 1
     $lakeCostRow = if ($costModel) { $costModel.byPlan | Where-Object { $_.plan -eq 'DataLake' } | Select-Object -First 1 } else { $null }
@@ -76,14 +76,14 @@ function Build-SiteDataLake {
         tiers             = $tierProfile.Tiers
         extendedCount     = @($tierProfile.RetentionRows).Count
         extendedTables    = @($tierProfile.RetentionRows | Sort-Object { $_.LakeOnlyDays } -Descending | ForEach-Object {
-            [ordered]@{ table = $_.Table; plan = $_.Plan; analyticsDays = $_.AnalyticsDays; lakeOnlyDays = $_.LakeOnlyDays; totalDays = $_.TotalDays }
-        })
+                [ordered]@{ table = $_.Table; plan = $_.Plan; analyticsDays = $_.AnalyticsDays; lakeOnlyDays = $_.LakeOnlyDays; totalDays = $_.TotalDays }
+            })
         cost              = [ordered]@{
-            currency     = if ($costModel) { $costModel.currency } else { '' }
-            analyticsGb  = if ($analyticsCostRow) { $analyticsCostRow.gb30d } else { 0 }
+            currency      = if ($costModel) { $costModel.currency } else { '' }
+            analyticsGb   = if ($analyticsCostRow) { $analyticsCostRow.gb30d } else { 0 }
             analyticsCost = if ($analyticsCostRow) { $analyticsCostRow.cost } else { 0 }
-            lakeGb       = if ($lakeCostRow) { $lakeCostRow.gb30d } else { 0 }
-            lakeCost     = if ($lakeCostRow) { $lakeCostRow.cost } else { 0 }
+            lakeGb        = if ($lakeCostRow) { $lakeCostRow.gb30d } else { 0 }
+            lakeCost      = if ($lakeCostRow) { $lakeCostRow.cost } else { 0 }
         }
     }
 

@@ -155,8 +155,8 @@ function Invoke-iSOCBlueprintCollect {
     # daily series cover: the lookback, at most 90. The dashboard's slider
     # re-scopes its cards to any number of days up to this.
     $script:LookbackDays = $LookbackDays
-    $script:RecentDays   = [math]::Min(7, $LookbackDays)
-    $script:DailyDays    = [math]::Min(90, $LookbackDays)
+    $script:RecentDays = [math]::Min(7, $LookbackDays)
+    $script:DailyDays = [math]::Min(90, $LookbackDays)
 
     $apiVersions = Get-CollectorApiVersion
     $blueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $ResourcesFolder '../iSOCBlueprint.psd1')).ModuleVersion
@@ -166,10 +166,10 @@ function Invoke-iSOCBlueprintCollect {
     # fails must not read the workspace an earlier run in this session left
     # behind, so it is removed (as a fresh script scope had it), not emptied.
     Remove-Variable -Name WorkspaceObject -Scope Script -ErrorAction SilentlyContinue
-    $script:AlertRules         = @()
+    $script:AlertRules = @()
     $script:AlertRuleTemplates = @()
-    $script:Workflows          = @()
-    $script:GapOutcomes        = $null
+    $script:Workflows = @()
+    $script:GapOutcomes = $null
 
     # Add the System.Web assembly for HttpUtility used by Get-AzureRetailPrice.
     Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
@@ -189,7 +189,7 @@ function Invoke-iSOCBlueprintCollect {
     $SubscriptionId = $azure.SubscriptionId
 
     $workspaceResourceId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
-    $sentinelScope       = "$workspaceResourceId/providers/Microsoft.SecurityInsights"
+    $sentinelScope = "$workspaceResourceId/providers/Microsoft.SecurityInsights"
 
     $runContext = New-CollectorRunContext -AzureContext $azure.Context -SubscriptionId $SubscriptionId -TenantId $azure.TenantId `
         -ResourceGroup $ResourceGroup -WorkspaceName $WorkspaceName -WorkspaceResourceId $workspaceResourceId `

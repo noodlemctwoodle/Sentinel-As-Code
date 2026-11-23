@@ -86,8 +86,7 @@ BeforeAll {
         try {
             $output = & pwsh -NoProfile -NonInteractive -File $file 2>&1 | ForEach-Object { "$_" -replace '\x1b\[[0-9;]*m', '' }
             [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output -join "`n") }
-        }
-        finally {
+        } finally {
             foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
         }
     }

@@ -195,8 +195,7 @@ function Invoke-iSOCRestRequest {
                         $ex -is [System.IO.IOException] -or $ex -is [System.TimeoutException]) { $transient = $true; break }
                     $ex = $ex.InnerException
                 }
-            }
-            elseif ($status -in 408, 429, 500, 502, 503, 504) { $transient = $true }
+            } elseif ($status -in 408, 429, 500, 502, 503, 504) { $transient = $true }
 
             if ($transient -and $attempt -lt $MaxAttempts) {
                 $headers = if ($response) { $response.Headers } else { $null }

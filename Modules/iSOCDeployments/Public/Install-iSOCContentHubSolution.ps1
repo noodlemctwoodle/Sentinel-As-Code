@@ -194,8 +194,7 @@ function Install-iSOCContentHubSolution {
             $sent = Invoke-iSOCContentHubSolutionDeploy -Context $ctx -SolutionStatus $status
             $results.Add((New-iSOCContentHubResult -ContentType Solution -Name $status.Name -Identity $catalogueName -Solution $status.Name -Outcome $sent.Outcome -Reason $sent.Reason))
         }
-    }
-    else {
+    } else {
         Write-iSOCLog 'Skipping solution deployment (Solution excluded).'
     }
 
@@ -209,33 +208,28 @@ function Install-iSOCContentHubSolution {
     $contentSolutions = @($statuses | Where-Object { $_.Status -ne 'NotFound' } | ForEach-Object { $_.Name })
     if ($contentSolutions.Count -eq 0) {
         Write-iSOCLog 'No valid solutions found. Skipping content deployment.' -Level Warning
-    }
-    else {
+    } else {
         if (-not (& $excluded 'AnalyticsRule')) {
             foreach ($result in Invoke-iSOCContentHubRuleDeploy -Context $ctx -SolutionNames $contentSolutions -AvailableSolutions $hub.Available -Severity $Severity `
                     -NewSolutions $newSolutions -DisableRules:$DisableRules -ForceContentDeployment:$ForceContentDeployment -ProtectCustomisedRules $protect `
                     -PropagationSeconds $(if ($installedNow) { 60 } else { 0 }) -Metadata $metadata) {
                 $results.Add($result)
             }
-        }
-        else { Write-iSOCLog 'Skipping Analytics Rule deployment (AnalyticsRule excluded).' }
+        } else { Write-iSOCLog 'Skipping Analytics Rule deployment (AnalyticsRule excluded).' }
 
         if (-not (& $excluded 'Workbook')) {
             foreach ($result in Invoke-iSOCContentHubWorkbookDeploy -Context $ctx -SolutionNames $contentSolutions -AvailableSolutions $hub.Available -NewSolutions $newSolutions -ForceContentDeployment:$ForceContentDeployment) {
                 $results.Add($result)
             }
-        }
-        else { Write-iSOCLog 'Skipping Workbook check (Workbook excluded).' }
+        } else { Write-iSOCLog 'Skipping Workbook check (Workbook excluded).' }
 
         if (-not (& $excluded 'AutomationRule')) {
             $automationRules = Get-iSOCContentHubTemplateCount -Context $ctx -Kind AutomationRule -SolutionNames $contentSolutions -AvailableSolutions $hub.Available
-        }
-        else { Write-iSOCLog 'Skipping Automation Rule check (AutomationRule excluded).' }
+        } else { Write-iSOCLog 'Skipping Automation Rule check (AutomationRule excluded).' }
 
         if (-not (& $excluded 'HuntingQuery')) {
             $huntingQueries = Get-iSOCContentHubTemplateCount -Context $ctx -Kind HuntingQuery -SolutionNames $contentSolutions -AvailableSolutions $hub.Available
-        }
-        else { Write-iSOCLog 'Skipping Hunting Query check (HuntingQuery excluded).' }
+        } else { Write-iSOCLog 'Skipping Hunting Query check (HuntingQuery excluded).' }
     }
 
     Write-iSOCContentHubSummary -Results @($results) -Metadata $metadata -AutomationRuleTemplates $automationRules -HuntingQueryTemplates $huntingQueries -Started $started

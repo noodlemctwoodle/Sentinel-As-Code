@@ -52,7 +52,7 @@ Describe 'Invoke-iSOCBlueprintSiteInitialize' {
         Remove-Variable -Name SiteInitCalls -Scope Global -ErrorAction SilentlyContinue
         foreach ($name in 'Connect-PnPOnline', 'Get-PnPTenantSite', 'New-PnPSite', 'Add-PnPSiteCollectionAppCatalog', 'Get-PnPSiteCollectionAppCatalog',
             'Get-PnPEntraIDAppSitePermission', 'Set-PnPEntraIDAppSitePermission', 'Grant-PnPEntraIDAppSitePermission', 'Set-PnPSite', 'Set-PnPWeb',
-                    'Get-PnPTenantAppCatalogUrl') {
+            'Get-PnPTenantAppCatalogUrl') {
             Remove-Item "function:global:$name" -ErrorAction SilentlyContinue
         }
     }

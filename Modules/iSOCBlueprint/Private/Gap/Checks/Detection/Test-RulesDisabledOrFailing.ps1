@@ -39,14 +39,14 @@ function Test-RulesDisabledOrFailing {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $bad = @($Inventory.AlertRules | Where-Object {
-        $enabled = Get-PropOrDefault $_ 'properties.enabled' $true
-        $kind = Get-PropOrDefault $_ 'kind' ''
-        # Built-in / Microsoft-managed kinds whose enable-state we don't author.
-        $managed = @('Fusion','MicrosoftSecurityIncidentCreation','MLBehaviorAnalytics','ThreatIntelligence')
-        ($managed -notcontains $kind) -and (-not $enabled)
-    })
+            $enabled = Get-PropOrDefault $_ 'properties.enabled' $true
+            $kind = Get-PropOrDefault $_ 'kind' ''
+            # Built-in / Microsoft-managed kinds whose enable-state we don't author.
+            $managed = @('Fusion', 'MicrosoftSecurityIncidentCreation', 'MLBehaviorAnalytics', 'ThreatIntelligence')
+            ($managed -notcontains $kind) -and (-not $enabled)
+        })
     if ($bad.Count -gt 0) {
         $names = ($bad | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
         # Many rules last modified on one day points at a bulk change rather
@@ -69,12 +69,12 @@ function Test-RulesDisabledOrFailing {
             if ($rid) { $firedById[$rid] = ConvertTo-GapInt (Get-PropOrDefault $f 'Alerts' 0) }
         }
         $firedThenDisabled = @($bad | Where-Object { $firedById.ContainsKey(([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()) } | ForEach-Object {
-            [pscustomobject]@{
-                Rule         = Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule'
-                Alerts30d    = $firedById[([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()]
-                LastModified = ConvertTo-GapIsoTime (Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null)
-            }
-        } | Sort-Object { -$_.Alerts30d })
+                [pscustomobject]@{
+                    Rule         = Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule'
+                    Alerts30d    = $firedById[([string](Get-PropOrDefault $_ 'name' '')).ToLowerInvariant()]
+                    LastModified = ConvertTo-GapIsoTime (Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null)
+                }
+            } | Sort-Object { - $_.Alerts30d })
         $extra = ''
         if ($bulk) { $extra += " $(Format-BlueprintCount $bulkCount) of them were last modified on $(Format-BlueprintDate $bulkDay), which looks like a bulk change rather than rule-by-rule tuning." }
         if ($firedThenDisabled.Count -gt 0) {

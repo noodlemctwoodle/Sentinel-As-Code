@@ -59,10 +59,10 @@ Describe 'Vendored KQL helpers' {
     It 'the vendor folder defines only the two helpers, one to a file' {
         $names = @($script:vendorFiles | ForEach-Object {
                 [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$null).FindAll({
-                    param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
-                }, $false) |
+                        param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+                    }, $false) |
                     ForEach-Object { $_.Name }
-            } | Sort-Object)
+                } | Sort-Object)
         @($script:vendorFiles).Count | Should -Be 2
         $names | Should -Be @('Get-KqlBareIdentifiers', 'Remove-KqlComments')
     }

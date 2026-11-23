@@ -59,9 +59,9 @@ function Write-BlueprintSentinelDataLakeSection {
     $dlTables = @($workspaceTables | Where-Object { $_.properties.plan -eq 'DataLake' })
     $dlTableRows = $dlTables | ForEach-Object {
         [pscustomobject]@{
-            Table            = $_.name
-            RetentionDays    = $_.properties.retentionInDays
-            TotalRetention   = $_.properties.totalRetentionInDays
+            Table          = $_.name
+            RetentionDays  = $_.properties.retentionInDays
+            TotalRetention = $_.properties.totalRetentionInDays
         }
     }
 
@@ -76,8 +76,8 @@ function Write-BlueprintSentinelDataLakeSection {
     # Shared with the SharePoint build (Private/Lookup/Get-TableTierProfile.ps1) so
     # the page's pie and the dashboard's lake panel count the same tables the
     # same way.
-    $tierProfile   = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $hasDataLake
-    $tierStats     = $tierProfile.Tiers
+    $tierProfile = Get-TableTierProfile -Tables $operationalTables -LakeEnrolled $hasDataLake
+    $tierStats = $tierProfile.Tiers
     $retentionRows = $tierProfile.RetentionRows
 
     # Asset-data system tables that Sentinel Data Lake auto-ingests on
@@ -85,11 +85,11 @@ function Write-BlueprintSentinelDataLakeSection {
     # Microsoft Entra / Microsoft 365 / Azure Resource Graph asset
     # pipelines are actually populating the workspace.
     $assetTableNames = @(
-        @{ Pattern = '^IdentityInfo$';                 Family = 'Microsoft Entra (identity)' },
-        @{ Pattern = '^EntityGraph';                   Family = 'Microsoft Sentinel graph (entities)' },
-        @{ Pattern = '^Asset';                         Family = 'Azure Resource Graph (assets)' },
-        @{ Pattern = '^Office(SharePoint|Exchange|Teams)';  Family = 'Microsoft 365 (activity)' },
-        @{ Pattern = '^Behavior(Analytics)?$';         Family = 'Microsoft Sentinel UEBA (asset enrichment)' }
+        @{ Pattern = '^IdentityInfo$'; Family = 'Microsoft Entra (identity)' },
+        @{ Pattern = '^EntityGraph'; Family = 'Microsoft Sentinel graph (entities)' },
+        @{ Pattern = '^Asset'; Family = 'Azure Resource Graph (assets)' },
+        @{ Pattern = '^Office(SharePoint|Exchange|Teams)'; Family = 'Microsoft 365 (activity)' },
+        @{ Pattern = '^Behavior(Analytics)?$'; Family = 'Microsoft Sentinel UEBA (asset enrichment)' }
     )
     $assetDataRows = New-Object System.Collections.Generic.List[object]
     foreach ($t in $workspaceTables) {
@@ -97,11 +97,11 @@ function Write-BlueprintSentinelDataLakeSection {
             if ($t.name -match $m.Pattern) {
                 $hasData = $populatedTableNames.ContainsKey($t.name)
                 $assetDataRows.Add([pscustomobject]@{
-                    Table       = $t.name
-                    Family      = $m.Family
-                    IngestState = if ($hasData) { 'Receiving data' } else { 'Defined, no data' }
-                    Retention   = $t.properties.retentionInDays
-                })
+                        Table       = $t.name
+                        Family      = $m.Family
+                        IngestState = if ($hasData) { 'Receiving data' } else { 'Defined, no data' }
+                        Retention   = $t.properties.retentionInDays
+                    })
                 break
             }
         }
@@ -111,39 +111,39 @@ function Write-BlueprintSentinelDataLakeSection {
     # pricing docs — surfaces all five Lake-specific cost surfaces so
     # reviewers know what to expect on the bill when Lake is in use.
     $lakeBillingMeters = @(
-        [pscustomobject]@{ Meter = 'Data lake ingestion';      ChargedPer = 'GB';            AppliesTo = 'Data ingested into tables with retention set to Lake-only. Mirrored-to-Lake ingest is not charged.' }
-        [pscustomobject]@{ Meter = 'Data processing';          ChargedPer = 'GB';            AppliesTo = 'Transformations (redaction, splitting, filtering, normalization) on Lake-only ingest. Not charged for mirrored ingest.' }
-        [pscustomobject]@{ Meter = 'Data lake storage';        ChargedPer = 'GB · month';    AppliesTo = 'Data remaining in Lake AFTER the analytics-tier retention period ends. Compression 6:1 applied before billing.' }
-        [pscustomobject]@{ Meter = 'Data lake query';          ChargedPer = 'GB scanned';    AppliesTo = 'KQL queries and KQL jobs over Lake-tier data. Charged per uncompressed GB scanned.' }
-        [pscustomobject]@{ Meter = 'Advanced data insights';   ChargedPer = 'compute hour';  AppliesTo = 'Jupyter notebook sessions, scheduled notebook jobs, custom graph build/query. Per vCore-hour (pools of 12, 32, or 80 vCores).' }
+        [pscustomobject]@{ Meter = 'Data lake ingestion'; ChargedPer = 'GB'; AppliesTo = 'Data ingested into tables with retention set to Lake-only. Mirrored-to-Lake ingest is not charged.' }
+        [pscustomobject]@{ Meter = 'Data processing'; ChargedPer = 'GB'; AppliesTo = 'Transformations (redaction, splitting, filtering, normalization) on Lake-only ingest. Not charged for mirrored ingest.' }
+        [pscustomobject]@{ Meter = 'Data lake storage'; ChargedPer = 'GB · month'; AppliesTo = 'Data remaining in Lake AFTER the analytics-tier retention period ends. Compression 6:1 applied before billing.' }
+        [pscustomobject]@{ Meter = 'Data lake query'; ChargedPer = 'GB scanned'; AppliesTo = 'KQL queries and KQL jobs over Lake-tier data. Charged per uncompressed GB scanned.' }
+        [pscustomobject]@{ Meter = 'Advanced data insights'; ChargedPer = 'compute hour'; AppliesTo = 'Jupyter notebook sessions, scheduled notebook jobs, custom graph build/query. Per vCore-hour (pools of 12, 32, or 80 vCores).' }
     )
 
     # Lake-derived capabilities — features that unlock automatically when
     # the tenant onboards to Lake. Helps the reader connect "Lake is
     # enrolled" to the operational surfaces they'd see in Defender portal.
     $lakeCapabilities = @(
-        [pscustomobject]@{ Capability = 'KQL exploration over Lake';          Surface = 'Defender portal · Investigate · KQL editor';   Billing = 'Data lake query (GB scanned)' }
+        [pscustomobject]@{ Capability = 'KQL exploration over Lake'; Surface = 'Defender portal · Investigate · KQL editor'; Billing = 'Data lake query (GB scanned)' }
         [pscustomobject]@{ Capability = 'KQL jobs (promote Lake → Analytics)'; Surface = 'Defender portal · Microsoft Sentinel · Jobs'; Billing = 'Data lake query (job execution)' }
-        [pscustomobject]@{ Capability = 'Jupyter notebooks';                   Surface = 'Defender portal · Microsoft Sentinel · Notebooks · VS Code extension'; Billing = 'Advanced data insights (compute hour)' }
+        [pscustomobject]@{ Capability = 'Jupyter notebooks'; Surface = 'Defender portal · Microsoft Sentinel · Notebooks · VS Code extension'; Billing = 'Advanced data insights (compute hour)' }
         [pscustomobject]@{ Capability = 'Microsoft Sentinel graph (embedded)'; Surface = 'Defender portal hunting graph · Blast radius'; Billing = 'No additional charge for embedded graphs' }
-        [pscustomobject]@{ Capability = 'Custom graphs';                       Surface = 'Notebooks · Graph Query APIs · MCP graph tools'; Billing = 'Advanced data insights (compute hour, graph build/query)' }
-        [pscustomobject]@{ Capability = 'MCP server (data exploration)';       Surface = 'Sentinel MCP server (AI agents)';              Billing = 'No charge for the server; tools invoke Lake-query meter' }
-        [pscustomobject]@{ Capability = 'MCP entity analyzer';                 Surface = 'Sentinel MCP server';                           Billing = 'Security Compute Units (SCU) + Lake-query meter' }
-        [pscustomobject]@{ Capability = 'Auto-ingested asset data';            Surface = 'System tables (Entra, M365, Azure Resource Graph)'; Billing = 'Ingestion + storage charged like any Lake table' }
-        [pscustomobject]@{ Capability = '12-year affordable retention';         Surface = 'Manage data tiers in Defender portal';          Billing = 'Lake storage (per GB-month, 6:1 compression)' }
+        [pscustomobject]@{ Capability = 'Custom graphs'; Surface = 'Notebooks · Graph Query APIs · MCP graph tools'; Billing = 'Advanced data insights (compute hour, graph build/query)' }
+        [pscustomobject]@{ Capability = 'MCP server (data exploration)'; Surface = 'Sentinel MCP server (AI agents)'; Billing = 'No charge for the server; tools invoke Lake-query meter' }
+        [pscustomobject]@{ Capability = 'MCP entity analyzer'; Surface = 'Sentinel MCP server'; Billing = 'Security Compute Units (SCU) + Lake-query meter' }
+        [pscustomobject]@{ Capability = 'Auto-ingested asset data'; Surface = 'System tables (Entra, M365, Azure Resource Graph)'; Billing = 'Ingestion + storage charged like any Lake table' }
+        [pscustomobject]@{ Capability = '12-year affordable retention'; Surface = 'Manage data tiers in Defender portal'; Billing = 'Lake storage (per GB-month, 6:1 compression)' }
     )
 
     # Top-by-Lake-only-retention chart inputs (top 10 tables paying for
     # extended Lake retention beyond Analytics). xychart-beta-friendly
     # axis labels truncated to 14 chars.
     $topRetention = @($retentionRows | Sort-Object LakeOnlyDays -Descending | Select-Object -First 10)
-    $retAxis  = ($topRetention | ForEach-Object {
-        $n = $_.Table
-        $s = if ($n.Length -gt 14) { $n.Substring(0,14) } else { $n }
-        "`"$s`""
-    }) -join ', '
+    $retAxis = ($topRetention | ForEach-Object {
+            $n = $_.Table
+            $s = if ($n.Length -gt 14) { $n.Substring(0, 14) } else { $n }
+            "`"$s`""
+        }) -join ', '
     $retLakeBars = ($topRetention | ForEach-Object { $_.LakeOnlyDays }) -join ', '
-    $retAnaBars  = ($topRetention | ForEach-Object { $_.AnalyticsDays }) -join ', '
+    $retAnaBars = ($topRetention | ForEach-Object { $_.AnalyticsDays }) -join ', '
     $retYmax = 1
     foreach ($r in $topRetention) { $sum = $r.AnalyticsDays + $r.LakeOnlyDays; if ($sum -gt $retYmax) { $retYmax = $sum } }
 
@@ -155,11 +155,11 @@ function Write-BlueprintSentinelDataLakeSection {
     $analyticsCost = 0.0
     if ($cost -and $cost.ByPlan) {
         if ($cost.ByPlan.PSObject.Properties.Name -contains 'DataLake') {
-            $lakeGb   = [double]$cost.ByPlan.DataLake.Gb30d
+            $lakeGb = [double]$cost.ByPlan.DataLake.Gb30d
             $lakeCost = [double]$cost.ByPlan.DataLake.MonthlyCost
         }
         if ($cost.ByPlan.PSObject.Properties.Name -contains 'Analytics') {
-            $analyticsGb   = [double]$cost.ByPlan.Analytics.Gb30d
+            $analyticsGb = [double]$cost.ByPlan.Analytics.Gb30d
             $analyticsCost = [double]$cost.ByPlan.Analytics.MonthlyCost
         }
     }
@@ -171,15 +171,15 @@ function Write-BlueprintSentinelDataLakeSection {
     $dlCandidateRows = @()
     if ($cost -and $cost.PSObject.Properties.Name -contains 'AllTablesByCost' -and $cost.AllTablesByCost) {
         $dlCandidateRows = @($cost.AllTablesByCost |
-            Where-Object { $_.Plan -eq 'Analytics' -and ([double]$_.Gb30d * 30.0 / (Get-BlueprintWindow).Days) -ge 0.5 } |
-            ForEach-Object {
-                [pscustomobject]@{
-                    Table         = $_.Table
-                    Gb30d         = $_.Gb30d
-                    MonthlyCost   = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency)
-                    Recommendation = 'Consider DataLake plan if rule queries are infrequent'
-                }
-            })
+                Where-Object { $_.Plan -eq 'Analytics' -and ([double]$_.Gb30d * 30.0 / (Get-BlueprintWindow).Days) -ge 0.5 } |
+                ForEach-Object {
+                    [pscustomobject]@{
+                        Table          = $_.Table
+                        Gb30d          = $_.Gb30d
+                        MonthlyCost    = (Format-BlueprintMoney $_.MonthlyCost $cost.Currency)
+                        Recommendation = 'Consider DataLake plan if rule queries are infrequent'
+                    }
+                })
     }
 
     # Headline narrative — one of four states based on the captured signals.
@@ -199,18 +199,18 @@ function Write-BlueprintSentinelDataLakeSection {
     $lakeResource = @($sentinelDataLake) | Select-Object -First 1
     $lakeSignals = @(
         [pscustomobject]@{
-            Signal      = 'Microsoft.SentinelPlatformServices/sentinelPlatformServices'
-            Value       = if ($lakeResource) { "$($lakeResource.name) ($(Get-BlueprintRegionName ([string]$lakeResource.location)))" } else { '(not found)' }
+            Signal         = 'Microsoft.SentinelPlatformServices/sentinelPlatformServices'
+            Value          = if ($lakeResource) { "$($lakeResource.name) ($(Get-BlueprintRegionName ([string]$lakeResource.location)))" } else { '(not found)' }
             Interpretation = if ($lakeResource) { "Lake provisioned at tenant scope, region '$(Get-BlueprintRegionName ([string]$lakeResource.location))', billing subscription '$($lakeResource.subscriptionId)' / RG '$($lakeResource.resourceGroup)'" } else { 'No Sentinel Data Lake resource found in the visible subscriptions, so the tenant is not onboarded to Lake' }
         },
         [pscustomobject]@{
-            Signal      = 'workspace.properties.features.unifiedSentinelBillingOnly'
-            Value       = if ($unifiedBilling) { 'true' } else { 'false / absent' }
+            Signal         = 'workspace.properties.features.unifiedSentinelBillingOnly'
+            Value          = if ($unifiedBilling) { 'true' } else { 'false / absent' }
             Interpretation = if ($unifiedBilling) { 'Workspace on unified Sentinel/Defender billing, eligible for Lake' } else { 'Workspace on legacy per-GB billing, not on the unified model' }
         },
         [pscustomobject]@{
-            Signal      = "Tables on plan='DataLake'"
-            Value       = (Format-BlueprintPlural $dlTables.Count 'table')
+            Signal         = "Tables on plan='DataLake'"
+            Value          = (Format-BlueprintPlural $dlTables.Count 'table')
             Interpretation = if ($dlTables.Count -gt 0) { 'Data actively routed to Lake-only tier' } else { 'No tables route to Lake-only tier (mirrored data still flows when Lake is enrolled)' }
         }
     )
@@ -244,7 +244,7 @@ The Sentinel Data Lake is a tenant-wide capability but it's provisioned as a sin
 
     # Tier-distribution pie chart inputs.
     $tierPieRows = @()
-    if ($tierStats.AnalyticsOnly    -gt 0) { $tierPieRows += "    `"Analytics only`" : $($tierStats.AnalyticsOnly)" }
+    if ($tierStats.AnalyticsOnly -gt 0) { $tierPieRows += "    `"Analytics only`" : $($tierStats.AnalyticsOnly)" }
 
     # Left in the render context for later sections.
     $Context.analyticsCost = $analyticsCost

@@ -47,14 +47,13 @@ function Invoke-PublishNavigation {
     # Get-SacGeneratedPageNames returns its array as one object; assign it
     # directly rather than wrapping it in @(), which would nest it.
     $pagesNow = Get-SacGeneratedPageNames
-    if ($WhatIfPreference) { $pagesNow = @($pagesNow) + @($pagePlan | Where-Object Action -eq 'Create' | ForEach-Object { $_.Name }) }
+    if ($WhatIfPreference) { $pagesNow = @($pagesNow) + @($pagePlan | Where-Object Action -EQ 'Create' | ForEach-Object { $_.Name }) }
     $navPlan = Get-NavigationPlan -Sections @($site.sections) -ExistingPages $pagesNow -FamilyOrder @($site.familyOrder) `
         -DashboardPage ([string]$site.dashboard.page) -FindingsListUrl ([string]$site.findingsList.url)
     $currentSignature = Get-NavigationSignature -Nodes (Get-SacNavigation -WebServerRelativeUrl $webRel)
     if ($currentSignature -eq $navPlan.Signature) {
         Write-Host '  Navigation unchanged.'
-    }
-    else {
+    } else {
         Set-SacNavigation -Nodes $navPlan.Nodes -WebServerRelativeUrl $webRel
         Write-Host "  Navigation rebuilt: $($navPlan.Nodes.Count) top-level nodes."
     }

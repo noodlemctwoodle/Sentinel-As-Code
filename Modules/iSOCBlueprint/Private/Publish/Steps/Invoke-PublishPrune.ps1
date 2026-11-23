@@ -46,9 +46,8 @@ function Invoke-PublishPrune {
     Write-PublishStep '8/8 Prune'
     if ($pageErrors.Count -gt 0) {
         Write-Host '  Skipped: some pages failed, so nothing is removed this run.' -ForegroundColor Yellow
-    }
-    else {
-        foreach ($step in ($pagePlan | Where-Object Action -eq 'Delete')) {
+    } else {
+        foreach ($step in ($pagePlan | Where-Object Action -EQ 'Delete')) {
             Assert-TokenFresh "remove page $($step.Name)"
             if ($PSCmdlet.ShouldProcess("SitePages/$($step.Name).aspx", 'Send page to recycle bin')) {
                 Remove-PnPPage -Identity $step.Name -Force -Recycle
@@ -67,7 +66,7 @@ function Invoke-PublishPrune {
                 Remove-PnPFile -SiteRelativeUrl "$script:SacAssetsLibraryUrl/tables/$file" -Force -Recycle
             }
         }
-        Write-Host "  Pages removed: $(@($pagePlan | Where-Object Action -eq 'Delete').Count)   Diagrams removed: $($stale.Count)   Table CSVs removed: $($staleTables.Count)"
+        Write-Host "  Pages removed: $(@($pagePlan | Where-Object Action -EQ 'Delete').Count)   Diagrams removed: $($stale.Count)   Table CSVs removed: $($staleTables.Count)"
 
         # The assets library's pre-Blueprint name. Its state files were read as
         # a fallback at the start of this run and are saved to the new library

@@ -212,7 +212,7 @@ Describe 'Initialize-iSOCServicePrincipal' {
     It 'grants the Graph permission, which the script could not do after the directory role: it kept that sign-in, without the scope (MIGRATION.md edit E34)' {
         Invoke-ModuleSetup -Tenant (Get-StandInTenant) | Out-Null
         Get-WriteKey $script:moduleWrites 'AppRole' | Should -Be (Get-WriteKey $script:expectedAppRole 'AppRole')
-        $signIn = @($script:moduleWrites | Where-Object Kind -eq 'SignIn')
+        $signIn = @($script:moduleWrites | Where-Object Kind -EQ 'SignIn')
         $signIn.Count | Should -Be 1
         @($signIn[0].Scopes) | Should -Be @('RoleManagement.ReadWrite.Directory', 'AppRoleAssignment.ReadWrite.All', 'Application.Read.All')
         $signIn[0].TenantId | Should -Be $script:Tenant
@@ -229,12 +229,12 @@ Describe 'Initialize-iSOCServicePrincipal' {
         $run = Invoke-ModuleSetup -Tenant (Get-StandInTenant) -Parameters $skip
         @($script:moduleWrites | Where-Object { $_.Kind -in 'SignIn', 'DirectoryRole', 'AppRole' }).Count | Should -Be 0
         Get-WriteKey $script:moduleWrites 'Rbac' | Should -Be (Get-WriteKey $script:expectedRbac 'Rbac')
-        @($run.Results | Where-Object Outcome -eq 'Skipped' | ForEach-Object { $_.Role }) | Should -Be @('Security Administrator (Entra ID)', 'CustomDetection.ReadWrite.All (Graph)')
+        @($run.Results | Where-Object Outcome -EQ 'Skipped' | ForEach-Object { $_.Role }) | Should -Be @('Security Administrator (Entra ID)', 'CustomDetection.ReadWrite.All (Graph)')
     }
 
     It 'reports a refused directory role and fails the run, where the script ended with exit code 0 (MIGRATION.md edit E34)' {
         $run = Invoke-ModuleSetup -Tenant (Get-StandInTenant -FailEntra) -Parameters @{ SkipGraphPermission = $true }
-        ($run.Results | Where-Object Role -eq 'Security Administrator (Entra ID)').Outcome | Should -Be 'Failed'
+        ($run.Results | Where-Object Role -EQ 'Security Administrator (Entra ID)').Outcome | Should -Be 'Failed'
         $run.ExitCode | Should -Be 1
     }
 

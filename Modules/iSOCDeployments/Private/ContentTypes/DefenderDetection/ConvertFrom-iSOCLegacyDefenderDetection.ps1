@@ -129,8 +129,7 @@ function ConvertFrom-iSOCLegacyDefenderDetection {
         if ($action['organizationalScope'] -is [System.Collections.IDictionary] -and $action['organizationalScope'].Contains('scopeNames')) {
             if (-not $action['organizationalScope'].Contains('deviceGroups')) {
                 $action['organizationalScope'] = [ordered]@{ deviceGroups = @($action['organizationalScope']['scopeNames']) }
-            }
-            else {
+            } else {
                 $action['organizationalScope'] = [ordered]@{ deviceGroups = @($action['organizationalScope']['deviceGroups']) }
             }
             $legacy.Add('organizationalScope.scopeNames')

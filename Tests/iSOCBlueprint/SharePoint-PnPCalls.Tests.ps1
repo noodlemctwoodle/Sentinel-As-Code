@@ -95,7 +95,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
             $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) | ForEach-Object { $_.Extent.Text }
         }
         $script:defsModule = New-Module -Name SacCallCheck -ScriptBlock ([scriptblock]::Create(($definitions -join "`n`n") +
-            "`nExport-ModuleMember -Function *")) |
+                "`nExport-ModuleMember -Function *")) |
             Import-Module -PassThru -Force
 
         $common = [System.Management.Automation.Cmdlet]::CommonParameters + [System.Management.Automation.Cmdlet]::OptionalCommonParameters
@@ -116,7 +116,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
                 if ($info.CommandType -eq 'Application' -or -not $info.Parameters) { continue }
                 if ($info.Source -ne 'PnP.PowerShell' -and $info.Source -ne 'SacCallCheck') { continue }
                 $dynamic = $info.PSObject.Properties['ImplementingType'] -and $info.ImplementingType -and
-                    [System.Management.Automation.IDynamicParameters].IsAssignableFrom($info.ImplementingType)
+                [System.Management.Automation.IDynamicParameters].IsAssignableFrom($info.ImplementingType)
 
                 $keys = @($info.Parameters.Keys)
                 $used = [System.Collections.Generic.List[string]]::new()
@@ -139,8 +139,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
                         $full = [string]$match[0]
                         $used.Add($full)
                         if (-not $info.Parameters[$full].SwitchParameter -and -not $el.Argument) { $i++ }
-                    }
-                    elseif ($el -is [System.Management.Automation.Language.VariableExpressionAst] -and $el.Splatted) { $splatted = $true }
+                    } elseif ($el -is [System.Management.Automation.Language.VariableExpressionAst] -and $el.Splatted) { $splatted = $true }
                     else { $positional++ }
                 }
                 if ($splatted -or $unknown) { continue }
@@ -169,8 +168,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
                     "$at is missing a mandatory parameter (" + (($candidates | ForEach-Object {
                                 "$($_.Name): " + ((@($_.Parameters | Where-Object { $_.IsMandatory -and $_.Name -notin $used }).Name) -join ', ')
                             }) -join '; ') + ')'
-                }
-                elseif ($satisfied.Count -gt 1 -and $sets.Count -gt 1 -and -not ($satisfied | Where-Object IsDefault)) {
+                } elseif ($satisfied.Count -gt 1 -and $sets.Count -gt 1 -and -not ($satisfied | Where-Object IsDefault)) {
                     "$at matches more than one parameter set ($(($satisfied.Name) -join ', '))"
                 }
             }
@@ -209,7 +207,7 @@ Describe 'Commands the SharePoint workers call are defined by the module' -Skip:
         # Private or Public defines it.
         $script:defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($f in Get-ChildItem -LiteralPath (Join-Path $script:moduleRoot 'Private'),
-                (Join-Path $script:moduleRoot 'Public') -Filter '*.ps1' -File -Recurse) {
+            (Join-Path $script:moduleRoot 'Public') -Filter '*.ps1' -File -Recurse) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
             foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
                 [void]$script:defined.Add($d.Name)

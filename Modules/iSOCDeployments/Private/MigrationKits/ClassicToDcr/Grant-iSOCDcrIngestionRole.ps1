@@ -86,15 +86,13 @@ function Grant-iSOCDcrIngestionRole {
             if ($existing.Count -gt 0) {
                 Write-iSOCLog "  $id already holds $roleName." -Level Success
                 $id
-            }
-            elseif ($PSCmdlet.ShouldProcess("$DcrName / $id", "Grant $roleName")) {
+            } elseif ($PSCmdlet.ShouldProcess("$DcrName / $id", "Grant $roleName")) {
                 $outcome = New-iSOCRoleAssignment -Context $Context -Scope $DcrId -RoleDefinitionId $roleId -PrincipalId $principal.ObjectId -PrincipalType $principal.PrincipalType
                 if ($outcome -eq 'Exists') { Write-iSOCLog "  $id already holds $roleName." -Level Success }
                 else { Write-iSOCLog "  Granted $roleName to $id. Data-plane RBAC can take a few minutes to take effect." -Level Success }
                 $id
             }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  Could not grant $roleName to $id (need Owner or User Access Administrator on the DCR): $($_.Exception.Message.Split([char]10)[0])" -Level Warning
             Write-iSOCLog "  Grant it manually: New-AzRoleAssignment -ObjectId <objectId> -RoleDefinitionName '$roleName' -Scope $DcrId" -Level Warning
         }

@@ -292,7 +292,8 @@ Describe 'Invoke-iSOCPlaybookDeploy' {
 
     It 'cuts a long file name so the deployment name fits in 64 characters' {
         $long = [pscustomobject]@{ ContentType = 'Playbook'; Identity = 'x'; Name = 'Other/x'; Path = $script:incident.Path; RelativePath = 'x'
-            Data = $script:incident.Data; BaseName = ('P' * 70); ParametersPath = 'none' }
+            Data = $script:incident.Data; BaseName = ('P' * 70); ParametersPath = 'none'
+        }
         InModuleScope iSOCDeployments -Parameters @{ R = $script:run; T = $script:playbookType; I = $long } {
             param($R, $T, $I)
             Invoke-iSOCPlaybookDeploy -Run $R -ContentType $T -Item $I
@@ -458,19 +459,19 @@ Describe 'Convert-iSOCPlaybook' {
             'WhatIf Content/Playbooks/Module/ZuluBase.json'
             'Skipped Content/Playbooks/NotArm.json'
         )
-        ($run.Results | Where-Object Path -like '*ZuluBase.json').Reason | Should -BeExactly 'would write ZuluBase.bicep and remove the JSON'
+        ($run.Results | Where-Object Path -Like '*ZuluBase.json').Reason | Should -BeExactly 'would write ZuluBase.bicep and remove the JSON'
         $run.ExitCode | Should -Be 0
         Get-PlaybookFile $copy | Should -Be $before
     }
 
     It 'writes each as Bicep that deploys the same, removes the JSON, keeps its parameters file, and has nothing to do again' {
         $copy = New-FixtureCopy
-        $before = @(Get-PlaybookItem -Repo $copy | Where-Object Name -ne 'NotArm')
+        $before = @(Get-PlaybookItem -Repo $copy | Where-Object Name -NE 'NotArm')
         $run = Convert-iSOCPlaybook -RepoPath $copy
         $run.Converted | Should -Be 2
         $run.Skipped | Should -Be 1
         $run.Failed | Should -Be 0
-        @($run.Results | Where-Object Outcome -eq 'Converted' | ForEach-Object { $_.Bicep }) | Should -Be @('Content/Playbooks/Incident/FixtureIncident.bicep', 'Content/Playbooks/Module/ZuluBase.bicep')
+        @($run.Results | Where-Object Outcome -EQ 'Converted' | ForEach-Object { $_.Bicep }) | Should -Be @('Content/Playbooks/Incident/FixtureIncident.bicep', 'Content/Playbooks/Module/ZuluBase.bicep')
         Get-PlaybookFile $copy | Should -Be @(
             'Content/Playbooks/Incident/FixtureIncident.bicep'
             'Content/Playbooks/Incident/FixtureIncident.parameters.json'
@@ -479,12 +480,12 @@ Describe 'Convert-iSOCPlaybook' {
             'Content/Playbooks/NotArm.json'
             'Content/Playbooks/Template/FixtureTemplate.json'
         )
-        $after = @(Get-PlaybookItem -Repo $copy | Where-Object Name -ne 'NotArm')
+        $after = @(Get-PlaybookItem -Repo $copy | Where-Object Name -NE 'NotArm')
         @($after.Format | Sort-Object -Unique) | Should -Be @('Bicep')
         @($after.Identity) | Should -Be @($before.Identity)
         foreach ($item in $after) { Test-Item $item | Should -BeNullOrEmpty }
-        (Get-Request ($after | Where-Object Name -eq 'Incident/FixtureIncident')).Body.TemplateParameterFile | Should -BeLike '*FixtureIncident.parameters.json'
-        @((Convert-iSOCPlaybook -RepoPath $copy).Results | Where-Object Outcome -ne 'Skipped').Count | Should -Be 0
+        (Get-Request ($after | Where-Object Name -EQ 'Incident/FixtureIncident')).Body.TemplateParameterFile | Should -BeLike '*FixtureIncident.parameters.json'
+        @((Convert-iSOCPlaybook -RepoPath $copy).Results | Where-Object Outcome -NE 'Skipped').Count | Should -Be 0
     }
 
     It 'converts only the playbooks -Name matches' {
@@ -500,7 +501,7 @@ Describe 'Convert-iSOCPlaybook' {
     ) {
         $copy = New-FixtureCopy
         & $Prepare $copy
-        $result = (Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/ZuluBase').Results | Where-Object Path -like '*ZuluBase.json'
+        $result = (Convert-iSOCPlaybook -RepoPath $copy -Name 'Module/ZuluBase').Results | Where-Object Path -Like '*ZuluBase.json'
         $result.Reason | Should -BeLike $Reason
         Test-Path (Join-Path $copy 'Content/Playbooks/Module/ZuluBase.json') | Should -BeTrue
     }

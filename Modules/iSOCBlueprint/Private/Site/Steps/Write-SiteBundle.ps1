@@ -133,9 +133,9 @@ function Write-SiteBundle {
     $earlierProgress = @()
     if ($runDay -eq (Split-Path -Leaf $Source)) {
         foreach ($day in @(
-            Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $runDay) -lt 0 }
-        )) {
+                Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $runDay) -lt 0 }
+            )) {
             $p = Join-Path $day.FullName 'sharepoint/progress.json'
             if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { continue }
             try {
@@ -155,36 +155,36 @@ function Write-SiteBundle {
     Write-SiteBundleJson -Path (Join-Path $OutputRoot 'findings.json') -Data $findingsDoc -What 'Write findings'
 
     $site = [ordered]@{
-        schemaVersion = 1
-        product       = $ProductName
-        title         = "$ProductName - $WorkspaceName"
-        workspace     = [ordered]@{
+        schemaVersion    = 1
+        product          = $ProductName
+        title            = "$ProductName - $WorkspaceName"
+        workspace        = [ordered]@{
             name           = $WorkspaceName
             id             = $workspace.id
             region         = $workspace.region
             subscriptionId = $workspace.subscriptionId
             resourceGroup  = $workspace.resourceGroup
         }
-        generatedUtc  = $generatedUtc
-        builtUtc      = $generatedBuildUtc
+        generatedUtc     = $generatedUtc
+        builtUtc         = $generatedBuildUtc
         blueprintVersion = $workspace.blueprintVer
-        dashboard     = [ordered]@{ page = $script:DashboardPage; file = 'index.html' }
-        findingsList  = [ordered]@{ title = $script:FindingsTitle; url = $script:FindingsListUrl }
-        familyOrder   = @(Get-SectionFamilyOrder)
+        dashboard        = [ordered]@{ page = $script:DashboardPage; file = 'index.html' }
+        findingsList     = [ordered]@{ title = $script:FindingsTitle; url = $script:FindingsListUrl }
+        familyOrder      = @(Get-SectionFamilyOrder)
         # The run at a glance, for a snapshot list without reading the model.
-        summary       = [ordered]@{
+        summary          = [ordered]@{
             findings = @($findingList).Count
             critical = @($findingList | Where-Object { $_.severity -eq 'Critical' }).Count
             score    = $(if ($maturityModel -and $maturityModel.overall) { $maturityModel.overall.score } else { $null })
         }
-        sections      = $siteSections
+        sections         = $siteSections
         # The cut tables' CSV files under tables/, for the publisher to upload
         # (and to prune the ones a later bundle no longer has).
-        tables        = @($tableFiles | ForEach-Object { [string]$_.file })
+        tables           = @($tableFiles | ForEach-Object { [string]$_.file })
         # Always empty now that charts are data: the publisher recycles the
         # diagram images an earlier bundle uploaded.
-        diagrams      = @()
-        warnings      = $buildWarnings.ToArray()
+        diagrams         = @()
+        warnings         = $buildWarnings.ToArray()
     }
     Write-SiteBundleJson -Path (Join-Path $OutputRoot 'site.json') -Data $site -What 'Write site descriptor'
 
@@ -199,11 +199,11 @@ function Write-SiteBundle {
         $cutoff = [datetime]::ParseExact($sourceDay, 'yyyy-MM-dd',
             [System.Globalization.CultureInfo]::InvariantCulture).AddDays(1 - $HistoryDays).ToString('yyyy-MM-dd')
         $dayFolders = @(Get-ChildItem -LiteralPath (Split-Path -Parent $Source) -Directory -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $cutoff) -ge 0 -and
+                Where-Object {
+                    $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and [string]::CompareOrdinal($_.Name, $cutoff) -ge 0 -and
                     [string]::CompareOrdinal($_.Name, $sourceDay) -le 0
-            } |
-            Sort-Object Name -Descending)
+                } |
+                Sort-Object Name -Descending)
         $historyEntries = [System.Collections.Generic.List[object]]::new()
         if ($PSCmdlet.ShouldProcess($historyDir, 'Write dashboard history')) {
             if (Test-Path -LiteralPath $historyDir) { Remove-Item -LiteralPath $historyDir -Recurse -Force }
@@ -220,13 +220,13 @@ function Write-SiteBundle {
                 }
                 $daySummary = if ($daySite -and $daySite.summary) { $daySite.summary } else { $null }
                 $historyEntries.Add([ordered]@{
-                    date      = $day.Name
-                    file      = "$($day.Name).html"
-                    generated = $(if ($daySite) { [string]$daySite.generatedUtc } else { '' })
-                    findings  = $(if ($daySummary) { $daySummary.findings } else { $null })
-                    critical  = $(if ($daySummary) { $daySummary.critical } else { $null })
-                    score     = $(if ($daySummary) { $daySummary.score } else { $null })
-                })
+                        date      = $day.Name
+                        file      = "$($day.Name).html"
+                        generated = $(if ($daySite) { [string]$daySite.generatedUtc } else { '' })
+                        findings  = $(if ($daySummary) { $daySummary.findings } else { $null })
+                        critical  = $(if ($daySummary) { $daySummary.critical } else { $null })
+                        score     = $(if ($daySummary) { $daySummary.score } else { $null })
+                    })
             }
             ([ordered]@{ entries = $historyEntries.ToArray() } | ConvertTo-Json -Depth 6) |
                 Set-Content -LiteralPath (Join-Path $historyDir 'index.json') -Encoding utf8

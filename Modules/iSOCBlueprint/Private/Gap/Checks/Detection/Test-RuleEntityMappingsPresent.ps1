@@ -39,12 +39,12 @@ function Test-RuleEntityMappingsPresent {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $rules = @(Get-GapEnabledQueryRule $Inventory)
     if ($rules.Count -eq 0) { return $null }
     $unmapped = @($rules | Where-Object {
-        @(Get-PropOrDefault $_ 'properties.entityMappings' @() | Where-Object { $null -ne $_ }).Count -eq 0
-    })
+            @(Get-PropOrDefault $_ 'properties.entityMappings' @() | Where-Object { $null -ne $_ }).Count -eq 0
+        })
     if ($unmapped.Count -eq 0) { return $null }
     $names = @($unmapped | ForEach-Object { Get-GapRuleLabel $_ })
     $sample = $names -join '; '

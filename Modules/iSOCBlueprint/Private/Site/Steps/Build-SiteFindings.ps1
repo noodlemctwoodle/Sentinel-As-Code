@@ -56,8 +56,8 @@ function Build-SiteFindings {
     $findingMaturity = Get-FindingMaturityLink -CriteriaPath (Join-Path $resourcesFolder 'Data/maturity-criteria.json') -Maturity (Read-SiteRaw 'maturity.json')
     $findingList = @()
     foreach ($f in ($gap |
-            Where-Object { $_ } |
-            Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
+                Where-Object { $_ } |
+                Sort-Object { if ($sevRank.ContainsKey([string]$_.Severity)) { $sevRank[[string]$_.Severity] } else { 5 } }, Id)) {
         $findingList += [ordered]@{
             id          = $f.Id
             legacyId    = $(if ($f.PSObject.Properties['LegacyId'] -and $f.LegacyId) { [string]$f.LegacyId } else { $null })
@@ -76,12 +76,12 @@ function Build-SiteFindings {
             maturity    = @($(if ($findingMaturity.ContainsKey([string]$f.Id)) { @($findingMaturity[[string]$f.Id]) } else { @() }) | ForEach-Object {
                     [ordered]@{
                         criterionId = $_.CriterionId
-                        name = $_.Name
-                        area = $_.Area
-                        areaName = $_.AreaName
-                        status = $_.Status
-                        lift = $_.Lift
-                        shared = $_.Shared
+                        name        = $_.Name
+                        area        = $_.Area
+                        areaName    = $_.AreaName
+                        status      = $_.Status
+                        lift        = $_.Lift
+                        shared      = $_.Shared
                     }
                 })
         }

@@ -104,8 +104,7 @@ function Get-HuntingActivity {
     if ($null -ne $Bookmarks) {
         $bookmarkTotal = @($Bookmarks | Where-Object { $_ }).Count
         $bookmarkRecent = & $recentOf $Bookmarks $bookmarkTime
-    }
-    elseif ($null -ne $BookmarksCount -and $BookmarksCount.PSObject.Properties['Count']) {
+    } elseif ($null -ne $BookmarksCount -and $BookmarksCount.PSObject.Properties['Count']) {
         $bookmarkTotal = [int]$BookmarksCount.Count
         if ($null -ne $BookmarksFromLogs) {
             $fromLogs = & $recentOf $BookmarksFromLogs $bookmarkTime

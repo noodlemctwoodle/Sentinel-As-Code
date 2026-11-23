@@ -66,8 +66,7 @@ function Resolve-iSOCPrincipal {
         $sp = @(Invoke-iSOCRestRequest -Method GET -Api Graph -ApiVersion 'v1.0' -Path "/servicePrincipals?`$filter=$filter" -Context $Context) | Select-Object -First 1
         $id = [string](Get-iSOCPropertyValue -InputObject $sp -Path 'id')
         if ($id) { return [pscustomobject]@{ ObjectId = $id; PrincipalType = 'ServicePrincipal'; IsApplication = $true } }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Not an application ID, treating '$Identity' as an object ID: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
     }
 
@@ -81,8 +80,7 @@ function Resolve-iSOCPrincipal {
             '#microsoft.graph.servicePrincipal' { 'ServicePrincipal' }
             default { '' }
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not read the type of '$Identity': $($_.Exception.Message.Split([char]10)[0])" -Level Debug
     }
     [pscustomobject]@{ ObjectId = $Identity; PrincipalType = $type; IsApplication = $false }

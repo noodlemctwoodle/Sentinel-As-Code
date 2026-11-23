@@ -74,8 +74,8 @@ function Get-TableMigrationStandIn {
     $queries = { param([string[]] $Query) ConvertTo-Json -Depth 10 -Compress -InputObject ([ordered]@{ version = 'Notebook/1.0'; items = @($Query | ForEach-Object { [ordered]@{ type = 3; content = [ordered]@{ query = $_; size = 0 } } }) + @([ordered]@{ type = 12; content = [ordered]@{ items = @([ordered]@{ type = 3; content = [ordered]@{ query = 'OfficeWrapper | take 3' } }) } }) }) }
 
     [ordered]@{
-        subscriptionId          = $SubscriptionId
-        tables                  = @(
+        subscriptionId         = $SubscriptionId
+        tables                 = @(
             & $table 'OfficeActivity_CL' 'CustomLog' 'Classic' 'TimeGenerated', 'Location', 'Message', 'Computer'
             & $table 'MyApp_CL' 'CustomLog' 'Classic' 'TimeGenerated', 'RawData', 'Status_s'
             & $table 'MyApp_CL_v2' 'CustomLog' 'Classic' 'TimeGenerated'
@@ -87,7 +87,7 @@ function Get-TableMigrationStandIn {
             & $table 'SecurityEvent' 'Microsoft' 'Any' 'TimeGenerated', 'EventID', 'Account'
             & $table 'Update' 'Microsoft' 'Any' 'TimeGenerated', 'UpdateID'
         )
-        savedSearches           = @(
+        savedSearches          = @(
             & $search 'p-office' 'Office Activity Parser' 'Parsers' 'OfficeActivity_CL | extend Location = tostring(Location)' 'OfficeActivityParser'
             & $search 'p-wrapper' 'Office Wrapper' 'Parsers' 'OfficeActivityParser | where Message has "x"' 'OfficeWrapper'
             & $search 'p-deep' 'Deep One' 'Parsers' 'OfficeWrapper | take 5' 'DeepOne'
@@ -106,7 +106,7 @@ function Get-TableMigrationStandIn {
             & $search 'ss-abc' 'Uses abc' 'General' 'abc | take 1'
             & $search 'ss-update' 'Update search' 'General' 'Update | where UpdateID != ""'
         )
-        alertRules              = @(
+        alertRules             = @(
             & $rule 'r-indirect' 'Rule via parser' 'OfficeActivityParser | where Location == "UK"' 'High' $true
             & $rule 'r-depth2' 'Rule via wrapper' 'OfficeWrapper | take 1' 'Medium' $false
             & $rule 'r-myapp' 'Rule on MyApp' 'MyApp_CL | where Status_s == "x"'
@@ -121,23 +121,23 @@ function Get-TableMigrationStandIn {
             & $rule 'r-noname' $null 'MyApp_CL | take 1'
             & $rule 'r-fusion' 'Fusion' $null 'High' $true
         )
-        workbooks               = @(
+        workbooks              = @(
             & $workbook 'wb-office' 'Office workbook' (& $queries 'OfficeWrapper | count', 'MyApp_CL | take 1', 'Okta_CL | take 1')
             & $workbook 'wb-inherited' 'Inherited workbook' (& $queries 'MyApp_CL | summarize count()') -OnlyOnItsOwn
             & $workbook 'wb-broken' 'Broken workbook' 'not json'
         )
-        dataCollectionRules     = @(
+        dataCollectionRules    = @(
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-dcr/providers/Microsoft.Insights/dataCollectionRules/dcr-myapp"; name = 'dcr-myapp'; properties = [ordered]@{ dataFlows = @([ordered]@{ transformKql = "source | where Category == 'MyApp_CL'" }, [ordered]@{ transformKql = 'source' }) } }
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-dcr/providers/Microsoft.Insights/dataCollectionRules/dcr-alias"; name = 'dcr-alias'; properties = [ordered]@{ dataFlows = @([ordered]@{ transformKql = 'OfficeActivityParser' }) } }
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-dcr/providers/Microsoft.Insights/dataCollectionRules/dcr-empty"; name = 'dcr-empty'; properties = [ordered]@{} }
         )
-        logicApps               = @(
+        logicApps              = @(
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-auto/providers/Microsoft.Logic/workflows/pb-query"; name = 'pb-query'; properties = [ordered]@{ state = 'Enabled'; definition = [ordered]@{ actions = [ordered]@{ Run_query = [ordered]@{ type = 'ApiConnection'; inputs = [ordered]@{ body = 'OfficeWrapper | where Message has "x"' } } } } } }
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-auto/providers/Microsoft.Logic/workflows/pb-key"; name = 'pb-key'; properties = [ordered]@{ state = 'Enabled'; definition = [ordered]@{ actions = [ordered]@{ OfficeActivityParser = [ordered]@{ type = 'Compose'; inputs = 'hello' } } } } }
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-auto/providers/Microsoft.Logic/workflows/pb-direct"; name = 'pb-direct'; properties = [ordered]@{ state = 'Disabled'; definition = [ordered]@{ actions = [ordered]@{ Run = [ordered]@{ inputs = [ordered]@{ query = 'MyApp_CL | take 1' } } } } } }
             [ordered]@{ id = "/subscriptions/$SubscriptionId/resourceGroups/rg-auto/providers/Microsoft.Logic/workflows/pb-nodef"; name = 'pb-nodef'; properties = [ordered]@{ state = 'Disabled' } }
         )
-        contentProductPackages  = @(
+        contentProductPackages = @(
             [ordered]@{ id = "$ws/providers/Microsoft.SecurityInsights/contentProductPackages/m365"; name = 'm365'; properties = [ordered]@{ contentKind = 'Solution'; displayName = 'Microsoft 365'; installedVersion = '3.0.0'; dependencies = [ordered]@{ criteria = @([ordered]@{ kind = 'DataConnector'; contentId = 'Office365' }) } } }
             [ordered]@{ id = "$ws/providers/Microsoft.SecurityInsights/contentProductPackages/okta"; name = 'okta'; properties = [ordered]@{ contentKind = 'Solution'; displayName = 'Okta Single Sign-On'; dependencies = [ordered]@{ criteria = @([ordered]@{ kind = 'AnalyticsRule'; contentId = 'x' }, [ordered]@{ kind = 'DataConnector'; contentId = 'OktaSSO_Polling' }) } } }
             [ordered]@{ id = "$ws/providers/Microsoft.SecurityInsights/contentProductPackages/tenable"; name = 'tenable'; properties = [ordered]@{ contentKind = 'Solution'; displayName = 'TenableAD'; installedVersion = '1.0.0'; dependencies = [ordered]@{ criteria = @([ordered]@{ kind = 'DataConnector'; contentId = 'TenableIECCPDefinition' }) } } }

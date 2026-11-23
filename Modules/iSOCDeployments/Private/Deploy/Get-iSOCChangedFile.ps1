@@ -66,8 +66,7 @@ function Get-iSOCChangedFile {
             $targetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH -replace '^refs/heads/', ''
             & $git 'fetch', '--depth=1', 'origin', $targetBranch | Out-Null
             $changedFiles = (& $git 'diff', '--name-only', "origin/$targetBranch...HEAD").Output
-        }
-        elseif ($env:BUILD_SOURCEVERSION) {
+        } elseif ($env:BUILD_SOURCEVERSION) {
             & $git 'fetch', '--deepen=1' | Out-Null
             $diff = & $git 'diff', '--name-only', 'HEAD~1', 'HEAD'
             $changedFiles = $diff.Output
@@ -76,12 +75,10 @@ function Get-iSOCChangedFile {
                 & $git 'fetch', '--depth=2', 'origin', $branch | Out-Null
                 $changedFiles = (& $git 'diff', '--name-only', 'HEAD~1', 'HEAD').Output
             }
-        }
-        else {
+        } else {
             $changedFiles = (& $git 'diff', '--name-only', 'HEAD~1', 'HEAD').Output
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "  Git diff failed: $($_.Exception.Message); deploying all content." -Level Warning
         return
     }

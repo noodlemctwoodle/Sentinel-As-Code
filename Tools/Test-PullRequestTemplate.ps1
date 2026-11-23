@@ -154,8 +154,8 @@ function Get-PullRequestSection {
     )
 
     $sections = [System.Collections.Generic.List[object]]::new()
-    $heading  = $null
-    $buffer   = [System.Collections.Generic.List[string]]::new()
+    $heading = $null
+    $buffer = [System.Collections.Generic.List[string]]::new()
 
     foreach ($line in ($Body -split '\r?\n')) {
         # Exactly two hashes followed by whitespace: '## Heading' (optionally
@@ -163,23 +163,22 @@ function Get-PullRequestSection {
         if ($line -match '^\s{0,3}#{2}\s+(.+?)\s*#*\s*$') {
             if ($null -ne $heading) {
                 $sections.Add([pscustomobject]@{
-                    Heading = $heading
-                    Content = ($buffer.ToArray() -join "`n")
-                })
+                        Heading = $heading
+                        Content = ($buffer.ToArray() -join "`n")
+                    })
             }
             $heading = $Matches[1].Trim()
-            $buffer  = [System.Collections.Generic.List[string]]::new()
-        }
-        elseif ($null -ne $heading) {
+            $buffer = [System.Collections.Generic.List[string]]::new()
+        } elseif ($null -ne $heading) {
             $buffer.Add($line)
         }
     }
 
     if ($null -ne $heading) {
         $sections.Add([pscustomobject]@{
-            Heading = $heading
-            Content = ($buffer.ToArray() -join "`n")
-        })
+                Heading = $heading
+                Content = ($buffer.ToArray() -join "`n")
+            })
     }
 
     return $sections
@@ -211,7 +210,7 @@ function Test-PullRequestTemplateBody {
         'Testing'
     )
     # Section that must carry at least one ticked checkbox.
-    $requiredChoice  = 'Type of change'
+    $requiredChoice = 'Type of change'
     $minContentChars = 10
 
     if ([string]::IsNullOrWhiteSpace($Body)) {
@@ -228,7 +227,7 @@ function Test-PullRequestTemplateBody {
             continue
         }
 
-        $content  = Remove-MarkdownComment -Text $section.Content
+        $content = Remove-MarkdownComment -Text $section.Content
         $stripped = ($content -replace '\s', '')
         if ($stripped.Length -lt $minContentChars) {
             $errors.Add("Section '## $required' is empty. Replace the placeholder guidance with a real description.")
@@ -238,8 +237,7 @@ function Test-PullRequestTemplateBody {
     $choice = $sections | Where-Object { $_.Heading -ieq $requiredChoice } | Select-Object -First 1
     if (-not $choice) {
         $errors.Add("Required section '## $requiredChoice' is missing. Do not delete it from the template.")
-    }
-    elseif ($choice.Content -notmatch '(?im)^\s*[-*]\s*\[x\]') {
+    } elseif ($choice.Content -notmatch '(?im)^\s*[-*]\s*\[x\]') {
         $errors.Add("No '## $requiredChoice' box is ticked. Mark at least one option with [x].")
     }
 
@@ -259,17 +257,14 @@ function Test-PullRequestTemplateBody {
 # the parameter help. Fall back to -BodyPath only when -Body was not supplied.
 if ($PSBoundParameters.ContainsKey('Body')) {
     $resolvedBody = $Body
-}
-elseif ($BodyPath) {
+} elseif ($BodyPath) {
     if (Test-Path -LiteralPath $BodyPath) {
         $resolvedBody = Get-Content -LiteralPath $BodyPath -Raw
-    }
-    else {
+    } else {
         Write-TemplateMessage -Level Error -Message "BodyPath not found: $BodyPath"
         exit 1
     }
-}
-else {
+} else {
     $resolvedBody = ''
 }
 if ($null -eq $resolvedBody) { $resolvedBody = '' }
@@ -289,8 +284,7 @@ $inGitHub = $env:GITHUB_ACTIONS -eq 'true'
 foreach ($failure in $result.Errors) {
     if ($inGitHub) {
         Write-Host "::error::$failure"
-    }
-    else {
+    } else {
         Write-Host "  - $failure"
     }
 }

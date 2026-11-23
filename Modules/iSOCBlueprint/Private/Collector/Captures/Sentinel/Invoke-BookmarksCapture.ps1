@@ -89,26 +89,26 @@ HuntingBookmark
                 $tableKind = Get-CaptureIssueKind $tableMsg
                 Write-CaptureNote -Kind $tableKind -Label 'bookmarks' -Text "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read: $(Format-CaptureMessage $tableMsg) Kept the count."
                 $script:CaptureErrors.Add([pscustomobject]@{
-                    Label = 'bookmarks'
-                    Kind = $tableKind
-                    Message = "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read, so only the count was kept: $tableMsg"
-                })
+                        Label   = 'bookmarks'
+                        Kind    = $tableKind
+                        Message = "$count bookmarks exist, too many for the API to list, and the HuntingBookmark table could not be read, so only the count was kept: $tableMsg"
+                    })
             } elseif ($listed.Count -eq 0) {
                 # Read, but empty: the table logs every bookmark change for its
                 # retention, so none of them has changed in that time.
                 Write-CaptureNote -Kind NotAvailable -Text "$count bookmarks exist, too many for the API to list, and none has been created or changed $period (the HuntingBookmark table, which logs every change, holds none). Kept the count."
                 $script:CaptureErrors.Add([pscustomobject]@{
-                    Label = 'bookmarks'
-                    Kind = 'NotAvailable'
-                    Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed ${period}: the HuntingBookmark table, which logs every change, holds none. Only the count was kept."
-                })
+                        Label   = 'bookmarks'
+                        Kind    = 'NotAvailable'
+                        Message = "$count bookmarks exist, too many for the API to list, and none has been created or changed ${period}: the HuntingBookmark table, which logs every change, holds none. Only the count was kept."
+                    })
             } else {
                 Write-Information "  ↳ $count bookmarks exist, too many for the API to list; listed the $($listed.Count) in the HuntingBookmark table instead."
             }
             Save-Json -FileName 'bookmarks-count.json' -Data ([pscustomobject]@{
-                Count = $count
-                Source = 'The bookmarks list was refused as too large; the count is the one the service reported.'
-            })
+                    Count  = $count
+                    Source = 'The bookmarks list was refused as too large; the count is the one the service reported.'
+                })
             if (-not $tableError) { Save-Json -FileName 'bookmarks-from-logs.json' -Data $listed }
         } else {
             throw

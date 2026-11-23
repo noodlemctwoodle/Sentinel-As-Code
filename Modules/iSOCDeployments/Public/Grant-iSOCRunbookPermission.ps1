@@ -112,8 +112,7 @@ function Grant-iSOCRunbookPermission {
             $outcome = if ($created -eq 'Exists') { 'Unchanged' } else { 'Assigned' }
             Write-iSOCLog "  [+] $($role.Name): $($outcome.ToLowerInvariant())." -Level Success
             $results.Add((New-iSOCPermissionResult @result -Outcome $outcome -Reason $(if ($created -eq 'Exists') { 'already assigned (conflict)' } else { '' })))
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  $($role.Name): failed - $($_.Exception.Message)" -Level Error
             $results.Add((New-iSOCPermissionResult @result -Outcome Failed -Reason $_.Exception.Message))
         }

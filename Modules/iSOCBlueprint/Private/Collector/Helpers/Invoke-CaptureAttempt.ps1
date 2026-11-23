@@ -59,14 +59,14 @@ function Invoke-CaptureAttempt {
         $kind = Get-CaptureIssueKind $msg
         $status = Get-CaptureStatusText $msg
         switch ($kind) {
-            'Permission'   { Write-CaptureNote -Kind Permission -Label $Label -Text "skipped$(if ($status) { " ($status)" }). The capture summary at the end says what it needs." }
+            'Permission' { Write-CaptureNote -Kind Permission -Label $Label -Text "skipped$(if ($status) { " ($status)" }). The capture summary at the end says what it needs." }
             'NotAvailable' { Write-CaptureNote -Kind NotAvailable -Label $Label -Text "skipped. $(Format-CaptureMessage $msg)" }
-            default        { Write-CaptureNote -Kind Error -Label $Label -Text $msg }
+            default { Write-CaptureNote -Kind Error -Label $Label -Text $msg }
         }
         $script:CaptureErrors.Add([pscustomobject]@{
-            Label   = $Label
-            Kind    = $kind
-            Message = $msg
-        })
+                Label   = $Label
+                Kind    = $kind
+                Message = $msg
+            })
     }
 }

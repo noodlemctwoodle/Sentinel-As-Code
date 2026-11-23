@@ -116,8 +116,7 @@ function ConvertTo-iSOCContentHubWorkbookRequest {
         $AvailableSolutions | Where-Object {
             (($_.properties.PSObject.Properties.Name -contains 'contentId') -and ($_.properties.contentId -eq $packageId)) -or ($_.name -eq $packageId)
         } | Select-Object -First 1
-    }
-    else { $null }
+    } else { $null }
     $solutionName = if ($solution -and ($solution.properties.PSObject.Properties.Name -contains 'displayName')) { $solution.properties.displayName } else { 'Unknown' }
     $solutionContentId = if ($solution -and ($solution.properties.PSObject.Properties.Name -contains 'contentId')) { $solution.properties.contentId } else { $packageId }
 

@@ -31,13 +31,13 @@ BeforeAll {
     $script:resourcesDir = Join-Path $script:moduleRoot 'Resources/Data'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-        "`n"
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
     $script:renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
-        "`n"
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+    "`n"
     $script:repoRoot = $repoRoot
 
     # A copy of the fixture's _raw with the run's lookback set.
@@ -109,7 +109,7 @@ Describe 'The gap engine judges the window it was given' {
 
     It 'names the window in a finding''s evidence' {
         $inv = [pscustomobject]@{
-            Window = [pscustomobject]@{ Days = 14; RecentDays = 7 }
+            Window        = [pscustomobject]@{ Days = 14; RecentDays = 7 }
             IncidentsMttr = @([pscustomobject]@{ ClosedCount = 3; MTTRMinutes = 3000 })
         }
         (Test-IncidentMttrThreshold -Inventory $inv).Evidence | Should -Match 'over the last 14 days'
@@ -149,7 +149,7 @@ Describe 'The maturity assessment and the cost estimate follow the window' {
         $raw = New-WindowedFixture 21
         try {
             $m = Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $script:resourcesDir -CriteriaPath `
-                (Join-Path $script:resourcesDir 'maturity-criteria.json') -TargetLevel 3
+            (Join-Path $script:resourcesDir 'maturity-criteria.json') -TargetLevel 3
             $m.methodology.lookbackDays | Should -Be 21
             $m.methodology.scaleNote | Should -Match '21 days of activity'
             ($m | ConvertTo-Json -Depth 12) | Should -Not -Match '\{lookback\}|\{recent\}'
@@ -206,9 +206,9 @@ Describe 'The pipelines set the lookback' {
 Describe 'The site names the window on every card' {
     It 'the build carries the window into the model and the estate' {
         $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse |
-            Sort-Object FullName |
-            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-            "`n"
+                    Sort-Object FullName |
+                    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
         $build | Should -Match '\$window = \[ordered\]@\{ days = \$lookbackDays; recentDays = \$recentDays \}'
         $build | Should -Match 'window\s+= \$window'
         $build | Should -Match 'window\s+= "\$\(\$lookbackDays\)d"'

@@ -45,8 +45,8 @@ function Write-BlueprintParsersFunctionsSection {
 
     $parserRows = $parsers | ForEach-Object {
         [pscustomobject]@{
-            Name = $_.properties.displayName
-            Alias = $_.properties.functionAlias
+            Name     = $_.properties.displayName
+            Alias    = $_.properties.functionAlias
             Category = $_.properties.category
         }
     }
@@ -76,16 +76,16 @@ $(Format-BlueprintPlural $parserRows.Count 'parser or function' 'parsers and fun
     # Saved searches that are neither hunting queries nor parsers: queries
     # saved from Logs under categories such as Log Management.
     $otherSavedRows = @(Read-BlueprintRawArray 'kql-savedsearches.json' | Where-Object { $_ } | ForEach-Object {
-        $p = Get-BlueprintRawProperty $_ 'properties'
-        $cat = [string](Get-BlueprintRawProperty $p 'category' '')
-        if ($cat -eq 'Hunting Queries' -or $cat -eq 'Functions' -or [string](Get-BlueprintRawProperty $p 'functionAlias' '')) { return }
-        $q = [string](Get-BlueprintRawProperty $p 'query' '')
-        [pscustomobject]@{
-            Category   = $(if ($cat) { $cat } else { 'Uncategorised' })
-            Name       = [string](Get-BlueprintRawProperty $p 'displayName' (Get-BlueprintRawProperty $_ 'name' ''))
-            QueryLines = $(if ($q) { @($q -split "\r?\n").Count } else { 0 })
-        }
-    } | Sort-Object Category, Name)
+            $p = Get-BlueprintRawProperty $_ 'properties'
+            $cat = [string](Get-BlueprintRawProperty $p 'category' '')
+            if ($cat -eq 'Hunting Queries' -or $cat -eq 'Functions' -or [string](Get-BlueprintRawProperty $p 'functionAlias' '')) { return }
+            $q = [string](Get-BlueprintRawProperty $p 'query' '')
+            [pscustomobject]@{
+                Category   = $(if ($cat) { $cat } else { 'Uncategorised' })
+                Name       = [string](Get-BlueprintRawProperty $p 'displayName' (Get-BlueprintRawProperty $_ 'name' ''))
+                QueryLines = $(if ($q) { @($q -split "\r?\n").Count } else { 0 })
+            }
+        } | Sort-Object Category, Name)
 
     Write-BlueprintSection '35-parsers-functions.md' (@"
 $(Format-Banner -Title "Parsers and Functions")

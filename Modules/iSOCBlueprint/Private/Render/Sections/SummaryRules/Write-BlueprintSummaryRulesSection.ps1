@@ -59,7 +59,7 @@ function Write-BlueprintSummaryRulesSection {
     $summaryRows = $summaryRules | ForEach-Object {
         $props = $_.properties
         $isActive = if ($props.PSObject.Properties.Name -contains 'isActive') { $props.isActive } else { $null }
-        $status   = if ($props.PSObject.Properties.Name -contains 'statusCode') { [string]$props.statusCode } else { '' }
+        $status = if ($props.PSObject.Properties.Name -contains 'statusCode') { [string]$props.statusCode } else { '' }
         [pscustomobject]@{
             Name             = $_.name
             RuleType         = $props.ruleType

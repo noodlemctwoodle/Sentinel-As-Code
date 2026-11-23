@@ -118,8 +118,7 @@ BeforeAll {
                     [void]$result.Append($argText[$i])
                     $i++
                 }
-            }
-            else {
+            } else {
                 $start = $i
                 $depth = 0
                 $inQuote = $false
@@ -146,13 +145,11 @@ BeforeAll {
         $mismatches = [System.Collections.Generic.List[string]]::new()
         if ($Original -is [string]) {
             if ((Resolve-ArmString -Value $Converted) -cne $Original) { $mismatches.Add($Path) }
-        }
-        elseif ($Original -is [System.Management.Automation.PSCustomObject]) {
+        } elseif ($Original -is [System.Management.Automation.PSCustomObject]) {
             foreach ($p in $Original.PSObject.Properties) {
                 foreach ($m in (Compare-PortableRoundTrip -Original $p.Value -Converted $Converted[$p.Name] -Path "$Path.$($p.Name)")) { $mismatches.Add($m) }
             }
-        }
-        elseif ($Original -is [System.Collections.IEnumerable]) {
+        } elseif ($Original -is [System.Collections.IEnumerable]) {
             $orig = @($Original)
             $conv = @($Converted)
             for ($i = 0; $i -lt $orig.Count; $i++) {
@@ -1023,7 +1020,7 @@ Describe 'Export-iSOCContent' {
         $run.Failed | Should -Be 1
         $run.Warnings | Should -Be 1
         $run.ExitCode | Should -Be 1
-        ($run.Results | Where-Object Name -eq 'Incident-StandInIsolate').Warnings | Should -HaveCount 1
+        ($run.Results | Where-Object Name -EQ 'Incident-StandInIsolate').Warnings | Should -HaveCount 1
         Get-Content (Join-Path $copy 'Content/Workbooks/Twin/workbook.json') -Raw | Should -Match 'Twin one'
         Test-Path (Join-Path $copy 'Content/Playbooks/Incident/StandInIsolate.bicep') | Should -BeTrue
         Test-Path (Join-Path $copy 'Content/Playbooks/Incident/StandInIsolate.json') | Should -BeFalse
@@ -1032,9 +1029,9 @@ Describe 'Export-iSOCContent' {
     It 'writes a new playbook as JSON with -Format Json, and keeps a JSON playbook the repository has as JSON' {
         $copy = New-FixtureCopy
         $run = Invoke-SmallExport -RepoPath $copy -Parameters @{ ContentType = 'Playbook'; Format = 'Json' }
-        ($run.Results | Where-Object Name -eq 'Incident-StandInIsolate').Path | Should -Be 'Content/Playbooks/Incident/StandInIsolate.json'
+        ($run.Results | Where-Object Name -EQ 'Incident-StandInIsolate').Path | Should -Be 'Content/Playbooks/Incident/StandInIsolate.json'
         $forced = Invoke-SmallExport -RepoPath $copy -Parameters @{ ContentType = 'Playbook'; Force = $true; Name = 'Module-ZuluBase' }
-        ($forced.Results | Where-Object Name -eq 'Module-ZuluBase').Path | Should -Be 'Content/Playbooks/Module/ZuluBase.json'
+        ($forced.Results | Where-Object Name -EQ 'Module-ZuluBase').Path | Should -Be 'Content/Playbooks/Module/ZuluBase.json'
         Test-Path (Join-Path $copy 'Content/Playbooks/Module/ZuluBase.bicep') | Should -BeFalse
     }
 
@@ -1043,15 +1040,15 @@ Describe 'Export-iSOCContent' {
         Invoke-SmallExport -RepoPath $copy | Out-Null
         $again = Invoke-SmallExport -RepoPath $copy -Parameters @{ Force = $true }
         @($again.Results | Where-Object { $_.Outcome -in 'Created', 'Updated' } | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @('Fixture Overview', 'Module-ZuluBase')
-        @($again.Results | Where-Object Outcome -eq 'Unchanged' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @('Identity Overview', 'Incident-StandInIsolate', 'Twin')
+        @($again.Results | Where-Object Outcome -EQ 'Unchanged' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @('Identity Overview', 'Incident-StandInIsolate', 'Twin')
     }
 
     It 'writes over an item the repository has, in its own file, with -Force' {
         $copy = New-FixtureCopy
         $run = Invoke-SmallExport -RepoPath $copy -Parameters @{ Force = $true; ContentType = 'Workbook'; Name = 'Fixture*' }
-        ($run.Results | Where-Object Outcome -eq 'Updated').Path | Should -Be 'Content/Workbooks/FixtureOverview'
+        ($run.Results | Where-Object Outcome -EQ 'Updated').Path | Should -Be 'Content/Workbooks/FixtureOverview'
         Get-Content (Join-Path $copy 'Content/Workbooks/FixtureOverview/workbook.json') -Raw | Should -Match 'Fixture'
-        @($run.Results | Where-Object Outcome -eq 'Skipped' | Where-Object Reason -eq 'not named by -Name').Count | Should -Be 5
+        @($run.Results | Where-Object Outcome -EQ 'Skipped' | Where-Object Reason -EQ 'not named by -Name').Count | Should -Be 5
     }
 
     It 'writes under -Path instead, at the same relative paths, still deciding from the repository' {
@@ -1061,7 +1058,7 @@ Describe 'Export-iSOCContent' {
         $run.Path | Should -Be $out
         Test-Path (Join-Path $out 'Content/Workbooks/IdentityOverview/metadata.json') | Should -BeTrue
         Test-Path (Join-Path $copy 'Content/Workbooks/IdentityOverview') | Should -BeFalse
-        ($run.Results | Where-Object Name -eq 'Fixture Overview').Outcome | Should -Be 'Skipped'
+        ($run.Results | Where-Object Name -EQ 'Fixture Overview').Outcome | Should -Be 'Skipped'
     }
 
     It 'writes nothing with -WhatIf, and says what it would do' {
@@ -1069,15 +1066,15 @@ Describe 'Export-iSOCContent' {
         $before = @(Get-TreeFile -Root $copy -Folder 'Content')
         $run = Invoke-SmallExport -RepoPath $copy -Parameters @{ WhatIf = $true; Force = $true }
         @(Get-TreeFile -Root $copy -Folder 'Content') | Should -Be $before
-        ($run.Results | Where-Object Name -eq 'Identity Overview').Reason | Should -Be 'would be created'
-        ($run.Results | Where-Object Name -eq 'Fixture Overview').Reason | Should -Be 'would be updated'
+        ($run.Results | Where-Object Name -EQ 'Identity Overview').Reason | Should -Be 'would be created'
+        ($run.Results | Where-Object Name -EQ 'Fixture Overview').Reason | Should -Be 'would be updated'
         $run.WhatIf | Should -Be 5
     }
 
     It 'exports a Content Hub workbook with -IncludeContentHub' {
         $copy = New-FixtureCopy
         $run = Invoke-SmallExport -RepoPath $copy -Parameters @{ IncludeContentHub = $true; ContentType = 'Workbook' }
-        $hub = $run.Results | Where-Object Name -eq 'Hub Workbook'
+        $hub = $run.Results | Where-Object Name -EQ 'Hub Workbook'
         $hub.Outcome | Should -Be 'Created'
         $hub.Source | Should -Be 'ContentHub'
     }
@@ -1142,17 +1139,17 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
         $standIn = [ordered]@{
             Context = [ordered]@{ SubscriptionId = $script:Sub; WorkspaceResourceId = $script:wsPath; WorkspaceId = $script:WsId }
             Lists   = [ordered]@{
-                (& $key $script:wbBase)                                                     = @(, @($workbooks.ToArray()))
+                (& $key $script:wbBase)                                                    = @(, @($workbooks.ToArray()))
                 (& $key "$($script:wsPath)/providers/Microsoft.SecurityInsights/metadata") = @(
                     , @([pscustomobject]@{ properties = [pscustomobject]@{ kind = 'AnalyticsRule'; parentId = 'r'; source = [pscustomobject]@{ kind = 'Solution'; name = 'Azure Activity' } } })
                     , @([pscustomobject]@{ properties = [pscustomobject]@{ kind = 'Workbook'; parentId = "$($script:wbBase)/aaaaaaaa-0000-0000-0000-000000000013"; source = [pscustomobject]@{ kind = 'Solution'; name = 'Azure Activity' } } })
                 )
-                (& $key $script:laBase)                                                     = @(, $apps; , $apps2)
+                (& $key $script:laBase)                                                    = @(, $apps; , $apps2)
             }
             Items   = [ordered]@{
                 (& $key "$($script:wbBase)/aaaaaaaa-0000-0000-0000-000000000014") = (New-Workbook -Name 'aaaaaaaa-0000-0000-0000-000000000014' -DisplayName 'Detail Only' -SerializedData (New-GalleryTemplate -Title 'Detail'))
                 (& $key "$($script:wbBase)/aaaaaaaa-0000-0000-0000-000000000015") = (New-Workbook -Name 'aaaaaaaa-0000-0000-0000-000000000015' -DisplayName 'No Content' -NoContent)
-                (& $key "$($script:laBase)/Incident-StandInDetail")              = $detail
+                (& $key "$($script:laBase)/Incident-StandInDetail")               = $detail
             }
             Fail    = @()
         }
@@ -1188,8 +1185,8 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
             ($script:runW1.Created + $script:runW1.Updated + $script:runW1.Unchanged) | Should -Be ($script:repoWorkbookNames.Count + 3)
             $script:runW1.Skipped | Should -Be 3
             $script:runW1.Failed | Should -Be 0
-            ($script:runW1.Results | Where-Object Name -eq 'Detail Only').Outcome | Should -Be 'Created'
-            ($script:runW1.Results | Where-Object Name -eq 'Identity Overview - law-lab').Path | Should -Be 'Content/Workbooks/IdentityOverview'
+            ($script:runW1.Results | Where-Object Name -EQ 'Detail Only').Outcome | Should -Be 'Created'
+            ($script:runW1.Results | Where-Object Name -EQ 'Identity Overview - law-lab').Path | Should -Be 'Content/Workbooks/IdentityOverview'
         }
 
         It 'writes metadata.json keys in a set order (MIGRATION.md edit E26)' {
@@ -1228,9 +1225,9 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
         It 'is written over in its own folder, not a second folder deploying the same workbook' {
             $module = New-RepoCopy -Folder @('Content/Workbooks')
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Workbook'; Name = 'Detection Engineering Dashboard' }
-            ($run.Results | Where-Object Name -eq 'Detection Engineering Dashboard').Reason | Should -Match 'already in the repository'
+            ($run.Results | Where-Object Name -EQ 'Detection Engineering Dashboard').Reason | Should -Match 'already in the repository'
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Workbook'; Name = 'Detection Engineering Dashboard'; Force = $true }
-            ($run.Results | Where-Object Name -eq 'Detection Engineering Dashboard').Path | Should -Be 'Content/Workbooks/DetectionEngineering'
+            ($run.Results | Where-Object Name -EQ 'Detection Engineering Dashboard').Path | Should -Be 'Content/Workbooks/DetectionEngineering'
             Test-Path (Join-Path $module 'Content/Workbooks/DetectionEngineeringDashboard') | Should -BeFalse
         }
 
@@ -1240,7 +1237,7 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
             $path = Join-Path $TestDrive 'standin-fail.json'
             Set-Content -LiteralPath $path -Value (ConvertTo-Json -InputObject $raw -Depth 100)
             $run = Invoke-ModuleExport -RepoPath (New-RepoCopy -Folder @()) -Parameters @{ ContentType = 'Workbook'; Name = 'Detail Only' } -StandInPath $path
-            ($run.Results | Where-Object Name -eq 'Detail Only').Outcome | Should -Be 'Failed'
+            ($run.Results | Where-Object Name -EQ 'Detail Only').Outcome | Should -Be 'Failed'
             $run.ExitCode | Should -Be 1
         }
 
@@ -1274,7 +1271,7 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
             $module = New-RepoCopy -Folder @('Content/Playbooks')
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Force = $true }
             $run.Created + $run.Updated + $run.Unchanged | Should -Be 8
-            ($run.Results | Where-Object Name -eq 'AzureOpenAIAssistant').Reason | Should -Match '^ambiguous'
+            ($run.Results | Where-Object Name -EQ 'AzureOpenAIAssistant').Reason | Should -Match '^ambiguous'
             (Get-Content (Join-Path $module 'Content/Playbooks/Incident/AzureOpenAIAssistant.bicep') -Raw) | Should -BeExactly (Get-Content (Join-Path $script:repoRoot 'Content/Playbooks/Incident/AzureOpenAIAssistant.bicep') -Raw)
         }
 
@@ -1286,7 +1283,7 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
             Set-Content -LiteralPath $path -Value ((Get-Content -LiteralPath $path -Raw) -replace "(?m)^metadata lastUpdateTime = '[^']+'$", "metadata lastUpdateTime = '01-01-2020'") -NoNewline
             $run = Invoke-ModuleExport -RepoPath $module -Parameters @{ ContentType = 'Playbook'; Name = 'Module-AddSentinelComment'; Force = $true }
             (Get-Content -LiteralPath (Join-Path $module $file) -Raw) | Should -Match '01-01-2020'
-            ($run.Results | Where-Object Name -eq 'Module-AddSentinelComment').Outcome | Should -Be 'Unchanged'
+            ($run.Results | Where-Object Name -EQ 'Module-AddSentinelComment').Outcome | Should -Be 'Unchanged'
         }
     }
 }

@@ -87,8 +87,7 @@ function Get-iSOCClassicTableInventory {
                 Columns     = $detail.Columns
                 Error       = $null
             }
-        }
-        catch {
+        } catch {
             [pscustomobject]@{
                 Name        = $table
                 SubType     = 'Unreadable'

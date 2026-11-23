@@ -85,17 +85,17 @@ function New-SacProgressRecord {
 
     $findings = @(@(& $v 'findings.items') | Where-Object { $_ } | ForEach-Object {
             [ordered]@{
-                id = [string](Get-SacProgressValue -Object $_ -Path 'id')
+                id       = [string](Get-SacProgressValue -Object $_ -Path 'id')
                 severity = [string](Get-SacProgressValue -Object $_ -Path 'severity')
-                title = [string](Get-SacProgressValue -Object $_ -Path 'title')
+                title    = [string](Get-SacProgressValue -Object $_ -Path 'title')
             }
         } | Sort-Object { $_.id })
     $statusCode = @{ Met = 'M'; Gap = 'G' }
     $criteria = @(@(& $v 'maturity.criteria') | Where-Object { $_ } | ForEach-Object {
             $st = [string](Get-SacProgressValue -Object $_ -Path 'status')
             [ordered]@{
-                id = [string](Get-SacProgressValue -Object $_ -Path 'id')
-                name = [string](Get-SacProgressValue -Object $_ -Path 'name')
+                id     = [string](Get-SacProgressValue -Object $_ -Path 'id')
+                name   = [string](Get-SacProgressValue -Object $_ -Path 'name')
                 status = $(if ($statusCode.ContainsKey($st)) { $statusCode[$st] } else { 'U' })
             }
         } | Sort-Object { $_.id })

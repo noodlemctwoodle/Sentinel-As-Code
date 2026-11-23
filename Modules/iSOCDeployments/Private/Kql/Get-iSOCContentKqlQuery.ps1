@@ -30,7 +30,7 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-iSOCContentKqlQuery {
-<#
+    <#
 .SYNOPSIS
     Read a content file and return its embedded KQL query text. Supports
     AnalyticalRules / HuntingQueries / Parsers (YAML, `query:` field) and
@@ -60,15 +60,13 @@ function Get-iSOCContentKqlQuery {
             if ($yaml.ContainsKey('query')) {
                 return [string]$yaml['query']
             }
-        }
-        elseif ($extension -eq '.json') {
+        } elseif ($extension -eq '.json') {
             $json = Get-Content -Path $Path -Raw -ErrorAction Stop | ConvertFrom-Json -Depth 32
             if ($json.PSObject.Properties.Name -contains 'query') {
                 return [string]$json.query
             }
         }
-    }
-    catch {
+    } catch {
         # Per-file content-schema test owns parse errors; this helper
         # silently returns $null when extraction fails.
     }

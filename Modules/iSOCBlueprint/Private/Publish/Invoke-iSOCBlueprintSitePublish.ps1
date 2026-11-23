@@ -157,15 +157,15 @@ function Invoke-iSOCBlueprintSitePublish {
     $script:PublishTokenLifetimeMinutes = $TokenLifetimeMinutes
 
     $context = @{
-        SiteUrl              = $SiteUrl
-        Bundle               = $Bundle
-        AccessToken          = $AccessToken
-        Interactive          = $Interactive
-        ClientId             = $ClientId
-        Tenant               = $Tenant
-        AppPackagePath       = $AppPackagePath
-        HistoryDays          = $HistoryDays
-        parameterSetName     = $PSCmdlet.ParameterSetName
+        SiteUrl          = $SiteUrl
+        Bundle           = $Bundle
+        AccessToken      = $AccessToken
+        Interactive      = $Interactive
+        ClientId         = $ClientId
+        Tenant           = $Tenant
+        AppPackagePath   = $AppPackagePath
+        HistoryDays      = $HistoryDays
+        parameterSetName = $PSCmdlet.ParameterSetName
     }
 
     $steps = @(

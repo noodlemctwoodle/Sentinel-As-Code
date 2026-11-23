@@ -231,11 +231,11 @@ function Get-KqlBareIdentifiers {
     # Filter: drop KQL keywords/operators, function-call sites, let-bound
     # locals, and obvious single-character names.
     $filtered = @($candidates | Where-Object {
-        $_.Length -gt 1 -and
-        ($kqlKeywords -notcontains $_.ToLowerInvariant()) -and
-        (-not $functionCalled.Contains($_)) -and
-        (-not $letBindings.Contains($_))
-    } | Sort-Object -Unique)
+            $_.Length -gt 1 -and
+            ($kqlKeywords -notcontains $_.ToLowerInvariant()) -and
+            (-not $functionCalled.Contains($_)) -and
+            (-not $letBindings.Contains($_))
+        } | Sort-Object -Unique)
 
     return $filtered
 }

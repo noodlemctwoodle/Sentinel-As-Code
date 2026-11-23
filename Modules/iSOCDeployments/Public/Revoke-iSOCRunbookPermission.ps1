@@ -108,8 +108,7 @@ function Revoke-iSOCRunbookPermission {
             foreach ($assignment in $matching) { Remove-iSOCRoleAssignment -Context $ctx -AssignmentId $assignment.Id }
             Write-iSOCLog "  [-] $($role.Name): removed." -Level Success
             $results.Add((New-iSOCPermissionResult @result -Outcome Removed))
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  $($role.Name): failed - $($_.Exception.Message)" -Level Error
             $results.Add((New-iSOCPermissionResult @result -Outcome Failed -Reason $_.Exception.Message))
         }

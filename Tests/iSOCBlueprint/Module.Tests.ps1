@@ -108,7 +108,7 @@ Describe 'Help for <Name>' -ForEach $commands {
     It 'documents every parameter' {
         $common = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
         foreach ($p in $script:command.Parameters.Keys | Where-Object { $_ -notin $common }) {
-            $entry = @($script:help.Parameters.Parameter | Where-Object Name -eq $p)
+            $entry = @($script:help.Parameters.Parameter | Where-Object Name -EQ $p)
             ($entry.Description | Out-String).Trim() | Should -Not -BeNullOrEmpty -Because "-$p needs a description"
         }
     }
@@ -153,7 +153,7 @@ Describe 'Prerequisites' {
     }
 
     It 'pins PowerShell 7.6 and PnP.PowerShell 3.4.1, for Publish' {
-        ($script:requirements | Where-Object Name -eq 'PnP.PowerShell').MinimumVersion | Should -Be '3.4.1'
+        ($script:requirements | Where-Object Name -EQ 'PnP.PowerShell').MinimumVersion | Should -Be '3.4.1'
         $ps = $script:requirements |
             Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } |
             Sort-Object { [version]$_.MinimumVersion } |
@@ -164,16 +164,16 @@ Describe 'Prerequisites' {
     It '<Command> checks the <Needs> prerequisites first' -ForEach @(
         @{
             Command = 'Export-iSOCBlueprintInventory'
-            Needs = 'Collect'
-            Splat = @{ ResourceGroup = 'rg'; WorkspaceName = 'ws' }
-            Worker = 'Invoke-iSOCBlueprintCollect'
+            Needs   = 'Collect'
+            Splat   = @{ ResourceGroup = 'rg'; WorkspaceName = 'ws' }
+            Worker  = 'Invoke-iSOCBlueprintCollect'
         }
         @{ Command = 'ConvertTo-iSOCBlueprint'; Needs = 'Render'; Splat = @{ WorkspaceName = 'ws' }; Worker = 'Invoke-iSOCBlueprintRender' }
         @{
             Command = 'Publish-iSOCBlueprintSite'
-            Needs = 'Publish'
-            Splat = @{ SiteUrl = 'https://x/sites/y'; Path = 'b'; AccessToken = 't' }
-            Worker = 'Invoke-iSOCBlueprintSitePublish'
+            Needs   = 'Publish'
+            Splat   = @{ SiteUrl = 'https://x/sites/y'; Path = 'b'; AccessToken = 't' }
+            Worker  = 'Invoke-iSOCBlueprintSitePublish'
         }
     ) {
         Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
@@ -212,8 +212,8 @@ Describe 'Prerequisites' {
 
     It 'limits the list to the steps asked for' {
         $word = @(Test-iSOCBlueprintPrerequisite -Step Word)
-        @($word | Where-Object Name -eq 'pandoc').Count | Should -Be 1
-        @($word | Where-Object Name -like 'Az.*').Count | Should -Be 0
+        @($word | Where-Object Name -EQ 'pandoc').Count | Should -Be 1
+        @($word | Where-Object Name -Like 'Az.*').Count | Should -Be 0
         foreach ($r in $word) { $r.Step | Should -Be @('Word') }
     }
 

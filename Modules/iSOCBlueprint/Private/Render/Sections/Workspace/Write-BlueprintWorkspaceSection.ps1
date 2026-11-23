@@ -99,27 +99,27 @@ function Write-BlueprintWorkspaceSection {
     $timelineEvents = @($timelineEvents | Sort-Object Date)
 
     $timelineBody = ($timelineEvents | ForEach-Object {
-        $lines = @($_.Lines)
-        $first = "    $(Format-BlueprintDate $_.Date) : $($lines[0])"
-        if ($lines.Count -gt 1) {
-            $rest = @($lines[1..($lines.Count - 1)] | ForEach-Object { "                    : $_" })
-            ($first + [Environment]::NewLine + ($rest -join [Environment]::NewLine))
-        } else { $first }
-    }) -join [Environment]::NewLine
+            $lines = @($_.Lines)
+            $first = "    $(Format-BlueprintDate $_.Date) : $($lines[0])"
+            if ($lines.Count -gt 1) {
+                $rest = @($lines[1..($lines.Count - 1)] | ForEach-Object { "                    : $_" })
+                ($first + [Environment]::NewLine + ($rest -join [Environment]::NewLine))
+            } else { $first }
+        }) -join [Environment]::NewLine
 
     # The workspace's own history as data for the SharePoint graphic. Platform
     # retirements live on 02-deprecated-legacy-features.md and are not repeated.
     $workspaceAgeVisualLine = Format-VisualLine -Kind 'workspace-age' -Data ([ordered]@{
-        created         = $(if ($wsCreatedShort -ne 'unknown') { $wsCreatedShort } else { $null })
-        today           = $todayShort
-        ageDays         = $(if ($null -ne $wsAgeDays) { [int]$wsAgeDays } else { $null })
-        sku             = (Get-BlueprintSkuName ([string]$workspace.properties.sku.name))
-        retentionDays   = [int]$workspace.properties.retentionInDays
-        rulesEnabled    = $enabledRules.Count
-        connectors      = @($connectors).Count
-        tablesReceiving = @($operationalTables).Count
-        tablesCatalogue = @($workspaceTables).Count
-    })
+            created         = $(if ($wsCreatedShort -ne 'unknown') { $wsCreatedShort } else { $null })
+            today           = $todayShort
+            ageDays         = $(if ($null -ne $wsAgeDays) { [int]$wsAgeDays } else { $null })
+            sku             = (Get-BlueprintSkuName ([string]$workspace.properties.sku.name))
+            retentionDays   = [int]$workspace.properties.retentionInDays
+            rulesEnabled    = $enabledRules.Count
+            connectors      = @($connectors).Count
+            tablesReceiving = @($operationalTables).Count
+            tablesCatalogue = @($workspaceTables).Count
+        })
 
     # Left in the render context for later sections.
     $Context.features = $features

@@ -85,8 +85,8 @@ function ConvertTo-SacBlocksHtml {
                     [void]$sb.Append('<li>' + (ConvertTo-SacRunsHtml -Runs @($item.text) -FindingsListUrl $FindingsListUrl))
                     if (@($item.blocks).Count) {
                         [void]$sb.Append((ConvertTo-SacBlocksHtml -Blocks @(
-                            $item.blocks
-                        ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading))
+                                    $item.blocks
+                                ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $Id -Warnings $Warnings -Tables $Tables -Heading $Heading))
                     }
                     [void]$sb.Append('</li>')
                 }

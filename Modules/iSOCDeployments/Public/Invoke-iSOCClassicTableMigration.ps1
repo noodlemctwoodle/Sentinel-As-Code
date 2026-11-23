@@ -240,8 +240,7 @@ function Invoke-iSOCClassicTableMigration {
             Write-iSOCLog 'No classic custom log tables in this workspace. Nothing to migrate.' -Level Success
             return (New-iSOCTableMigrationRun)
         }
-    }
-    else {
+    } else {
         $targetTables = @($TableName | ForEach-Object { if ($_.EndsWith('_CL')) { $_ } else { "${_}_CL" } })
     }
 

@@ -56,22 +56,22 @@ function Write-BlueprintRuleHealthQualitySection {
     $noEntityRows = @($scheduledEnabled22 |
             Where-Object { @(Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'entityMappings' @() | Where-Object { $_ }).Count -eq 0 } |
             ForEach-Object {
-        [pscustomobject]@{
-            Rule = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name)
-            Kind = $_.kind
-            Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '')
-        }
-    } | Sort-Object Rule)
+                [pscustomobject]@{
+                    Rule     = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name)
+                    Kind     = $_.kind
+                    Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '')
+                }
+            } | Sort-Object Rule)
     $alertOnlyRows = @($scheduledEnabled22 | Where-Object {
-        $ic = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'incidentConfiguration'
-        $ic -and $ic.PSObject.Properties['createIncident'] -and -not [bool]$ic.createIncident
-    } | ForEach-Object {
-        [pscustomobject]@{
-            Rule = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name)
-            Kind = $_.kind
-            Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '')
-        }
-    } | Sort-Object Rule)
+            $ic = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'incidentConfiguration'
+            $ic -and $ic.PSObject.Properties['createIncident'] -and -not [bool]$ic.createIncident
+        } | ForEach-Object {
+            [pscustomobject]@{
+                Rule     = [string](Get-BlueprintRawProperty $_.properties 'displayName' $_.name)
+                Kind     = $_.kind
+                Severity = [string](Get-BlueprintRawProperty $_.properties 'severity' '')
+            }
+        } | Sort-Object Rule)
     $antiPatternSection = @"
 
 ## Rules without entity mappings
@@ -87,10 +87,10 @@ Enabled Scheduled and NRT rules with incident creation turned off. Their alerts 
 $(Format-BlueprintTable -Items $alertOnlyRows -Columns 'Rule','Kind','Severity' -EmptyMessage '_Every enabled Scheduled and NRT rule creates incidents._')
 "@
     Write-BlueprintSection '22-rule-health-quality.md' (@(
-        "$(Format-Banner -Title "Rule Health and Quality")`n`nWhether the analytics rules run, and whether they are built to be trusted and triaged. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); how often each rule fires is in [21-rule-performance.md](21-rule-performance.md).",
-        $ruleHealthSection,
-        $antiPatternSection,
-        $staleSection,
-        $complexitySection,
-        $analyticsLinks) -join [Environment]::NewLine)
+            "$(Format-Banner -Title "Rule Health and Quality")`n`nWhether the analytics rules run, and whether they are built to be trusted and triaged. The rule inventory is in [20-analytics-rules.md](20-analytics-rules.md); how often each rule fires is in [21-rule-performance.md](21-rule-performance.md).",
+            $ruleHealthSection,
+            $antiPatternSection,
+            $staleSection,
+            $complexitySection,
+            $analyticsLinks) -join [Environment]::NewLine)
 }

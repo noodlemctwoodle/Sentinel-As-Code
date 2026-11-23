@@ -46,20 +46,20 @@ function Get-ConnectorTargetTable {
     param([string]$Kind, [string]$DataType)
     $dt = if ($DataType) { $DataType.ToLowerInvariant() } else { '' }
     switch ("$Kind/$dt") {
-        'Office365/sharepoint'                                   { 'OfficeActivity' }
-        'Office365/exchange'                                     { 'OfficeActivity' }
-        'Office365/teams'                                        { 'OfficeActivity' }
-        'AzureActiveDirectory/signinlogs'                        { 'SigninLogs' }
-        'AzureActiveDirectory/auditlogs'                         { 'AuditLogs' }
-        'AzureActiveDirectory/noninteractiveusersigninlogs'      { 'AADNonInteractiveUserSignInLogs' }
-        'MicrosoftCloudAppSecurity/alerts'                       { 'SecurityAlert' }
-        'MicrosoftCloudAppSecurity/discoverylogs'                { 'McasShadowItReporting' }
-        'MicrosoftDefenderAdvancedThreatProtection/alerts'       { 'SecurityAlert' }
-        'MicrosoftThreatProtection/alerts'                       { 'SecurityAlert' }
-        'MicrosoftThreatProtection/incidents'                    { 'SecurityIncident' }
+        'Office365/sharepoint' { 'OfficeActivity' }
+        'Office365/exchange' { 'OfficeActivity' }
+        'Office365/teams' { 'OfficeActivity' }
+        'AzureActiveDirectory/signinlogs' { 'SigninLogs' }
+        'AzureActiveDirectory/auditlogs' { 'AuditLogs' }
+        'AzureActiveDirectory/noninteractiveusersigninlogs' { 'AADNonInteractiveUserSignInLogs' }
+        'MicrosoftCloudAppSecurity/alerts' { 'SecurityAlert' }
+        'MicrosoftCloudAppSecurity/discoverylogs' { 'McasShadowItReporting' }
+        'MicrosoftDefenderAdvancedThreatProtection/alerts' { 'SecurityAlert' }
+        'MicrosoftThreatProtection/alerts' { 'SecurityAlert' }
+        'MicrosoftThreatProtection/incidents' { 'SecurityIncident' }
         'MicrosoftThreatIntelligence/microsoftemergingthreatfeed' { 'ThreatIntelligenceIndicator' }
-        'MicrosoftPurviewInformationProtection/logs'             { 'InformationProtectionLogs_CL' }
-        'AzureSecurityCenter/alerts'                             { 'SecurityAlert' }
-        default                                                  { $null }
+        'MicrosoftPurviewInformationProtection/logs' { 'InformationProtectionLogs_CL' }
+        'AzureSecurityCenter/alerts' { 'SecurityAlert' }
+        default { $null }
     }
 }

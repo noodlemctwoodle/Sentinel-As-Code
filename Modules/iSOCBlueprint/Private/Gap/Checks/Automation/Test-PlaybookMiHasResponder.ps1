@@ -39,14 +39,14 @@ function Test-PlaybookMiHasResponder {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.PlaybookMiAssignments -or @($Inventory.PlaybookMiAssignments).Count -eq 0) {
         return $null
     }
     $bad = @($Inventory.PlaybookMiAssignments | Where-Object {
-        $roles = Get-PropOrDefault $_ 'WorkspaceRoles' @()
-        -not ($roles -contains 'Microsoft Sentinel Responder')
-    })
+            $roles = Get-PropOrDefault $_ 'WorkspaceRoles' @()
+            -not ($roles -contains 'Microsoft Sentinel Responder')
+        })
     if ($bad.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'playbook managed identity' 'playbook managed identities') missing Microsoft Sentinel Responder." -Detail @{ Count = $bad.Count }
     }

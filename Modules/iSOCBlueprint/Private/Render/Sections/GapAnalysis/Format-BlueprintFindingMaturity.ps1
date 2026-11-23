@@ -47,12 +47,12 @@ function Format-BlueprintFindingMaturity {
     $links = if ($findingMaturity.ContainsKey($Id)) { @($findingMaturity[$Id]) } else { @() }
     if ($links.Count -eq 0) { return 'not scored. This is a hygiene or cost check; it does not move the maturity score.' }
     return ((@($links | ForEach-Object {
-        $state = if ($_.Status) { ", now $($_.Status)" } else { '' }
-        $gain = if ($null -ne $_.Lift -and $_.Lift -gt 0) {
-            $by = Format-BlueprintNumber $_.Lift
-            if ($_.Shared) { "; closing all of its findings lifts the overall score by +$by" } else { "; closing it lifts the overall score by +$by" }
-        } else { '' }
-        $how = if ($_.Shared) { 'one of the findings behind' } else { 'decides' }
-        "$how [$($_.CriterionId)](91-maturity-assessment.md#criteria) $($_.Name) ($($_.AreaName))$state$gain"
-    })) -join '; ') + '.'
+                    $state = if ($_.Status) { ", now $($_.Status)" } else { '' }
+                    $gain = if ($null -ne $_.Lift -and $_.Lift -gt 0) {
+                        $by = Format-BlueprintNumber $_.Lift
+                        if ($_.Shared) { "; closing all of its findings lifts the overall score by +$by" } else { "; closing it lifts the overall score by +$by" }
+                    } else { '' }
+                    $how = if ($_.Shared) { 'one of the findings behind' } else { 'decides' }
+                    "$how [$($_.CriterionId)](91-maturity-assessment.md#criteria) $($_.Name) ($($_.AreaName))$state$gain"
+                })) -join '; ') + '.'
 }

@@ -39,11 +39,11 @@ function Test-RbacOverPrivileged {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $bad = @($Inventory.RbacWorkspace | Where-Object {
-        $role = Get-PropOrDefault $_ 'RoleDefinitionName' ''
-        $role -in @('Owner','Contributor')
-    })
+            $role = Get-PropOrDefault $_ 'RoleDefinitionName' ''
+            $role -in @('Owner', 'Contributor')
+        })
     if ($bad.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'Owner/Contributor role assignment') at workspace scope." -Detail @{ Count = $bad.Count }
     }

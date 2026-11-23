@@ -39,7 +39,7 @@ function Test-SilentTableWithDependentRules {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (@($Inventory.RuleTableReferences).Count -eq 0) { return $null }
     if (-not $Inventory.TablesWithData) { return $null }
     # The extractor returns every bare identifier a query reads, which
@@ -71,8 +71,8 @@ function Test-SilentTableWithDependentRules {
     $silent = @($rulesByTable.Keys | Where-Object { -not $ingested.ContainsKey($_) -or $ingested[$_] -le 0 } | Sort-Object)
     if ($silent.Count -eq 0) { return $null }
     $sample = ($silent | ForEach-Object {
-        "$_ ($(Format-BlueprintPlural ($rulesByTable[$_].Count) 'rule'): $(@($rulesByTable[$_]) -join ', '))"
-    }) -join '; '
+            "$_ ($(Format-BlueprintPlural ($rulesByTable[$_].Count) 'rule'): $(@($rulesByTable[$_]) -join ', '))"
+        }) -join '; '
     $dependent = @($silent | ForEach-Object { $rulesByTable[$_] } | Sort-Object -Unique).Count
     return New-Finding -Evidence "$(Format-BlueprintPlural $silent.Count 'table') that enabled analytics rules read $(Select-GapWording $silent.Count 'has' 'have') ingested nothing in the last $(Format-GapDays (Get-GapWindow $Inventory).RecentDays): $sample. $(Select-GapWording $dependent 'That rule cannot' 'Those rules cannot') fire." -Detail @{
         Count  = $silent.Count

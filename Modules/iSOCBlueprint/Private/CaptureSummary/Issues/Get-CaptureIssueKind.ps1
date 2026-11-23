@@ -48,9 +48,9 @@ function Get-CaptureIssueKind {
     # A query naming a column its tables do not have is the query's fault, not
     # the workspace's: KQL says "scalar expression" for a missing column and
     # "table or column expression" for a missing table.
-    $queryBug   = 'Failed to resolve (scalar|column) expression'
-    $missing    = 'Failed to resolve table|could not be resolved|\b404\b|Not ?Found|PathNotFound|ResourceNotFound|NoRegisteredProviderFound|InvalidResourceType|not (served|supported|available|enabled)|FeatureNotEnabled|does not exist'
-    $failure    = 'time(d)? ?out|exceeded|too large|throttl|\b429\b|TooManyRequests|\b50\d\b|InternalServerError|ServiceUnavailable|GatewayTimeout'
+    $queryBug = 'Failed to resolve (scalar|column) expression'
+    $missing = 'Failed to resolve table|could not be resolved|\b404\b|Not ?Found|PathNotFound|ResourceNotFound|NoRegisteredProviderFound|InvalidResourceType|not (served|supported|available|enabled)|FeatureNotEnabled|does not exist'
+    $failure = 'time(d)? ?out|exceeded|too large|throttl|\b429\b|TooManyRequests|\b50\d\b|InternalServerError|ServiceUnavailable|GatewayTimeout'
     if ($Message -match $permission) { return 'Permission' }
     if ($Message -match $queryBug) { return 'Error' }
     if ($Message -match $missing) { return 'NotAvailable' }

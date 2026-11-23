@@ -60,8 +60,7 @@ function Get-iSOCRestRetryDelay {
         $retryAfter = $Headers.RetryAfter
         if ($retryAfter -and $null -ne $retryAfter.Delta) { $seconds = $retryAfter.Delta.TotalSeconds }
         elseif ($retryAfter -and $null -ne $retryAfter.Date) { $seconds = ($retryAfter.Date - [DateTimeOffset]::UtcNow).TotalSeconds }
-    }
-    elseif ($Headers -is [System.Collections.IDictionary]) {
+    } elseif ($Headers -is [System.Collections.IDictionary]) {
         $value = $null
         foreach ($key in $Headers.Keys) {
             if ("$key" -ieq 'Retry-After') { $value = "$(@($Headers[$key])[0])" }

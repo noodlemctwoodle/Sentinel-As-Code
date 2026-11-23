@@ -98,10 +98,10 @@ function Get-EffectiveConnectors {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)] [object[]]$ClassicConnectors = @(),
-        [Parameter(Mandatory = $false)] [object[]]$CcfDefinitions    = @(),
-        [Parameter(Mandatory = $false)] [object[]]$Dcrs              = @(),
+        [Parameter(Mandatory = $false)] [object[]]$CcfDefinitions = @(),
+        [Parameter(Mandatory = $false)] [object[]]$Dcrs = @(),
         [Parameter(Mandatory = $false)] [object[]]$DiagnosticSettings = @(),
-        [Parameter(Mandatory = $false)] [object[]]$TablesWithData    = @(),
+        [Parameter(Mandatory = $false)] [object[]]$TablesWithData = @(),
         # When provided, DCR data flows are filtered to those whose
         # `destinations` reference an LA destination on this workspace.
         # Without this filter the helper surfaces every DCR in the
@@ -121,22 +121,22 @@ function Get-EffectiveConnectors {
     function _ActiveTableFamily {
         param([string]$Table)
         switch -Regex ($Table) {
-            '^ThreatIntel'                                                                                  { return 'Microsoft Defender TI' }
+            '^ThreatIntel' { return 'Microsoft Defender TI' }
             '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
-            '^(Device|Email|Url|Alert|Cloud|Identity).*'                                                    { return 'Microsoft Defender XDR' }
-            '^ASim'                                                                                         { return 'ASIM normaliser' }
-            '^Office'                                                                                       { return 'Office 365' }
-            '^(CommonSecurityLog|Syslog)$'                                                                  { return 'CEF / Syslog' }
-            '^(SecurityEvent|WindowsEvent|Event)$'                                                          { return 'Windows events' }
-            '^AzureActivity$'                                                                               { return 'Azure Activity' }
-            '^(AzureDiagnostics|AzureMetrics)$'                                                             { return 'Azure resource diagnostics' }
-            '^Intune'                                                                                       { return 'Intune' }
-            '^App'                                                                                          { return 'Application Insights' }
-            '^Dataverse'                                                                                    { return 'Power Platform' }
-            '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf|SentinelAudit)$'                                  { return 'Workspace operations' }
-            '^(UserPeerAnalytics|BehaviorAnalytics)$'                                                       { return 'UEBA (Sentinel internal)' }
-            '_CL$'                                                                                          { return 'Custom log (CCF / DCR not captured)' }
-            default                                                                                         { return 'Unmapped' }
+            '^(Device|Email|Url|Alert|Cloud|Identity).*' { return 'Microsoft Defender XDR' }
+            '^ASim' { return 'ASIM normaliser' }
+            '^Office' { return 'Office 365' }
+            '^(CommonSecurityLog|Syslog)$' { return 'CEF / Syslog' }
+            '^(SecurityEvent|WindowsEvent|Event)$' { return 'Windows events' }
+            '^AzureActivity$' { return 'Azure Activity' }
+            '^(AzureDiagnostics|AzureMetrics)$' { return 'Azure resource diagnostics' }
+            '^Intune' { return 'Intune' }
+            '^App' { return 'Application Insights' }
+            '^Dataverse' { return 'Power Platform' }
+            '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf|SentinelAudit)$' { return 'Workspace operations' }
+            '^(UserPeerAnalytics|BehaviorAnalytics)$' { return 'UEBA (Sentinel internal)' }
+            '_CL$' { return 'Custom log (CCF / DCR not captured)' }
+            default { return 'Unmapped' }
         }
     }
 
@@ -168,12 +168,12 @@ function Get-EffectiveConnectors {
             }
         }
         $rows.Add([pscustomobject]@{
-            Source       = $source
-            Identifier   = $identifier
-            Table        = $table
-            Last24hGB    = $last24h
-            LastIngested = $lastIngested
-        })
+                Source       = $source
+                Identifier   = $identifier
+                Table        = $table
+                Last24hGB    = $last24h
+                LastIngested = $lastIngested
+            })
         if ($table) { [void]$claimedTables.Add($table) }
     }
 
@@ -193,12 +193,12 @@ function Get-EffectiveConnectors {
     foreach ($d in $CcfDefinitions) {
         $identifier = if ($d.properties.connectorUiConfig.title) { $d.properties.connectorUiConfig.title } else { $d.name }
         $rows.Add([pscustomobject]@{
-            Source       = 'CCF'
-            Identifier   = $identifier
-            Table        = ''
-            Last24hGB    = ''
-            LastIngested = ''
-        })
+                Source       = 'CCF'
+                Identifier   = $identifier
+                Table        = ''
+                Last24hGB    = ''
+                LastIngested = ''
+            })
     }
 
     # 3. DCR-driven → derive table from each data flow's outputStream.
@@ -248,7 +248,7 @@ function Get-EffectiveConnectors {
             }
             $output = $flow.outputStream
             if (-not $output) { continue }
-            $table = $output -replace '^Microsoft-','' -replace '^Custom-',''
+            $table = $output -replace '^Microsoft-', '' -replace '^Custom-', ''
             if ($claimedTables.Contains($table)) { continue }
             _AddRow -source 'DCR' -identifier $dcr.name -table $table
         }

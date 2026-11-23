@@ -86,8 +86,7 @@ function Update-iSOCDependencyManifest {
     if ($state.Exists) {
         Write-iSOCLog 'Manifest drift detected:' -Level Warning
         foreach ($line in $state.Diff) { Write-iSOCLog "  $line" }
-    }
-    else {
+    } else {
         Write-iSOCLog "Manifest not found at $relative; writing it from the discovered entries." -Level Warning
     }
 

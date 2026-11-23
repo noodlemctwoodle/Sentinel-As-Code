@@ -91,7 +91,7 @@ function Build-SiteDaily {
                 if ($gbW -gt 0) { $unitByTable[[string]$t.Table] = [double]$t.MonthlyCost / ($gbW * 30.0 / $lookbackDays) }
             }
         }
-        $sparse = { param($map) @($map.Keys | Sort-Object | ForEach-Object { ,[object[]]$map[$_] }) }
+        $sparse = { param($map) @($map.Keys | Sort-Object | ForEach-Object { , [object[]]$map[$_] }) }
 
         $dTables = [System.Collections.Generic.List[object]]::new()
         $byTable = [ordered]@{}
@@ -111,14 +111,14 @@ function Build-SiteDaily {
                 [string]$wsTableByName[$n].properties.plan
             } else { 'Analytics' }
             $dTables.Add([ordered]@{
-                t = $n; f = (Get-TableFamily $n); plan = $plan; pl = (Get-FlowPlanLabel -Table $n -Plan $plan)
-                u = $(if ($unitByTable.ContainsKey($n)) { [math]::Round($unitByTable[$n], 6) } else { 0 })
-                r = $(if ($rulesPerTableBuild.ContainsKey($n)) { $rulesPerTableBuild[$n] } else { 0 })
-                cd = $(if ($customDetPerTable.ContainsKey($n)) { $customDetPerTable[$n] } else { 0 })
-                cov = $referencedTables.ContainsKey($n)
-                b = $grantByTable.ContainsKey($n)
-                d = @(& $sparse $byTable[$n])
-            })
+                    t = $n; f = (Get-TableFamily $n); plan = $plan; pl = (Get-FlowPlanLabel -Table $n -Plan $plan)
+                    u   = $(if ($unitByTable.ContainsKey($n)) { [math]::Round($unitByTable[$n], 6) } else { 0 })
+                    r   = $(if ($rulesPerTableBuild.ContainsKey($n)) { $rulesPerTableBuild[$n] } else { 0 })
+                    cd  = $(if ($customDetPerTable.ContainsKey($n)) { $customDetPerTable[$n] } else { 0 })
+                    cov = $referencedTables.ContainsKey($n)
+                    b   = $grantByTable.ContainsKey($n)
+                    d   = @(& $sparse $byTable[$n])
+                })
         }
 
         $dAlerts = [System.Collections.Generic.List[object]]::new()
@@ -130,9 +130,10 @@ function Build-SiteDaily {
             $key = @([string]$r.AlertName, $prod, [string]$r.AlertSeverity, [string]$r.ProviderName, (& $ruleIdKey $r.AlertRuleId)) -join "`u{1f}"
             if (-not $byAlert.Contains($key)) {
                 $byAlert[$key] = [ordered]@{ n = [string]$r.AlertName; p = $prod; s = [string]$r.AlertSeverity; pv = [string]$r.ProviderName
-                    pf = $(if ($prod -and $prod -notmatch 'Sentinel') { Get-ProductFamily -Product $prod } else { '' })
-                    r = (& $ruleIdKey $r.AlertRuleId)
-                    days = @{} }
+                    pf   = $(if ($prod -and $prod -notmatch 'Sentinel') { Get-ProductFamily -Product $prod } else { '' })
+                    r    = (& $ruleIdKey $r.AlertRuleId)
+                    days = @{}
+                }
             }
             $prev = if ($byAlert[$key].days.ContainsKey($k)) { [long]$byAlert[$key].days[$k][1] } else { 0 }
             $byAlert[$key].days[$k] = @($k, ($prev + [long](ConvertTo-BuildNumber $r.Alerts)))
@@ -150,7 +151,7 @@ function Build-SiteDaily {
             }
             $v = @(
                 [long](ConvertTo-BuildNumber $r.Incidents), [long](ConvertTo-BuildNumber $r.AckCount), [double](ConvertTo-BuildNumber $r.AckSum),
-                    [long](ConvertTo-BuildNumber $r.RsvCount), [double](ConvertTo-BuildNumber $r.RsvSum)
+                [long](ConvertTo-BuildNumber $r.RsvCount), [double](ConvertTo-BuildNumber $r.RsvSum)
             )
             if ($byInc[$key].days.ContainsKey($k)) { $o = $byInc[$key].days[$k]; for ($i = 0; $i -lt 5; $i++) { $o[$i + 1] += $v[$i] } }
             else { $byInc[$key].days[$k] = @($k) + $v }
@@ -178,10 +179,10 @@ function Build-SiteDaily {
                     'Analytics rule'
                 } elseif ([string]$r.Product) { [string]$r.Product } elseif ([string]$r.Provider) { [string]$r.Provider } else { 'Other' }
                 $byRule[$key] = [ordered]@{
-                    id = $id
-                    an = $alertName
-                    n = $(if ($id -and $ruleNameById.ContainsKey($id)) { $ruleNameById[$id] } else { $alertName })
-                    src = $src
+                    id   = $id
+                    an   = $alertName
+                    n    = $(if ($id -and $ruleNameById.ContainsKey($id)) { $ruleNameById[$id] } else { $alertName })
+                    src  = $src
                     days = @{}
                 }
             }
@@ -214,27 +215,27 @@ function Build-SiteDaily {
                 $days[$k] = @($k, [long](ConvertTo-BuildNumber $x.Runs), [long](ConvertTo-BuildNumber $x.Failed))
             }
             $dPlaybooks.Add([ordered]@{
-                n = [string]$r.Playbook
-                unavailable = ($r.PSObject.Properties['LastRunStatus'] -and [string]$r.LastRunStatus -eq 'Unavailable')
-                last = $(if ($r.LastFailureUtc) { ([datetime]$r.LastFailureUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') } else { '' })
-                d = @(& $sparse $days)
-            })
+                    n           = [string]$r.Playbook
+                    unavailable = ($r.PSObject.Properties['LastRunStatus'] -and [string]$r.LastRunStatus -eq 'Unavailable')
+                    last        = $(if ($r.LastFailureUtc) { ([datetime]$r.LastFailureUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') } else { '' })
+                    d           = @(& $sparse $days)
+                })
         }
 
         $daily = [ordered]@{
-            span      = $dailyDays
-            asOf      = $(
+            span              = $dailyDays
+            asOf              = $(
                 if ($runCtx -and $runCtx.StartedAtUtc) { ([datetime]$runCtx.StartedAtUtc).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') } else { '' }
             )
-            costed    = $costed
+            costed            = $costed
             rulesQueryEnabled = $rulesQueryEnabled
-            queryRules = @($queryRuleKeys.Keys | Sort-Object)
-            tables    = $dTables
-            alerts    = $dAlerts
-            incidents = $dIncidents
-            rules     = $dRules
-            health    = $dHealth
-            playbooks = $dPlaybooks
+            queryRules        = @($queryRuleKeys.Keys | Sort-Object)
+            tables            = $dTables
+            alerts            = $dAlerts
+            incidents         = $dIncidents
+            rules             = $dRules
+            health            = $dHealth
+            playbooks         = $dPlaybooks
         }
     }
 

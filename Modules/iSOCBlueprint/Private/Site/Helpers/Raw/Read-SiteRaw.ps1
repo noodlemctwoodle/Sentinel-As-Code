@@ -57,8 +57,7 @@ function Read-SiteRaw {
             $obj | Add-Member -NotePropertyName BlueprintVersion -NotePropertyValue $obj.DocumenterVersion
         }
         return $obj
-    }
-    catch {
+    } catch {
         Write-SiteLog "  ! could not parse _raw/$Name : $($_.Exception.Message)" Warning
         return $null
     }

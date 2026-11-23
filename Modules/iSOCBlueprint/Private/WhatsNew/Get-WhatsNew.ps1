@@ -73,8 +73,7 @@ function Get-WhatsNew {
             )
             foreach ($k in $kept) { $items.Add($k) }
             [pscustomobject]@{ Product = $s.Product; Url = $s.Url; Ok = $true; Error = $null; Items = $kept.Count }
-        }
-        catch {
+        } catch {
             [pscustomobject]@{ Product = $s.Product; Url = $s.Url; Ok = $false; Error = $_.Exception.Message; Items = 0 }
         }
     }

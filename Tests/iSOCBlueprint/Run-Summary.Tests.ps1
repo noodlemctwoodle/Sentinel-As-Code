@@ -31,17 +31,17 @@ BeforeAll {
     $moduleRoot = Join-Path $script:repoRoot 'Modules/iSOCBlueprint'
     . (Get-iSOCBlueprintAreaLoader -Bundle CaptureSummary)
     $script:collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-        "`n"
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
     $script:renderer = (Get-ChildItem (Join-Path $moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
-        "`n"
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+    "`n"
     $script:siteBuild = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse |
-        Sort-Object FullName |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-        "`n"
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
     $script:fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:graph403 = "Microsoft Graph refused Defender custom detections to the Graph SDK session (Forbidden). To include them, Connect-MgGraph -Scopes 'CustomDetection.Read.All' with an account allowed to read custom detections, or grant CustomDetection.Read.All (application) to the pipeline identity."
     $script:http401 = 'Response status code does not indicate success: 401 (Unauthorized).'
@@ -77,11 +77,11 @@ Describe 'Sorting a failed capture' {
         $ex = [System.Exception]::new("Operation returned an invalid status code 'BadRequest'")
         $ex |
             Add-Member -NotePropertyName Body -NotePropertyValue ([pscustomobject]@{
-                Error = [pscustomobject]@{
-                    Message = 'The request had some invalid properties'
-                    Details = @([pscustomobject]@{ Message = "Failed to resolve table expression named 'X'" })
-                }
-            })
+                    Error = [pscustomobject]@{
+                        Message = 'The request had some invalid properties'
+                        Details = @([pscustomobject]@{ Message = "Failed to resolve table expression named 'X'" })
+                    }
+                })
         $text = Get-CaptureErrorText ([System.Management.Automation.ErrorRecord]::new($ex, 'x', 'NotSpecified', $null))
         $text |
             Should -Match '^Operation returned an invalid status code ''BadRequest''\. The request had some invalid properties\. Failed to resolve table expression named ''X''$'
@@ -117,7 +117,7 @@ Describe 'A capture that could not read some of its items' {
         $fails = @('Playbook-One', 'Playbook-Two') | ForEach-Object { [pscustomobject]@{ Name = $_; Message = $script:http401 } }
         $script:partialOut = @(
             Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook',
-                'playbooks' -Total 12 -Failures $fails -WarningVariable partialWarn 6>&1
+            'playbooks' -Total 12 -Failures $fails -WarningVariable partialWarn 6>&1
         )
         $script:partial = @($script:partialOut | Where-Object { $_ -isnot [System.Management.Automation.InformationRecord] })
         $script:partialNote = @($script:partialOut | Where-Object { $_ -is [System.Management.Automation.InformationRecord] })
@@ -146,10 +146,10 @@ Describe 'A capture that could not read some of its items' {
         )
         $issues = @(
             Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook',
-                'playbooks' -Total 1 -Failures $mixed -WarningVariable mixedWarn -WarningAction SilentlyContinue 6>$null
+            'playbooks' -Total 1 -Failures $mixed -WarningVariable mixedWarn -WarningAction SilentlyContinue 6>$null
         )
         $issues.Count | Should -Be 2
-        ($issues | Where-Object Kind -eq 'Error').Message |
+        ($issues | Where-Object Kind -EQ 'Error').Message |
             Should -Match '^Could not read the run history of 1 of 1 playbook: B\. First error: The operation has timed out\.'
         @($mixedWarn).Count | Should -Be 1
     }
@@ -174,7 +174,7 @@ Describe 'The capture summary' {
         $env:TF_BUILD = $null
         $script:summary = (Write-CaptureSummary -RawRoot $script:sumRaw -Issues $issues -ExpectNonEmpty 'workspace.json' -ExpectIfActive 'watchlists.json',
             'playbook-runs.json' 6>&1 |
-            Out-String)
+                Out-String)
         $env:TF_BUILD = 'True'
         $script:summaryAdo = (Write-CaptureSummary -RawRoot $script:sumRaw -Issues $issues -ExpectNonEmpty 'workspace.json' 6>&1 | Out-String)
         $env:TF_BUILD = $saved
@@ -220,8 +220,8 @@ Describe 'The capture summary' {
         try {
             $env:GITHUB_ACTIONS = $null; $env:TF_BUILD = $null
             $records = @(Write-CaptureSummary -RawRoot $script:sumRaw -Issues @(
-                [pscustomobject]@{ Label = 'a'; Kind = 'NotAvailable'; Message = 'm' }
-                [pscustomobject]@{ Label = 'b'; Kind = 'Permission'; Message = 'm' }) 6>&1)
+                    [pscustomobject]@{ Label = 'a'; Kind = 'NotAvailable'; Message = 'm' }
+                    [pscustomobject]@{ Label = 'b'; Kind = 'Permission'; Message = 'm' }) 6>&1)
         } finally { $env:GITHUB_ACTIONS = $saved.GITHUB_ACTIONS; $env:TF_BUILD = $saved.TF_BUILD }
         ($records | Where-Object { [string]$_.MessageData -match '^  Not available' }).MessageData.ForegroundColor | Should -Be 'DarkCyan'
         ($records | Where-Object { [string]$_.MessageData -match '^  No access' }).MessageData.ForegroundColor | Should -Be 'Magenta'
@@ -274,14 +274,15 @@ Describe 'The run summary New-iSOCBlueprint prints' {
         Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
         $script:runDir = Join-Path ([System.IO.Path]::GetTempPath()) "bp-run-$(New-Guid)"
         New-Item -ItemType Directory -Path (Join-Path $script:runDir '_raw'), (Join-Path $script:runDir 'sections'),
-            (Join-Path $script:runDir 'sharepoint') -Force |
+        (Join-Path $script:runDir 'sharepoint') -Force |
             Out-Null
         @{ CaptureIssues = @(
-            @{ Label = 'defender-custom-detections'; Kind = 'Permission'; Message = 'x' }
-            @{ Label = 'playbook-runs'; Kind = 'Permission'; Message = 'y' }
-            @{ Label = 'dcrs'; Kind = 'Error'; Message = 'z' }
-            @{ Label = 'hunts'; Kind = 'NotAvailable'; Message = 'w' }
-        ) } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $script:runDir '_raw/run-context.json')
+                @{ Label = 'defender-custom-detections'; Kind = 'Permission'; Message = 'x' }
+                @{ Label = 'playbook-runs'; Kind = 'Permission'; Message = 'y' }
+                @{ Label = 'dcrs'; Kind = 'Error'; Message = 'z' }
+                @{ Label = 'hunts'; Kind = 'NotAvailable'; Message = 'w' }
+            )
+        } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $script:runDir '_raw/run-context.json')
         '{}' | Set-Content (Join-Path $script:runDir '_raw/workspace.json')
         foreach ($n in '00-overview', '10-data-connectors') {
             'x' | Set-Content (Join-Path $script:runDir "$n.md")
@@ -292,7 +293,7 @@ Describe 'The run summary New-iSOCBlueprint prints' {
         @{ sections = @(1, 2); summary = @{ findings = 7 } } | ConvertTo-Json | Set-Content (Join-Path $script:runDir 'sharepoint/site.json')
         $script:runText = & (Get-Module iSOCBlueprint) {
             param($p) Write-iSOCBlueprintRunSummary -Path $p -Elapsed ([timespan]::FromSeconds(2475)) -Collected $true -SiteBundle `
-                (Join-Path $p 'sharepoint') 6>&1 |
+            (Join-Path $p 'sharepoint') 6>&1 |
                 Out-String
         } $script:runDir
         $script:reusedText = & (Get-Module iSOCBlueprint) {

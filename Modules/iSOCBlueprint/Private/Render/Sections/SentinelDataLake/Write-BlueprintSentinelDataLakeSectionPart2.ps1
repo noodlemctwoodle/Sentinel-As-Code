@@ -58,11 +58,12 @@ function Write-BlueprintSentinelDataLakeSectionPart2 {
     $use = $Context.use
     $workspaceTables = $Context.workspaceTables
 
-    if ($tierStats.MirroredOnly     -gt 0) { $tierPieRows += "    `"Analytics + Lake mirror`" : $($tierStats.MirroredOnly)" }
+    if ($tierStats.MirroredOnly -gt 0) { $tierPieRows += "    `"Analytics + Lake mirror`" : $($tierStats.MirroredOnly)" }
     if ($tierStats.MirroredExtended -gt 0) { $tierPieRows += "    `"Analytics + Lake extended`" : $($tierStats.MirroredExtended)" }
-    if ($tierStats.LakeOnly         -gt 0) { $tierPieRows += "    `"Lake only`" : $($tierStats.LakeOnly)" }
+    if ($tierStats.LakeOnly -gt 0) { $tierPieRows += "    `"Lake only`" : $($tierStats.LakeOnly)" }
 
-    $tierChartBlock = if ($tierPieRows.Count -ge 2) { @"
+    $tierChartBlock = if ($tierPieRows.Count -ge 2) {
+        @"
 
 ## Tier distribution
 
@@ -72,49 +73,51 @@ Pie of every operational table (a table that has received data in the last {look
 pie showData title Operational tables by tier configuration
 $($tierPieRows -join [Environment]::NewLine)
 ``````
-"@ } else { '' }
+"@
+    } else { '' }
 
     # Retention split bar chart — only render when at least one table has
     # extended retention (otherwise the chart would be empty).
     # Every table whose retention rolls into the lake, with its volume and the
     # rules reading it, and whether each one is still being fed.
     $retentionAllRows = @($retentionRows | ForEach-Object {
-        $name = [string]$_.Table
-        $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
-        [pscustomobject]@{
-            Table = $name; Plan = $_.Plan; AnalyticsDays = $_.AnalyticsDays; LakeOnlyDays = $_.LakeOnlyDays; TotalDays = $_.TotalDays
-            Gb90d = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
-            Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 })
-        }
-    } | Sort-Object @{ Expression = 'LakeOnlyDays'; Descending = $true }, Table)
+            $name = [string]$_.Table
+            $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
+            [pscustomobject]@{
+                Table = $name; Plan = $_.Plan; AnalyticsDays = $_.AnalyticsDays; LakeOnlyDays = $_.LakeOnlyDays; TotalDays = $_.TotalDays
+                Gb90d = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
+                Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 })
+            }
+        } | Sort-Object @{ Expression = 'LakeOnlyDays'; Descending = $true }, Table)
     $nowUtc88 = (Get-Date).ToUniversalTime()
     $lakeValidationRows = @($retentionRows | ForEach-Object {
-        $name = [string]$_.Table
-        $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
-        $last = if ($use) { Get-BlueprintRawProperty $use 'LastIngested' } else { $null }
-        $lastDt = $null
-        if ($last) {
-            $parsed = [datetime]::MinValue
-            if ([datetime]::TryParse([string]$last, [System.Globalization.CultureInfo]::InvariantCulture,
-                    [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) {
-                $lastDt = $parsed
+            $name = [string]$_.Table
+            $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
+            $last = if ($use) { Get-BlueprintRawProperty $use 'LastIngested' } else { $null }
+            $lastDt = $null
+            if ($last) {
+                $parsed = [datetime]::MinValue
+                if ([datetime]::TryParse([string]$last, [System.Globalization.CultureInfo]::InvariantCulture,
+                        [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) {
+                    $lastDt = $parsed
+                }
             }
-        }
-        $days = if ($lastDt) { [math]::Round(($nowUtc88 - $lastDt).TotalDays, 1) } else { $null }
-        [pscustomobject]@{
-            Table = $name; Plan = $_.Plan; LakeOnlyDays = $_.LakeOnlyDays
-            Gb90d = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
-            LastIngested = Format-DateUtc $last
-            DaysSince = $(if ($null -ne $days) { Format-BlueprintNumber $days -Decimals 1 } else { 'n/a' })
-            Validation = $(
-                if ($null -eq $days) {
-                    'Check: no data in {lookback}'
-                } elseif ($days -gt 7) { "Check: last record $(Format-BlueprintNumber $days -Decimals 1) days ago" } else { 'OK: ingesting' }
-            )
-        }
-    } | Sort-Object @{ Expression = { $_.Validation -like 'OK*' } }, @{ Expression = 'Gb90d'; Descending = $true })
+            $days = if ($lastDt) { [math]::Round(($nowUtc88 - $lastDt).TotalDays, 1) } else { $null }
+            [pscustomobject]@{
+                Table = $name; Plan = $_.Plan; LakeOnlyDays = $_.LakeOnlyDays
+                Gb90d        = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
+                LastIngested = Format-DateUtc $last
+                DaysSince    = $(if ($null -ne $days) { Format-BlueprintNumber $days -Decimals 1 } else { 'n/a' })
+                Validation   = $(
+                    if ($null -eq $days) {
+                        'Check: no data in {lookback}'
+                    } elseif ($days -gt 7) { "Check: last record $(Format-BlueprintNumber $days -Decimals 1) days ago" } else { 'OK: ingesting' }
+                )
+            }
+        } | Sort-Object @{ Expression = { $_.Validation -like 'OK*' } }, @{ Expression = 'Gb90d'; Descending = $true })
 
-    $retentionChartBlock = if ($topRetention.Count -gt 0) { @"
+    $retentionChartBlock = if ($topRetention.Count -gt 0) {
+        @"
 
 ## Retention that rolls into the lake
 
@@ -142,7 +145,8 @@ $(Format-BlueprintTable -Items $retentionAllRows -Columns 'Table','Plan','Analyt
 Is each table with long-term retention still being fed? Last ingestion comes from the ``Usage`` table over {lookback}. A table kept for years that stopped receiving data is paying to retain history nobody is adding to, and its detections have gone quiet.
 
 $(Format-BlueprintTable -Items $lakeValidationRows -Columns 'Table','Plan','LakeOnlyDays','Gb90d','LastIngested','DaysSince','Validation')
-"@ } else { '' }
+"@
+    } else { '' }
 
     # Lake architecture flowchart — static visual showing the three tiers
     # and the ingestion / mirror / promote / query paths. Always rendered
@@ -150,20 +154,21 @@ $(Format-BlueprintTable -Items $lakeValidationRows -Columns 'Table','Plan','Lake
     # data-driven.
     # The lake's tiers as data for the SharePoint graphic, by table count.
     $lakeVisualLine = Format-VisualLine -Kind 'lake' -Data ([ordered]@{
-        analyticsOnly  = [int]$tierStats.AnalyticsOnly
-        mirrored       = [int]$tierStats.MirroredOnly
-        extended       = [int]$tierStats.MirroredExtended
-        lakeOnly       = [int]$tierStats.LakeOnly
-        retentionYears = 12
-        uses           = @(
-            [ordered]@{ name = 'KQL jobs'; detail = 'Promote summarised data back to the Analytics tier for detection' }
-            [ordered]@{ name = 'KQL exploration'; detail = 'Query the lake in the Defender portal' }
-            [ordered]@{ name = 'Notebooks'; detail = 'Jupyter notebooks in VS Code' }
-            [ordered]@{ name = 'Sentinel graph'; detail = 'Blast radius and hunting' }
-            [ordered]@{ name = 'MCP tools'; detail = 'Entity analysis and triage' }
-        )
-    })
-    $lakeArchitectureBlock = if ($hasDataLake) { @"
+            analyticsOnly  = [int]$tierStats.AnalyticsOnly
+            mirrored       = [int]$tierStats.MirroredOnly
+            extended       = [int]$tierStats.MirroredExtended
+            lakeOnly       = [int]$tierStats.LakeOnly
+            retentionYears = 12
+            uses           = @(
+                [ordered]@{ name = 'KQL jobs'; detail = 'Promote summarised data back to the Analytics tier for detection' }
+                [ordered]@{ name = 'KQL exploration'; detail = 'Query the lake in the Defender portal' }
+                [ordered]@{ name = 'Notebooks'; detail = 'Jupyter notebooks in VS Code' }
+                [ordered]@{ name = 'Sentinel graph'; detail = 'Blast radius and hunting' }
+                [ordered]@{ name = 'MCP tools'; detail = 'Entity analysis and triage' }
+            )
+        })
+    $lakeArchitectureBlock = if ($hasDataLake) {
+        @"
 
 ## Lake architecture
 
@@ -190,23 +195,28 @@ $lakeVisualLine
     class LAKE lake
     class JOB,KQL,NB,GR,MCP tool
 ``````
-"@ } else { '' }
+"@
+    } else { '' }
 
     # Lake-tier tables block — only when there are explicit Lake-only
     # tables on the workspace.
-    $lakeTablesBlock = if ($dlTableRows.Count -gt 0) { @"
+    $lakeTablesBlock = if ($dlTableRows.Count -gt 0) {
+        @"
 
 ## Lake-only tables
 
 Tables explicitly configured to bypass the Analytics tier and route exclusively to the Lake. These tables bill against the **Data lake ingestion** + **Data processing** meters at a lower per-GB rate than Analytics, but **analytics rules cannot query them in real time**. Use the *Manage table* page in the Defender portal to switch a table's tier.
 
 $(Format-BlueprintTable -Items $dlTableRows -Columns 'Table','RetentionDays','TotalRetention')
-"@ } else { @"
+"@
+    } else {
+        @"
 
 ## Lake-only tables
 
 _No tables currently route to the Lake-only tier on this workspace._ When Lake is enrolled, the default behaviour is to mirror all Analytics-tier tables to the Lake at the same retention (see the tier distribution above). *Lake-only* requires explicitly switching a table's tier in **Defender portal → Microsoft Sentinel → Data management → Tables**.
-"@ }
+"@
+    }
 
     # Usage evidence for the tables that keep data in the lake beyond analytics
     # retention: enabled rules reading the table, summary rules whose query
@@ -227,39 +237,40 @@ _No tables currently route to the Lake-only tier on this workspace._ When Lake i
     }
     $queryUsageCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'table-query-usage.json')
     $lakeUsageRows = @($retentionRows | ForEach-Object {
-        $name = [string]$_.Table
-        $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
-        $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
-        $inSummary = [bool]($summaryRuleQueries | Where-Object { $_ -match ('\b' + [regex]::Escape($name) + '\b') } | Select-Object -First 1)
-        $inDerived = $derivedSources.ContainsKey($name)
-        $q = if ($tableQueryUsage.ContainsKey($name)) { $tableQueryUsage[$name] } else { $null }
-        $queries = if ($q) { [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $q 'Queries' 0)) } else { 0 }
-        $used = ($n -gt 0) -or $inSummary -or $inDerived -or ($queries -gt 0)
-        [pscustomobject]@{
-            Table = $name; Tier = $(if ($_.Plan -eq 'DataLake') { 'Lake only' } else { 'Analytics + Lake extended' }); LakeOnlyDays = $_.LakeOnlyDays
-            Gb90d = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
-            Rules = $n; SummaryRule = $(if ($inSummary) { 'Yes' } else { 'No' }); SearchRestore = $(if ($inDerived) { 'Yes' } else { 'No' })
-            AuditedQueries = $(if ($queryUsageCaptured) { $queries } else { 'not captured' })
-            Verdict = $(if ($used) { 'In use' } else { 'No usage evidence' })
-        }
-    } | Sort-Object -Property @{ Expression = { $_.Verdict -eq 'In use' } }, @{ Expression = 'Gb90d'; Descending = $true })
+            $name = [string]$_.Table
+            $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
+            $n = if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 }
+            $inSummary = [bool]($summaryRuleQueries | Where-Object { $_ -match ('\b' + [regex]::Escape($name) + '\b') } | Select-Object -First 1)
+            $inDerived = $derivedSources.ContainsKey($name)
+            $q = if ($tableQueryUsage.ContainsKey($name)) { $tableQueryUsage[$name] } else { $null }
+            $queries = if ($q) { [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $q 'Queries' 0)) } else { 0 }
+            $used = ($n -gt 0) -or $inSummary -or $inDerived -or ($queries -gt 0)
+            [pscustomobject]@{
+                Table = $name; Tier = $(if ($_.Plan -eq 'DataLake') { 'Lake only' } else { 'Analytics + Lake extended' }); LakeOnlyDays = $_.LakeOnlyDays
+                Gb90d          = $(if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 })
+                Rules = $n; SummaryRule = $(if ($inSummary) { 'Yes' } else { 'No' }); SearchRestore = $(if ($inDerived) { 'Yes' } else { 'No' })
+                AuditedQueries = $(if ($queryUsageCaptured) { $queries } else { 'not captured' })
+                Verdict        = $(if ($used) { 'In use' } else { 'No usage evidence' })
+            }
+        } | Sort-Object -Property @{ Expression = { $_.Verdict -eq 'In use' } }, @{ Expression = 'Gb90d'; Descending = $true })
     $noExtensionRows = @($operationalTables | Where-Object {
-        $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'plan') -eq 'Analytics' -and
+            $_ -and (Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'plan') -eq 'Analytics' -and
             (Get-TableTier -Table $_ -LakeEnrolled $hasDataLake) -eq 'MirroredOnly'
-    } | ForEach-Object {
-        $name = [string]$_.name
-        $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
-        $gb = if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 }
-        if ($gb -le 0) { return }
-        [pscustomobject]@{
-            Table = $name
-            AnalyticsDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'retentionInDays' ''
-            TotalDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'totalRetentionInDays' ''
-            Gb90d = $gb
-            Rules = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 })
-        }
-    } | Sort-Object -Property Gb90d -Descending)
-    $lakeUsageBlock = if (-not $hasDataLake) { '' } else { @"
+        } | ForEach-Object {
+            $name = [string]$_.name
+            $use = @($tablesWithData | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'DataType') -eq $name }) | Select-Object -First 1
+            $gb = if ($use) { [math]::Round((ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $use 'BillableLast90d' 0)), 2) } else { 0 }
+            if ($gb -le 0) { return }
+            [pscustomobject]@{
+                Table         = $name
+                AnalyticsDays = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'retentionInDays' ''
+                TotalDays     = Get-BlueprintRawProperty (Get-BlueprintRawProperty $_ 'properties') 'totalRetentionInDays' ''
+                Gb90d         = $gb
+                Rules         = $(if ($rulesPerTable.ContainsKey($name)) { $rulesPerTable[$name] } else { 0 })
+            }
+        } | Sort-Object -Property Gb90d -Descending)
+    $lakeUsageBlock = if (-not $hasDataLake) { '' } else {
+        @"
 
 ## Lake usage evidence
 
@@ -272,7 +283,8 @@ $(if ($lakeUsageRows.Count -gt 0) { Format-BlueprintTable -Items $lakeUsageRows 
 Tables receiving data whose total retention equals their analytics retention: on an enrolled workspace they are mirrored to the lake for the same period and nothing is kept once analytics retention expires. Confirm that matches the evidence-retention policy, especially for the tables rules depend on.
 
 $(Format-BlueprintTable -Items $noExtensionRows -Columns 'Table','AnalyticsDays','TotalDays','Gb90d','Rules')
-"@ }
+"@
+    }
 
     # Left in the render context for later sections.
     $Context.lakeArchitectureBlock = $lakeArchitectureBlock

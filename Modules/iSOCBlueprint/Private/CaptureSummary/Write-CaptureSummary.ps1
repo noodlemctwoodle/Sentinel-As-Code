@@ -89,20 +89,20 @@ function Write-CaptureSummary {
         }
     }
 
-    $all          = @($Issues | Where-Object { $_ })
+    $all = @($Issues | Where-Object { $_ })
     $notAvailable = @($all | Where-Object { $_.Kind -eq 'NotAvailable' })
-    $permission   = @($all | Where-Object { $_.Kind -eq 'Permission' })
-    $failed       = @($all | Where-Object { $_.Kind -notin 'NotAvailable', 'Permission' })
-    $issueLabels  = @($all | ForEach-Object { [string]$_.Label })
-    $written      = @(Get-ChildItem -LiteralPath $RawRoot -Filter '*.json' -File -ErrorAction SilentlyContinue).Count
+    $permission = @($all | Where-Object { $_.Kind -eq 'Permission' })
+    $failed = @($all | Where-Object { $_.Kind -notin 'NotAvailable', 'Permission' })
+    $issueLabels = @($all | ForEach-Object { [string]$_.Label })
+    $written = @(Get-ChildItem -LiteralPath $RawRoot -Filter '*.json' -File -ErrorAction SilentlyContinue).Count
 
     $problems = [System.Collections.Generic.List[pscustomobject]]::new()
     foreach ($f in @($ExpectNonEmpty) + @($ExpectIfActive)) {
         $count = Get-CaptureFileCount -Path (Join-Path $RawRoot $f)
         $status = if ($null -eq $count) { 'missing' }
-            elseif ($count -lt 0) { 'does not parse' }
-            elseif ($count -eq 0) { if ($ExpectNonEmpty -contains $f) { 'empty, unexpected' } else { 'empty' } }
-            else { $null }
+        elseif ($count -lt 0) { 'does not parse' }
+        elseif ($count -eq 0) { if ($ExpectNonEmpty -contains $f) { 'empty, unexpected' } else { 'empty' } }
+        else { $null }
         if ($status -and $issueLabels -contains [System.IO.Path]::GetFileNameWithoutExtension($f)) { $status += ' (listed above)' }
         if ($status) { $problems.Add([pscustomobject]@{ File = $f; Status = $status }) }
     }

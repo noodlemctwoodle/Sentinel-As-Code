@@ -146,12 +146,10 @@ function Get-iSOCContentHubSolutionStatus {
             $prodProps = $verifyResult.properties
             if ($prodProps.PSObject.Properties.Name -contains 'isInstalled' -and $prodProps.isInstalled -eq $true) {
                 $isGenuinelyInstalled = $true
-            }
-            elseif ($prodProps.PSObject.Properties.Name -contains 'installedVersion' -and $prodProps.installedVersion) {
+            } elseif ($prodProps.PSObject.Properties.Name -contains 'installedVersion' -and $prodProps.installedVersion) {
                 $isGenuinelyInstalled = $true
             }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  Could not read the catalogue entry for ${SolutionName}: $($_.Exception.Message)" -Level Debug
         }
     }
@@ -159,8 +157,7 @@ function Get-iSOCContentHubSolutionStatus {
     $result.Status = 'Installed'
     if ($isGenuinelyInstalled) {
         $result.Action = 'None'
-    }
-    else {
+    } else {
         Write-iSOCLog "  $SolutionName shows as installed in contentPackages but not in Content Hub; forcing reinstall." -Level Warning
         $result.Action = 'ForceUpdate'
     }

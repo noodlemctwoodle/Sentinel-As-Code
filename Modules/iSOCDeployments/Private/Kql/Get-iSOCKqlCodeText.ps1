@@ -104,8 +104,7 @@ function Get-iSOCKqlCodeText {
                         break
                     }
                     $i++
-                }
-                else {
+                } else {
                     if ($c -eq '\') { $i += 2; continue }
                     if ($c -eq $quote) { $i++; break }
                     $i++

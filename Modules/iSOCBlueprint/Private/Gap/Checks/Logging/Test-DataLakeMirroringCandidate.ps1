@@ -39,12 +39,12 @@ function Test-DataLakeMirroringCandidate {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Heuristic, long-tail tables (>30 GB/30d, retention > 90d, plan = Analytics).
     $analyticsLongRetention = @($Inventory.WorkspaceTables | Where-Object {
-        (Get-PropOrDefault $_ 'properties.plan' '') -eq 'Analytics' -and
-        [int](Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0) -gt 365
-    })
+            (Get-PropOrDefault $_ 'properties.plan' '') -eq 'Analytics' -and
+            [int](Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0) -gt 365
+        })
     if ($analyticsLongRetention.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $analyticsLongRetention.Count 'Analytics-plan table') with total retention of more than 365 days, $(Select-GapWording $analyticsLongRetention.Count 'a Data Lake mirroring candidate' 'Data Lake mirroring candidates')." -Detail @{ Count = $analyticsLongRetention.Count }
     }

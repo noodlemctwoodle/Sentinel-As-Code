@@ -39,15 +39,15 @@ function Test-AzureFirewallDuplicateLogging {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (@($Inventory.AzureDiagnosticsCategories).Count -eq 0) { return $null }
     if (-not $Inventory.TablesWithData) { return $null }
     $legacy = @($Inventory.AzureDiagnosticsCategories | Where-Object {
-        $null -ne $_ -and ([string](Get-PropOrDefault $_ 'Category' '')) -match '^(AzureFirewall|AZFW)'
-    })
+            $null -ne $_ -and ([string](Get-PropOrDefault $_ 'Category' '')) -match '^(AzureFirewall|AZFW)'
+        })
     $structured = @($Inventory.TablesWithData | Where-Object {
-        ([string](Get-PropOrDefault $_ 'DataType' '')) -match '^AZFW' -and (Get-GapIngested7d $_) -gt 0
-    })
+            ([string](Get-PropOrDefault $_ 'DataType' '')) -match '^AZFW' -and (Get-GapIngested7d $_) -gt 0
+        })
     if ($legacy.Count -eq 0 -or $structured.Count -eq 0) { return $null }
     $legacyRows = ($legacy | ForEach-Object { ConvertTo-GapInt (Get-PropOrDefault $_ 'LogCount' 0) } | Measure-Object -Sum).Sum
     $categories = @($legacy | ForEach-Object { [string](Get-PropOrDefault $_ 'Category' '') } | Sort-Object -Unique)
@@ -55,8 +55,8 @@ function Test-AzureFirewallDuplicateLogging {
     $structuredGb = (($structured | ForEach-Object { Get-GapBillable30d $_ }) | Measure-Object -Sum).Sum
     return New-Finding -Evidence "Azure Firewall writes to both AzureDiagnostics ($($categories -join ', '); $(Format-BlueprintPlural $legacyRows 'row') in the last $(Format-GapDays (Get-GapWindow $Inventory).Days)) and the resource-specific tables ($($tables -join ', '); $(Format-BlueprintGb $structuredGb) GB in the same window). The same events are ingested and billed twice." -Detail @{
         LegacyCategories = $categories
-        LegacyRows7d = $legacyRows
+        LegacyRows7d     = $legacyRows
         StructuredTables = $tables
-        StructuredGb30d = [math]::Round($structuredGb, 1)
+        StructuredGb30d  = [math]::Round($structuredGb, 1)
     }
 }

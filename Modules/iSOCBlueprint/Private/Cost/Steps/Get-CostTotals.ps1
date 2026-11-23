@@ -41,11 +41,13 @@ function Get-CostTotals {
     $rows = $Context.rows
 
     $perTable = @(foreach ($r in $rows) {
-        [pscustomobject]@{ Table = $r.Table; Plan = $r.Plan; Gb30d = [math]::Round($r.Gb, 2); MonthlyCost = [math]::Round($r.Cost, 2); Benefit = $r.Benefit }
-        $bucket = if ($byPlan.ContainsKey($r.Plan)) { $r.Plan } else { 'Analytics' }
-        $byPlan[$bucket].Gb30d       += $r.Gb
-        $byPlan[$bucket].MonthlyCost += [math]::Round($r.Cost, 2)
-    })
+            [pscustomobject]@{ Table = $r.Table; Plan = $r.Plan; Gb30d = [math]::Round($r.Gb, 2); MonthlyCost = [math]::Round($r.Cost, 2)
+                Benefit = $r.Benefit
+            }
+            $bucket = if ($byPlan.ContainsKey($r.Plan)) { $r.Plan } else { 'Analytics' }
+            $byPlan[$bucket].Gb30d += $r.Gb
+            $byPlan[$bucket].MonthlyCost += [math]::Round($r.Cost, 2)
+        })
 
     $monthlyTotal = Get-CostPropertySum $perTable 'MonthlyCost'
 

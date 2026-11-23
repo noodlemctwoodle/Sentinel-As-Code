@@ -337,10 +337,10 @@ Describe 'Deploy-iSOCContent -ContentType WorkspaceSetting beside the <Pipeline>
 
     It 'deploys what the step configured, and skips or fails what it warned of' {
         $results = @($script:new.Run.Results)
-        @($results | Where-Object Outcome -eq 'Deployed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:old.Configured | Sort-Object)
-        @($results | Where-Object Outcome -in 'Skipped', 'Failed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:old.Warned | Sort-Object)
-        @($results | Where-Object Outcome -eq 'Skipped' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($Denied | Sort-Object)
-        @($results | Where-Object Outcome -eq 'Failed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($Failing | Sort-Object)
+        @($results | Where-Object Outcome -EQ 'Deployed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:old.Configured | Sort-Object)
+        @($results | Where-Object Outcome -In 'Skipped', 'Failed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:old.Warned | Sort-Object)
+        @($results | Where-Object Outcome -EQ 'Skipped' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($Denied | Sort-Object)
+        @($results | Where-Object Outcome -EQ 'Failed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($Failing | Sort-Object)
     }
 
     It 'fails the run only for a rejected setting, where the step always succeeded' {
@@ -367,7 +367,7 @@ Describe 'Deploy-iSOCContent -ContentType WorkspaceSetting' {
         $run = Invoke-ModuleSettingDeploy -State (Get-WorkspaceStandIn) -Preview
         @($run.State.Reads) | Should -BeNullOrEmpty
         @($run.State.Writes) | Should -BeNullOrEmpty
-        @($run.Run.Results | Where-Object Outcome -eq 'WhatIf').Count | Should -Be 4
+        @($run.Run.Results | Where-Object Outcome -EQ 'WhatIf').Count | Should -Be 4
     }
 
     It 'deploys before every other content type' {

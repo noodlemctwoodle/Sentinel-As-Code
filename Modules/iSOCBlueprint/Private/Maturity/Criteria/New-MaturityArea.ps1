@@ -78,37 +78,37 @@ function New-MaturityArea {
 
     $areaId = [string]$Area.id
     $resolved = @(foreach ($c in @($Criteria | Where-Object { [string]$_.area -eq $areaId })) {
-        $r = Resolve-MaturitySource -Source $c.source -Metrics $Metrics -OutcomeById $OutcomeById -EvidenceById $EvidenceById
-        $template = switch ($r.Status) {
-            'Met' { Get-MaturityPropertyValue $c 'evidence.met' $null }
-            'Gap' { Get-MaturityPropertyValue $c 'evidence.gap' $null }
-            default { $null }
-        }
-        $evidence = Format-MaturityWindow -Text (Format-MaturityEvidence -Template $template -Metric $r.Metric) -Window $Window
-        if (-not $evidence) { $evidence = $r.Evidence }
-        if (-not $evidence) {
-            $evidence = switch ($r.Status) {
-                'Met' { "$($r.Rule) passed." }
-                'Gap' { "$($r.Rule) fired." }
-                default { 'Not evaluated in this run.' }
+            $r = Resolve-MaturitySource -Source $c.source -Metrics $Metrics -OutcomeById $OutcomeById -EvidenceById $EvidenceById
+            $template = switch ($r.Status) {
+                'Met' { Get-MaturityPropertyValue $c 'evidence.met' $null }
+                'Gap' { Get-MaturityPropertyValue $c 'evidence.gap' $null }
+                default { $null }
             }
-        }
-        [pscustomobject]@{
-            id       = [string]$c.id
-            kind     = [string]$c.kind
-            name     = [string]$c.name
-            status   = $r.Status
-            evidence = $evidence
-            weight   = [double]$c.weight
-            effort   = [string]$c.effort
-            impact   = Format-MaturityWindow -Text ([string]$c.impact) -Window $Window
-            guidance = [string]$c.guidance
-            csf      = @($c.csf | ForEach-Object { [string]$_ })
-            source   = $c.source
-            metric   = $r.Metric
-            rule     = $r.Rule
-        }
-    })
+            $evidence = Format-MaturityWindow -Text (Format-MaturityEvidence -Template $template -Metric $r.Metric) -Window $Window
+            if (-not $evidence) { $evidence = $r.Evidence }
+            if (-not $evidence) {
+                $evidence = switch ($r.Status) {
+                    'Met' { "$($r.Rule) passed." }
+                    'Gap' { "$($r.Rule) fired." }
+                    default { 'Not evaluated in this run.' }
+                }
+            }
+            [pscustomobject]@{
+                id       = [string]$c.id
+                kind     = [string]$c.kind
+                name     = [string]$c.name
+                status   = $r.Status
+                evidence = $evidence
+                weight   = [double]$c.weight
+                effort   = [string]$c.effort
+                impact   = Format-MaturityWindow -Text ([string]$c.impact) -Window $Window
+                guidance = [string]$c.guidance
+                csf      = @($c.csf | ForEach-Object { [string]$_ })
+                source   = $c.source
+                metric   = $r.Metric
+                rule     = $r.Rule
+            }
+        })
     $known = @($resolved | Where-Object { $_.status -in 'Met', 'Gap' })
     # Measure-Object returns nothing for an empty input, so sum by hand.
     $sumKnown = 0.0; $sumMet = 0.0
@@ -122,9 +122,9 @@ function New-MaturityArea {
         $level = [int][math]::Floor($score)
     }
     $confidence = if ($known.Count -eq 0) { 'Not assessed' }
-                  elseif ($known.Count -ge $ConfidenceGood) { 'Good' }
-                  elseif ($known.Count -ge $ConfidenceModerate) { 'Moderate' }
-                  else { 'Indicative' }
+    elseif ($known.Count -ge $ConfidenceGood) { 'Good' }
+    elseif ($known.Count -ge $ConfidenceModerate) { 'Moderate' }
+    else { 'Indicative' }
     [pscustomobject]@{
         id          = $areaId
         name        = [string]$Area.name
@@ -132,9 +132,9 @@ function New-MaturityArea {
         score       = $score
         level       = $level
         levelName   = $(if ($null -ne $level) { $LevelNames[$level] } else { 'Not assessed' })
-        met         = @($resolved | Where-Object status -eq 'Met').Count
-        gap         = @($resolved | Where-Object status -eq 'Gap').Count
-        unknown     = @($resolved | Where-Object status -eq 'Unknown').Count
+        met         = @($resolved | Where-Object status -EQ 'Met').Count
+        gap         = @($resolved | Where-Object status -EQ 'Gap').Count
+        unknown     = @($resolved | Where-Object status -EQ 'Unknown').Count
         evaluated   = $known.Count
         confidence  = $confidence
         weightKnown = [double]$sumKnown

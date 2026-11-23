@@ -79,8 +79,7 @@ function Publish-SacDashboardPage {
 
     if ($existing) {
         Set-PnPPageWebPart -Page $PageName -Identity $existing.InstanceId -PropertiesJson ($properties | ConvertTo-Json -Compress) | Out-Null
-    }
-    else {
+    } else {
         # Reuse a full-width section an earlier, failed run left on the page,
         # so a re-run does not stack a second one.
         $sectionIndex = 0

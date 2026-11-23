@@ -75,8 +75,7 @@ function Get-iSOCDefenderDetectionRuleId {
     try {
         $rules = @(Invoke-iSOCRestRequest -Method GET -Api Graph -Context $Run.Context -Path (Get-iSOCResourcePath -Context $Run.Context -ContentType $ContentType) -ApiVersion (Get-iSOCApiVersion $ContentType.ApiVersion))
         Write-iSOCLog "Found $($rules.Count) existing custom detection rule(s)."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not fetch existing rules: $($_.Exception.Message). All rules will be created as new." -Level Warning
         $rules = @()
     }

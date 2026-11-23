@@ -81,69 +81,66 @@ BeforeDiscovery {
         # Every Bicep file compiled in one run of the CLI, through the
         # module's own wrapper.
         $builds = @{}
-        $bicepFiles = @($files | Where-Object Extension -eq '.bicep')
+        $bicepFiles = @($files | Where-Object Extension -EQ '.bicep')
         if ($bicepFiles.Count -gt 0) {
             if (-not (Get-Command bicep -CommandType Application -ErrorAction SilentlyContinue)) {
                 foreach ($file in $bicepFiles) { $builds[$file.FullName] = [pscustomobject]@{ Succeeded = $false; Json = $null; Errors = @('The Bicep CLI is not on the PATH: install it with az bicep install and put ~/.azure/bin on the PATH.'); Warnings = @() } }
-            }
-            else {
+            } else {
                 $module = Import-Module (Join-Path $repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force -PassThru
                 foreach ($build in @(& $module { param($Paths) Invoke-iSOCBicep -Path $Paths } @($bicepFiles.FullName))) { $builds[$build.Path] = $build }
             }
         }
 
         $script:playbookCases = @($files | ForEach-Object {
-            $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
-            $arm = $null
-            $parseError = $null
-            $warnings = @()
-            try {
-                if ($_.Extension -eq '.bicep') {
-                    $build = $builds[[System.IO.Path]::GetFullPath($_.FullName)]
-                    $warnings = @($build.Warnings)
-                    if (-not $build.Succeeded) { throw "does not compile: $(@($build.Errors) -join ' ')" }
-                    $raw = $build.Json
+                $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
+                $arm = $null
+                $parseError = $null
+                $warnings = @()
+                try {
+                    if ($_.Extension -eq '.bicep') {
+                        $build = $builds[[System.IO.Path]::GetFullPath($_.FullName)]
+                        $warnings = @($build.Warnings)
+                        if (-not $build.Succeeded) { throw "does not compile: $(@($build.Errors) -join ' ')" }
+                        $raw = $build.Json
+                    } else {
+                        $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                    }
+                    if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
+                    $arm = ConvertFrom-Json -InputObject $raw -Depth 64 -AsHashtable -ErrorAction Stop
+                } catch {
+                    $parseError = $_.Exception.Message
                 }
-                else {
-                    $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+
+                $tier = ''
+                $relParts = $rel -split '/'
+                if ($relParts.Count -ge 2) { $tier = $relParts[1] }
+
+                @{
+                    Path         = $_.FullName
+                    RelativePath = $rel
+                    Arm          = $arm
+                    ParseError   = $parseError
+                    ParseFailed  = ($null -ne $parseError) -or ($null -eq $arm)
+                    Tier         = $tier
+                    IsSkeleton   = ($skeletonPlaybooks -contains $rel)
+                    IsBicep      = ($_.Extension -eq '.bicep')
+                    Warnings     = $warnings
                 }
-                if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
-                $arm = ConvertFrom-Json -InputObject $raw -Depth 64 -AsHashtable -ErrorAction Stop
-            }
-            catch {
-                $parseError = $_.Exception.Message
-            }
-
-            $tier = ''
-            $relParts = $rel -split '/'
-            if ($relParts.Count -ge 2) { $tier = $relParts[1] }
-
-            @{
-                Path         = $_.FullName
-                RelativePath = $rel
-                Arm          = $arm
-                ParseError   = $parseError
-                ParseFailed  = ($null -ne $parseError) -or ($null -eq $arm)
-                Tier         = $tier
-                IsSkeleton   = ($skeletonPlaybooks -contains $rel)
-                IsBicep      = ($_.Extension -eq '.bicep')
-                Warnings     = $warnings
-            }
-        })
+            })
     }
 }
 
 BeforeAll {
     $script:DeploymentTemplateSchema = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
-    $script:WorkflowResourceType     = 'Microsoft.Logic/workflows'
-    $script:NamingParameters         = @('PlaybookName', 'LogicAppName')
+    $script:WorkflowResourceType = 'Microsoft.Logic/workflows'
+    $script:NamingParameters = @('PlaybookName', 'LogicAppName')
 }
 
 Describe 'Playbook: <RelativePath>' -ForEach $script:playbookCases {
 
     It 'parses as JSON, or compiles, with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
-        $Arm        | Should -Not -BeNullOrEmpty
+        $Arm | Should -Not -BeNullOrEmpty
         ($Arm -is [System.Collections.IDictionary]) | Should -BeTrue
     }
 
@@ -182,17 +179,17 @@ Describe 'Playbook: <RelativePath>' -ForEach $script:playbookCases {
     Context 'Workflow resource' -Skip:($ParseFailed -or -not $Arm.ContainsKey('resources')) {
         It 'has at least one Microsoft.Logic/workflows resource' {
             $workflows = @($Arm.resources | Where-Object {
-                $_ -is [System.Collections.IDictionary] -and
-                [string]$_.type -eq $script:WorkflowResourceType
-            })
+                    $_ -is [System.Collections.IDictionary] -and
+                    [string]$_.type -eq $script:WorkflowResourceType
+                })
             $workflows.Count | Should -BeGreaterOrEqual 1 -Because "playbook must contain at least one $script:WorkflowResourceType resource"
         }
 
         It 'workflow resource has a properties.definition' {
             $workflows = @($Arm.resources | Where-Object {
-                $_ -is [System.Collections.IDictionary] -and
-                [string]$_.type -eq $script:WorkflowResourceType
-            })
+                    $_ -is [System.Collections.IDictionary] -and
+                    [string]$_.type -eq $script:WorkflowResourceType
+                })
             foreach ($wf in $workflows) {
                 $wf.ContainsKey('properties') | Should -BeTrue
                 ($wf.properties -is [System.Collections.IDictionary]) | Should -BeTrue
@@ -209,13 +206,13 @@ Describe 'Playbook: <RelativePath>' -ForEach $script:playbookCases {
 
         It 'workflow has at least one trigger and one action (skeleton playbooks excepted)' -Skip:$IsSkeleton {
             $workflows = @($Arm.resources | Where-Object {
-                $_ -is [System.Collections.IDictionary] -and
-                [string]$_.type -eq $script:WorkflowResourceType
-            })
+                    $_ -is [System.Collections.IDictionary] -and
+                    [string]$_.type -eq $script:WorkflowResourceType
+                })
             foreach ($wf in $workflows) {
                 $def = $wf.properties.definition
                 $def.triggers.Keys.Count | Should -BeGreaterThan 0 -Because 'a playbook with no trigger never fires'
-                $def.actions.Keys.Count  | Should -BeGreaterThan 0 -Because 'a playbook with no actions has no body'
+                $def.actions.Keys.Count | Should -BeGreaterThan 0 -Because 'a playbook with no actions has no body'
             }
         }
     }

@@ -64,7 +64,7 @@ function Write-BlueprintGapAnalysisSection {
     # Findings landscape — grouped bar by category × severity. Sort categories
     # by Warning-then-Info count desc so the worst buckets land on the left.
     $catOrder = $gapByCategory.Keys | Sort-Object {
-        -(1000 * ($gapByCategory[$_].Critical) + 10 * ($gapByCategory[$_].Warning) + ($gapByCategory[$_].Info))
+        - (1000 * ($gapByCategory[$_].Critical) + 10 * ($gapByCategory[$_].Warning) + ($gapByCategory[$_].Info))
     }, { $_ }
     $catAxis = ($catOrder | ForEach-Object { "`"$_`"" }) -join ', '
     $catWarn = ($catOrder | ForEach-Object { $gapByCategory[$_].Warning }) -join ', '

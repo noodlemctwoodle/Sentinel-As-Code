@@ -58,8 +58,8 @@ function Get-PageSyncPlan {
     foreach ($d in $Desired) {
         [void]$wanted.Add($d.Name)
         $action = if (-not $existing.Contains($d.Name)) { 'Create' }
-                  elseif ($PublishedHashes.ContainsKey($d.Name) -and $PublishedHashes[$d.Name] -eq $d.Hash) { 'Skip' }
-                  else { 'Update' }
+        elseif ($PublishedHashes.ContainsKey($d.Name) -and $PublishedHashes[$d.Name] -eq $d.Hash) { 'Skip' }
+        else { 'Update' }
         $plan.Add([pscustomobject]@{ Name = $d.Name; Action = $action })
     }
     foreach ($n in ($ExistingNames | Sort-Object)) {

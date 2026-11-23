@@ -60,20 +60,20 @@ function Write-BlueprintMitreCoverageSectionPart3 {
         $ruleCount = $tacticCounts[$key]
         $coverage = if ($ruleCount -eq 0) { 'None' } elseif ($ruleCount -lt 3) { 'Thin' } else { 'Covered' }
         [pscustomobject]@{
-            ID = $t.id
-            Tactic = $t.name
-            EnabledRules = $ruleCount
-            Techniques = $techCount
+            ID            = $t.id
+            Tactic        = $t.name
+            EnabledRules  = $ruleCount
+            Techniques    = $techCount
             SubTechniques = $subCount
-            Coverage = $coverage
+            Coverage      = $coverage
         }
     }
-    $mitreTacticsTotal   = @($mitreRowsRich).Count
+    $mitreTacticsTotal = @($mitreRowsRich).Count
     $mitreTacticsCovered = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Covered' }).Count
-    $mitreTacticsThin    = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin' }).Count
-    $mitreTacticsNone    = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None' }).Count
+    $mitreTacticsThin = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'Thin' }).Count
+    $mitreTacticsNone = @($mitreRowsRich | Where-Object { $_.Coverage -eq 'None' }).Count
     $mitreTechTotal = @(@($mitreHierarchy.Values | ForEach-Object { $_.Keys }) | Sort-Object -Unique).Count
-    $mitreSubTotal  = @(@($mitreHierarchy.Values | ForEach-Object { $_.Values } | ForEach-Object { $_.Subs.Keys }) | Sort-Object -Unique).Count
+    $mitreSubTotal = @(@($mitreHierarchy.Values | ForEach-Object { $_.Values } | ForEach-Object { $_.Subs.Keys }) | Sort-Object -Unique).Count
 
     # One table per tactic the rules reach: each technique, then its
     # sub-techniques, with the number of enabled rules on each. Rule names are
@@ -123,10 +123,10 @@ function Write-BlueprintMitreCoverageSectionPart3 {
         'Exfiltration' = 'Exfil'; 'Impact' = 'Impact'
     }
     $mitreAxis = ($tactics | ForEach-Object {
-        $key = $_.sentinelShortName
-        $lbl = if ($labelMap.ContainsKey($key)) { $labelMap[$key] } else { $key.Substring(0, [math]::Min(7, $key.Length)) }
-        "`"$lbl`""
-    }) -join ', '
+            $key = $_.sentinelShortName
+            $lbl = if ($labelMap.ContainsKey($key)) { $labelMap[$key] } else { $key.Substring(0, [math]::Min(7, $key.Length)) }
+            "`"$lbl`""
+        }) -join ', '
     $mitreBars = ($mitreRowsRich | ForEach-Object { $_.EnabledRules }) -join ', '
     $mitreMax = 1
     foreach ($r in $mitreRowsRich) { if ($r.EnabledRules -gt $mitreMax) { $mitreMax = $r.EnabledRules } }

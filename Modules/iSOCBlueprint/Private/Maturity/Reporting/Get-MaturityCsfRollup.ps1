@@ -44,30 +44,30 @@ function Get-MaturityCsfRollup {
     )
 
     $functions = @(foreach ($fn in $Document.csf.functions.PSObject.Properties) {
-        $hits = @($Criteria | Where-Object { @($_.csf | Where-Object { $_ -like "$($fn.Name).*" }).Count -gt 0 })
-        [pscustomobject]@{
-            id       = $fn.Name
-            name     = [string]$fn.Value
-            criteria = $hits.Count
-            met      = @($hits | Where-Object status -eq 'Met').Count
-            gap      = @($hits | Where-Object status -eq 'Gap').Count
-            unknown  = @($hits | Where-Object status -eq 'Unknown').Count
-        }
-    })
+            $hits = @($Criteria | Where-Object { @($_.csf | Where-Object { $_ -like "$($fn.Name).*" }).Count -gt 0 })
+            [pscustomobject]@{
+                id       = $fn.Name
+                name     = [string]$fn.Value
+                criteria = $hits.Count
+                met      = @($hits | Where-Object status -EQ 'Met').Count
+                gap      = @($hits | Where-Object status -EQ 'Gap').Count
+                unknown  = @($hits | Where-Object status -EQ 'Unknown').Count
+            }
+        })
     $usedIds = @($Criteria | ForEach-Object { $_.csf } | Sort-Object -Unique)
     $subcategories = @(foreach ($id in $usedIds) {
-        $hits = @($Criteria | Where-Object { $_.csf -contains $id })
-        [pscustomobject]@{
-            id          = $id
-            function    = $id.Substring(0, 2)
-            # Subcategory ids contain a dot, so read the member directly
-            # rather than through the dotted-path helper.
-            outcome     = [string]$Document.csf.subcategories.PSObject.Properties[$id].Value
-            met         = @($hits | Where-Object status -eq 'Met').Count
-            gap         = @($hits | Where-Object status -eq 'Gap').Count
-            unknown     = @($hits | Where-Object status -eq 'Unknown').Count
-            criteriaIds = @($hits | ForEach-Object { $_.id })
-        }
-    })
+            $hits = @($Criteria | Where-Object { $_.csf -contains $id })
+            [pscustomobject]@{
+                id          = $id
+                function    = $id.Substring(0, 2)
+                # Subcategory ids contain a dot, so read the member directly
+                # rather than through the dotted-path helper.
+                outcome     = [string]$Document.csf.subcategories.PSObject.Properties[$id].Value
+                met         = @($hits | Where-Object status -EQ 'Met').Count
+                gap         = @($hits | Where-Object status -EQ 'Gap').Count
+                unknown     = @($hits | Where-Object status -EQ 'Unknown').Count
+                criteriaIds = @($hits | ForEach-Object { $_.id })
+            }
+        })
     return [pscustomobject]@{ Functions = $functions; Subcategories = $subcategories }
 }

@@ -45,21 +45,21 @@ function Get-BlueprintCostSource {
     [CmdletBinding()]
     param([string]$Table)
     switch -Regex ($Table) {
-        '^ThreatIntel'                                             { return 'Microsoft Defender TI' }
+        '^ThreatIntel' { return 'Microsoft Defender TI' }
         '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
-        '^(Device|Email|Url|Alert|Cloud|Identity).*'               { return 'Microsoft Defender XDR' }
-        '^ASim'                                                    { return 'ASIM normaliser' }
-        '^Office'                                                  { return 'Office 365' }
-        '^(CommonSecurityLog|Syslog)$'                             { return 'CEF / Syslog' }
-        '^(SecurityEvent|WindowsEvent|Event)$'                     { return 'Windows events' }
-        '^(AzureActivity|AzureDiagnostics|AzureMetrics)$'          { return 'Azure platform' }
-        '^Intune'                                                  { return 'Intune' }
-        '^Unifi'                                                   { return 'UniFi' }
-        '^Tailscale'                                               { return 'Tailscale' }
+        '^(Device|Email|Url|Alert|Cloud|Identity).*' { return 'Microsoft Defender XDR' }
+        '^ASim' { return 'ASIM normaliser' }
+        '^Office' { return 'Office 365' }
+        '^(CommonSecurityLog|Syslog)$' { return 'CEF / Syslog' }
+        '^(SecurityEvent|WindowsEvent|Event)$' { return 'Windows events' }
+        '^(AzureActivity|AzureDiagnostics|AzureMetrics)$' { return 'Azure platform' }
+        '^Intune' { return 'Intune' }
+        '^Unifi' { return 'UniFi' }
+        '^Tailscale' { return 'Tailscale' }
         '^App(Traces|Metrics|Requests|Dependencies|Exceptions|PageViews|PerformanceCounters|Events|SystemEvents|ServiceHTTPLogs|ServiceConsoleLogs|ServicePlatformLogs|ServiceFileAuditLogs|ServiceIPSecAuditLogs|ServiceAntivirusScanAuditLogs)$' { return 'Application Insights' }
-        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf)$'           { return 'Workspace operations' }
-        '^Dataverse'                                               { return 'Power Platform' }
-        '_CL$'                                                     { return 'Custom (CCF / DCR)' }
-        default                                                    { return 'Other' }
+        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf)$' { return 'Workspace operations' }
+        '^Dataverse' { return 'Power Platform' }
+        '_CL$' { return 'Custom (CCF / DCR)' }
+        default { return 'Other' }
     }
 }

@@ -67,8 +67,7 @@ function ConvertFrom-WhatsNewMarkdown {
                     [System.Globalization.DateTimeStyles]::None, [ref]$date)) {
                 $current = [pscustomobject]@{ Month = $date.ToString('yyyy-MM'); Label = $label; Lines = [System.Collections.Generic.List[string]]::new() }
                 $monthsList.Add($current)
-            }
-            else { $current = $null }
+            } else { $current = $null }
             continue
         }
         if ($current) { $current.Lines.Add($line) }
@@ -115,8 +114,7 @@ function ConvertFrom-WhatsNewMarkdown {
                     Deadline  = $(if ($status -in 'Retiring', 'Action needed') { Get-WhatsNewDeadline -Text "$title $summary" } else { $null })
                 }
             }
-        }
-        else {
+        } else {
             # Defender XDR shape: each top-level bullet is an item, its nested
             # bullets its detail.
             $j = 0

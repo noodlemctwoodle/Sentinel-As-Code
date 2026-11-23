@@ -50,7 +50,7 @@ function Invoke-SentinelSettingsCapture {
     $sentinelScope = $Context.sentinelScope
 
     $settings = [ordered]@{}
-    foreach ($n in @('Ueba','EntityAnalytics','EyesOn','Anomalies')) {
+    foreach ($n in @('Ueba', 'EntityAnalytics', 'EyesOn', 'Anomalies')) {
         try {
             # Invoke-SentinelRest always returns an array (single-resource
             # responses get wrapped in a one-element array, 404s yield @()).

@@ -39,7 +39,7 @@ function Test-UebaEnabled {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $ueba = Get-PropOrDefault $Inventory.Settings 'Ueba'
 
     # Data-presence inference: when UEBA is producing rows in any of its

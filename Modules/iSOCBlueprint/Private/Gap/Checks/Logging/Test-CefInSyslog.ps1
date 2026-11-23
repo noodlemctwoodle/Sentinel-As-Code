@@ -39,16 +39,16 @@ function Test-CefInSyslog {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'cef-in-syslog.json') { return $null }
     $rows = @($Inventory.CefInSyslog | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'Computer' '') })
     if ($rows.Count -eq 0) { return $null }
     $byHost = @($rows | Group-Object { [string]$_.Computer } | ForEach-Object {
-        [pscustomobject]@{
-            Computer = $_.Name
-            Records = (@($_.Group | ForEach-Object { ConvertTo-GapInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum
-        }
-    } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
+            [pscustomobject]@{
+                Computer = $_.Name
+                Records  = (@($_.Group | ForEach-Object { ConvertTo-GapInt (Get-PropOrDefault $_ 'LogCount' 0) }) | Measure-Object -Sum).Sum
+            }
+        } | Sort-Object @{ Expression = 'Records'; Descending = $true }, Computer)
     $names = @($byHost | ForEach-Object { "$($_.Computer) ($(Format-BlueprintPlural $_.Records 'record'))" })
     return New-Finding -Evidence "CEF-formatted messages landed in Syslog instead of CommonSecurityLog in the last $(Format-GapDays (Get-GapWindow $Inventory).Days), from $(Format-BlueprintPlural $byHost.Count 'forwarder'): $($names -join ', ')." -Detail @{
         Forwarders = $byHost

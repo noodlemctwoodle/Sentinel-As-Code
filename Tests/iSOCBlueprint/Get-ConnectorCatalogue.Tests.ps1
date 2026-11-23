@@ -36,37 +36,37 @@ BeforeAll {
         version    = '2026-07-09T15:25:28Z'
         connectors = @(
             @{
-                id = 'AzureActiveDirectory'
-                title = 'Microsoft Entra ID'
-                publisher = 'Microsoft'
-                solution = 'Microsoft Entra ID'
+                id         = 'AzureActiveDirectory'
+                title      = 'Microsoft Entra ID'
+                publisher  = 'Microsoft'
+                solution   = 'Microsoft Entra ID'
                 deprecated = $false
-                tables = @('AuditLogs', 'SigninLogs')
+                tables     = @('AuditLogs', 'SigninLogs')
             }
             @{
-                id = 'Office365'
-                title = 'Microsoft 365'
-                publisher = 'Microsoft'
-                solution = 'Microsoft 365'
+                id         = 'Office365'
+                title      = 'Microsoft 365'
+                publisher  = 'Microsoft'
+                solution   = 'Microsoft 365'
                 deprecated = $false
-                tables = @('OfficeActivity')
+                tables     = @('OfficeActivity')
             }
             @{
-                id = 'AzureDevOpsAuditLogs'
-                title = 'Azure DevOps Audit Logs'
-                publisher = 'Microsoft'
-                solution = 'AzureDevOpsAuditing'
+                id         = 'AzureDevOpsAuditLogs'
+                title      = 'Azure DevOps Audit Logs'
+                publisher  = 'Microsoft'
+                solution   = 'AzureDevOpsAuditing'
                 deprecated = $false
-                tables = @('ADOAuditLogs_CL', 'SigninLogs')
+                tables     = @('ADOAuditLogs_CL', 'SigninLogs')
             }
             @{ id = 'OldAgent'; title = 'Old agent'; publisher = 'Vendor'; solution = 'Vendor Solution'; deprecated = $true; tables = @('CommonSecurityLog') }
             @{
-                id = 'CefAma'
-                title = 'CEF via AMA'
-                publisher = 'Microsoft'
-                solution = 'Common Event Format'
+                id         = 'CefAma'
+                title      = 'CEF via AMA'
+                publisher  = 'Microsoft'
+                solution   = 'Common Event Format'
                 deprecated = $false
-                tables = @('CommonSecurityLog')
+                tables     = @('CommonSecurityLog')
             }
             @{ id = 'VendorA'; title = 'Vendor A'; publisher = 'A'; solution = 'Vendor A'; deprecated = $false; tables = @('CommonSecurityLog') }
             @{ id = 'VendorB'; title = 'Vendor B'; publisher = 'B'; solution = 'Vendor B'; deprecated = $false; tables = @('CommonSecurityLog') }
@@ -97,7 +97,7 @@ Describe 'The shipped connector catalogue' {
         ($ids | Sort-Object -Unique).Count | Should -Be $ids.Count
         foreach ($c in $script:doc.connectors) {
             $c.title | Should -Not -BeNullOrEmpty -Because $c.id
-            ,@($c.tables) | Should -BeOfType [object[]] -Because $c.id
+            , @($c.tables) | Should -BeOfType [object[]] -Because $c.id
             $c.title | Should -Not -Match '\[deprecated\]' -Because 'the flag carries it'
         }
     }
@@ -119,9 +119,9 @@ Describe 'Get-WorkspaceConnectorId' {
 
     It 'uses the connector definition of a codeless connector' {
         Get-WorkspaceConnectorId -Connector ([pscustomobject]@{
-            kind = 'RestApiPoller'
-            properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' }
-        }) |
+                kind       = 'RestApiPoller'
+                properties = [pscustomobject]@{ connectorDefinitionName = 'AzureDevOpsAuditLogs' }
+            }) |
             Should -Be 'AzureDevOpsAuditLogs'
     }
 }
@@ -155,20 +155,20 @@ Describe 'Get-ConnectorCatalogueStatus' {
     }
 
     It 'calls a connector with data in any of its tables receiving, and lists the quiet ones' {
-        $aad = $script:rows | Where-Object Id -eq 'AzureActiveDirectory'
+        $aad = $script:rows | Where-Object Id -EQ 'AzureActiveDirectory'
         $aad.Status | Should -Be 'Receiving data'
         $aad.WithData | Should -Be @('SigninLogs')
         $aad.Quiet | Should -Be @('AuditLogs')
     }
 
     It 'calls a connector silent when none of its tables received data' {
-        ($script:rows | Where-Object Id -eq 'Office365').Status | Should -Be 'Silent'
+        ($script:rows | Where-Object Id -EQ 'Office365').Status | Should -Be 'Silent'
     }
 
     It 'marks deprecated connectors and connectors the catalogue does not know or cannot map' {
-        ($script:rows | Where-Object Id -eq 'OldAgent').Deprecated | Should -BeTrue
-        ($script:rows | Where-Object Id -eq 'MicrosoftThreatIntelligence').Status | Should -Be 'Not in the catalogue'
-        ($script:rows | Where-Object Id -eq 'Empty').Status | Should -Be 'No tables in the catalogue'
+        ($script:rows | Where-Object Id -EQ 'OldAgent').Deprecated | Should -BeTrue
+        ($script:rows | Where-Object Id -EQ 'MicrosoftThreatIntelligence').Status | Should -Be 'Not in the catalogue'
+        ($script:rows | Where-Object Id -EQ 'Empty').Status | Should -Be 'No tables in the catalogue'
     }
 }
 

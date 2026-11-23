@@ -121,8 +121,8 @@ function ConvertTo-SharePointPageSegments {
         }
         if ([string]$b.type -eq 'heading' -and [int]$b.level -le 2) { & $flush }
         [void]$buffer.Append((ConvertTo-SacBlocksHtml -Blocks @(
-            $b
-        ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings -Tables $tables -Heading $lastHeading))
+                    $b
+                ) -FindingsListUrl $FindingsListUrl -MaxTableRows $MaxTableRows -Id $id -Warnings $warnings -Tables $tables -Heading $lastHeading))
     }
     & $flush
 

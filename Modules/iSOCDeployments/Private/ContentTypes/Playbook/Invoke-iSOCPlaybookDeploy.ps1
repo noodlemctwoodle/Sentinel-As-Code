@@ -81,13 +81,11 @@ function Invoke-iSOCPlaybookDeploy {
             $problems = @(Test-iSOCAzResourceGroupDeployment -Parameters $parameters | Where-Object { $null -ne $_ })
             if ($problems.Count -eq 0) {
                 Write-iSOCLog "[WhatIf] Template validation passed for '$($Item.Name)'." -Level Success
-            }
-            else {
+            } else {
                 $detail = @($problems | ForEach-Object { if ($_.PSObject.Properties['Message']) { $_.Message } else { [string]$_ } }) -join '; '
                 Write-iSOCLog "[WhatIf] Template validation failed for '$($Item.Name)': $detail" -Level Warning
             }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "[WhatIf] Template validation failed for '$($Item.Name)': $($_.Exception.Message)" -Level Warning
         }
         return @{ Outcome = 'WhatIf'; Reason = '' }

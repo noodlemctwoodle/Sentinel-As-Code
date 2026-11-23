@@ -71,8 +71,7 @@ function Read-iSOCPlaybookWorkspace {
         try {
             $detail = Invoke-iSOCRestRequest -Method GET -Path ([string](Get-iSOCPropertyValue -InputObject $app -Path 'id')) -ApiVersion $apiVersion -Context $Context
             if ($null -ne $detail) { $detail } else { $app }
-        }
-        catch {
+        } catch {
             $app | Add-Member -NotePropertyName ReadError -NotePropertyValue "could not be read: $($_.Exception.Message)" -Force
             $app
         }

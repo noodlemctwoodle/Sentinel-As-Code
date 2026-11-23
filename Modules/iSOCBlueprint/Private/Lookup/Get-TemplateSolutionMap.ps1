@@ -97,8 +97,8 @@ function Get-TemplateSolutionMap {
             if ($rank.ContainsKey($tid) -and $rank[$tid] -le $r) { continue }
             $rank[$tid] = $r
             $map[$tid] = [pscustomobject]@{
-                Solution = $n
-                Installed = $inst
+                Solution   = $n
+                Installed  = $inst
                 Deprecated = [bool]$dep
                 ReplacedBy = $(if ($dep) { & $replacement $n } else { $null })
             }

@@ -52,14 +52,14 @@ function Format-MaturityEvidence {
     $isNumber = ($null -ne $Metric) -and ($Metric -isnot [bool])
     $n = if ($isNumber) { ConvertTo-MaturityNumber $Metric } else { 0.0 }
     $text = [regex]::Replace($Template, '\{metric(?::(gb|1dp))?\}', {
-        param($m)
-        if ($null -eq $Metric) { return 'unknown' }
-        if ($Metric -is [bool]) { return $(if ($Metric) { 'yes' } else { 'no' }) }
-        switch ($m.Groups[1].Value) {
-            'gb'    { Format-BlueprintGb $n }
-            '1dp'   { Format-BlueprintNumber $n -Decimals 1 }
-            default { if ($n -eq [math]::Floor($n)) { Format-BlueprintCount $n } else { Format-BlueprintNumber $n -Decimals 1 } }
-        }
-    })
+            param($m)
+            if ($null -eq $Metric) { return 'unknown' }
+            if ($Metric -is [bool]) { return $(if ($Metric) { 'yes' } else { 'no' }) }
+            switch ($m.Groups[1].Value) {
+                'gb' { Format-BlueprintGb $n }
+                '1dp' { Format-BlueprintNumber $n -Decimals 1 }
+                default { if ($n -eq [math]::Floor($n)) { Format-BlueprintCount $n } else { Format-BlueprintNumber $n -Decimals 1 } }
+            }
+        })
     return [regex]::Replace($text, '\{([^{}|]+)\|([^{}|]+)\}', { param($m) if ($isNumber -and $n -eq 1) { $m.Groups[1].Value } else { $m.Groups[2].Value } })
 }

@@ -56,7 +56,7 @@ function Format-TableCell {
     if ($Value -is [datetime]) { return Format-DateUtc $Value }
     if ($Gb -and -not $Identifier -and $Value -isnot [bool]) { return Format-BlueprintGb $Value }
     $isNumber = ($Value -is [decimal]) -or
-        ($Value.GetType().IsPrimitive -and $Value -isnot [bool] -and $Value -isnot [char] -and $Value -isnot [IntPtr] -and $Value -isnot [UIntPtr])
+    ($Value.GetType().IsPrimitive -and $Value -isnot [bool] -and $Value -isnot [char] -and $Value -isnot [IntPtr] -and $Value -isnot [UIntPtr])
     if ($isNumber -and -not $Identifier) {
         $d = [double]$Value
         if ([double]::IsNaN($d) -or [double]::IsInfinity($d)) { return [string]$Value }

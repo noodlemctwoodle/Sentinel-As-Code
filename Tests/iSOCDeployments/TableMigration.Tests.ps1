@@ -355,13 +355,13 @@ Describe 'The impact analysis' {
     }
 
     It 'finds the dependents of <Table>, <Depth> hop(s) deep' -ForEach $script:impactCases {
-        $impact = (& $script:analyseNew $script:content $Depth).Impacts | Where-Object TableName -eq $Table
+        $impact = (& $script:analyseNew $script:content $Depth).Impacts | Where-Object TableName -EQ $Table
         ((Format-ImpactLine $impact) -join "`n") | Should -BeExactly ($Expected -join "`n")
     }
 
     It 'has a workspace that reaches every case the analysis handles' {
         $result = & $script:analyseNew $script:content 10
-        $office = $result.Impacts | Where-Object TableName -eq 'OfficeActivity_CL'
+        $office = $result.Impacts | Where-Object TableName -EQ 'OfficeActivity_CL'
         ($office.IndirectAnalyticsRules.Name) | Should -Contain 'Rule via wrapper'
         ($office.IndirectAnalyticsRules.Name) | Should -Contain 'Rule quoted'
         ($office.IndirectAnalyticsRules.Name) | Should -Not -Contain 'Rule with comment'
@@ -376,9 +376,9 @@ Describe 'The impact analysis' {
         ($office.IndirectPlaybooks.Name) | Should -Not -Contain 'pb-key'
         @($office.IndirectDcrs).Count | Should -Be 0
         ($office.UnresolvedBridges.Alias) | Should -Contain 'abc'
-        ($result.Impacts | Where-Object TableName -eq 'MyApp_CL').UnresolvedBridges.Alias | Should -Contain 'Update'
-        ($result.Impacts | Where-Object TableName -eq 'MyApp_CL_v2').UnresolvedBridges.Alias | Should -Contain 'Location'
-        ($result.Impacts | Where-Object TableName -eq 'MyApp_CL').Dcrs.Name | Should -Contain 'dcr-myapp'
+        ($result.Impacts | Where-Object TableName -EQ 'MyApp_CL').UnresolvedBridges.Alias | Should -Contain 'Update'
+        ($result.Impacts | Where-Object TableName -EQ 'MyApp_CL_v2').UnresolvedBridges.Alias | Should -Contain 'Location'
+        ($result.Impacts | Where-Object TableName -EQ 'MyApp_CL').Dcrs.Name | Should -Contain 'dcr-myapp'
         (& $script:analyseNew $script:content 1).Impacts | Where-Object ChainTruncated | Should -Not -BeNullOrEmpty
     }
 
@@ -537,9 +537,9 @@ Describe 'A review of the stand-in workspace' {
     It 'finds dependents of every kind, direct and through parsers' {
         $rows = @(Import-Csv -LiteralPath (Join-Path $script:module.Path 'impact.csv'))
         foreach ($type in 'AnalyticsRules', 'HuntingQueries', 'Parsers', 'SavedSearches', 'Workbooks', 'Playbooks', 'Dcrs') {
-            @($rows | Where-Object ContentType -eq $type) | Should -Not -BeNullOrEmpty -Because "a $type dependent is in the workspace"
+            @($rows | Where-Object ContentType -EQ $type) | Should -Not -BeNullOrEmpty -Because "a $type dependent is in the workspace"
         }
-        @($rows | Where-Object DependencyKind -eq 'Indirect') | Should -Not -BeNullOrEmpty
+        @($rows | Where-Object DependencyKind -EQ 'Indirect') | Should -Not -BeNullOrEmpty
         ($rows | Where-Object { $_.Name -eq 'Rule via wrapper' }).ViaChain | Should -Be 'OfficeWrapper -> OfficeActivityParser -> OfficeActivity_CL'
     }
 
@@ -599,7 +599,7 @@ Describe 'Get-iSOCTableMigrationImpact and Export-iSOCTableMigrationReport' {
         $run = Invoke-ModuleReview -StandIn $empty
         Should -Invoke -ModuleName iSOCDeployments Write-iSOCLog -ParameterFilter { $Message -match 'Analytics Rules : 0$' } -Times 1 -Exactly
         Should -Invoke -ModuleName iSOCDeployments Write-iSOCLog -ParameterFilter { $Message -match 'Playbooks       : 0$' } -Times 1 -Exactly
-        $office = $run.Review.Impacts | Where-Object TableName -eq 'OfficeActivity_CL'
+        $office = $run.Review.Impacts | Where-Object TableName -EQ 'OfficeActivity_CL'
         @($office.Playbooks) + @($office.IndirectPlaybooks) + @($office.AnalyticsRules) + @($office.IndirectAnalyticsRules) | Should -BeNullOrEmpty
     }
 }

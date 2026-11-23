@@ -39,8 +39,7 @@ function Read-SacMaturityHistory {
         try {
             $parsed = $text | ConvertFrom-Json -AsHashtable
             if ($parsed.entries) { $history.entries = @($parsed.entries) }
-        }
-        catch {
+        } catch {
             Write-Verbose "Unreadable maturity history, starting fresh: $($_.Exception.Message)"
         }
     }

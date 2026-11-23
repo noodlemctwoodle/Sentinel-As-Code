@@ -105,8 +105,7 @@ function Write-iSOCDcrSchemaSummary {
     if ($WhatIfPreference) {
         Write-iSOCLog ''
         Write-iSOCLog 'Nothing was written or deployed (-WhatIf). Re-run without -WhatIf to produce the templates.'
-    }
-    elseif (-not $Deployment.Deployed) {
+    } elseif (-not $Deployment.Deployed) {
         Write-iSOCLog ''
         Write-iSOCLog 'Not deployed. Deploy in this order, table first:'
         if (-not $SkipTable) {
@@ -114,13 +113,11 @@ function Write-iSOCDcrSchemaSummary {
         }
         Write-iSOCLog "  New-AzResourceGroupDeployment -ResourceGroupName $DcrResourceGroupName -TemplateFile '$($Files.DcrPath)'"
         Write-iSOCLog 'A DCR deployed before its table fails with InvalidOutputTable.'
-    }
-    elseif ($Deployment.Endpoint -and $Deployment.ImmutableId) {
+    } elseif ($Deployment.Endpoint -and $Deployment.ImmutableId) {
         Write-iSOCLog ''
         if (@($Deployment.Granted).Count -gt 0) {
             Write-iSOCLog 'Next: the ingestion role is granted. POST your data to:'
-        }
-        else {
+        } else {
             Write-iSOCLog 'Next: grant Monitoring Metrics Publisher on the DCR (re-run with -GrantIngestionRoleTo), then POST to:'
         }
         Write-iSOCLog "  $($Deployment.Endpoint)/dataCollectionRules/$($Deployment.ImmutableId)/streams/$($Rule.StreamName)?api-version=2023-01-01"

@@ -47,10 +47,10 @@ function Save-PublishRun {
     # State ------------------------------------------------------------------------
     if (-not $WhatIfPreference) {
         $newState = @{
-            pages        = $publishedHashes
-            navSignature = $navPlan.Signature
-            appVersion   = $appVersion
-            publishedUtc = (Get-Date).ToUniversalTime().ToString('o')
+            pages          = $publishedHashes
+            navSignature   = $navPlan.Signature
+            appVersion     = $appVersion
+            publishedUtc   = (Get-Date).ToUniversalTime().ToString('o')
             bundleBuiltUtc = [string]$site.builtUtc
         }
         Save-SacPublishState -State $newState

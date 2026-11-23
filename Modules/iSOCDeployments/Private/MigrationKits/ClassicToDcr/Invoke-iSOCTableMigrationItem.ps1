@@ -177,11 +177,9 @@ function Invoke-iSOCTableMigrationItem {
 
         if ($SkipTableMigration) {
             Write-iSOCLog 'Skipping migration (-SkipTableMigration).' -Level Warning
-        }
-        elseif ($subType -eq 'DataCollectionRuleBased') {
+        } elseif ($subType -eq 'DataCollectionRuleBased') {
             Write-iSOCLog 'Already DCR-based. Nothing to migrate.' -Level Success
-        }
-        elseif ($subType -eq 'Classic') {
+        } elseif ($subType -eq 'Classic') {
             Write-iSOCLog 'Migration is one-way. The Log Analytics agent will no longer be able to write to this table, and any Custom Fields defined against it stop receiving data.' -Level Warning
             $migrated = Convert-iSOCClassicTable -Context $Context -Table $table -Force:$ConfirmBypassed
             if ($migrated) {
@@ -189,12 +187,10 @@ function Invoke-iSOCTableMigrationItem {
                 $refreshed = Get-iSOCWorkspaceTableDetail -Context $Context -Table $table
                 $schemaColumns = $refreshed.Columns
                 $subType = $refreshed.SubType
-            }
-            else {
+            } else {
                 Write-iSOCLog 'Migration declined or previewed. The table is still Classic.' -Level Warning
             }
-        }
-        else {
+        } else {
             Write-iSOCLog "Table subtype is '$subType', not 'Classic'. Skipping migration." -Level Warning
         }
 
@@ -281,8 +277,7 @@ function Invoke-iSOCTableMigrationItem {
                 }
             }
         }
-    }
-    catch {
+    } catch {
         $failure = $_.Exception.Message.Split([char]10)[0]
         Write-iSOCLog "Failed: $failure" -Level Error
     }

@@ -69,19 +69,16 @@ function Read-iSOCDefenderDetectionRepo {
         $legacyFields = @()
         if ($item.ParseError) {
             $item.ParseError = "YAML does not parse: $($item.ParseError)"
-        }
-        elseif ($item.Data -isnot [System.Collections.IDictionary]) {
+        } elseif ($item.Data -isnot [System.Collections.IDictionary]) {
             $item.ParseError = 'the file does not hold a YAML mapping'
-        }
-        else {
+        } else {
             $displayName = [string]$item.Data['displayName']
             if (-not [string]::IsNullOrWhiteSpace($displayName)) { $item.Name = $displayName }
             try {
                 $translated = ConvertFrom-iSOCLegacyDefenderDetection -Rule $item.Data
                 $rule = $translated.Rule
                 $legacyFields = @($translated.LegacyFields)
-            }
-            catch {
+            } catch {
                 $item.ParseError = "the retired Graph fields cannot be translated: $($_.Exception.Message)"
             }
         }

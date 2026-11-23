@@ -74,9 +74,9 @@ function Get-iSOCPlaybookOrder {
         $content = Get-Content -LiteralPath $entry.Path -Raw
         $baseName = $entry.BaseName
         $dependencyMap[$logicalName] = @([regex]::Matches($content, 'Microsoft\.Logic/workflows/([^"''\]\s]+)') |
-            ForEach-Object { $_.Groups[1].Value } |
-            Where-Object { $_ -ne $logicalName -and $_ -ne $baseName } |
-            Select-Object -Unique)
+                ForEach-Object { $_.Groups[1].Value } |
+                Where-Object { $_ -ne $logicalName -and $_ -ne $baseName } |
+                Select-Object -Unique)
     }
 
     $missingDeps = foreach ($key in $dependencyMap.Keys) {

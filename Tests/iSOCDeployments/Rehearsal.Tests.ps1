@@ -142,14 +142,14 @@ Describe 'The rehearsal helpers' {
         $at = [datetime]::new(2026, 11, 4, 10, 0, 0, [System.DateTimeKind]::Utc)
         $new = InModuleScope iSOCDeployments -Parameters @{ At = $at } { param($At) New-iSOCFixtureRecord -Count 9 -ReferenceTime $At -SeedGuid '0a1b2c3d-0000-0000-0000-000000000001' }
         $expected = '[{"DurationMs":1.5,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 0 for classic-table migration testing.","Severity":"Information","SourceHost":"web-01","SourceIp":"10.0.0.0","Success":false,"Timestamp":"2026-11-04T10:00:00.0000000Z"},' +
-            '{"DurationMs":15.2,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 1 for classic-table migration testing.","Severity":"Warning","SourceHost":"web-02","SourceIp":"10.0.1.7","Success":true,"Timestamp":"2026-11-04T09:59:59.0000000Z"},' +
-            '{"DurationMs":28.9,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 2 for classic-table migration testing.","Severity":"Error","SourceHost":"db-01","SourceIp":"10.0.2.14","Success":true,"Timestamp":"2026-11-04T09:59:58.0000000Z"},' +
-            '{"DurationMs":42.6,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 3 for classic-table migration testing.","Severity":"Information","SourceHost":"app-01","SourceIp":"10.0.3.21","Success":true,"Timestamp":"2026-11-04T09:59:57.0000000Z"},' +
-            '{"DurationMs":56.3,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 4 for classic-table migration testing.","Severity":"Warning","SourceHost":"web-01","SourceIp":"10.0.4.28","Success":true,"Timestamp":"2026-11-04T09:59:56.0000000Z"},' +
-            '{"DurationMs":70.0,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 5 for classic-table migration testing.","Severity":"Error","SourceHost":"web-02","SourceIp":"10.0.5.35","Success":false,"Timestamp":"2026-11-04T09:59:55.0000000Z"},' +
-            '{"DurationMs":83.7,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 6 for classic-table migration testing.","Severity":"Information","SourceHost":"db-01","SourceIp":"10.0.6.42","Success":true,"Timestamp":"2026-11-04T09:59:54.0000000Z"},' +
-            '{"DurationMs":97.4,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 7 for classic-table migration testing.","Severity":"Warning","SourceHost":"app-01","SourceIp":"10.0.7.49","Success":true,"Timestamp":"2026-11-04T09:59:53.0000000Z"},' +
-            '{"DurationMs":111.1,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 8 for classic-table migration testing.","Severity":"Error","SourceHost":"web-01","SourceIp":"10.0.8.56","Success":true,"Timestamp":"2026-11-04T09:59:52.0000000Z"}]'
+        '{"DurationMs":15.2,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 1 for classic-table migration testing.","Severity":"Warning","SourceHost":"web-02","SourceIp":"10.0.1.7","Success":true,"Timestamp":"2026-11-04T09:59:59.0000000Z"},' +
+        '{"DurationMs":28.9,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 2 for classic-table migration testing.","Severity":"Error","SourceHost":"db-01","SourceIp":"10.0.2.14","Success":true,"Timestamp":"2026-11-04T09:59:58.0000000Z"},' +
+        '{"DurationMs":42.6,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 3 for classic-table migration testing.","Severity":"Information","SourceHost":"app-01","SourceIp":"10.0.3.21","Success":true,"Timestamp":"2026-11-04T09:59:57.0000000Z"},' +
+        '{"DurationMs":56.3,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 4 for classic-table migration testing.","Severity":"Warning","SourceHost":"web-01","SourceIp":"10.0.4.28","Success":true,"Timestamp":"2026-11-04T09:59:56.0000000Z"},' +
+        '{"DurationMs":70.0,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 5 for classic-table migration testing.","Severity":"Error","SourceHost":"web-02","SourceIp":"10.0.5.35","Success":false,"Timestamp":"2026-11-04T09:59:55.0000000Z"},' +
+        '{"DurationMs":83.7,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 6 for classic-table migration testing.","Severity":"Information","SourceHost":"db-01","SourceIp":"10.0.6.42","Success":true,"Timestamp":"2026-11-04T09:59:54.0000000Z"},' +
+        '{"DurationMs":97.4,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 7 for classic-table migration testing.","Severity":"Warning","SourceHost":"app-01","SourceIp":"10.0.7.49","Success":true,"Timestamp":"2026-11-04T09:59:53.0000000Z"},' +
+        '{"DurationMs":111.1,"EventId":"0a1b2c3d-0000-0000-0000-000000000001","Message":"Synthetic fixture record 8 for classic-table migration testing.","Severity":"Error","SourceHost":"web-01","SourceIp":"10.0.8.56","Success":true,"Timestamp":"2026-11-04T09:59:52.0000000Z"}]'
         (ConvertTo-RehearsalCanonical @($new)) | Should -BeExactly $expected
     }
 
@@ -159,10 +159,10 @@ Describe 'The rehearsal helpers' {
         (ConvertTo-Json -InputObject $columns -Compress) | Should -BeExactly '[{"name":"TimeGenerated","type":"datetime"},{"name":"Message_s","type":"string"},{"name":"Count_d","type":"real"},{"name":"Flag_b","type":"boolean"},{"name":"Level_i","type":"int"},{"name":"Big_l","type":"long"},{"name":"Props_d","type":"dynamic"},{"name":"Other","type":"guid"}]'
         $new = InModuleScope iSOCDeployments -Parameters @{ At = $at; Columns = $columns } { param($At, $Columns) foreach ($i in 0..4) { New-iSOCStreamRecord -StreamColumn $Columns -Index $i -RunId 'abcdef123456' -ReferenceTime $At } }
         $expected = '[{"Big_l":0,"Count_d":0.5,"Flag_b":true,"Level_i":0,"Message_s":"dcr-test abcdef123456 #0","Other":"dcr-test abcdef123456 #0","Props_d":{"index":0,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
-            '{"Big_l":1,"Count_d":2.0,"Flag_b":false,"Level_i":1,"Message_s":"dcr-test abcdef123456 #1","Other":"dcr-test abcdef123456 #1","Props_d":{"index":1,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
-            '{"Big_l":2,"Count_d":3.5,"Flag_b":true,"Level_i":2,"Message_s":"dcr-test abcdef123456 #2","Other":"dcr-test abcdef123456 #2","Props_d":{"index":2,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
-            '{"Big_l":3,"Count_d":5.0,"Flag_b":false,"Level_i":3,"Message_s":"dcr-test abcdef123456 #3","Other":"dcr-test abcdef123456 #3","Props_d":{"index":3,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
-            '{"Big_l":4,"Count_d":6.5,"Flag_b":true,"Level_i":4,"Message_s":"dcr-test abcdef123456 #4","Other":"dcr-test abcdef123456 #4","Props_d":{"index":4,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"}]'
+        '{"Big_l":1,"Count_d":2.0,"Flag_b":false,"Level_i":1,"Message_s":"dcr-test abcdef123456 #1","Other":"dcr-test abcdef123456 #1","Props_d":{"index":1,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+        '{"Big_l":2,"Count_d":3.5,"Flag_b":true,"Level_i":2,"Message_s":"dcr-test abcdef123456 #2","Other":"dcr-test abcdef123456 #2","Props_d":{"index":2,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+        '{"Big_l":3,"Count_d":5.0,"Flag_b":false,"Level_i":3,"Message_s":"dcr-test abcdef123456 #3","Other":"dcr-test abcdef123456 #3","Props_d":{"index":3,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"},' +
+        '{"Big_l":4,"Count_d":6.5,"Flag_b":true,"Level_i":4,"Message_s":"dcr-test abcdef123456 #4","Other":"dcr-test abcdef123456 #4","Props_d":{"index":4,"runId":"abcdef123456"},"TimeGenerated":"2026-11-04T10:00:00.0000000Z"}]'
         (ConvertTo-RehearsalCanonical @($new)) | Should -BeExactly $expected
     }
 
@@ -182,9 +182,9 @@ Describe 'The rehearsal helpers' {
         $two = (Get-RehearsalStandIn).Dcrs['dcr-two'] | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
         $new = InModuleScope iSOCDeployments -Parameters @{ Dcr = $script:dcr; Two = $two } { param($Dcr, $Two) [ordered]@{ Target = Get-iSOCDcrIngestionTarget -Dcr $Dcr; Stream = Get-iSOCDcrStreamName -Dcr $Dcr; Columns = @(Get-iSOCDcrStreamColumn -Dcr $Dcr -Stream 'Custom-MyApp_CL'); Destination = Get-iSOCDcrDestinationTable -Dcr $Two -Stream 'Custom-Two_CL' } }
         $expected = '{"Columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Message_s","type":"string"},{"name":"Count_d","type":"real"},{"name":"Flag_b","type":"boolean"},{"name":"Level_i","type":"int"},{"name":"Big_l","type":"long"},{"name":"Props_d","type":"dynamic"}],' +
-            '"Destination":"Two_CL",' +
-            '"Stream":"Custom-MyApp_CL",' +
-            '"Target":{"Endpoint":"https://dcr-myapp-x1y2.uksouth-1.ingest.monitor.azure.com","ImmutableId":"dcr-dcrmyapp000000000000000000000000"}}'
+        '"Destination":"Two_CL",' +
+        '"Stream":"Custom-MyApp_CL",' +
+        '"Target":{"Endpoint":"https://dcr-myapp-x1y2.uksouth-1.ingest.monitor.azure.com","ImmutableId":"dcr-dcrmyapp000000000000000000000000"}}'
         (ConvertTo-RehearsalCanonical $new) | Should -BeExactly $expected
     }
 }
@@ -215,7 +215,7 @@ Describe 'The rehearsal commands' {
         $module.Error | Should -Not -BeNullOrEmpty
         if ($Message) { $module.Error | Should -BeExactly $Message }
         else { $module.Error | Should -BeLike $Like }
-        @($module.Writes | Where-Object Kind -eq 'Ingest') | Should -BeNullOrEmpty
+        @($module.Writes | Where-Object Kind -EQ 'Ingest') | Should -BeNullOrEmpty
     }
 
     It 'leaves the environment as it found it' {

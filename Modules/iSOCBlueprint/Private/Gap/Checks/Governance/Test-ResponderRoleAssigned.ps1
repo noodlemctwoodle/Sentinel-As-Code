@@ -39,11 +39,11 @@ function Test-ResponderRoleAssigned {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.RbacWorkspace) { return $null }
     $hasResponder = @($Inventory.RbacWorkspace | Where-Object {
-        (Get-PropOrDefault $_ 'RoleDefinitionName' '') -eq 'Microsoft Sentinel Responder'
-    }).Count -gt 0
+            (Get-PropOrDefault $_ 'RoleDefinitionName' '') -eq 'Microsoft Sentinel Responder'
+        }).Count -gt 0
     if ($hasResponder) { return $null }
     return New-Finding -Evidence 'No identity holds the Microsoft Sentinel Responder role at workspace scope. Analysts cannot act on incidents through least-privilege access.'
 }

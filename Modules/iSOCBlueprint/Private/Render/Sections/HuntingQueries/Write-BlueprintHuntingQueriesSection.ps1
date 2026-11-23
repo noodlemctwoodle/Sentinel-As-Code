@@ -93,24 +93,24 @@ $(Format-BlueprintPlural $hunting.Count 'hunting query' 'hunting queries'). Tact
 
     # When the bookmarks API refused its list as too large, the collector lists
     # them from the HuntingBookmark table instead.
-    $bookmarksListed    = @($bookmarks | Where-Object { $_ })
+    $bookmarksListed = @($bookmarks | Where-Object { $_ })
     $bookmarksFromTable = $false
     if ($bookmarksListed.Count -eq 0 -and @($bookmarksFromLogs | Where-Object { $_ }).Count -gt 0) {
-        $bookmarksListed    = @($bookmarksFromLogs | Where-Object { $_ })
+        $bookmarksListed = @($bookmarksFromLogs | Where-Object { $_ })
         $bookmarksFromTable = $true
     }
     $bookmarkServiceCount = if ($bookmarkCountDoc) { [int](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $bookmarkCountDoc 'Count' 0)) } else { 0 }
     $bookmarkRows = @($bookmarksListed | ForEach-Object {
-        $p = Get-BlueprintRawProperty $_ 'properties' $null
-        $created = [string](Get-BlueprintRawProperty $p 'created' '')
-        [pscustomobject]@{
-            Name      = [string](Get-BlueprintRawProperty $p 'displayName' (Get-BlueprintRawProperty $_ 'name' ''))
-            Created   = $(if ($created) { try { Format-DateUtc $created } catch { $created } } else { '' })
-            CreatedAt = $(if ($created) { try { ([datetime]$created).ToUniversalTime() } catch { [datetime]::MinValue } } else { [datetime]::MinValue })
-            Labels    = (@(Get-BlueprintRawProperty $p 'labels' @()) -join ', ')
-            Notes     = [string](Get-BlueprintRawProperty $p 'notes' '')
-        }
-    })
+            $p = Get-BlueprintRawProperty $_ 'properties' $null
+            $created = [string](Get-BlueprintRawProperty $p 'created' '')
+            [pscustomobject]@{
+                Name      = [string](Get-BlueprintRawProperty $p 'displayName' (Get-BlueprintRawProperty $_ 'name' ''))
+                Created   = $(if ($created) { try { Format-DateUtc $created } catch { $created } } else { '' })
+                CreatedAt = $(if ($created) { try { ([datetime]$created).ToUniversalTime() } catch { [datetime]::MinValue } } else { [datetime]::MinValue })
+                Labels    = (@(Get-BlueprintRawProperty $p 'labels' @()) -join ', ')
+                Notes     = [string](Get-BlueprintRawProperty $p 'notes' '')
+            }
+        })
     $bookmarkBlock = if ($bookmarkRows.Count -gt 0) {
         $bookmarkIntro = if ($bookmarksFromTable) {
             $refused = if ($bookmarkServiceCount -gt 0) { "The bookmarks API refused its list of **$(Format-BlueprintPlural $bookmarkServiceCount 'bookmark')** as too large" } else { 'The bookmarks API refused its list as too large' }
@@ -119,7 +119,7 @@ $(Format-BlueprintPlural $hunting.Count 'hunting query' 'hunting queries'). Tact
         } else {
             "Bookmarks saved from hunting and investigation, newest first. Their labels are the analyst's own tags."
         }
-        "$bookmarkIntro`n`n" + (Format-BlueprintTable -Items @($bookmarkRows | Sort-Object CreatedAt -Descending) -Columns 'Name','Created','Labels','Notes')
+        "$bookmarkIntro`n`n" + (Format-BlueprintTable -Items @($bookmarkRows | Sort-Object CreatedAt -Descending) -Columns 'Name', 'Created', 'Labels', 'Notes')
     } elseif ($bookmarkServiceCount -gt 0) {
         # bookmarks-from-logs.json present but empty: the table was read and
         # holds none of them; absent: the table could not be read.
@@ -138,20 +138,20 @@ $(Format-BlueprintPlural $hunting.Count 'hunting query' 'hunting queries'). Tact
         }
     } else { '_None._' }
     $huntRows = @($hunts | ForEach-Object {
-        $p = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $_ }
-        $owner = ''
-        if ($p.PSObject.Properties['owner'] -and $p.owner) {
-            if ($p.owner.PSObject.Properties['assignedTo'] -and $p.owner.assignedTo) { $owner = $p.owner.assignedTo }
-            elseif ($p.owner.PSObject.Properties['email'] -and $p.owner.email) { $owner = $p.owner.email }
-        }
-        [pscustomobject]@{
-            Name       = if ($p.PSObject.Properties['displayName']) { $p.displayName } elseif ($_.PSObject.Properties['name']) { $_.name } else { '' }
-            Status     = if ($p.PSObject.Properties['status']) { $p.status } else { '' }
-            Hypothesis = if ($p.PSObject.Properties['hypothesisStatus']) { $p.hypothesisStatus } else { '' }
-            Tactics    = if ($p.PSObject.Properties['attackTactics']) { Format-TacticList $p.attackTactics } else { '' }
-            Owner      = $owner
-        }
-    })
+            $p = if ($_.PSObject.Properties['properties'] -and $_.properties) { $_.properties } else { $_ }
+            $owner = ''
+            if ($p.PSObject.Properties['owner'] -and $p.owner) {
+                if ($p.owner.PSObject.Properties['assignedTo'] -and $p.owner.assignedTo) { $owner = $p.owner.assignedTo }
+                elseif ($p.owner.PSObject.Properties['email'] -and $p.owner.email) { $owner = $p.owner.email }
+            }
+            [pscustomobject]@{
+                Name       = if ($p.PSObject.Properties['displayName']) { $p.displayName } elseif ($_.PSObject.Properties['name']) { $_.name } else { '' }
+                Status     = if ($p.PSObject.Properties['status']) { $p.status } else { '' }
+                Hypothesis = if ($p.PSObject.Properties['hypothesisStatus']) { $p.hypothesisStatus } else { '' }
+                Tactics    = if ($p.PSObject.Properties['attackTactics']) { Format-TacticList $p.attackTactics } else { '' }
+                Owner      = $owner
+            }
+        })
 
     Write-BlueprintSection '30-hunting-queries.md' (@"
 $(Format-Banner -Title "Hunting Queries")

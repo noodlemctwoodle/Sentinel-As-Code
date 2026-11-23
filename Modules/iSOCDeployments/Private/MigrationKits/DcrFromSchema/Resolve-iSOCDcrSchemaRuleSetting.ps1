@@ -108,8 +108,7 @@ function Resolve-iSOCDcrSchemaRuleSetting {
     $group = $null
     try {
         $group = Invoke-iSOCRestRequest -Method GET -Path "/subscriptions/$($Context.SubscriptionId)/resourceGroups/$DcrResourceGroupName" -ApiVersion (Get-iSOCApiVersion ResourceGroups) -Context $Context -AllowNotFound
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not read resource group '$DcrResourceGroupName': $($_.Exception.Message.Split([char]10)[0])" -Level Debug
     }
     if (-not $group) {

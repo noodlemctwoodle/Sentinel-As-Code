@@ -30,8 +30,8 @@ BeforeAll {
     $helperPath = Join-Path $collectorRoot 'Helpers/ConvertFrom-HuntingBookmarkRow.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($helperPath, [ref]$null, [ref]$null)
     . ([scriptblock]::Create($ast.Find({
-        param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertFrom-HuntingBookmarkRow'
-    }, $true).Extent.Text))
+                    param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertFrom-HuntingBookmarkRow'
+                }, $true).Extent.Text))
     # The bookmarks capture's own text.
     $script:capture = Get-Content (Join-Path $collectorRoot 'Captures/Sentinel/Invoke-BookmarksCapture.ps1') -Raw
 
@@ -107,7 +107,7 @@ Describe 'The bookmarks capture when the list is refused as too large' {
             Should -Match 'none has been created or changed \$period \(the HuntingBookmark table, which logs every change, holds none\)\. Kept the count\.'
         $script:capture | Should -Match '"in the last \$keeps days"'
         $script:capture | Should -Match 'the HuntingBookmark table could not be read: '
-        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{\s+Label = ''bookmarks''')).Count | Should -Be 2
+        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{\s+Label\s*=\s*''bookmarks''')).Count | Should -Be 2
         $script:capture.IndexOf('Write-CaptureNote -Kind NotAvailable') |
             Should -BeLessThan $script:capture.IndexOf("Save-Json -FileName 'bookmarks-count.json'")
     }

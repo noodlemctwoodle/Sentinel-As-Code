@@ -104,8 +104,7 @@ function New-iSOCRoleAssignment {
     try {
         Invoke-iSOCRestRequest -Method PUT -Path "$target/providers/Microsoft.Authorization/roleAssignments/$name" -ApiVersion (Get-iSOCApiVersion Authorization) -Body $body -Context $Context | Out-Null
         'Created'
-    }
-    catch {
+    } catch {
         $status = $_.Exception.PSObject.Properties['StatusCode']
         if (($status -and [int]$status.Value -eq 409) -or $_.Exception.Message -match 'RoleAssignmentExists|already exists') { return 'Exists' }
         throw

@@ -176,8 +176,8 @@ Describe 'Listing only' {
 
     It 'leaves out AzureDiagnostics, and reads the table it cannot as unreadable' {
         @($script:moduleList.Run.Tables.Name) | Should -Not -Contain 'AzureDiagnostics'
-        ($script:moduleList.Run.Tables | Where-Object Name -eq 'Broken_CL').SubType | Should -Be 'Unreadable'
-        ($script:moduleList.Run.Tables | Where-Object Name -eq 'Unknown_CL').RowCount | Should -BeNullOrEmpty
+        ($script:moduleList.Run.Tables | Where-Object Name -EQ 'Broken_CL').SubType | Should -Be 'Unreadable'
+        ($script:moduleList.Run.Tables | Where-Object Name -EQ 'Unknown_CL').RowCount | Should -BeNullOrEmpty
     }
 }
 
@@ -201,10 +201,10 @@ Describe 'Invoke-iSOCClassicTableMigration' {
     It 'migrates, deploys, grants and refuses in one run' {
         $module = Invoke-ModuleMigration -Parameters @{ AllClassicTables = $true; Deploy = $true; Force = $true; GrantIngestionRoleTo = @('aaaaaaaa-1111-2222-3333-444444444444', 'held-object-1', 'deny-object-1') }
         @($module.Writes.Kind | Sort-Object -Unique) | Should -Be @('Deploy', 'Grant', 'Migrate')
-        @($module.Writes | Where-Object Kind -eq 'Grant').PrincipalId | Should -Be @('sp-object-1', 'sp-object-1')
+        @($module.Writes | Where-Object Kind -EQ 'Grant').PrincipalId | Should -Be @('sp-object-1', 'sp-object-1')
         @(Get-ChildItem -LiteralPath $module.Templates).Count | Should -Be 3
-        ($module.Run.Results | Where-Object TableName -eq 'Odd_CL').Error | Should -Match '^Deployment failed: .*InvalidOutputTable'
-        ($module.Run.Results | Where-Object TableName -eq 'MyApp_CL').Granted | Should -Be @('aaaaaaaa-1111-2222-3333-444444444444', 'held-object-1')
+        ($module.Run.Results | Where-Object TableName -EQ 'Odd_CL').Error | Should -Match '^Deployment failed: .*InvalidOutputTable'
+        ($module.Run.Results | Where-Object TableName -EQ 'MyApp_CL').Granted | Should -Be @('aaaaaaaa-1111-2222-3333-444444444444', 'held-object-1')
     }
 
     It 'returns a run with the counts and an exit code' {

@@ -115,8 +115,7 @@ function Resolve-iSOCDcrSchemaTableSetting {
 
     if ($SkipTable) {
         Write-iSOCLog 'Skipping table creation (-SkipTable). The DCR will target the existing table.' -Level Warning
-    }
-    else {
+    } else {
         if (-not $TablePlan) {
             $specPlan = Get-iSOCSpecDefault -Extra $Spec.Extra -Key 'plan'
             if ($specPlan) {
@@ -124,8 +123,7 @@ function Resolve-iSOCDcrSchemaTableSetting {
                 if ($TablePlan -notin 'Analytics', 'Basic', 'Auxiliary') {
                     throw "The schema file's plan '$TablePlan' is not one of Analytics, Basic and Auxiliary."
                 }
-            }
-            else {
+            } else {
                 $TablePlan = 'Analytics'
             }
         }

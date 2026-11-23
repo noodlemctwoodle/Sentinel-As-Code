@@ -60,21 +60,21 @@ function Get-ConnectorFriendlyTitle {
     [CmdletBinding()]
     param([string]$Kind, [psobject]$Connector, [hashtable]$CcfTitleByName = @{})
     switch ($Kind) {
-        'AzureActiveDirectory'                         { 'Microsoft Entra ID' }
-        'MicrosoftCloudAppSecurity'                    { 'Microsoft Defender for Cloud Apps' }
-        'MicrosoftDefenderAdvancedThreatProtection'    { 'Microsoft Defender for Endpoint' }
-        'MicrosoftPurviewInformationProtection'        { 'Microsoft Purview Information Protection' }
-        'MicrosoftThreatIntelligence'                  { 'Microsoft Defender Threat Intelligence' }
-        'MicrosoftThreatProtection'                    { 'Microsoft Defender XDR' }
-        'Office365'                                    { 'Microsoft 365 (Office 365)' }
-        'AzureSecurityCenter'                          { 'Microsoft Defender for Cloud' }
-        'GenericUI'                                    {
+        'AzureActiveDirectory' { 'Microsoft Entra ID' }
+        'MicrosoftCloudAppSecurity' { 'Microsoft Defender for Cloud Apps' }
+        'MicrosoftDefenderAdvancedThreatProtection' { 'Microsoft Defender for Endpoint' }
+        'MicrosoftPurviewInformationProtection' { 'Microsoft Purview Information Protection' }
+        'MicrosoftThreatIntelligence' { 'Microsoft Defender Threat Intelligence' }
+        'MicrosoftThreatProtection' { 'Microsoft Defender XDR' }
+        'Office365' { 'Microsoft 365 (Office 365)' }
+        'AzureSecurityCenter' { 'Microsoft Defender for Cloud' }
+        'GenericUI' {
             if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind }
         }
-        'StaticUI'                                     {
+        'StaticUI' {
             if ($Connector.properties.connectorUiConfig.title) { $Connector.properties.connectorUiConfig.title } else { $Kind }
         }
-        { $_ -in 'RestApiPoller','Push' }              {
+        { $_ -in 'RestApiPoller', 'Push' } {
             # CCF-derived kinds. Each connector instance carries a
             # connectorDefinitionName that points at the matching CCF
             # definition entry, where the human-readable title lives.
@@ -87,6 +87,6 @@ function Get-ConnectorFriendlyTitle {
                 $Kind
             }
         }
-        default                                        { $Kind }
+        default { $Kind }
     }
 }

@@ -76,8 +76,7 @@ function Read-iSOCDeploymentState {
             }
         }
         Write-iSOCLog "Loaded deployment state: $($state.Items.Count) previously deployed item(s)."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to load deployment state: $($_.Exception.Message); starting fresh." -Level Warning
         $state.Items = @{}
     }

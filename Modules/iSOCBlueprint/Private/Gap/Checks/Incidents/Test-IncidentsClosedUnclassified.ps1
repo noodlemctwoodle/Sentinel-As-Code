@@ -39,7 +39,7 @@ function Test-IncidentsClosedUnclassified {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (@($Inventory.IncidentsSummary).Count -eq 0) { return $null }
     $row = $Inventory.IncidentsSummary[0]
     # ByClassification arrived with this rule; an older capture has nothing

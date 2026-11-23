@@ -79,8 +79,7 @@ function Get-iSOCContentHubTemplateCount {
     Write-iSOCLog "Checking $($label.Title) status..." -Level Section
     try {
         $allTemplates = @(Get-iSOCContentHubTemplate -Context $Context -Kind $Kind)
-    }
-    catch {
+    } catch {
         Write-iSOCLog "  No $($label.Title) templates found."
         return 0
     }

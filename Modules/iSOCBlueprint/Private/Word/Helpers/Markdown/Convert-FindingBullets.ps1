@@ -67,16 +67,16 @@ function Convert-FindingBullets {
     # the word itself is coloured.
     $sevStyles = @{
         'critical' = 'SevCritical'; 'high' = 'SevCritical'
-        'warning'  = 'SevWarning';  'medium' = 'SevWarning'; 'moderate' = 'SevWarning'
-        'low'      = 'SevLow'
-        'info'     = 'SevInfo';     'informational' = 'SevInfo'
+        'warning'  = 'SevWarning'; 'medium' = 'SevWarning'; 'moderate' = 'SevWarning'
+        'low' = 'SevLow'
+        'info'     = 'SevInfo'; 'informational' = 'SevInfo'
     }
 
     $evaluator = {
         param($m)
-        $ind  = $m.Groups['ind'].Value
-        $sev  = $m.Groups['sev'].Value.Trim()
-        $id   = $m.Groups['id'].Value.Trim()
+        $ind = $m.Groups['ind'].Value
+        $sev = $m.Groups['sev'].Value.Trim()
+        $id = $m.Groups['id'].Value.Trim()
         $link = $m.Groups['link'].Value.Trim()
         $rest = $m.Groups['rest'].Value.Trim()
 
@@ -86,8 +86,7 @@ function Convert-FindingBullets {
             $title = $TitleMap[$id]
             $desc = $rest.Substring($title.Length).Trim()
             $desc = [regex]::Replace($desc, '^[—–-][ \t]*', '')
-        }
-        else {
+        } else {
             $sep = [regex]::Match($rest, '[ \t][—–][ \t]')
             if ($sep.Success) {
                 $title = $rest.Substring(0, $sep.Index).Trim()

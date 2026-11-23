@@ -42,18 +42,18 @@ function Get-CostBenefitEligible {
 
     # The data grants: what each could cover, at list price, not deducted.
     $benefitEligible = @(foreach ($g in $benefitGroups) {
-        $label = if ($g.PSObject.Properties.Name -contains 'short' -and $g.short) { [string]$g.short } else { [string]$g.name }
-        $covered = @($perTable | Where-Object { $_.Benefit -eq $label })
-        if ($covered.Count -eq 0) { continue }
-        [pscustomobject]@{
-            Benefit     = [string]$g.name
-            Allowance   = $(if ($g.PSObject.Properties.Name -contains 'allowance') { [string]$g.allowance } else { '' })
-            Tables      = (@($covered | Sort-Object -Property Gb30d -Descending | ForEach-Object { $_.Table }) -join ', ')
-            Gb30d       = [math]::Round((Get-CostPropertySum $covered 'Gb30d'), 2)
-            MonthlyCost = [math]::Round((Get-CostPropertySum $covered 'MonthlyCost'), 2)
-            Learn       = $(if ($g.PSObject.Properties.Name -contains 'learn') { [string]$g.learn } else { '' })
-        }
-    })
+            $label = if ($g.PSObject.Properties.Name -contains 'short' -and $g.short) { [string]$g.short } else { [string]$g.name }
+            $covered = @($perTable | Where-Object { $_.Benefit -eq $label })
+            if ($covered.Count -eq 0) { continue }
+            [pscustomobject]@{
+                Benefit     = [string]$g.name
+                Allowance   = $(if ($g.PSObject.Properties.Name -contains 'allowance') { [string]$g.allowance } else { '' })
+                Tables      = (@($covered | Sort-Object -Property Gb30d -Descending | ForEach-Object { $_.Table }) -join ', ')
+                Gb30d       = [math]::Round((Get-CostPropertySum $covered 'Gb30d'), 2)
+                MonthlyCost = [math]::Round((Get-CostPropertySum $covered 'MonthlyCost'), 2)
+                Learn       = $(if ($g.PSObject.Properties.Name -contains 'learn') { [string]$g.learn } else { '' })
+            }
+        })
 
     # Left for the steps after this one.
     $Context.benefitEligible = $benefitEligible

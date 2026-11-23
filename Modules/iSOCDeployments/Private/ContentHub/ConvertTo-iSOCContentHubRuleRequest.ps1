@@ -73,8 +73,7 @@ function ConvertTo-iSOCContentHubRuleRequest {
 
     if ($DisableRules) {
         $deployProperties | Add-Member -NotePropertyName 'enabled' -NotePropertyValue $false -Force
-    }
-    elseif (-not ($deployProperties.PSObject.Properties.Name -contains 'enabled')) {
+    } elseif (-not ($deployProperties.PSObject.Properties.Name -contains 'enabled')) {
         $deployProperties | Add-Member -NotePropertyName 'enabled' -NotePropertyValue $true -Force
     }
 
@@ -115,8 +114,7 @@ function ConvertTo-iSOCContentHubRuleRequest {
                         'm' { "PT${timeValue}M" }
                     }
                 }
-            }
-            else {
+            } else {
                 $incidentConfig | Add-Member -NotePropertyName 'groupingConfiguration' -NotePropertyValue @{
                     matchingMethod   = 'AllEntities'
                     lookbackDuration = 'PT1H'

@@ -56,8 +56,8 @@ function New-MaturityMetrics {
         $p = Join-Path $InputRoot $Name
         if (-not (Test-Path $p)) { return $null }
         $data = Read-Json $Name
-        if ($null -eq $data) { return ,@() }
-        return ,@($data | Where-Object { $null -ne $_ })
+        if ($null -eq $data) { return , @() }
+        return , @($data | Where-Object { $null -ne $_ })
     }
     function Get-RowCount([string]$Name) {
         $rows = Read-Rows $Name
@@ -74,19 +74,19 @@ function New-MaturityMetrics {
         return $total
     }
 
-    $rules       = Read-Rows 'alert-rules.json'
-    $connectors  = Read-Rows 'data-connectors-classic.json'
-    $tables      = Read-Rows 'tables-with-data.json'
-    $schema      = Read-Rows 'workspace-tables.json'
-    $workspace   = Read-Json 'workspace.json'
-    $settings    = Read-Json 'settings.json'
-    $health      = Read-Rows 'sentinel-health-summary.json'
-    $incidents   = Read-Rows 'incidents-summary.json'
-    $mttr        = Read-Rows 'incidents-mttr.json'
-    $tiCounts    = Read-Rows 'threat-intel-counts.json'
-    $rbac        = Read-Rows 'rbac-workspace.json'
-    $mitre       = $null
-    $mitrePath   = Join-Path $ResourcesRoot 'mitre-attack.json'
+    $rules = Read-Rows 'alert-rules.json'
+    $connectors = Read-Rows 'data-connectors-classic.json'
+    $tables = Read-Rows 'tables-with-data.json'
+    $schema = Read-Rows 'workspace-tables.json'
+    $workspace = Read-Json 'workspace.json'
+    $settings = Read-Json 'settings.json'
+    $health = Read-Rows 'sentinel-health-summary.json'
+    $incidents = Read-Rows 'incidents-summary.json'
+    $mttr = Read-Rows 'incidents-mttr.json'
+    $tiCounts = Read-Rows 'threat-intel-counts.json'
+    $rbac = Read-Rows 'rbac-workspace.json'
+    $mitre = $null
+    $mitrePath = Join-Path $ResourcesRoot 'mitre-attack.json'
     if (Test-Path $mitrePath) { $mitre = Get-Content $mitrePath -Raw | ConvertFrom-Json -Depth 16 }
 
     $enabledRules = $null; $customRules = $null; $tacticsCovered = $null
@@ -94,9 +94,9 @@ function New-MaturityMetrics {
         $enabled = @($rules | Where-Object { [bool](Get-MaturityPropertyValue $_ 'properties.enabled' $false) })
         $enabledRules = $enabled.Count
         $customRules = @($enabled | Where-Object {
-            ((Get-MaturityPropertyValue $_ 'kind' '') -in @('Scheduled', 'NRT')) -and
-            [string]::IsNullOrWhiteSpace([string](Get-MaturityPropertyValue $_ 'properties.alertRuleTemplateName' ''))
-        }).Count
+                ((Get-MaturityPropertyValue $_ 'kind' '') -in @('Scheduled', 'NRT')) -and
+                [string]::IsNullOrWhiteSpace([string](Get-MaturityPropertyValue $_ 'properties.alertRuleTemplateName' ''))
+            }).Count
         $covered = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($r in $enabled) {
             foreach ($t in @(Get-MaturityPropertyValue $r 'properties.tactics' @())) { if ($t) { [void]$covered.Add([string]$t) } }
@@ -123,12 +123,12 @@ function New-MaturityMetrics {
     if ($null -ne $tables) {
         $billableGb30d = [math]::Round((Get-RowSum $tables 'BillableLast30d'), 2)
         $entraTablesPresent = @($tables | Where-Object {
-            $name = [string](Get-MaturityPropertyValue $_ 'DataType' '')
-            $ingested7d = if (Test-MaturityProperty $_ 'IngestedLast7d') {
-                Get-MaturityPropertyValue $_ 'IngestedLast7d' 0
-            } else { Get-MaturityPropertyValue $_ 'BillableLast7d' 0 }
-            ((Get-TableFamily -Table $name) -eq 'Entra ID / Identity') -and ((ConvertTo-MaturityNumber $ingested7d) -gt 0)
-        }).Count
+                $name = [string](Get-MaturityPropertyValue $_ 'DataType' '')
+                $ingested7d = if (Test-MaturityProperty $_ 'IngestedLast7d') {
+                    Get-MaturityPropertyValue $_ 'IngestedLast7d' 0
+                } else { Get-MaturityPropertyValue $_ 'BillableLast7d' 0 }
+                ((Get-TableFamily -Table $name) -eq 'Entra ID / Identity') -and ((ConvertTo-MaturityNumber $ingested7d) -gt 0)
+            }).Count
     }
 
     $xdr = Read-Rows 'xdr-table-presence.json'
@@ -145,7 +145,7 @@ function New-MaturityMetrics {
     $incidents30d = $null; $closedIncidents30d = $null
     if ($null -ne $incidents) {
         if (@($incidents).Count -gt 0) {
-            $incidents30d       = [int](ConvertTo-MaturityNumber (Get-MaturityPropertyValue $incidents[0] 'Count' 0))
+            $incidents30d = [int](ConvertTo-MaturityNumber (Get-MaturityPropertyValue $incidents[0] 'Count' 0))
             $closedIncidents30d = [int](ConvertTo-MaturityNumber (Get-MaturityPropertyValue $incidents[0] 'Closed' 0))
         } else { $incidents30d = 0; $closedIncidents30d = 0 }
     }
@@ -162,7 +162,7 @@ function New-MaturityMetrics {
     }
 
     $searchJobs = Get-RowCount 'search-jobs.json'
-    $restores   = Get-RowCount 'restore-logs.json'
+    $restores = Get-RowCount 'restore-logs.json'
     # A snapshot collected before the collector wrote these two files still
     # has the table list, where search job (_SRCH) and restored (_RST) tables
     # live; read them from there rather than leave the criterion Unknown.
@@ -179,31 +179,31 @@ function New-MaturityMetrics {
     $lakeExtendedTables = $null; $tablesWithCustomRetention = $null
     if ($null -ne $schema) {
         $lakeExtendedTables = @($schema | Where-Object {
-            $plan = [string](Get-MaturityPropertyValue $_ 'properties.plan' '')
-            $interactive = ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.retentionInDays' 0)
-            $total = ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.totalRetentionInDays' 0)
-            ($plan -in @('DataLake', 'Auxiliary')) -or ($total -gt $interactive)
-        }).Count
+                $plan = [string](Get-MaturityPropertyValue $_ 'properties.plan' '')
+                $interactive = ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.retentionInDays' 0)
+                $total = ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.totalRetentionInDays' 0)
+                ($plan -in @('DataLake', 'Auxiliary')) -or ($total -gt $interactive)
+            }).Count
         $default = if ($null -ne $workspace) {
             ConvertTo-MaturityNumber (Get-MaturityPropertyValue $workspace 'properties.retentionInDays' $null)
         } else { $null }
         $tablesWithCustomRetention = @($schema | Where-Object {
-            if (Test-MaturityProperty (Get-MaturityPropertyValue $_ 'properties' $null) 'retentionInDaysAsDefault') {
-                -not [bool](Get-MaturityPropertyValue $_ 'properties.retentionInDaysAsDefault' $true)
-            } elseif ($null -ne $default) {
-                (ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.retentionInDays' $default)) -ne $default
-            } else { $false }
-        }).Count
+                if (Test-MaturityProperty (Get-MaturityPropertyValue $_ 'properties' $null) 'retentionInDaysAsDefault') {
+                    -not [bool](Get-MaturityPropertyValue $_ 'properties.retentionInDaysAsDefault' $true)
+                } elseif ($null -ne $default) {
+                    (ConvertTo-MaturityNumber (Get-MaturityPropertyValue $_ 'properties.retentionInDays' $default)) -ne $default
+                } else { $false }
+            }).Count
     }
 
     $tiIndicators30d = Get-RowSum $tiCounts 'Count'
-    $mdtiRows30d     = Get-RowSum $tiCounts 'Count' { param($row) ([string](Get-MaturityPropertyValue $row 'SourceSystem' '')) -match '^Microsoft' }
-    $tiObjects30d    = Get-RowSum (Read-Rows 'threat-intel-objects.json') 'Count'
+    $mdtiRows30d = Get-RowSum $tiCounts 'Count' { param($row) ([string](Get-MaturityPropertyValue $row 'SourceSystem' '')) -match '^Microsoft' }
+    $tiObjects30d = Get-RowSum (Read-Rows 'threat-intel-objects.json') 'Count'
 
     $highPrivilegeAssignments = $null; $sentinelRoleAssignments = $null
     if ($null -ne $rbac) {
         $highPrivilegeAssignments = @($rbac | Where-Object { (Get-MaturityPropertyValue $_ 'RoleDefinitionName' '') -in @('Owner', 'Contributor') }).Count
-        $sentinelRoleAssignments  = @(
+        $sentinelRoleAssignments = @(
             $rbac | Where-Object { ([string](Get-MaturityPropertyValue $_ 'RoleDefinitionName' '')) -like 'Microsoft Sentinel*' }
         ).Count
     }
@@ -234,11 +234,11 @@ function New-MaturityMetrics {
         }
     }
     $huntingActivity = Get-HuntingActivity -Bookmarks (Read-Rows 'bookmarks.json') -BookmarksCount (Read-Json 'bookmarks-count.json') -BookmarksFromLogs `
-        (Read-Rows 'bookmarks-from-logs.json') -Hunts (Read-Rows 'hunts.json') -WorkspaceTables $schema -WindowDays $activityDays -AsOf $activityAsOf
+    (Read-Rows 'bookmarks-from-logs.json') -Hunts (Read-Rows 'hunts.json') -WorkspaceTables $schema -WindowDays $activityDays -AsOf $activityAsOf
 
     $connectorFailures7d = Get-RowSum $health 'LogCount' {
         param($row) ((Get-MaturityPropertyValue $row 'Status' '') -eq 'Failure') -and
-            (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector')
+        (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector')
     }
     $sentinelHealthRows7d = Get-RowSum $health 'LogCount'
     $laQueryLogs7d = Get-RowSum (Read-Rows 'la-query-logs.json') 'QueryCount'

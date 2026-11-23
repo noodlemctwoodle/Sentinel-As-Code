@@ -85,23 +85,22 @@ function Get-iSOCQueryDependency {
 
     if ([string]::IsNullOrWhiteSpace($Query)) { return $result }
 
-    $result.watchlists   = Get-iSOCKqlWatchlistReference -Query $Query
+    $result.watchlists = Get-iSOCKqlWatchlistReference -Query $Query
     $result.externalData = Get-iSOCKqlExternalDataReference -Query $Query
 
     $bareIdentifiers = Get-iSOCKqlBareIdentifier -Query $Query
-    $tableSet    = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $tableSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $functionSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
     foreach ($id in $bareIdentifiers) {
         if ($KnownFunctions.ContainsKey($id) -or $id -match $ExternalFunctionPattern) {
             [void]$functionSet.Add($id)
-        }
-        else {
+        } else {
             [void]$tableSet.Add($id)
         }
     }
 
-    $result.tables    = @($tableSet    | Sort-Object)
+    $result.tables = @($tableSet | Sort-Object)
     $result.functions = @($functionSet | Sort-Object)
     return $result
 }

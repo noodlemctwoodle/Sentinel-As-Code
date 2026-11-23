@@ -50,8 +50,7 @@ function Invoke-PublishStructure {
         Write-PublishStep '2/8 Dashboard web part package'
         Assert-TokenFresh 'app package'
         $appVersion = Publish-SacAppPackage -Path $AppPackagePath
-    }
-    else {
+    } else {
         Write-PublishStep '2/8 Dashboard web part package (skipped: no -AppPackagePath)'
     }
 

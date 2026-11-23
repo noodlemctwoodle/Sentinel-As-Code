@@ -39,9 +39,9 @@ function Test-PublicNetworkAccessDisabled {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $ingest = Get-PropOrDefault $Inventory.Workspace 'properties.publicNetworkAccessForIngestion' 'Enabled'
-    $query  = Get-PropOrDefault $Inventory.Workspace 'properties.publicNetworkAccessForQuery'     'Enabled'
+    $query = Get-PropOrDefault $Inventory.Workspace 'properties.publicNetworkAccessForQuery' 'Enabled'
     if ($ingest -eq 'Enabled' -or $query -eq 'Enabled') {
         return New-Finding -Evidence "Public network access enabled (Ingestion=$ingest, Query=$query)." -Detail @{ Ingestion = $ingest; Query = $query }
     }

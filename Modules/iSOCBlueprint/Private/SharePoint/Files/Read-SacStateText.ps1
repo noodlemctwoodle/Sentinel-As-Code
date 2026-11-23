@@ -37,8 +37,7 @@ function Read-SacStateText {
         try {
             $text = Get-PnPFile -Url "$library/_state/$FileName" -AsString -ErrorAction Stop
             if ($text) { return [string]$text }
-        }
-        catch {
+        } catch {
             Write-Verbose "No $FileName in $($library): $($_.Exception.Message)"
         }
     }

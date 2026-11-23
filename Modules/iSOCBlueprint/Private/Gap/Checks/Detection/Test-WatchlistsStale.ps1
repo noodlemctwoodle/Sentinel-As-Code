@@ -39,7 +39,7 @@ function Test-WatchlistsStale {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not ($Inventory.PSObject.Properties.Name -contains 'Watchlists') -or $null -eq $Inventory.Watchlists) { return $null }
     $use = Get-WatchlistRuleUse -Rules @($Inventory.AlertRules)
     $stale = @(Get-WatchlistFreshness -Watchlists @($Inventory.Watchlists) -RuleUse $use | Where-Object Status -EQ 'Stale, used by rules' | Sort-Object AgeDays -Descending)

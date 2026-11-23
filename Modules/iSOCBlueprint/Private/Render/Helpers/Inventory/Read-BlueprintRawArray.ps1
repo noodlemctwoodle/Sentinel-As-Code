@@ -46,6 +46,6 @@ function Read-BlueprintRawArray {
     [CmdletBinding()]
     param([string]$Name)
     $value = Read-BlueprintRaw $Name
-    if ($null -eq $value) { return ,@() }
+    if ($null -eq $value) { return , @() }
     return @($value)
 }

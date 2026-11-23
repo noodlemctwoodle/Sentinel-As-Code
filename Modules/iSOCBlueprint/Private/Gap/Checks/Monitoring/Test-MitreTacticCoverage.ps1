@@ -39,7 +39,7 @@ function Test-MitreTacticCoverage {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.MitreTactics) { return $null }
     $coveredTactics = @{}
     foreach ($rule in @($Inventory.AlertRules)) {

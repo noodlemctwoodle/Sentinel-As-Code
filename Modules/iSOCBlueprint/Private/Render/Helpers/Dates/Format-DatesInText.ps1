@@ -51,12 +51,12 @@ function Format-DatesInText {
     for ($i = 0; $i -lt $parts.Count; $i++) {
         if ($parts[$i].StartsWith('`')) { continue }
         $parts[$i] = [regex]::Replace($parts[$i], $isoRx, {
-            param($m)
-            $month = [int]$m.Groups[2].Value; $day = [int]$m.Groups[3].Value
-            if ($month -lt 1 -or $month -gt 12 -or $day -lt 1 -or $day -gt 31) { return $m.Value }
-            if ($m.Groups['time'].Success) { return Format-BlueprintDate $m.Value -Time }
-            Format-BlueprintDate $m.Value
-        })
+                param($m)
+                $month = [int]$m.Groups[2].Value; $day = [int]$m.Groups[3].Value
+                if ($month -lt 1 -or $month -gt 12 -or $day -lt 1 -or $day -gt 31) { return $m.Value }
+                if ($m.Groups['time'].Success) { return Format-BlueprintDate $m.Value -Time }
+                Format-BlueprintDate $m.Value
+            })
         $parts[$i] = [regex]::Replace($parts[$i], $longRx, { param($m) "$($m.Groups[1].Value) $($script:ShortMonth[$m.Groups[2].Value])" })
     }
     return -join $parts

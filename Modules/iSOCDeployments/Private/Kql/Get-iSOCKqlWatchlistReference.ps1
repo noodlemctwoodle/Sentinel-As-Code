@@ -29,7 +29,7 @@
 # Keeps the file help above from being read as the help of the function below.
 
 function Get-iSOCKqlWatchlistReference {
-<#
+    <#
 .SYNOPSIS
     Extract every watchlist alias referenced via _GetWatchlist('alias')
     or _GetWatchlist("alias") in the supplied KQL query.

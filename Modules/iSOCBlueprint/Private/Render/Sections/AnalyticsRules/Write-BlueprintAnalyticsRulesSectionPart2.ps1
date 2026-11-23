@@ -94,32 +94,32 @@ $(Format-BlueprintTable -Items $mismatchRows -Columns 'Name','Kind','CurrentVers
     # return nothing after a schema change) are easy to find. Idea from the
     # health check contributed by thinkndle; the scoring here is this project's.
     $complexityRows = @($(foreach ($r in $rules) {
-        if (-not $r -or $r.kind -notin @('Scheduled', 'NRT')) { continue }
-        $props = Get-BlueprintRawProperty $r 'properties'
-        $q = [string](Get-BlueprintRawProperty $props 'query' '')
-        if ([string]::IsNullOrWhiteSpace($q)) { continue }
-        $lets   = ([regex]::Matches($q, '(?im)^\s*let\s')).Count
-        $joins  = ([regex]::Matches($q, '(?i)\bjoin\b')).Count
-        $unions = ([regex]::Matches($q, '(?i)\bunion\b')).Count
-        $ents   = @(Get-BlueprintRawProperty $props 'entityMappings' @()).Count
-        $ti     = [bool]($q -match '(?i)ThreatIntel')
-        $incOn  = [bool](Get-BlueprintRawProperty (Get-BlueprintRawProperty $props 'incidentConfiguration') 'createIncident' $true)
-        $score  = [math]::Min(10, [math]::Round($q.Length / 400.0) + $lets + 2 * $joins + $unions + $(
-            if ($ti) { 1 } else { 0 }
-        ) + $(if ($ents -eq 0) { 1 } else { 0 }))
-        [pscustomobject]@{
-            Rule       = [string](Get-BlueprintRawProperty $props 'displayName' $r.name)
-            Kind       = $r.kind
-            Complexity = [int]$score
-            Chars      = $q.Length
-            Lets       = $lets
-            Joins      = $joins
-            Unions     = $unions
-            Entities   = $ents
-            TI         = if ($ti) { 'Yes' } else { '' }
-            Incident   = if ($incOn) { 'Yes' } else { 'No' }
-        }
-    }) | Sort-Object -Property @{ Expression = 'Complexity'; Descending = $true }, @{ Expression = 'Chars'; Descending = $true })
+                if (-not $r -or $r.kind -notin @('Scheduled', 'NRT')) { continue }
+                $props = Get-BlueprintRawProperty $r 'properties'
+                $q = [string](Get-BlueprintRawProperty $props 'query' '')
+                if ([string]::IsNullOrWhiteSpace($q)) { continue }
+                $lets = ([regex]::Matches($q, '(?im)^\s*let\s')).Count
+                $joins = ([regex]::Matches($q, '(?i)\bjoin\b')).Count
+                $unions = ([regex]::Matches($q, '(?i)\bunion\b')).Count
+                $ents = @(Get-BlueprintRawProperty $props 'entityMappings' @()).Count
+                $ti = [bool]($q -match '(?i)ThreatIntel')
+                $incOn = [bool](Get-BlueprintRawProperty (Get-BlueprintRawProperty $props 'incidentConfiguration') 'createIncident' $true)
+                $score = [math]::Min(10, [math]::Round($q.Length / 400.0) + $lets + 2 * $joins + $unions + $(
+                        if ($ti) { 1 } else { 0 }
+                    ) + $(if ($ents -eq 0) { 1 } else { 0 }))
+                [pscustomobject]@{
+                    Rule       = [string](Get-BlueprintRawProperty $props 'displayName' $r.name)
+                    Kind       = $r.kind
+                    Complexity = [int]$score
+                    Chars      = $q.Length
+                    Lets       = $lets
+                    Joins      = $joins
+                    Unions     = $unions
+                    Entities   = $ents
+                    TI         = if ($ti) { 'Yes' } else { '' }
+                    Incident   = if ($incOn) { 'Yes' } else { 'No' }
+                }
+            }) | Sort-Object -Property @{ Expression = 'Complexity'; Descending = $true }, @{ Expression = 'Chars'; Descending = $true })
     $complexitySection = @"
 
 ## Rule complexity
@@ -133,14 +133,14 @@ $(Format-BlueprintTable -Items $complexityRows -Columns 'Rule','Kind','Complexit
     # the collector did not run this capture; empty file: no failures.
     $ruleHealthCaptured = Test-Path -LiteralPath (Join-Path $rawRoot 'rule-health.json')
     $ruleHealthRows = @(Read-BlueprintRawArray 'rule-health.json' | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{
-            Rule = $_.RuleName
-            Status = $_.Status
-            Failures = $_.Failures
-            'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure')
-            Reason = [string](Get-BlueprintRawProperty $_ 'Reason' '')
-        }
-    } | Sort-Object { ConvertTo-BlueprintNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
+            [pscustomobject]@{
+                Rule                 = $_.RuleName
+                Status               = $_.Status
+                Failures             = $_.Failures
+                'Last failure (UTC)' = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastFailure')
+                Reason               = [string](Get-BlueprintRawProperty $_ 'Reason' '')
+            }
+        } | Sort-Object { ConvertTo-BlueprintNumber $_.Failures } -Descending | ForEach-Object { $_.Failures = Format-BlueprintCount $_.Failures; $_ })
     $ruleHealthSection = @"
 
 ## Rule run failures (last {lookback-d})
@@ -153,15 +153,15 @@ $(if (-not $ruleHealthCaptured) { '_Not captured in this run (``rule-health.json
     # Defender XDR custom detections from the Graph capture: the other detection
     # logic that reads this data, listed with the tables each one queries.
     $customDetectionRows = @($customDetectionRefs | Where-Object { $_ } | ForEach-Object {
-        [pscustomobject]@{
-            Name         = [string](Get-BlueprintRawProperty $_ 'RuleName' '')
-            Enabled      = $(if ((Get-BlueprintRawProperty $_ 'Enabled' $false) -eq $true) { 'Yes' } else { 'No' })
-            Severity     = [string](Get-BlueprintRawProperty $_ 'Severity' '')
-            Period       = [string](Get-BlueprintRawProperty $_ 'Period' '')
-            Tables       = (@(Get-BlueprintRawProperty $_ 'Tables' @()) -join ', ')
-            LastModified = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastModified')
-        }
-    } | Sort-Object -Property @{ Expression = { $_.Enabled -eq 'No' } }, Name)
+            [pscustomobject]@{
+                Name         = [string](Get-BlueprintRawProperty $_ 'RuleName' '')
+                Enabled      = $(if ((Get-BlueprintRawProperty $_ 'Enabled' $false) -eq $true) { 'Yes' } else { 'No' })
+                Severity     = [string](Get-BlueprintRawProperty $_ 'Severity' '')
+                Period       = [string](Get-BlueprintRawProperty $_ 'Period' '')
+                Tables       = (@(Get-BlueprintRawProperty $_ 'Tables' @()) -join ', ')
+                LastModified = Format-DateUtc (Get-BlueprintRawProperty $_ 'LastModified')
+            }
+        } | Sort-Object -Property @{ Expression = { $_.Enabled -eq 'No' } }, Name)
     $customDetectionSection = @"
 
 ## Defender XDR custom detections
@@ -181,8 +181,8 @@ $(if (-not $customDetectionsCaptured) { '_Not captured in this run: the Graph ca
     # Each part begins with a newline and ends without one; joining with a
     # newline keeps a blank line between a table and the next heading.
     Write-BlueprintSection '20-analytics-rules.md' (@(
-        $rulesBody.TrimEnd(), $msRulesSection, $modificationsSection, $solutionSection, $customDetectionSection, $analyticsLinks
-    ) -join [Environment]::NewLine)
+            $rulesBody.TrimEnd(), $msRulesSection, $modificationsSection, $solutionSection, $customDetectionSection, $analyticsLinks
+        ) -join [Environment]::NewLine)
 
     # Left in the render context for later sections.
     $Context.analyticsLinks = $analyticsLinks

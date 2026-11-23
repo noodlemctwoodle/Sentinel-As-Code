@@ -56,8 +56,8 @@
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
-    $script:floor    = [version]'7.6'
-    $script:self     = 'Tests/Test-PowerShellVersion.Tests.ps1'
+    $script:floor = [version]'7.6'
+    $script:self = 'Tests/Test-PowerShellVersion.Tests.ps1'
     $script:allFiles = $null
 
     function Get-RepoFile {
@@ -70,12 +70,11 @@ BeforeAll {
             $listing = git -C $script:repoRoot ls-files -z 2>$null
             if ($LASTEXITCODE -eq 0 -and $listing) {
                 $script:allFiles = @(($listing -join '') -split "`0" | Where-Object { $_ })
-            }
-            else {
+            } else {
                 $skip = '(^|/)(node_modules|\.git|test-results|SecurityDocs)/'
                 $script:allFiles = @(Get-ChildItem -Path $script:repoRoot -Recurse -File -Force |
-                    ForEach-Object { [IO.Path]::GetRelativePath($script:repoRoot, $_.FullName).Replace('\', '/') } |
-                    Where-Object { $_ -notmatch $skip })
+                        ForEach-Object { [IO.Path]::GetRelativePath($script:repoRoot, $_.FullName).Replace('\', '/') } |
+                        Where-Object { $_ -notmatch $skip })
             }
             $script:allFiles = @($script:allFiles | Where-Object { [IO.File]::Exists((Join-Path $script:repoRoot $_)) })
         }
@@ -119,17 +118,17 @@ BeforeAll {
         "these break the rule ($($Offender.Count)): " + ($Offender -join '; ')
     }
 
-    $script:scripts   = @(Get-RepoFile -Extension 'ps1', 'psm1')
+    $script:scripts = @(Get-RepoFile -Extension 'ps1', 'psm1')
     $script:manifests = @(Get-RepoFile -Extension 'psd1')
-    $script:yaml      = @(Get-RepoFile -Extension 'yml', 'yaml' |
-        Where-Object { $_ -match '^(\.github/workflows/|\.github/actions/|Pipelines/)' })
-    $script:bicep     = @(Get-RepoFile -Extension 'bicep')
-    $script:text      = @(Get-RepoFile -Extension 'md', 'yml', 'yaml', 'ps1', 'psm1', 'psd1', 'bicep', 'json', 'html', 'template' |
-        Where-Object {
-            $_ -ne $script:self -and
-            $_ -notmatch '(^|/)(CHANGELOG|MIGRATION)\.md$' -and
-            $_ -notmatch '(^|/)(package-lock|dependencies)\.json$'
-        })
+    $script:yaml = @(Get-RepoFile -Extension 'yml', 'yaml' |
+            Where-Object { $_ -match '^(\.github/workflows/|\.github/actions/|Pipelines/)' })
+    $script:bicep = @(Get-RepoFile -Extension 'bicep')
+    $script:text = @(Get-RepoFile -Extension 'md', 'yml', 'yaml', 'ps1', 'psm1', 'psd1', 'bicep', 'json', 'html', 'template' |
+            Where-Object {
+                $_ -ne $script:self -and
+                $_ -notmatch '(^|/)(CHANGELOG|MIGRATION)\.md$' -and
+                $_ -notmatch '(^|/)(package-lock|dependencies)\.json$'
+            })
 }
 
 Describe 'PowerShell 7.6 floor' {
@@ -161,7 +160,7 @@ Describe 'PowerShell 7.6 floor' {
 
         It 'starts the Requires: line of every .ps1 and .psm1 with PowerShell 7.6+' {
             $offenders = foreach ($file in $script:scripts) {
-                $help  = [regex]::Match((Read-RepoFile $file), '(?s)<#(.*?)#>').Groups[1].Value
+                $help = [regex]::Match((Read-RepoFile $file), '(?s)<#(.*?)#>').Groups[1].Value
                 $notes = [regex]::Match($help, '(?ms)^\s*\.NOTES\s*$(.*?)(?=^\s*\.[A-Z]+\s*$|\z)').Groups[1].Value
                 $lines = [regex]::Matches($notes, '(?m)^\s+Requires:\s+(.*?)\s*$')
                 if ($lines.Count -ne 1) { "$file has $($lines.Count) Requires: lines"; continue }

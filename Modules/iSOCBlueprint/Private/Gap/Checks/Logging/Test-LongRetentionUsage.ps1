@@ -39,15 +39,15 @@ function Test-LongRetentionUsage {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Audited queries are one of the four signals; without them every table
     # would look unused, so the check needs that capture and the rule map.
     if ($Inventory.RawFiles -notcontains 'table-query-usage.json' -or $Inventory.RawFiles -notcontains 'rule-table-references.json') { return $null }
     $long = @($Inventory.WorkspaceTables | Where-Object { $null -ne $_ } | Where-Object {
-        $analytics = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.retentionInDays' 0)
-        $total = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0)
-        ([string](Get-PropOrDefault $_ 'properties.plan' '')) -eq 'DataLake' -or $total -gt $analytics
-    })
+            $analytics = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.retentionInDays' 0)
+            $total = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0)
+            ([string](Get-PropOrDefault $_ 'properties.plan' '')) -eq 'DataLake' -or $total -gt $analytics
+        })
     if ($long.Count -eq 0) { return $null }
     $readByRule = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($ref in @($Inventory.RuleTableReferences)) {
@@ -55,8 +55,8 @@ function Test-LongRetentionUsage {
         foreach ($t in @(Get-PropOrDefault $ref 'Tables' @())) { if ($t) { [void]$readByRule.Add([string]$t) } }
     }
     $summaryQueries = @($Inventory.SummaryRules | Where-Object { $null -ne $_ } | ForEach-Object {
-        [string](Get-PropOrDefault $_ 'properties.ruleDefinition.query' (Get-PropOrDefault $_ 'properties.query' ''))
-    })
+            [string](Get-PropOrDefault $_ 'properties.ruleDefinition.query' (Get-PropOrDefault $_ 'properties.query' ''))
+        })
     $derived = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($t in @($Inventory.WorkspaceTables)) {
         $n = [string](Get-PropOrDefault $t 'name' '')
@@ -67,12 +67,12 @@ function Test-LongRetentionUsage {
         if ($null -ne $row -and (ConvertTo-GapInt (Get-PropOrDefault $row 'Queries' 0)) -gt 0) { [void]$queried.Add([string](Get-PropOrDefault $row 'Table' '')) }
     }
     $unused = @($long | Where-Object {
-        $n = [string](Get-PropOrDefault $_ 'name' '')
-        $inSummary = [bool]($summaryQueries | Where-Object { $_ -match ('\b' + [regex]::Escape($n) + '\b') } | Select-Object -First 1)
-        -not ($readByRule.Contains($n) -or $inSummary -or $derived.Contains($n) -or $queried.Contains($n))
-    } | ForEach-Object {
-        [pscustomobject]@{ Table = [string]$_.name; TotalDays = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0); Plan = [string](Get-PropOrDefault $_ 'properties.plan' '') }
-    } | Sort-Object Table)
+            $n = [string](Get-PropOrDefault $_ 'name' '')
+            $inSummary = [bool]($summaryQueries | Where-Object { $_ -match ('\b' + [regex]::Escape($n) + '\b') } | Select-Object -First 1)
+            -not ($readByRule.Contains($n) -or $inSummary -or $derived.Contains($n) -or $queried.Contains($n))
+        } | ForEach-Object {
+            [pscustomobject]@{ Table = [string]$_.name; TotalDays = ConvertTo-GapInt (Get-PropOrDefault $_ 'properties.totalRetentionInDays' 0); Plan = [string](Get-PropOrDefault $_ 'properties.plan' '') }
+        } | Sort-Object Table)
     if ($unused.Count -eq 0) { return $null }
     $names = @($unused | ForEach-Object { "$($_.Table) ($(Format-BlueprintPlural $_.TotalDays 'day') total)" })
     return New-Finding -Evidence "$(Format-BlueprintPlural $unused.Count 'table') $(Select-GapWording $unused.Count 'keeps' 'keep') data beyond $(Select-GapWording $unused.Count 'its' 'their') analytics retention with no enabled rule, summary rule, search or restore job, or audited query reading $(Select-GapWording $unused.Count 'it' 'them'): $($names -join ', ')." -Detail @{ Tables = $unused }

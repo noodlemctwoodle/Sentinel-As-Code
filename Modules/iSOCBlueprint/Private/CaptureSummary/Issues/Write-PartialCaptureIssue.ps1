@@ -69,9 +69,9 @@ function Write-PartialCaptureIssue {
         Write-CaptureNote -Kind $group.Name -Label $Label -Text $text
         # The summary lists it under its outcome, so it reads as a sentence.
         $sentence = switch ($group.Name) {
-            'Permission'   { "No permission to read $text" }
+            'Permission' { "No permission to read $text" }
             'NotAvailable' { "Not available: $text" }
-            default        { 'C' + $text.Substring(1) }
+            default { 'C' + $text.Substring(1) }
         }
         [pscustomobject]@{ Label = $Label; Kind = $group.Name; Message = $sentence }
     }

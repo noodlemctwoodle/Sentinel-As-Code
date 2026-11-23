@@ -65,8 +65,7 @@ function Get-iSOCDeploymentConfig {
     $config.Path = ConvertTo-iSOCRepoRelativePath -Path $path -RepoPath $RepoPath
     try {
         $raw = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -ErrorAction Stop
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to parse $($config.Path): $($_.Exception.Message)" -Level Warning
         return $config
     }

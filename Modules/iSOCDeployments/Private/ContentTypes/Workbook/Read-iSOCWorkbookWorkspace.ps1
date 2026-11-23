@@ -78,8 +78,7 @@ function Read-iSOCWorkbookWorkspace {
         try {
             $detail = Invoke-iSOCRestRequest -Method GET -Path "$(Get-iSOCPropertyValue -InputObject $workbook -Path 'id')?canFetchContent=true" -ApiVersion $apiVersion -Context $Context
             if ($null -ne $detail) { $detail } else { $workbook }
-        }
-        catch {
+        } catch {
             $workbook | Add-Member -NotePropertyName ReadError -NotePropertyValue "detail fetch failed: $($_.Exception.Message)" -Force
             $workbook
         }

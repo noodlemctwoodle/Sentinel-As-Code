@@ -41,7 +41,7 @@ function Read-BlueprintInventory {
     # ---------------------------------------------------------------------------
     # Section: 00-overview
     # ---------------------------------------------------------------------------
-    $workspace          = Read-BlueprintRaw 'workspace.json'
+    $workspace = Read-BlueprintRaw 'workspace.json'
     # How Microsoft Sentinel is billed: the SecurityInsights solution's
     # properties.sku (Unified is simplified pricing, anything else classic).
     $sentinelSolutionSku = ''
@@ -52,20 +52,19 @@ function Read-BlueprintInventory {
         if ($solSku) { $sentinelSolutionSku = [string](Get-BlueprintRawProperty $solSku 'name' '') }
     }
     $sentinelPricingText = if (-not $sentinelSolutionSku) { '_(not recorded on the Microsoft Sentinel solution)_' }
-        elseif ($sentinelSolutionSku -eq 'Unified') {
-            "Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion (solution SKU ``Unified``)"
-        }
-        else { "Classic: Microsoft Sentinel analysis and Log Analytics ingestion billed separately (solution SKU ``$sentinelSolutionSku``)" }
-    $run                = Read-BlueprintRaw 'run-context.json'
-    $rules              = Read-BlueprintRawArray 'alert-rules.json'
-    $connectors         = Read-BlueprintRawArray 'data-connectors-classic.json'
-    $workbooksSaved     = Read-BlueprintRawArray 'workbooks-saved.json'
-    $dcrs               = Read-BlueprintRawArray 'dcrs.json'
-    $tablesWithData     = Read-BlueprintRawArray 'tables-with-data.json'
-    $workspaceTables    = Read-BlueprintRawArray 'workspace-tables.json'
-    $watchlists         = Read-BlueprintRawArray 'watchlists.json'
-    $autoRules          = Read-BlueprintRawArray 'automation-rules.json'
-    $gapFindings        = Read-BlueprintRawArray 'gap-analysis.json'
+    elseif ($sentinelSolutionSku -eq 'Unified') {
+        "Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion (solution SKU ``Unified``)"
+    } else { "Classic: Microsoft Sentinel analysis and Log Analytics ingestion billed separately (solution SKU ``$sentinelSolutionSku``)" }
+    $run = Read-BlueprintRaw 'run-context.json'
+    $rules = Read-BlueprintRawArray 'alert-rules.json'
+    $connectors = Read-BlueprintRawArray 'data-connectors-classic.json'
+    $workbooksSaved = Read-BlueprintRawArray 'workbooks-saved.json'
+    $dcrs = Read-BlueprintRawArray 'dcrs.json'
+    $tablesWithData = Read-BlueprintRawArray 'tables-with-data.json'
+    $workspaceTables = Read-BlueprintRawArray 'workspace-tables.json'
+    $watchlists = Read-BlueprintRawArray 'watchlists.json'
+    $autoRules = Read-BlueprintRawArray 'automation-rules.json'
+    $gapFindings = Read-BlueprintRawArray 'gap-analysis.json'
     foreach ($gf in @($gapFindings)) {
         foreach ($field in 'Title', 'Evidence', 'Remediation') {
             if ($gf -and $gf.PSObject.Properties[$field] -and $gf.$field -is [string]) { $gf.$field = Format-DatesInText $gf.$field }
@@ -75,7 +74,7 @@ function Read-BlueprintInventory {
     # ids that have a finding (and an anchor) on 90-gap-analysis.md.
     $script:FiredFindingIds = @{}
     foreach ($gf in @($gapFindings)) { if ($gf -and $gf.PSObject.Properties['Id'] -and $gf.Id) { $script:FiredFindingIds[[string]$gf.Id] = $true } }
-    $cost               = Read-BlueprintRaw 'cost-estimate.json'
+    $cost = Read-BlueprintRaw 'cost-estimate.json'
 
     $enabledRules = @($rules | Where-Object { $_.properties.enabled -eq $true })
     $populatedTables = @($tablesWithData | Where-Object { [double]($_.BillableLast90d) -gt 0 })
@@ -95,27 +94,27 @@ function Read-BlueprintInventory {
     # silent). Excludes ~750 Microsoft pre-defined schemas the workspace
     # never received data for — those are catalogue, not deployment.
     $operationalTables = @($workspaceTables | Where-Object {
-        $tt = $_.properties.schema.tableType
-        ($tt -eq 'CustomLog') -or ($populatedTableNames.ContainsKey($_.name))
-    })
+            $tt = $_.properties.schema.tableType
+            ($tt -eq 'CustomLog') -or ($populatedTableNames.ContainsKey($_.name))
+        })
     $catalogueOnlyCount = $workspaceTables.Count - $operationalTables.Count
 
-    $top5Findings = @($gapFindings | Sort-Object @{Expression={ switch($_.Severity){'Critical'{0}'Warning'{1}'Info'{2}default{3}} }} | Select-Object -First 5)
+    $top5Findings = @($gapFindings | Sort-Object @{Expression = { switch ($_.Severity) { 'Critical' { 0 }'Warning' { 1 }'Info' { 2 }default { 3 } } } } | Select-Object -First 5)
     # The top findings as cards on the SharePoint site and the dashboard: a
     # comment Markdown does not show, read by the section model as a graphic;
     # the list after it stays for the Markdown and Word exports.
     $topFindingsVisual = '<!-- bp:visual finding-cards ' + ([ordered]@{
-        total = @($gapFindings).Count
-        cards = @($top5Findings | ForEach-Object {
-            [ordered]@{
-                id = [string]$_.Id; severity = [string]$_.Severity; title = [string]$_.Title; category = [string](Get-BlueprintRawProperty $_ 'Category' '')
-                evidence = [string](Get-BlueprintRawProperty $_ 'Evidence' '')
-                remediation = [string](Get-BlueprintRawProperty $_ 'Remediation' '')
-                learn = [string](Get-BlueprintRawProperty $_ 'Learn' '')
-                href = "90-gap-analysis.md#$(([string]$_.Id).ToLowerInvariant())"
-            }
-        })
-    } | ConvertTo-Json -Compress -Depth 6).Replace('-->', '--\u003e') + ' -->'
+            total = @($gapFindings).Count
+            cards = @($top5Findings | ForEach-Object {
+                    [ordered]@{
+                        id = [string]$_.Id; severity = [string]$_.Severity; title = [string]$_.Title; category = [string](Get-BlueprintRawProperty $_ 'Category' '')
+                        evidence    = [string](Get-BlueprintRawProperty $_ 'Evidence' '')
+                        remediation = [string](Get-BlueprintRawProperty $_ 'Remediation' '')
+                        learn       = [string](Get-BlueprintRawProperty $_ 'Learn' '')
+                        href        = "90-gap-analysis.md#$(([string]$_.Id).ToLowerInvariant())"
+                    }
+                })
+        } | ConvertTo-Json -Compress -Depth 6).Replace('-->', '--\u003e') + ' -->'
 
     # ---------------------------------------------------------------------------
     # Health-check ports, hoisted: table-to-rule references, rule effectiveness,
@@ -123,7 +122,7 @@ function Read-BlueprintInventory {
     # 00-overview and 01-live-snapshot can draw the estate flow before the
     # sections that own the detail (15, 21, 28, 60, 80, 81, 91) are written.
     # ---------------------------------------------------------------------------
-    $ruleTableRefs     = Read-BlueprintRawArray 'rule-table-references.json'
+    $ruleTableRefs = Read-BlueprintRawArray 'rule-table-references.json'
     $templateTableRefs = Read-BlueprintRawArray 'template-table-references.json'
     # Each template's Content Hub solution; a template only deprecated solutions
     # ship (Threat Intelligence, replaced by Threat Intelligence (NEW)) is not
@@ -140,16 +139,16 @@ function Read-BlueprintInventory {
         }
     }
     $ruleEffectiveness = Read-BlueprintRawArray 'rule-effectiveness.json'
-    $rulesFired        = Read-BlueprintRawArray 'rules-fired.json'
-    $playbookRuns      = Read-BlueprintRawArray 'playbook-runs.json'
-    $hunts             = Read-BlueprintRawArray 'hunts.json'
-    $bookmarks         = Read-BlueprintRawArray 'bookmarks.json'
+    $rulesFired = Read-BlueprintRawArray 'rules-fired.json'
+    $playbookRuns = Read-BlueprintRawArray 'playbook-runs.json'
+    $hunts = Read-BlueprintRawArray 'hunts.json'
+    $bookmarks = Read-BlueprintRawArray 'bookmarks.json'
     $bookmarksFromLogs = Read-BlueprintRawArray 'bookmarks-from-logs.json'
-    $bookmarkCountDoc  = Read-BlueprintRaw 'bookmarks-count.json'
-    $ruleVolumesAll    = Read-BlueprintRawArray 'analytics-rule-volumes.json'
+    $bookmarkCountDoc = Read-BlueprintRaw 'bookmarks-count.json'
+    $ruleVolumesAll = Read-BlueprintRawArray 'analytics-rule-volumes.json'
     $customDetectionsRaw = Read-BlueprintRawArray 'defender-custom-detections.json'
-    $usageDaily        = Read-BlueprintRawArray 'workspace-usage-daily.json'
-    $maturity          = Read-BlueprintRaw 'maturity.json'
+    $usageDaily = Read-BlueprintRawArray 'workspace-usage-daily.json'
+    $maturity = Read-BlueprintRaw 'maturity.json'
     if ($maturity) {
         $maturityNotes = @(@(Get-BlueprintRawProperty $maturity 'roadmap' @()) + @(Get-BlueprintRawProperty $maturity 'quickWins' @()))
         foreach ($mArea in @(Get-BlueprintRawProperty $maturity 'areas' @())) { $maturityNotes += @(Get-BlueprintRawProperty $mArea 'criteria' @()) }
@@ -171,8 +170,8 @@ function Read-BlueprintInventory {
             }
         }
     }
-    $incSummary        = Read-BlueprintRawArray 'incidents-summary.json' | Select-Object -First 1
-    $incMttr           = Read-BlueprintRawArray 'incidents-mttr.json'    | Select-Object -First 1
+    $incSummary = Read-BlueprintRawArray 'incidents-summary.json' | Select-Object -First 1
+    $incMttr = Read-BlueprintRawArray 'incidents-mttr.json' | Select-Object -First 1
     # A failed maturity capture writes '{}', which is truthy, so test for the
     # members the page needs rather than for the object.
     $maturityOk = ($null -ne $maturity -and $null -ne $maturity.PSObject.Properties['areas'] -and $null -ne $maturity.PSObject.Properties['overall'])

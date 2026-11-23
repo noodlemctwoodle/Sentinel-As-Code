@@ -39,7 +39,7 @@ function Test-MouldyAnalyticsRules {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.AlertRules) { return $null }
     $cutoff = (Get-Date).ToUniversalTime().AddDays(-365)
     # ConvertFrom-Json auto-deserialises ISO-8601 timestamps to [datetime];
@@ -47,14 +47,14 @@ function Test-MouldyAnalyticsRules {
     # can drop the round-trip on en-GB machines. Cast directly with a try
     # block so both [string] and [datetime] inputs work identically.
     $mouldy = @($Inventory.AlertRules | Where-Object {
-        $kind = Get-PropOrDefault $_ 'kind' ''
-        $enabled = Get-PropOrDefault $_ 'properties.enabled' $false
-        $lm = Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null
-        $parsed = [datetime]::MinValue
-        $tsValid = $false
-        if ($lm) { try { $parsed = [datetime]$lm; $tsValid = $true } catch {} }
-        ($kind -in @('Scheduled','NRT')) -and $enabled -and $tsValid -and ($parsed.ToUniversalTime() -lt $cutoff)
-    })
+            $kind = Get-PropOrDefault $_ 'kind' ''
+            $enabled = Get-PropOrDefault $_ 'properties.enabled' $false
+            $lm = Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null
+            $parsed = [datetime]::MinValue
+            $tsValid = $false
+            if ($lm) { try { $parsed = [datetime]$lm; $tsValid = $true } catch {} }
+            ($kind -in @('Scheduled', 'NRT')) -and $enabled -and $tsValid -and ($parsed.ToUniversalTime() -lt $cutoff)
+        })
     if ($mouldy.Count -eq 0) { return $null }
     $names = ($mouldy | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '
     return New-Finding -Evidence "$(Format-BlueprintPlural $mouldy.Count 'enabled Scheduled/NRT rule') not modified in over 12 months: $names." -Detail @{ Count = $mouldy.Count }

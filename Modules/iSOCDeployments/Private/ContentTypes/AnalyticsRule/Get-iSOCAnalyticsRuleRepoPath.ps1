@@ -71,8 +71,7 @@ function Get-iSOCAnalyticsRuleRepoPath {
     $folder = if ($Provenance -eq 'ContentHub') {
         $solutionSlug = if ($SolutionName) { ConvertTo-iSOCFileSlug -Value $SolutionName -MaxLength 60 } else { 'Unattributed' }
         "$base/ContentHub/$solutionSlug"
-    }
-    else {
+    } else {
         "$base/Orphans"
     }
 

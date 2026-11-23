@@ -49,8 +49,8 @@ function Write-SiteLog {
     switch ($Level) {
         'Section' { Write-Host "`n$Message" -ForegroundColor Cyan }
         'Warning' { Write-Host $Message -ForegroundColor Yellow }
-        'Error'   { Write-Host $Message -ForegroundColor Red }
+        'Error' { Write-Host $Message -ForegroundColor Red }
         'Success' { Write-Host $Message -ForegroundColor Green }
-        default   { Write-Host $Message }
+        default { Write-Host $Message }
     }
 }

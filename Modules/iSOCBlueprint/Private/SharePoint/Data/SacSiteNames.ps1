@@ -22,20 +22,20 @@
 #>
 
 $script:SacAssetsLibraryTitle = 'Blueprint Assets'
-$script:SacAssetsLibraryUrl   = 'BlueprintAssets'
+$script:SacAssetsLibraryUrl = 'BlueprintAssets'
 # The assets library's name before the Documenter was renamed Blueprint. The
 # state readers fall back to it, and a clean publish recycles it.
 $script:SacLegacyAssetsLibraryUrl = 'DocumenterAssets'
-$script:SacFindingsListTitle  = 'Sentinel Findings'
-$script:SacFindingsListUrl    = 'Lists/SentinelFindings'
-$script:SacStateFile          = 'publish-state.json'
+$script:SacFindingsListTitle = 'Sentinel Findings'
+$script:SacFindingsListUrl = 'Lists/SentinelFindings'
+$script:SacStateFile = 'publish-state.json'
 $script:SacMaturityHistoryFile = 'maturity-history.json'
 $script:SacProgressHistoryFile = 'progress-history.json'
 # A copy of the dashboard per day, beside the live one, for its date picker.
-$script:SacSnapshotFolder     = 'dashboard/history'
-$script:SacSnapshotIndexFile  = 'index.json'
+$script:SacSnapshotFolder = 'dashboard/history'
+$script:SacSnapshotIndexFile = 'index.json'
 $script:SacWebPartComponentId = 'a2fd5aa3-01c5-431e-8c98-66f76c89803a'
 # The isoc-blueprint chart web part: draws one chart from the section model's
 # chart data, on the section pages.
 $script:SacChartWebPartComponentId = '4ae8707c-ca6f-40cb-a974-c94d023de6e5'
-$script:SacLinklessHeaderUrl  = 'http://linkless.header/'
+$script:SacLinklessHeaderUrl = 'http://linkless.header/'

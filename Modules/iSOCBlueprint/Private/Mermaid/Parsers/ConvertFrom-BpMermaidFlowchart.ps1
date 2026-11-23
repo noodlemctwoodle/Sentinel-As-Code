@@ -78,10 +78,10 @@ function ConvertFrom-BpMermaidFlowchart {
         if ($t -match '^subgraph\s+(?<id>[^\s\[]+)\s*(?:\[(?<label>.*)\])?\s*$') {
             $label = if ($Matches['label']) { ConvertTo-BpMermaidText $Matches['label'] } else { ConvertTo-BpMermaidText $Matches['id'] }
             $groups.Add([ordered]@{
-                id = $Matches['id']
-                label = $label
-                parent = $(if ($groupStack.Count) { $groupStack[$groupStack.Count - 1] } else { $null })
-            })
+                    id     = $Matches['id']
+                    label  = $label
+                    parent = $(if ($groupStack.Count) { $groupStack[$groupStack.Count - 1] } else { $null })
+                })
             $groupStack.Add($Matches['id'])
             continue
         }

@@ -118,9 +118,9 @@ function Get-SentinelMaturity {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    if (-not (Test-Path $InputRoot))     { throw "Input root not found: $InputRoot" }
+    if (-not (Test-Path $InputRoot)) { throw "Input root not found: $InputRoot" }
     if (-not (Test-Path $ResourcesRoot)) { throw "Resources root not found: $ResourcesRoot" }
-    if (-not (Test-Path $CriteriaPath))  { throw "Criteria file not found: $CriteriaPath" }
+    if (-not (Test-Path $CriteriaPath)) { throw "Criteria file not found: $CriteriaPath" }
 
     $doc = Get-Content $CriteriaPath -Raw | ConvertFrom-Json -Depth 16
     $metrics = New-MaturityMetrics -InputRoot $InputRoot -ResourcesRoot $ResourcesRoot
@@ -135,10 +135,10 @@ function Get-SentinelMaturity {
     $confidenceModerate = [int](Get-MaturityPropertyValue $doc 'confidence.moderate' 4)
 
     $areas = @(foreach ($area in @($doc.areas)) {
-        New-MaturityArea -Area $area -Criteria $doc.criteria -Metrics $metrics `
-            -OutcomeById $lookups.OutcomeById -EvidenceById $lookups.EvidenceById -Window $window `
-            -LevelNames $levelNames -ConfidenceGood $confidenceGood -ConfidenceModerate $confidenceModerate
-    })
+            New-MaturityArea -Area $area -Criteria $doc.criteria -Metrics $metrics `
+                -OutcomeById $lookups.OutcomeById -EvidenceById $lookups.EvidenceById -Window $window `
+                -LevelNames $levelNames -ConfidenceGood $confidenceGood -ConfidenceModerate $confidenceModerate
+        })
 
     $assessed = @($areas | Where-Object { $null -ne $_.score })
     $overallScore = $null; $overallLevel = $null
@@ -148,11 +148,11 @@ function Get-SentinelMaturity {
     }
 
     $roadmap = @(New-MaturityRoadmap -Area $assessed -Window $window -OverallScore $overallScore)
-    $quickWins = @($roadmap | Where-Object effort -eq 'Low')
+    $quickWins = @($roadmap | Where-Object effort -EQ 'Low')
 
     $below = @($assessed | Where-Object { $_.level -lt $TargetLevel } | ForEach-Object {
-        [pscustomobject]@{ id = $_.id; name = $_.name; score = $_.score; level = $_.level; gapToTarget = [math]::Round($TargetLevel - $_.score, 2) }
-    })
+            [pscustomobject]@{ id = $_.id; name = $_.name; score = $_.score; level = $_.level; gapToTarget = [math]::Round($TargetLevel - $_.score, 2) }
+        })
 
     $allCriteria = @($areas | ForEach-Object { $_.criteria })
     $csf = Get-MaturityCsfRollup -Document $doc -Criteria $allCriteria
@@ -181,26 +181,26 @@ function Get-SentinelMaturity {
         }
         levels           = @($doc.levels | ForEach-Object { [pscustomobject]@{ level = [int]$_.level; name = [string]$_.name } })
         areas            = @($areas | ForEach-Object {
-            [pscustomobject]@{
-                id = $_.id; name = $_.name; description = $_.description; score = $_.score; level = $_.level; levelName = $_.levelName
-                met = $_.met; gap = $_.gap; unknown = $_.unknown; evaluated = $_.evaluated; confidence = $_.confidence
-                criteria = @($_.criteria | ForEach-Object {
-                    [pscustomobject]@{
-                        id = $_.id
-                        kind = $_.kind
-                        name = $_.name
-                        status = $_.status
-                        evidence = $_.evidence
-                        weight = $_.weight
-                        effort = $_.effort
-                        impact = $_.impact
-                        guidance = $_.guidance
-                        csf = $_.csf
-                        source = $_.source
-                    }
-                })
-            }
-        })
+                [pscustomobject]@{
+                    id = $_.id; name = $_.name; description = $_.description; score = $_.score; level = $_.level; levelName = $_.levelName
+                    met = $_.met; gap = $_.gap; unknown = $_.unknown; evaluated = $_.evaluated; confidence = $_.confidence
+                    criteria = @($_.criteria | ForEach-Object {
+                            [pscustomobject]@{
+                                id       = $_.id
+                                kind     = $_.kind
+                                name     = $_.name
+                                status   = $_.status
+                                evidence = $_.evidence
+                                weight   = $_.weight
+                                effort   = $_.effort
+                                impact   = $_.impact
+                                guidance = $_.guidance
+                                csf      = $_.csf
+                                source   = $_.source
+                            }
+                        })
+                }
+            })
         roadmap          = $roadmap
         quickWins        = $quickWins
         csf              = [pscustomobject]@{
@@ -211,9 +211,9 @@ function Get-SentinelMaturity {
         outOfScope       = @(Get-MaturityPropertyValue $doc 'outOfScope' @())
         totals           = [pscustomobject]@{
             criteria = $allCriteria.Count
-            met      = @($allCriteria | Where-Object status -eq 'Met').Count
-            gap      = @($allCriteria | Where-Object status -eq 'Gap').Count
-            unknown  = @($allCriteria | Where-Object status -eq 'Unknown').Count
+            met      = @($allCriteria | Where-Object status -EQ 'Met').Count
+            gap      = @($allCriteria | Where-Object status -EQ 'Gap').Count
+            unknown  = @($allCriteria | Where-Object status -EQ 'Unknown').Count
         }
         metrics          = [pscustomobject]$metrics
     }

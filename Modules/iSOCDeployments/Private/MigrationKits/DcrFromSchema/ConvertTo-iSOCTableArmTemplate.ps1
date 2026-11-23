@@ -113,8 +113,7 @@ function ConvertTo-iSOCTableArmTemplate {
     if ($Retention -ne 0) {
         if ($Plan -and $Plan -ne 'Analytics') {
             Write-iSOCLog "Ignoring -RetentionInDays: retentionInDays is read-only on a $Plan table." -Level Warning
-        }
-        else {
+        } else {
             $properties['retentionInDays'] = $Retention
         }
     }

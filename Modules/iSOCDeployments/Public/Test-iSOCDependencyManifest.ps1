@@ -78,13 +78,11 @@ function Test-iSOCDependencyManifest {
 
     if (-not $state.Exists) {
         Write-iSOCLog "Manifest not found at $(ConvertTo-iSOCRepoRelativePath -Path $state.ManifestPath -RepoPath $repo). Run Update-iSOCDependencyManifest first." -Level Error
-    }
-    elseif ($state.HasDrift) {
+    } elseif ($state.HasDrift) {
         Write-iSOCLog 'Dependency manifest is out of sync with content. Diff:' -Level Error
         foreach ($line in $state.Diff) { Write-iSOCLog "  $line" }
         Write-iSOCLog 'Fix: run Update-iSOCDependencyManifest and commit the result.' -Level Error
-    }
-    else {
+    } else {
         Write-iSOCLog 'Manifest matches discovered dependencies.' -Level Success
     }
 

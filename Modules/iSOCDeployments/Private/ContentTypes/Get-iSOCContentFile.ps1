@@ -63,8 +63,7 @@ function Get-iSOCContentFile {
     # item would otherwise come back as a single object.
     $found = @(if ($ContentType.Layout -eq 'Folder') {
             Get-ChildItem -LiteralPath $root -Directory
-        }
-        else {
+        } else {
             Get-ChildItem -LiteralPath $root -File -Recurse:([bool]$ContentType.Recurse) | Where-Object {
                 $fileName = $_.Name
                 @($ContentType.FilePattern | Where-Object { $fileName -like $_ }).Count -gt 0

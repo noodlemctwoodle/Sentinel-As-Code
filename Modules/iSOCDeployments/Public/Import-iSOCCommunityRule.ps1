@@ -181,8 +181,7 @@ function Import-iSOCCommunityRule {
                         Severity    = $(if ($null -ne $parsed['severity']) { [string]$parsed['severity'] } else { 'Unknown' })
                         Description = $(if ($null -ne $parsed['description']) { [string]$parsed['description'] } else { '' })
                     })
-            }
-            catch { Write-iSOCLog "  Could not read '$relative' back for the README: $($_.Exception.Message)" -Level Warning }
+            } catch { Write-iSOCLog "  Could not read '$relative' back for the README: $($_.Exception.Message)" -Level Warning }
 
             $manifestFiles[$relative] = Get-iSOCTextHash -Content $text
             $id = [regex]::Match($text, '(?m)^id:[ \t]*[''"]?([^''"\r\n]+?)[''"]?[ \t]*$').Groups[1].Value
@@ -201,8 +200,7 @@ function Import-iSOCCommunityRule {
                 Write-iSOCTextFile -Path $target -Content $text
                 Write-iSOCLog "  $($action.ToUpperInvariant()) $relative" -Level Success
                 $results.Add((New-iSOCCommunityResult @result -Outcome $action))
-            }
-            else {
+            } else {
                 $results.Add((New-iSOCCommunityResult @result -Outcome WhatIf -Reason "would be $($action.ToLowerInvariant())"))
             }
         }
@@ -220,8 +218,7 @@ function Import-iSOCCommunityRule {
                 (ConvertTo-Json -InputObject $previous.files -Compress) -ceq (ConvertTo-Json -InputObject $manifestFiles -Compress)
                 $date = [regex]::Match($previousText, '"importDate":\s*"([^"]*)"')
                 if ($same -and $date.Success) { $importDate = $date.Groups[1].Value }
-            }
-            catch { Write-iSOCLog "  The existing manifest does not parse; writing a new one: $($_.Exception.Message)" -Level Warning }
+            } catch { Write-iSOCLog "  The existing manifest does not parse; writing a new one: $($_.Exception.Message)" -Level Warning }
         }
 
         $manifest = [ordered]@{
@@ -272,8 +269,7 @@ function Import-iSOCCommunityRule {
         }
         Write-iSOCCommunityImportSummary -Run $run
         $run
-    }
-    finally {
+    } finally {
         if ($temp -and (Test-Path -LiteralPath $temp)) {
             Remove-Item -LiteralPath $temp -Recurse -Force -WhatIf:$false -Confirm:$false -ErrorAction SilentlyContinue
         }

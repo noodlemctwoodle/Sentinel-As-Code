@@ -39,10 +39,10 @@ function Test-SyslogSplitOpportunity {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $sys = @($Inventory.TablesWithData | Where-Object {
-        (Get-PropOrDefault $_ 'DataType' '') -eq 'Syslog'
-    } | Select-Object -First 1)
+            (Get-PropOrDefault $_ 'DataType' '') -eq 'Syslog'
+        } | Select-Object -First 1)
     if ($sys.Count -eq 0) { return $null }
     $gb30 = Get-GapBillable30d $sys[0]
     if ((ConvertTo-GapPer30Days $gb30 $Inventory) -lt $script:DataRoutingSplitThresholdGb30d) { return $null }

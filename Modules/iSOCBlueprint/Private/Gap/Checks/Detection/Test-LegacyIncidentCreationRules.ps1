@@ -39,18 +39,18 @@ function Test-LegacyIncidentCreationRules {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $legacy = @($Inventory.AlertRules | Where-Object {
-        $null -ne $_ -and
-        ((Get-PropOrDefault $_ 'kind' '') -eq 'MicrosoftSecurityIncidentCreation') -and
-        (ConvertTo-GapBool (Get-PropOrDefault $_ 'properties.enabled' $false))
-    })
+            $null -ne $_ -and
+            ((Get-PropOrDefault $_ 'kind' '') -eq 'MicrosoftSecurityIncidentCreation') -and
+            (ConvertTo-GapBool (Get-PropOrDefault $_ 'properties.enabled' $false))
+        })
     if ($legacy.Count -eq 0) { return $null }
     $xdrIncidents = @($Inventory.DataConnectors | Where-Object {
-        $null -ne $_ -and
-        ((Get-PropOrDefault $_ 'kind' '') -eq 'MicrosoftThreatProtection') -and
-        ((Get-PropOrDefault $_ 'properties.dataTypes.incidents.state' '') -eq 'enabled')
-    }).Count -gt 0
+            $null -ne $_ -and
+            ((Get-PropOrDefault $_ 'kind' '') -eq 'MicrosoftThreatProtection') -and
+            ((Get-PropOrDefault $_ 'properties.dataTypes.incidents.state' '') -eq 'enabled')
+        }).Count -gt 0
     $names = @($legacy | ForEach-Object { Get-GapRuleLabel $_ })
     $these = Select-GapWording $legacy.Count 'this rule' 'these rules'
     $note = if ($xdrIncidents) {

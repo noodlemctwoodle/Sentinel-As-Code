@@ -39,13 +39,13 @@ function Test-ServicePrincipalOverPrivileged {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.RbacWorkspace) { return $null }
     $bad = @($Inventory.RbacWorkspace | Where-Object {
-        $role = Get-PropOrDefault $_ 'RoleDefinitionName' ''
-        $type = Get-PropOrDefault $_ 'ObjectType' ''
-        ($role -in @('Owner','Contributor')) -and ($type -eq 'ServicePrincipal')
-    })
+            $role = Get-PropOrDefault $_ 'RoleDefinitionName' ''
+            $type = Get-PropOrDefault $_ 'ObjectType' ''
+            ($role -in @('Owner', 'Contributor')) -and ($type -eq 'ServicePrincipal')
+        })
     if ($bad.Count -eq 0) { return $null }
     # A principal Azure cannot name (deleted, or not readable by the
     # collector) still has its object id, which finds it in Entra ID.

@@ -64,20 +64,20 @@ function Get-BlueprintTopologyBucket {
     }
     if (-not $Table) { return 'Other sources' }
     switch -Regex ($Table) {
-        '^ThreatIntel'                                                                                  { return 'Microsoft Defender TI' }
+        '^ThreatIntel' { return 'Microsoft Defender TI' }
         '^(SigninLogs|AuditLogs|AAD.*|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs)$' { return 'Microsoft Entra ID' }
-        '^(Device|Email|Url|Alert|Cloud|Identity).*'                                                    { return 'Microsoft Defender XDR' }
-        '^ASim'                                                                                         { return 'ASIM normaliser' }
-        '^Office'                                                                                       { return 'Office 365' }
-        '^(CommonSecurityLog|Syslog)$'                                                                  { return 'CEF / Syslog' }
-        '^(SecurityEvent|WindowsEvent|Event)$'                                                          { return 'Windows events' }
-        '^(AzureActivity)$'                                                                             { return 'Azure Activity' }
-        '^(AzureDiagnostics|AzureMetrics)$'                                                             { return 'Azure resource diagnostics' }
-        '^Intune'                                                                                       { return 'Intune' }
-        '^App'                                                                                          { return 'Application Insights' }
-        '^Dataverse'                                                                                    { return 'Power Platform' }
-        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf|SentinelAudit)$'                                  { return 'Workspace operations' }
-        '_CL$'                                                                                          { return 'Custom logs (CCF / DCR)' }
-        default                                                                                         { return 'Other sources' }
+        '^(Device|Email|Url|Alert|Cloud|Identity).*' { return 'Microsoft Defender XDR' }
+        '^ASim' { return 'ASIM normaliser' }
+        '^Office' { return 'Office 365' }
+        '^(CommonSecurityLog|Syslog)$' { return 'CEF / Syslog' }
+        '^(SecurityEvent|WindowsEvent|Event)$' { return 'Windows events' }
+        '^(AzureActivity)$' { return 'Azure Activity' }
+        '^(AzureDiagnostics|AzureMetrics)$' { return 'Azure resource diagnostics' }
+        '^Intune' { return 'Intune' }
+        '^App' { return 'Application Insights' }
+        '^Dataverse' { return 'Power Platform' }
+        '^(LAQueryLogs|Usage|Heartbeat|Operation|Perf|SentinelAudit)$' { return 'Workspace operations' }
+        '_CL$' { return 'Custom logs (CCF / DCR)' }
+        default { return 'Other sources' }
     }
 }

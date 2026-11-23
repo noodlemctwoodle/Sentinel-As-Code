@@ -90,13 +90,13 @@ Describe 'MIGRATION.md' {
     }
 
     It 'lists each script once' {
-        @($script:map.Scripts.Source | Group-Object | Where-Object Count -gt 1).Name | Should -BeNullOrEmpty
+        @($script:map.Scripts.Source | Group-Object | Where-Object Count -GT 1).Name | Should -BeNullOrEmpty
     }
 
     It 'maps every Sentinel.Common function' {
         $source = Join-Path $script:repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psm1'
         if (-not (Test-Path -LiteralPath $source)) { Set-ItResult -Skipped -Because 'Sentinel.Common has been retired'; return }
-        $mapped = @($script:map.Functions | Where-Object Source -eq 'Modules/Sentinel.Common/Sentinel.Common.psm1' | ForEach-Object Function | Sort-Object -Unique)
+        $mapped = @($script:map.Functions | Where-Object Source -EQ 'Modules/Sentinel.Common/Sentinel.Common.psm1' | ForEach-Object Function | Sort-Object -Unique)
         @(Get-DefinedFunction $source | Sort-Object) | Should -Be $mapped
     }
 
@@ -118,7 +118,7 @@ Describe 'MIGRATION.md' {
     }
 
     It 'sends no function row to the same destination twice from the same old function' {
-        @($script:map.Functions | Group-Object Source, Function, Destination | Where-Object Count -gt 1).Name | Should -BeNullOrEmpty
+        @($script:map.Functions | Group-Object Source, Function, Destination | Where-Object Count -GT 1).Name | Should -BeNullOrEmpty
     }
 }
 

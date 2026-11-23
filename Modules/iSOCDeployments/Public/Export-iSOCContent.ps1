@@ -163,8 +163,7 @@ function Export-iSOCContent {
     if ($ContentType) {
         $cannot = @($types | Where-Object { $_.Capabilities -notcontains 'Export' })
         if ($cannot.Count -gt 0) { throw "The module cannot export $(($cannot | ForEach-Object { $_.Name }) -join ', ') yet." }
-    }
-    else {
+    } else {
         $types = @($types | Where-Object { $_.Capabilities -contains 'Export' })
     }
     Assert-iSOCPrerequisite -Step Connect
@@ -235,17 +234,14 @@ function Export-iSOCContent {
                 if ($change -eq 'Unchanged') {
                     Write-iSOCLog "Unchanged: '$label' ($relative)."
                     $results.Add((New-iSOCExportResult @result -Outcome Unchanged -Path $relative))
-                }
-                elseif ($PSCmdlet.ShouldProcess($relative, "Write '$label' from the workspace")) {
+                } elseif ($PSCmdlet.ShouldProcess($relative, "Write '$label' from the workspace")) {
                     $action = Save-iSOCRepoItem -Root $root -RelativePath $relative -Content $content
                     Write-iSOCLog "Exported '$label' -> $relative ($($action.ToLowerInvariant()))." -Level Success
                     $results.Add((New-iSOCExportResult @result -Outcome $action -Path $relative))
-                }
-                else {
+                } else {
                     $results.Add((New-iSOCExportResult @result -Outcome WhatIf -Reason "would be $($change.ToLowerInvariant())" -Path $relative))
                 }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "Failed to export '$label': $($_.Exception.Message)" -Level Error
                 $result.Remove('Warning')
                 $results.Add((New-iSOCExportResult @result -Outcome Failed -Reason $_.Exception.Message))

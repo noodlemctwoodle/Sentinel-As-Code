@@ -48,11 +48,11 @@ function Format-CaptureMessage {
     # An ARM URL shortened to its resource path after the last provider, so
     # the line stays short and carries no subscription or workspace ids.
     $text = [regex]::Replace($text, 'https?://management\.[a-z.]+(?<path>/[^\s?"]*)(\?[^\s"]*)?', [System.Text.RegularExpressions.MatchEvaluator] {
-        param($m)
-        $path = $m.Groups['path'].Value
-        $i = $path.LastIndexOf('/providers/')
-        if ($i -ge 0) { $path.Substring($i + 11) } else { $path }
-    })
+            param($m)
+            $path = $m.Groups['path'].Value
+            $i = $path.LastIndexOf('/providers/')
+            if ($i -ge 0) { $path.Substring($i + 11) } else { $path }
+        })
     # ARM appends every api-version and region it supports to some errors;
     # the reason is in the sentence before.
     $text = $text -replace "\s*The supported [A-Za-z -]+ are '[^']*'\.?", ''

@@ -173,8 +173,7 @@ BeforeAll {
             if ($on -and ($gateOk -or $bypass)) {
                 $ran.Add($condition.Stage)
                 $result[$condition.Stage] = if ($Failed -contains $condition.Stage) { 'Failed' } else { 'Succeeded' }
-            }
-            else { $result[$condition.Stage] = 'Skipped' }
+            } else { $result[$condition.Stage] = 'Skipped' }
         }
         , @($ran)
     }
@@ -305,7 +304,7 @@ Describe 'Deploy-iSOCWorkspace' {
         { Invoke-ModuleWorkspace -Parameters @{ Solution = @(' ', '') } } | Should -Throw '*needs -Solution*'
         $run = Invoke-ModuleWorkspace -Parameters @{ ExcludeStage = @('ContentHub') }
         $run.Run.ExitCode | Should -Be 0
-        @($run.Calls | Where-Object Stage -eq 'ContentHub') | Should -BeNullOrEmpty
+        @($run.Calls | Where-Object Stage -EQ 'ContentHub') | Should -BeNullOrEmpty
     }
 
     It 'trims the solution names' {
@@ -322,10 +321,10 @@ Describe 'Deploy-iSOCWorkspace' {
     It 'refuses to deploy custom content against a stale manifest, and holds back the Defender detections' {
         $run = Invoke-ModuleWorkspace -Parameters @{ Solution = @('Syslog') } -Drift
         @($run.Calls | ForEach-Object { $_.Stage }) | Should -Be @('WorkspaceSettings', 'ContentHub')
-        $custom = @($run.Run.Stages | Where-Object Stage -eq 'CustomContent')[0]
+        $custom = @($run.Run.Stages | Where-Object Stage -EQ 'CustomContent')[0]
         $custom.Outcome | Should -Be 'Failed'
         $custom.Reason | Should -Be 'dependencies.json is out of sync with the content'
-        @($run.Run.Stages | Where-Object Stage -eq 'DefenderDetections')[0].Outcome | Should -Be 'NotRun'
+        @($run.Run.Stages | Where-Object Stage -EQ 'DefenderDetections')[0].Outcome | Should -Be 'NotRun'
         @($run.Logs | Where-Object { $_.Level -eq 'Error' -and $_.Message -like 'dependencies.json is out of sync*' }).Count | Should -Be 1
         $run.Run.ExitCode | Should -Be 1
     }
@@ -347,7 +346,7 @@ Describe 'Deploy-iSOCWorkspace' {
         Mock -ModuleName iSOCDeployments Install-iSOCContentHubSolution { throw 'The workspace is not onboarded.' }
         Mock -ModuleName iSOCDeployments Deploy-iSOCContent { [pscustomobject]@{ ExitCode = 0 } }
         $run = Deploy-iSOCWorkspace -Solution 'Syslog' -Context $script:context -RepoPath $script:repo
-        $hub = @($run.Stages | Where-Object Stage -eq 'ContentHub')[0]
+        $hub = @($run.Stages | Where-Object Stage -EQ 'ContentHub')[0]
         $hub.Outcome | Should -Be 'Failed'
         $hub.Reason | Should -Be 'The workspace is not onboarded.'
         @($run.Stages | ForEach-Object { $_.Outcome }) | Should -Be @('Succeeded', 'Failed', 'NotRun', 'Succeeded')
@@ -372,7 +371,7 @@ Describe 'Deploy-iSOCWorkspace' {
         $run.Run.PSObject.TypeNames | Should -Contain 'iSOCDeployments.WorkspaceDeployRun'
         @($run.Run.Stages | ForEach-Object { $_.Stage }) | Should -Be @('WorkspaceSettings', 'ContentHub', 'CustomContent', 'DefenderDetections')
         foreach ($stage in $run.Run.Stages) { $stage.PSObject.TypeNames | Should -Contain 'iSOCDeployments.StageResult' }
-        @($run.Run.Stages | Where-Object Stage -eq 'CustomContent')[0].Run.ExitCode | Should -Be 1
+        @($run.Run.Stages | Where-Object Stage -EQ 'CustomContent')[0].Run.ExitCode | Should -Be 1
         $run.Run.Duration | Should -BeOfType [timespan]
     }
 

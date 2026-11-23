@@ -88,14 +88,12 @@ function Invoke-iSOCWorkspaceSettingDeploy {
         if ($etag) { $body.etag = $etag }
         $body.properties = $request.Body.properties
         Invoke-iSOCRestRequest -Method PUT -Path $path -ApiVersion $apiVersion -Body $body | Out-Null
-    }
-    catch {
+    } catch {
         $status = $_.Exception.PSObject.Properties['StatusCode']
         if (-not $status -or [int]$status.Value -notin 401, 403) { throw }
         $reason = if ($request.Body.kind -in 'Ueba', 'EntityAnalytics') {
             'not authorised to change it: UEBA and Entity Analytics need the Security Administrator directory role, which Initialize-iSOCServicePrincipal grants unless -SkipEntraRole'
-        }
-        else {
+        } else {
             'not authorised to change it: the deployment needs Microsoft Sentinel Contributor on the workspace'
         }
         Write-iSOCLog "Skipping '$($Item.RelativePath)': $reason." -Level Warning

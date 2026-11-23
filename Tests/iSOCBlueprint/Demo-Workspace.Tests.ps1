@@ -49,9 +49,9 @@ AfterAll {
 Describe 'The demo workspace generator' {
     It 'writes every capture the collector writes' {
         $collector = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
-            Sort-Object FullName |
-            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
-            "`n"
+                    Sort-Object FullName |
+                    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
         # Three are written only in a case the demo does not have: a
         # dedicated cluster, and a bookmark list too large to fetch (its count,
         # and the list read from the HuntingBookmark table instead).
@@ -85,7 +85,7 @@ Describe 'The demo workspace generator' {
         $rungs | Should -Contain ([int]$ws.properties.sku.capacityReservationLevel)
         $script:result.Summary.CommitmentTierGb | Should -Be ([int]$ws.properties.sku.capacityReservationLevel)
         @((Read-Demo 'retail-prices.json').Prices.meterName) | Should -Contain 'Analytics Logs Data Ingestion'
-        @(Read-Demo 'gap-analysis.json' | Where-Object Id -eq 'SAC-LOG-10').Count | Should -Be 0
+        @(Read-Demo 'gap-analysis.json' | Where-Object Id -EQ 'SAC-LOG-10').Count | Should -Be 0
         # Priced at its tier, with the grants reported, and the page says so.
         $cost = Read-Demo 'cost-estimate.json'
         $cost.PricingModel | Should -Be 'Simplified'
@@ -116,7 +116,7 @@ Describe 'The demo workspace generator' {
             $id = ([string]((Get-Content $f.FullName -Raw | ConvertFrom-Yaml)['id'])).ToLowerInvariant()
             @($rules.name) | Should -Contain $id -Because $f.Name
         }
-        @($rules | Where-Object kind -eq 'Fusion').Count | Should -Be 1
+        @($rules | Where-Object kind -EQ 'Fusion').Count | Should -Be 1
     }
 
     It 'carries the repository''s hunting queries, detections, watchlists, workbooks, automation and summary rules' {
@@ -134,8 +134,8 @@ Describe 'The demo workspace generator' {
         $playbooks = @(Read-Demo 'playbooks.json')
         $playbooks.Count | Should -BeGreaterThan 50 -Because 'every Bicep playbook in the repository is compiled and captured'
         @($playbooks.name | Select-Object -Unique).Count | Should -Be $playbooks.Count
-        foreach ($a in @($automation | Where-Object { @($_.properties.actions | Where-Object actionType -eq 'RunPlaybook').Count })) {
-            $id = @($a.properties.actions | Where-Object actionType -eq 'RunPlaybook')[0].actionConfiguration.logicAppResourceId
+        foreach ($a in @($automation | Where-Object { @($_.properties.actions | Where-Object actionType -EQ 'RunPlaybook').Count })) {
+            $id = @($a.properties.actions | Where-Object actionType -EQ 'RunPlaybook')[0].actionConfiguration.logicAppResourceId
             @($playbooks.id) | Should -Contain $id
         }
     }
@@ -149,7 +149,7 @@ Describe 'The demo workspace generator' {
         $summary = @(Read-Demo 'incidents-summary.json')[0]
         $daily = @(Read-Demo 'daily-incidents.json')
         ($daily | Measure-Object -Property Incidents -Sum).Sum | Should -Be $summary.Count
-        (@($daily | Where-Object Status -eq 'Closed') | Measure-Object -Property Incidents -Sum).Sum | Should -Be $summary.Closed
+        (@($daily | Where-Object Status -EQ 'Closed') | Measure-Object -Property Incidents -Sum).Sum | Should -Be $summary.Closed
         (@(Read-Demo 'daily-health.json') | Measure-Object -Property LogCount -Sum).Sum |
             Should -Be (@(Read-Demo 'sentinel-health-summary.json') | Measure-Object -Property LogCount -Sum).Sum
         foreach ($p in @(Read-Demo 'playbook-runs.json')) { (@($p.Daily) | Measure-Object -Property Runs -Sum).Sum + 0 | Should -Be $p.Runs7d }
@@ -213,8 +213,8 @@ Describe 'The demo workspace generator' {
                 Where-Object {
                     [string]$_.Title -match '(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}'
                 }
-        ).Count |
-            Should -Be 0
+            ).Count |
+                Should -Be 0
         # The first run is 90 days back, so each baseline (90 days included) has a run.
         ([datetime]$model.progress.date - [datetime]@($progress.entries)[0].date).Days | Should -Be 90
         # Not all of it better: areas climb at their own pace and one slips;

@@ -39,7 +39,7 @@ function Test-DiagnosticSettingsConfigured {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.DiagnosticSettings -or @($Inventory.DiagnosticSettings).Count -eq 0) {
         return New-Finding -Evidence 'No diagnostic settings configured on the Log Analytics workspace.'
     }

@@ -172,12 +172,10 @@ function New-iSOCClassicTableFixture {
         Write-iSOCLog "Table $table is present. tableSubType = $subType." -Level Success
         if ($subType -ne 'Classic') {
             Write-iSOCLog "Expected 'Classic' but got '$subType'. The Data Collector API should have produced a classic table." -Level Warning
-        }
-        else {
+        } else {
             Write-iSOCLog 'Ready. Point Invoke-iSOCClassicTableMigration at this table to test the migration.' -Level Success
         }
-    }
-    else {
+    } else {
         Write-iSOCLog "Table did not appear within $TimeoutSeconds seconds. First-time creation can be slow; re-check with Invoke-iSOCClassicTableMigration -ListOnly shortly." -Level Warning
     }
 

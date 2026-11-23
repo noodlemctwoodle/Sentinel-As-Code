@@ -124,7 +124,7 @@ Describe 'Help for <Name>' -ForEach $commands {
     It 'documents every parameter' {
         $common = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
         foreach ($p in $script:command.Parameters.Keys | Where-Object { $_ -notin $common }) {
-            $entry = @($script:help.Parameters.Parameter | Where-Object Name -eq $p)
+            $entry = @($script:help.Parameters.Parameter | Where-Object Name -EQ $p)
             ($entry.Description | Out-String).Trim() | Should -Not -BeNullOrEmpty -Because "-$p needs a description"
         }
     }
@@ -254,7 +254,7 @@ Describe 'Code rules' {
         $text = ($script:codeFiles | ForEach-Object {
                 $tokens = $null
                 [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$null)
-                $tokens | Where-Object Kind -ne 'Comment' | ForEach-Object Text
+                $tokens | Where-Object Kind -NE 'Comment' | ForEach-Object Text
             }) -join ' '
         $text | Should -Not -Match 'Sentinel\.Common'
         @(Get-CommandCall -Pattern '^(Write-PipelineMessage|Invoke-SentinelApi|Connect-AzureEnvironment)$') | Should -BeNullOrEmpty
@@ -287,8 +287,8 @@ Describe 'Prerequisites' {
 
     It 'limits the list to the steps asked for' {
         $read = @(Test-iSOCDeploymentPrerequisite -Step Read)
-        @($read | Where-Object Name -like 'powershell-yaml*').Count | Should -Be 1
-        @($read | Where-Object Name -like 'Az.*').Count | Should -Be 0
+        @($read | Where-Object Name -Like 'powershell-yaml*').Count | Should -Be 1
+        @($read | Where-Object Name -Like 'Az.*').Count | Should -Be 0
         foreach ($r in $read) { $r.Step | Should -Be @('Read') }
     }
 
@@ -297,6 +297,6 @@ Describe 'Prerequisites' {
     }
 
     It 'pins powershell-yaml to the version the pipelines install' {
-        ($script:requirements | Where-Object Name -eq 'powershell-yaml').MinimumVersion | Should -Be '0.4.12'
+        ($script:requirements | Where-Object Name -EQ 'powershell-yaml').MinimumVersion | Should -Be '0.4.12'
     }
 }

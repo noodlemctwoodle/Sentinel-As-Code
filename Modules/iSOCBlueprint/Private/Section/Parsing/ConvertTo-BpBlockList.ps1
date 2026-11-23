@@ -127,8 +127,7 @@ function ConvertTo-BpBlockList {
                         foreach ($n in @($chart.data.nodes)) { $n.target = $(if ($n.href) { Get-BpLinkTarget $n.href } else { $null }) }
                     }
                     [ordered]@{ type = 'chart'; kind = $chart.kind; title = $chart.title; data = $chart.data; source = $text }
-                }
-                else { [ordered]@{ type = 'code'; language = $(if ($info) { $info } else { $null }); text = $text } }
+                } else { [ordered]@{ type = 'code'; language = $(if ($info) { $info } else { $null }); text = $text } }
             }
             'CodeBlock' {
                 $Context.content = $true

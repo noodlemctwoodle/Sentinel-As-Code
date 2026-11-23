@@ -55,11 +55,11 @@ function Get-TableFamily {
     param([Parameter(Mandatory = $false)] [AllowNull()] [AllowEmptyString()] [string] $Table)
 
     switch -regex ("$Table") {
-        '^ThreatIntel'                                                   { return 'Threat Intelligence' }
+        '^ThreatIntel' { return 'Threat Intelligence' }
         '^(AAD|Signin|SigninLogs|AuditLogs|MicrosoftGraphActivityLogs|MicrosoftServicePrincipalSignInLogs|AADNonInteractive|AADServicePrincipal|AADManagedIdentity|AADGraph)' { return 'Entra ID / Identity' }
         '^(Device|Alert|Email|CloudAppEvents|Identity|BehaviorAnalytics|UserPeerAnalytics|Anomalies)' { return 'Defender XDR' }
         '^(Syslog|CommonSecurityLog|AzureDiagnostics|AzureMetrics|AzureActivity)' { return 'Azure / Syslog' }
-        '_CL$'                                                           { return 'Custom logs' }
-        default                                                         { return 'Other' }
+        '_CL$' { return 'Custom logs' }
+        default { return 'Other' }
     }
 }

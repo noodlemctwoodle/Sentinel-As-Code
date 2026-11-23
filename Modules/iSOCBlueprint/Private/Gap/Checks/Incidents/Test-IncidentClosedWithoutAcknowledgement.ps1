@@ -39,7 +39,7 @@ function Test-IncidentClosedWithoutAcknowledgement {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.IncidentsMttr -or @($Inventory.IncidentsMttr).Count -eq 0) { return $null }
     $row = $Inventory.IncidentsMttr[0]
     $closed = [int](Get-PropOrDefault $row 'ClosedCount' 0)

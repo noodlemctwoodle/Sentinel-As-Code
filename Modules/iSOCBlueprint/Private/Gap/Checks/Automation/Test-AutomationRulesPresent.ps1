@@ -39,7 +39,7 @@ function Test-AutomationRulesPresent {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $count = @($Inventory.AutomationRules).Count
     if ($count -gt 0) { return $null }
     return New-Finding -Evidence 'No automation rules defined, every incident requires manual triage.'

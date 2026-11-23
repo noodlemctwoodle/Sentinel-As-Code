@@ -80,12 +80,10 @@ function Get-iSOCLineDiff {
         if ($a[$i - 1] -ceq $b[$j - 1]) {
             $out.Insert(0, '  ' + $a[$i - 1])
             $i--; $j--
-        }
-        elseif ($L[$i - 1][$j] -ge $L[$i][$j - 1]) {
+        } elseif ($L[$i - 1][$j] -ge $L[$i][$j - 1]) {
             $out.Insert(0, '- ' + $a[$i - 1])
             $i--
-        }
-        else {
+        } else {
             $out.Insert(0, '+ ' + $b[$j - 1])
             $j--
         }

@@ -39,13 +39,13 @@ function Test-SentinelBenefitApplied {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.SentinelBenefitTables) { return $null }
     $eligible = $Inventory.SentinelBenefitTables.tables
     $billableSecurity = @($Inventory.TablesWithData | Where-Object {
-        ($eligible -contains (Get-PropOrDefault $_ 'DataType' '')) -and
-        ([double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0)
-    })
+            ($eligible -contains (Get-PropOrDefault $_ 'DataType' '')) -and
+            ([double](Get-PropOrDefault $_ 'BillableLast30d' 0) -gt 0)
+        })
     if ($billableSecurity.Count -gt 0) {
         $names = ($billableSecurity | Select-Object -ExpandProperty DataType) -join ', '
         return New-Finding -Evidence "Eligible security $(Select-GapWording $billableSecurity.Count 'table' 'tables') with non-zero billable ingest in the last $(Format-GapDays (Get-GapWindow $Inventory).Days): $names. If Defender plans are in force the benefit may not be applied." -Detail @{ Tables = $names }

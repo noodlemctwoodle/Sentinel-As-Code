@@ -116,8 +116,7 @@ function Invoke-iSOCWorkspaceStage {
             }
             'DefenderDetections' { Deploy-iSOCContent -ContentType DefenderDetection @deploy }
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "The $Stage stage stopped: $($_.Exception.Message)" -Level Error
         return @{ Outcome = 'Failed'; Reason = $_.Exception.Message; ExitCode = 1; Run = $null }
     }

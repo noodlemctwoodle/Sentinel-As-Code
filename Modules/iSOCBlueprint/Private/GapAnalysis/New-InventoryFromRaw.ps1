@@ -83,8 +83,8 @@ function New-InventoryFromRaw {
     # know whether the file exists at all consult RawFiles.
     function Read-JsonArray([string]$Name) {
         $data = Read-Json $Name
-        if ($null -eq $data) { return ,@() }
-        return ,@($data)
+        if ($null -eq $data) { return , @() }
+        return , @($data)
     }
 
     $rawFiles = @(Get-ChildItem -Path $InputRoot -Filter '*.json' -File | ForEach-Object { $_.Name })
@@ -109,53 +109,53 @@ function New-InventoryFromRaw {
     }
 
     [pscustomobject]@{
-        RawFiles               = $rawFiles
-        Window                 = [pscustomobject]@{ Days = $lookback; RecentDays = $recent; AsOfUtc = $asOf }
-        Workspace              = Read-Json 'workspace.json'
-        WorkspaceTables        = @(Read-Json 'workspace-tables.json')
-        TablesWithData         = @(Read-Json 'tables-with-data.json')
-        Dcrs                   = @(Read-Json 'dcrs.json')
-        DiagnosticSettings     = @(Read-Json 'diagnostic-settings.json')
-        AlertRules             = @(Read-Json 'alert-rules.json')
-        AlertRuleTemplates     = @(Read-Json 'alert-rule-templates.json')
-        DataConnectors         = @(Read-Json 'data-connectors-classic.json')
-        Settings               = Read-Json  'settings.json'
-        UebaDataPresence       = @(Read-Json 'ueba-data-presence.json')
-        ContentPackages        = @(Read-Json 'content-packages.json')
-        ContentProductPackages = @(Read-Json 'content-product-packages.json')
-        DedicatedCluster       = Read-Json 'dedicated-cluster.json'
-        ResourceProviders      = @(Read-Json 'resource-providers.json')
-        RbacWorkspace          = @(Read-Json 'rbac-workspace.json')
-        PlaybookMiAssignments  = @(Read-Json 'rbac-playbook-mi.json')
-        IncidentsMttr          = @(Read-Json 'incidents-mttr.json')
-        AnalyticsRuleVolumes   = @(Read-Json 'analytics-rule-volumes.json')
-        AutomationRules        = @(Read-Json 'automation-rules.json')
-        WorkspaceLocks         = @(Read-Json 'workspace-locks.json')
-        AmaMmaMigration        = @(Read-Json 'ama-mma-migration.json')
-        RuleTableReferences    = Read-JsonArray 'rule-table-references.json'
-        TemplateTableReferences = Read-JsonArray 'template-table-references.json'
-        RuleEffectiveness      = Read-JsonArray 'rule-effectiveness.json'
-        RulesFired             = Read-JsonArray 'rules-fired.json'
-        PlaybookRuns           = Read-JsonArray 'playbook-runs.json'
-        Hunts                  = Read-JsonArray 'hunts.json'
-        RuleHealth             = Read-JsonArray 'rule-health.json'
-        CustomDetectionRefs    = Read-JsonArray 'custom-detection-table-references.json'
-        Bookmarks              = Read-JsonArray 'bookmarks.json'
-        BookmarksCount         = Read-Json 'bookmarks-count.json'
-        BookmarksFromLogs      = Read-JsonArray 'bookmarks-from-logs.json'
-        IncidentsSummary       = Read-JsonArray 'incidents-summary.json'
+        RawFiles                   = $rawFiles
+        Window                     = [pscustomobject]@{ Days = $lookback; RecentDays = $recent; AsOfUtc = $asOf }
+        Workspace                  = Read-Json 'workspace.json'
+        WorkspaceTables            = @(Read-Json 'workspace-tables.json')
+        TablesWithData             = @(Read-Json 'tables-with-data.json')
+        Dcrs                       = @(Read-Json 'dcrs.json')
+        DiagnosticSettings         = @(Read-Json 'diagnostic-settings.json')
+        AlertRules                 = @(Read-Json 'alert-rules.json')
+        AlertRuleTemplates         = @(Read-Json 'alert-rule-templates.json')
+        DataConnectors             = @(Read-Json 'data-connectors-classic.json')
+        Settings                   = Read-Json 'settings.json'
+        UebaDataPresence           = @(Read-Json 'ueba-data-presence.json')
+        ContentPackages            = @(Read-Json 'content-packages.json')
+        ContentProductPackages     = @(Read-Json 'content-product-packages.json')
+        DedicatedCluster           = Read-Json 'dedicated-cluster.json'
+        ResourceProviders          = @(Read-Json 'resource-providers.json')
+        RbacWorkspace              = @(Read-Json 'rbac-workspace.json')
+        PlaybookMiAssignments      = @(Read-Json 'rbac-playbook-mi.json')
+        IncidentsMttr              = @(Read-Json 'incidents-mttr.json')
+        AnalyticsRuleVolumes       = @(Read-Json 'analytics-rule-volumes.json')
+        AutomationRules            = @(Read-Json 'automation-rules.json')
+        WorkspaceLocks             = @(Read-Json 'workspace-locks.json')
+        AmaMmaMigration            = @(Read-Json 'ama-mma-migration.json')
+        RuleTableReferences        = Read-JsonArray 'rule-table-references.json'
+        TemplateTableReferences    = Read-JsonArray 'template-table-references.json'
+        RuleEffectiveness          = Read-JsonArray 'rule-effectiveness.json'
+        RulesFired                 = Read-JsonArray 'rules-fired.json'
+        PlaybookRuns               = Read-JsonArray 'playbook-runs.json'
+        Hunts                      = Read-JsonArray 'hunts.json'
+        RuleHealth                 = Read-JsonArray 'rule-health.json'
+        CustomDetectionRefs        = Read-JsonArray 'custom-detection-table-references.json'
+        Bookmarks                  = Read-JsonArray 'bookmarks.json'
+        BookmarksCount             = Read-Json 'bookmarks-count.json'
+        BookmarksFromLogs          = Read-JsonArray 'bookmarks-from-logs.json'
+        IncidentsSummary           = Read-JsonArray 'incidents-summary.json'
         AzureDiagnosticsCategories = Read-JsonArray 'azure-diagnostics-categories.json'
-        ThreatIntelCounts      = Read-JsonArray 'threat-intel-counts.json'
-        SummaryRules           = Read-JsonArray 'summary-rules.json'
-        Watchlists             = Read-JsonArray 'watchlists.json'
-        SecurityEventDuplicates = Read-JsonArray 'security-event-duplicates.json'
-        CefInSyslog            = Read-JsonArray 'cef-in-syslog.json'
-        LaQueryLogs            = Read-JsonArray 'la-query-logs.json'
-        TableQueryUsage        = Read-JsonArray 'table-query-usage.json'
-        MitreTactics           = @((Read-Resource 'mitre-attack.json').tactics)
-        MitreTechniques        = @((Read-Resource 'mitre-attack.json').techniques)
-        SentinelBenefitTables  = Read-Resource 'sentinel-benefit-tables.json'
-        CommitmentTiers        = Read-Resource 'commitment-tiers.json'
-        ConnectorCatalogue     = Import-ConnectorCatalogue -Path (Join-Path $ResourcesRoot 'connector-catalogue.json')
+        ThreatIntelCounts          = Read-JsonArray 'threat-intel-counts.json'
+        SummaryRules               = Read-JsonArray 'summary-rules.json'
+        Watchlists                 = Read-JsonArray 'watchlists.json'
+        SecurityEventDuplicates    = Read-JsonArray 'security-event-duplicates.json'
+        CefInSyslog                = Read-JsonArray 'cef-in-syslog.json'
+        LaQueryLogs                = Read-JsonArray 'la-query-logs.json'
+        TableQueryUsage            = Read-JsonArray 'table-query-usage.json'
+        MitreTactics               = @((Read-Resource 'mitre-attack.json').tactics)
+        MitreTechniques            = @((Read-Resource 'mitre-attack.json').techniques)
+        SentinelBenefitTables      = Read-Resource 'sentinel-benefit-tables.json'
+        CommitmentTiers            = Read-Resource 'commitment-tiers.json'
+        ConnectorCatalogue         = Import-ConnectorCatalogue -Path (Join-Path $ResourcesRoot 'connector-catalogue.json')
     }
 }

@@ -86,11 +86,11 @@ function Write-BlueprintSection {
         if ($line -match '^<!--\s*bp:') { [void]$sb.Append($line); continue }
         # Pass 1: bracketed-but-unlinked IDs (only ids the rule catalogue knows).
         $line = [regex]::Replace($line, '\[(SAC-[A-Z]{2,4}-\d{2})\](?!\()', {
-            param($m)
-            $id = $m.Groups[1].Value
-            if (-not $script:FindingIds.ContainsKey($id)) { return $m.Value }
-            "[$id]($relTarget#$($id.ToLower()))"
-        })
+                param($m)
+                $id = $m.Groups[1].Value
+                if (-not $script:FindingIds.ContainsKey($id)) { return $m.Value }
+                "[$id]($relTarget#$($id.ToLower()))"
+            })
         # Pass 2: bare IDs not preceded by `[`, `(`, `#`, `-` or a word
         # character and not followed by `]`, `)`, `-` or a word character.
         # On the maturity page and the What's new page the same ids name
@@ -98,11 +98,11 @@ function Write-BlueprintSection {
         # anchor on 90) are linked.
         $linkable = if ($FileName -in '91-maturity-assessment.md', '03-whats-new.md') { $script:FiredFindingIds } else { $script:FindingIds }
         $line = [regex]::Replace($line, '(?<![\[\(#\-\w])(SAC-[A-Z]{2,4}-\d{2})(?![\]\)\-\w])', {
-            param($m)
-            $id = $m.Groups[1].Value
-            if (-not $linkable.ContainsKey($id)) { return $m.Value }
-            "[$id]($relTarget#$($id.ToLower()))"
-        })
+                param($m)
+                $id = $m.Groups[1].Value
+                if (-not $linkable.ContainsKey($id)) { return $m.Value }
+                "[$id]($relTarget#$($id.ToLower()))"
+            })
         [void]$sb.Append($line)
     }
     $body = $sb.ToString()

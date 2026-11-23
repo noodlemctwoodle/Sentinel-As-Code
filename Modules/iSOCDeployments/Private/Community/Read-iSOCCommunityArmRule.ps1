@@ -102,8 +102,7 @@ function Read-iSOCCommunityArmRule {
                 $fallback = New-iSOCCommunityRuleId -Name "$repository#arm#$Category/$name"
                 $yaml = ConvertFrom-iSOCArmAlertRule -Resource $resource -SourceFile $file -Source $Source -FallbackId $fallback
                 [pscustomobject]@{ Name = $name; YamlContent = $yaml; SourceFile = $file; Error = $null }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "Skipping ARM rule in '$file': $($_.Exception.Message)" -Level Warning
                 [pscustomobject]@{ Name = $name; YamlContent = $null; SourceFile = $file; Error = $_.Exception.Message }
             }

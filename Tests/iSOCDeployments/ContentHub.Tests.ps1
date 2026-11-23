@@ -408,7 +408,7 @@ Describe 'Install-iSOCContentHubSolution' {
         @{ Name = 'Charlie low rule'; Outcome = 'Deployed' }
         @{ Name = 'Delta single mapping rule'; Outcome = 'Updated' }
     ) {
-        $result = @(Get-Result $script:full.Run $Name | Where-Object ContentType -eq AnalyticsRule)
+        $result = @(Get-Result $script:full.Run $Name | Where-Object ContentType -EQ AnalyticsRule)
         $result.Count | Should -Be 1
         $result[0].Outcome | Should -Be $Outcome
     }
@@ -446,7 +446,7 @@ Describe 'Install-iSOCContentHubSolution' {
         @{ Name = 'Bravo new workbook'; Outcome = 'Deployed' }
         @{ Name = 'Delta current workbook'; Outcome = 'Updated' }
     ) {
-        $result = @(Get-Result $script:full.Run $Name | Where-Object ContentType -eq Workbook)
+        $result = @(Get-Result $script:full.Run $Name | Where-Object ContentType -EQ Workbook)
         $result.Count | Should -Be 1
         $result[0].Outcome | Should -Be $Outcome
     }
@@ -489,7 +489,7 @@ Describe 'Install-iSOCContentHubSolution' {
 
     It 'fails the run when anything failed' {
         $script:full.Run.ExitCode | Should -Be 1
-        $script:full.Run.Failed | Should -Be @($script:full.Run.Results | Where-Object Outcome -eq Failed).Count
+        $script:full.Run.Failed | Should -Be @($script:full.Run.Results | Where-Object Outcome -EQ Failed).Count
         $script:full.Run.PSObject.TypeNames | Should -Contain 'iSOCDeployments.ContentHubRun'
     }
 
@@ -504,7 +504,7 @@ Describe 'Install-iSOCContentHubSolution' {
     It 'writes nothing with -WhatIf, the metadata of unchanged rules included (MIGRATION.md edit E19)' {
         $dry = Invoke-ModuleRun -Parameters @{ Name = $script:allSolutions } -WhatIf
         $dry.Writes.Count | Should -Be 0
-        @($dry.Run.Results | Where-Object Outcome -in 'Deployed', 'Updated').Count | Should -Be 0
+        @($dry.Run.Results | Where-Object Outcome -In 'Deployed', 'Updated').Count | Should -Be 0
         (Get-Result $dry.Run 'Fixture Alpha').Outcome | Should -Be 'WhatIf'
         (Get-Result $dry.Run 'Alpha new rule').Reason | Should -BeExactly 'deploy'
         (Get-Result $dry.Run 'Alpha newer template').Reason | Should -BeExactly 'update'

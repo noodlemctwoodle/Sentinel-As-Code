@@ -105,12 +105,10 @@ function Set-iSOCContentHubRuleMetadata {
     if ($Lookup.Detail.ContainsKey($pkgId)) {
         $solDisplayName = $Lookup.Detail[$pkgId].Name
         $solContentId = $Lookup.Detail[$pkgId].ContentId
-    }
-    elseif ($Lookup.ById.ContainsKey($pkgId)) {
+    } elseif ($Lookup.ById.ContainsKey($pkgId)) {
         $solDisplayName = $Lookup.ById[$pkgId]
         $solContentId = $pkgId
-    }
-    else {
+    } else {
         Write-iSOCLog "    Metadata skip: packageId '$pkgId' not in solution lookup for $DisplayName" -Level Warning
         return 'Skipped'
     }
@@ -141,8 +139,7 @@ function Set-iSOCContentHubRuleMetadata {
         Invoke-iSOCRestRequest -Method PUT -Path $metaPath -ApiVersion (Get-iSOCApiVersion SecurityInsights) -Body $metaBody | Out-Null
         Write-iSOCLog "    Metadata linked: $DisplayName -> $solDisplayName"
         'Linked'
-    }
-    catch {
+    } catch {
         Write-iSOCLog "    Metadata FAILED for $DisplayName : $($_.Exception.Message)" -Level Warning
         Write-iSOCLog "    Metadata body: $(ConvertTo-Json -InputObject $metaBody -Depth 10 -Compress)" -Level Debug
         'Failed'

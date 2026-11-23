@@ -83,8 +83,7 @@ function Invoke-iSOCContentHubSolutionDeploy {
 
     try {
         $detailedSolution = Invoke-iSOCRestRequest -Method GET -Path "$root/contentProductPackages/$($catalogEntry.name)" -ApiVersion $apiVersion
-    }
-    catch {
+    } catch {
         Write-iSOCLog "  Failed to retrieve package details for $solutionName : $($_.Exception.Message)" -Level Error
         return @{ Outcome = 'Failed'; Reason = "could not read the package: $($_.Exception.Message)" }
     }
@@ -110,8 +109,7 @@ function Invoke-iSOCContentHubSolutionDeploy {
             Invoke-iSOCRestRequest -Method PUT -Path "$root/contentPackages/$catContentId" -ApiVersion $apiVersion -Body $packageBody | Out-Null
             Write-iSOCLog "  Registered package for $solutionName." -Level Success
             return @{ Outcome = $done; Reason = 'registered the package only' }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  Failed to register package for $solutionName : $($_.Exception.Message)" -Level Error
             return @{ Outcome = 'Failed'; Reason = "could not register the package: $($_.Exception.Message)" }
         }
@@ -134,8 +132,7 @@ function Invoke-iSOCContentHubSolutionDeploy {
 
     try {
         $jsonBody = ConvertTo-iSOCSolutionDeploymentJson -PackagedContent $packagedContent -Workspace $Context.WorkspaceName -Region $Context.Region
-    }
-    catch {
+    } catch {
         Write-iSOCLog "  Failed to serialise deployment body for $solutionName : $($_.Exception.Message)" -Level Error
         return @{ Outcome = 'Failed'; Reason = "could not serialise the package: $($_.Exception.Message)" }
     }
@@ -154,8 +151,7 @@ function Invoke-iSOCContentHubSolutionDeploy {
         Write-iSOCLog "  Successfully deployed solution: $solutionName v$($SolutionStatus.AvailableVersion)" -Level Success
         Start-Sleep -Milliseconds 1500
         @{ Outcome = $done; Reason = '' }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "  Deployment failed for $solutionName : $($_.Exception.Message)" -Level Error
         @{ Outcome = 'Failed'; Reason = $_.Exception.Message }
     }

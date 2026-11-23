@@ -64,8 +64,7 @@ function Publish-SacSectionPage {
 
     $page = if ($Create) {
         Add-PnPPage -Name $name -LayoutType Article -Title ([string]$PageDoc.title)
-    }
-    else {
+    } else {
         Get-PnPPage -Identity $name
     }
 
@@ -94,13 +93,11 @@ function Publish-SacSectionPage {
                 # Node links in a flowchart carry '~site/' like the page HTML.
                 $chartJson = Resolve-SacSiteUrl -Text ($seg.chart | ConvertTo-Json -Depth 32 -Compress) -WebServerRelativeUrl $WebServerRelativeUrl
                 $control.PropertiesJson = (@{ chartJson = $chartJson } | ConvertTo-Json -Compress)
-            }
-            else {
+            } else {
                 $control = $page.NewTextPart((ConvertTo-SacChartFallbackHtml -Chart $seg.chart))
                 $allNative = $false
             }
-        }
-        elseif ($seg.type -eq 'image') {
+        } elseif ($seg.type -eq 'image') {
             $options = $null
             if ($optionsType) {
                 $options = [Activator]::CreateInstance($optionsType)
@@ -108,8 +105,7 @@ function Publish-SacSectionPage {
             }
             $url = "$($WebServerRelativeUrl.TrimEnd('/'))/$script:SacAssetsLibraryUrl/diagrams/$($seg.file)"
             $control = $page.GetImageWebPart($url, $options)
-        }
-        else {
+        } else {
             $control = $page.NewTextPart((Resolve-SacSiteUrl -Text ([string]$seg.html) -WebServerRelativeUrl $WebServerRelativeUrl))
         }
         $page.AddControl($control, $column, $order, $null)

@@ -96,8 +96,7 @@ function New-iSOCFixtureRule {
             try {
                 Invoke-iSOCRestRequest -Method PUT -Path $resource -ApiVersion (Get-iSOCApiVersion SecurityInsights) -Body $body | Out-Null
                 $written = $true
-            }
-            catch {
+            } catch {
                 $lastError = $_.Exception.Message
                 $isResolveRace = ($lastError -match 'Failed to resolve') -or ($lastError -match 'SemanticError')
                 if ($isResolveRace -and [datetime]::UtcNow -lt $attemptDeadline) {
@@ -113,8 +112,7 @@ function New-iSOCFixtureRule {
             $state = if ($ruleEnabled) { 'enabled' } else { 'disabled' }
             Write-iSOCLog "Created $state rule '$($rule.DisplayName)' ($($rule.RuleId))." -Level Success
             $created.Add($resource)
-        }
-        else {
+        } else {
             Write-iSOCLog "Failed to create rule '$($rule.DisplayName)': $($lastError.Split([char]10)[0])" -Level Warning
             $failed.Add($resource)
         }

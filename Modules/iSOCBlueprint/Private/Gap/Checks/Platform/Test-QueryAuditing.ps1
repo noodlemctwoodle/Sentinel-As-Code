@@ -39,7 +39,7 @@ function Test-QueryAuditing {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'la-query-logs.json') { return $null }
     $row = @($Inventory.LaQueryLogs | Where-Object { $null -ne $_ }) | Select-Object -First 1
     $count = if ($row) { ConvertTo-GapInt (Get-PropOrDefault $row 'QueryCount' 0) } else { 0 }

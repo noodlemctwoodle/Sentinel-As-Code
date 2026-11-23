@@ -87,8 +87,7 @@ function Invoke-iSOCDefenderDetectionDeploy {
         param([string] $Method, [string] $Path, [psobject] $Request)
         try {
             Invoke-iSOCRestRequest -Method $Method -Api Graph -Context $Run.Context -Path $Path -ApiVersion $apiVersion -Body $Request.Body
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Request body: $(ConvertTo-Json -InputObject $Request.Body -Depth 20)" -Level Warning
             throw
         }

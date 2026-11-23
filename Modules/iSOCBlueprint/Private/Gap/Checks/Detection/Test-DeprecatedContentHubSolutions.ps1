@@ -39,7 +39,7 @@ function Test-DeprecatedContentHubSolutions {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $installed = @($Inventory.ContentPackages | Where-Object { $null -ne $_ })
     $catalogue = @($Inventory.ContentProductPackages | Where-Object { $null -ne $_ })
     if ($installed.Count -eq 0 -or $catalogue.Count -eq 0) { return $null }
@@ -49,15 +49,15 @@ function Test-DeprecatedContentHubSolutions {
         if ($id) { $byId[$id] = $p }
     }
     $flagged = @(foreach ($p in $installed) {
-        $id = [string](Get-PropOrDefault $p 'properties.contentId' '')
-        if (-not $id) { continue }
-        $name = [string](Get-PropOrDefault $p 'properties.displayName' $id)
-        if (-not $byId.ContainsKey($id)) {
-            [pscustomobject]@{ Solution = $name; ContentId = $id; Reason = 'not in catalogue' }
-        } elseif (ConvertTo-GapBool (Get-PropOrDefault $byId[$id] 'properties.isDeprecated' $false)) {
-            [pscustomobject]@{ Solution = $name; ContentId = $id; Reason = 'deprecated' }
-        }
-    })
+            $id = [string](Get-PropOrDefault $p 'properties.contentId' '')
+            if (-not $id) { continue }
+            $name = [string](Get-PropOrDefault $p 'properties.displayName' $id)
+            if (-not $byId.ContainsKey($id)) {
+                [pscustomobject]@{ Solution = $name; ContentId = $id; Reason = 'not in catalogue' }
+            } elseif (ConvertTo-GapBool (Get-PropOrDefault $byId[$id] 'properties.isDeprecated' $false)) {
+                [pscustomobject]@{ Solution = $name; ContentId = $id; Reason = 'deprecated' }
+            }
+        })
     if ($flagged.Count -eq 0) { return $null }
     $sample = ($flagged | ForEach-Object { "$($_.Solution) ($($_.Reason))" }) -join '; '
     return New-Finding -Evidence "$(Format-BlueprintPlural $flagged.Count 'installed Content Hub solution') $(Select-GapWording $flagged.Count 'is' 'are') deprecated or no longer in the catalogue: $sample." -Detail @{ Count = $flagged.Count; Solutions = $flagged }

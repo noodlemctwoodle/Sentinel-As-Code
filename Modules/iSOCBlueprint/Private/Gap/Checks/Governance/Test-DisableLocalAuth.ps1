@@ -39,7 +39,7 @@ function Test-DisableLocalAuth {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $disabled = Get-PropOrDefault $Inventory.Workspace 'properties.features.disableLocalAuth' $false
     if (-not $disabled) {
         return New-Finding -Evidence 'features.disableLocalAuth is false, workspace shared keys are accepted for ingestion.'

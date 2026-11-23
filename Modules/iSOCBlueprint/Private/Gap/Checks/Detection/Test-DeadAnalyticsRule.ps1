@@ -39,7 +39,7 @@ function Test-DeadAnalyticsRule {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $rules = @(Get-GapEnabledQueryRule $Inventory)
     if ($rules.Count -eq 0) { return $null }
     $volumes = @(Get-PropOrDefault $Inventory 'AnalyticsRuleVolumes' @() | Where-Object { $null -ne $_ })
@@ -61,10 +61,10 @@ function Test-DeadAnalyticsRule {
         # alerts, not evidence that every rule is dead.
         if ($firedIds.Count -eq 0 -and $firedNames.Count -eq 0 -and $volumes.Count -eq 0) { return $null }
         $dead = @($rules | Where-Object {
-            $id = ConvertTo-GapRuleKey (Get-PropOrDefault $_ 'name' '')
-            $title = [string](Get-PropOrDefault $_ 'properties.displayName' '')
-            -not (($id -and $firedIds.Contains($id)) -or ($title -and $firedNames.Contains($title)))
-        })
+                $id = ConvertTo-GapRuleKey (Get-PropOrDefault $_ 'name' '')
+                $title = [string](Get-PropOrDefault $_ 'properties.displayName' '')
+                -not (($id -and $firedIds.Contains($id)) -or ($title -and $firedNames.Contains($title)))
+            })
     } else {
         # No rules-fired capture (an older run): the alert volumes are the
         # only signal, matched on the rule's display name.
@@ -75,9 +75,9 @@ function Test-DeadAnalyticsRule {
         }
         if ($named.Count -eq 0) { return $null }    # no volumes -> no signal
         $dead = @($rules | Where-Object {
-            $title = [string](Get-PropOrDefault $_ 'properties.displayName' '')
-            $title -and -not $named.Contains($title)
-        })
+                $title = [string](Get-PropOrDefault $_ 'properties.displayName' '')
+                $title -and -not $named.Contains($title)
+            })
     }
     if ($dead.Count -eq 0) { return $null }
     $sample = ($dead | ForEach-Object { Get-EvidenceName $_ 'properties.displayName', 'name' 'Unnamed rule' }) -join '; '

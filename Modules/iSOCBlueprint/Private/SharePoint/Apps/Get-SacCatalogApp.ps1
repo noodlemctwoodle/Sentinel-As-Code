@@ -47,15 +47,15 @@ function Get-SacCatalogApp {
     $items = if ($null -ne $response -and $response.PSObject.Properties['value']) { @($response.value) } else { @($response) }
 
     $items | Where-Object { $null -ne $_ } | ForEach-Object {
-            $props = $_.PSObject.Properties
-            [pscustomobject]@{
-                Id         = ([string]$_.ID).Trim('{}').ToLowerInvariant()
-                ProductId  = if ($props['ProductId'] -and $_.ProductId) { ([string]$_.ProductId).Trim('{}').ToLowerInvariant() } else { '' }
-                Title      = [string]$_.Title
-                Version    = [string]$_.AppCatalogVersion
-                CanUpgrade = [bool]$_.CanUpgrade
-                Valid      = if ($props['IsValidAppPackage']) { [bool]$_.IsValidAppPackage } else { $true }
-                Error      = if ($props['ErrorMessage']) { [string]$_.ErrorMessage } else { '' }
-            }
+        $props = $_.PSObject.Properties
+        [pscustomobject]@{
+            Id         = ([string]$_.ID).Trim('{}').ToLowerInvariant()
+            ProductId  = if ($props['ProductId'] -and $_.ProductId) { ([string]$_.ProductId).Trim('{}').ToLowerInvariant() } else { '' }
+            Title      = [string]$_.Title
+            Version    = [string]$_.AppCatalogVersion
+            CanUpgrade = [bool]$_.CanUpgrade
+            Valid      = if ($props['IsValidAppPackage']) { [bool]$_.IsValidAppPackage } else { $true }
+            Error      = if ($props['ErrorMessage']) { [string]$_.ErrorMessage } else { '' }
         }
+    }
 }

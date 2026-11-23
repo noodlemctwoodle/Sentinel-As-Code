@@ -43,7 +43,7 @@ function ConvertFrom-BpMermaidNodeText {
     param([string] $Text)
     $t = $Text.Trim()
     if ($t -match
-            '^(?<id>[^\[\(\{\)\>"\s]*)\s*(?<open>\(\(\(|\(\(|\[\[|\[\(|\(\[|\{\{|\)\)|\[\/|\[\\|\[|\(|\{|\)|>)(?<text>.*?)(?:\)\)\)|\)\)|\]\]|\)\]|\]\)|\}\}|\(\(|\/\]|\\\]|\]|\)|\}|\()$') {
+        '^(?<id>[^\[\(\{\)\>"\s]*)\s*(?<open>\(\(\(|\(\(|\[\[|\[\(|\(\[|\{\{|\)\)|\[\/|\[\\|\[|\(|\{|\)|>)(?<text>.*?)(?:\)\)\)|\)\)|\]\]|\)\]|\]\)|\}\}|\(\(|\/\]|\\\]|\]|\)|\}|\()$') {
         return @{ id = $Matches['id']; text = ConvertTo-BpMermaidText $Matches['text']; shape = $Matches['open'] }
     }
     return @{ id = $null; text = ConvertTo-BpMermaidText $t; shape = $null }

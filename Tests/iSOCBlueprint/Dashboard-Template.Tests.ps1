@@ -37,7 +37,7 @@ BeforeDiscovery {
     $parts = @(
         Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object { $_.Extension -in '.html', '.css', '.js' } | ForEach-Object {
             @{
-                Path = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/')
+                Path  = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/')
                 Lines = @(Get-Content -LiteralPath $_.FullName).Count
                 Limit = 300
             }

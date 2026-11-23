@@ -46,8 +46,7 @@ function ConvertFrom-BpMermaidPie {
     $slices = foreach ($l in $Body) {
         if ($l -match '^\s*"(?<label>(?:[^"]|"")*)"\s*:\s*(?<value>[-+0-9.eE]+)\s*$') {
             [ordered]@{ label = $Matches['label']; value = (ConvertTo-BpNumber $Matches['value']) }
-        }
-        elseif ($l -match '^\s*title\s+(.+)$') { $title = $Matches[1].Trim() }
+        } elseif ($l -match '^\s*title\s+(.+)$') { $title = $Matches[1].Trim() }
     }
     return [ordered]@{
         kind  = 'pie'

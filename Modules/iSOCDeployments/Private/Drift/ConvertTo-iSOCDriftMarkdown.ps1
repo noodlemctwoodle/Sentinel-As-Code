@@ -84,8 +84,7 @@ function ConvertTo-iSOCDriftMarkdown {
             [void]$sb.AppendLine('## Custom Rule Drift (auto-synced into repo)')
             [void]$sb.AppendLine('')
             [void]$sb.AppendLine('These rules were edited in the Sentinel portal. The matching YAML files under `Content/AnalyticalRules/` have been updated to reflect the deployed state. Compare against the **Files Changed** tab of this PR to see the YAML diff exactly as committed.')
-        }
-        else {
+        } else {
             [void]$sb.AppendLine('## Custom Rule Drift (report only)')
             [void]$sb.AppendLine('')
             [void]$sb.AppendLine('These rules were edited in the Sentinel portal. Their YAML files under `Content/AnalyticalRules/` have not been changed; run `Sync-iSOCContent` to write the deployed state into them.')
@@ -112,8 +111,7 @@ function ConvertTo-iSOCDriftMarkdown {
             [void]$sb.AppendLine('## Content Hub Drift (promoted to Custom rules)')
             [void]$sb.AppendLine('')
             [void]$sb.AppendLine('These rules diverge from their Content Hub template. Each has been written to a Custom rule file under `Content/AnalyticalRules/AbsorbedFromPortal/ContentHub/` that keeps its rule id, so the next deploy governs it from the repository instead of the template.')
-        }
-        else {
+        } else {
             [void]$sb.AppendLine('## Content Hub Drift (report only)')
             [void]$sb.AppendLine('')
             [void]$sb.AppendLine('These rules diverge from their Content Hub template, and no file has been written for them. Content Hub deployment leaves a rule changed in the workspace alone unless it is told to overwrite it.')
@@ -148,8 +146,7 @@ function ConvertTo-iSOCDriftMarkdown {
                 $path = if (& $has $o 'absorbedPath') { "``$($o.absorbedPath)`` ($($o.absorbedAction))" } else { 'not written' }
                 [void]$sb.AppendLine("| $($o.displayName) | $($o.ruleName) | $($o.kind) | $($o.enabled) | $path |")
             }
-        }
-        else {
+        } else {
             [void]$sb.AppendLine('## Orphan Rules (report only; manual triage required)')
             [void]$sb.AppendLine('')
             [void]$sb.AppendLine('These rules were created directly in the Sentinel portal and have no source-of-truth in the repo. Adopting them into governance is a manual step.')

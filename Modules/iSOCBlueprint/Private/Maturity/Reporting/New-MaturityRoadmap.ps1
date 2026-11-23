@@ -52,24 +52,24 @@ function New-MaturityRoadmap {
     )
 
     $roadmapRaw = @(foreach ($a in $Area) {
-        foreach ($c in @($a.criteria | Where-Object status -eq 'Gap')) {
-            $areaLift = [math]::Round(5.0 * $c.weight / $a.weightKnown, 2)
-            [pscustomobject]@{
-                criterionId = $c.id
-                area        = $a.id
-                areaName    = $a.name
-                name        = $c.name
-                kind        = $c.kind
-                evidence    = $c.evidence
-                impact      = Format-MaturityWindow -Text ([string]$c.impact) -Window $Window
-                guidance    = $c.guidance
-                effort      = $c.effort
-                csf         = $c.csf
-                areaLift    = $areaLift
-                overallLift = [math]::Round($areaLift / $Area.Count, 3)
+            foreach ($c in @($a.criteria | Where-Object status -EQ 'Gap')) {
+                $areaLift = [math]::Round(5.0 * $c.weight / $a.weightKnown, 2)
+                [pscustomobject]@{
+                    criterionId = $c.id
+                    area        = $a.id
+                    areaName    = $a.name
+                    name        = $c.name
+                    kind        = $c.kind
+                    evidence    = $c.evidence
+                    impact      = Format-MaturityWindow -Text ([string]$c.impact) -Window $Window
+                    guidance    = $c.guidance
+                    effort      = $c.effort
+                    csf         = $c.csf
+                    areaLift    = $areaLift
+                    overallLift = [math]::Round($areaLift / $Area.Count, 3)
+                }
             }
-        }
-    })
+        })
     $ordered = @(
         $roadmapRaw |
             Sort-Object -Property @{
@@ -80,10 +80,10 @@ function New-MaturityRoadmap {
     $running = if ($null -ne $OverallScore) { [double]$OverallScore } else { 0.0 }
     $priority = 0
     $roadmap = @(foreach ($entry in $ordered) {
-        $priority++
-        $running = [math]::Min(5.0, $running + $entry.overallLift)
-        $entry | Add-Member -NotePropertyName priority -NotePropertyValue $priority -PassThru |
-                 Add-Member -NotePropertyName projectedScore -NotePropertyValue ([math]::Round($running, 2)) -PassThru
-    })
+            $priority++
+            $running = [math]::Min(5.0, $running + $entry.overallLift)
+            $entry | Add-Member -NotePropertyName priority -NotePropertyValue $priority -PassThru |
+                Add-Member -NotePropertyName projectedScore -NotePropertyValue ([math]::Round($running, 2)) -PassThru
+        })
     return $roadmap
 }

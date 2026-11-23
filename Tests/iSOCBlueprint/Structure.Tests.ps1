@@ -63,7 +63,7 @@ Describe 'Module line length' {
         $moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
         $limit = 160
         $looser = @{
-            'Private/Render/Sections/DataConnectors/Write-BlueprintDataConnectorsSection.ps1'                = 200
+            'Private/Render/Sections/DataConnectors/Write-BlueprintDataConnectorsSection.ps1'                     = 200
             'Private/Render/Sections/AutomationRulesPlaybooks/Write-BlueprintAutomationRulesPlaybooksSection.ps1' = 200
         }
         $testsRoot = Join-Path $repoRoot 'Tests/iSOCBlueprint'

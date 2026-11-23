@@ -39,13 +39,13 @@ function Test-SilentTables {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.TablesWithData) { return $null }
     $silent = @($Inventory.TablesWithData | Where-Object {
-        $last7 = [double](Get-PropOrDefault $_ 'BillableLast7d' 0)
-        $last90 = [double](Get-PropOrDefault $_ 'BillableLast90d' 0)
-        ($last7 -eq 0) -and ($last90 -gt 0)
-    })
+            $last7 = [double](Get-PropOrDefault $_ 'BillableLast7d' 0)
+            $last90 = [double](Get-PropOrDefault $_ 'BillableLast90d' 0)
+            ($last7 -eq 0) -and ($last90 -gt 0)
+        })
     if ($silent.Count -gt 0) {
         $names = ($silent | Select-Object -ExpandProperty DataType) -join ', '
         $w = Get-GapWindow $Inventory

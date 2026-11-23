@@ -98,8 +98,7 @@ function Invoke-iSOCContentHubWorkbookDeploy {
     try {
         $allTemplates = @(Get-iSOCContentHubTemplate -Context $Context -Kind Workbook, WorkbookTemplate -ExpandMainTemplate)
         Write-iSOCLog "Found $($allTemplates.Count) Workbook templates."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to fetch Workbook templates: $($_.Exception.Message)" -Level Error
         return
     }
@@ -115,8 +114,7 @@ function Invoke-iSOCContentHubWorkbookDeploy {
     try {
         $existingWorkbooks = @(Invoke-iSOCRestRequest -Method GET -Path "$root/metadata?`$filter=$([uri]::EscapeDataString("(properties/kind eq 'Workbook')"))" -ApiVersion $apiVersion)
         Write-iSOCLog "Found $($existingWorkbooks.Count) existing workbook metadata entries."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not fetch workbook metadata: $($_.Exception.Message)" -Level Warning
     }
 
@@ -154,8 +152,7 @@ function Invoke-iSOCContentHubWorkbookDeploy {
                 continue
             }
             $needsUpdate = $true
-        }
-        elseif ($existingMeta) {
+        } elseif ($existingMeta) {
             $needsUpdate = $true
         }
 
@@ -171,16 +168,14 @@ function Invoke-iSOCContentHubWorkbookDeploy {
             try {
                 $detailedTemplate = Invoke-iSOCRestRequest -Method GET -Path "$root/contentTemplates/$tmplId" -ApiVersion $apiVersion
                 break
-            }
-            catch {
+            } catch {
                 continue
             }
         }
         if (-not $detailedTemplate) {
             if ($props.PSObject.Properties.Name -contains 'mainTemplate' -and $props.mainTemplate) {
                 $detailedTemplate = $template
-            }
-            else {
+            } else {
                 Write-iSOCLog "  Failed to fetch template details for workbook: $displayName; skipping" -Level Warning
                 & $emit Failed 'could not read the template'
                 continue
@@ -204,8 +199,7 @@ function Invoke-iSOCContentHubWorkbookDeploy {
 
         $guid = if ($needsUpdate -and $existingMeta -and ($existingMeta.properties.PSObject.Properties.Name -contains 'parentId')) {
             if ($existingMeta.properties.parentId -match '/([^/]+)$') { $Matches[1] } else { (New-Guid).Guid }
-        }
-        else {
+        } else {
             (New-Guid).Guid
         }
 
@@ -224,19 +218,16 @@ function Invoke-iSOCContentHubWorkbookDeploy {
             if ($needsUpdate) {
                 Write-iSOCLog "  Updated workbook: $displayName" -Level Success
                 & $emit Updated ''
-            }
-            else {
+            } else {
                 Write-iSOCLog "  Deployed workbook: $displayName" -Level Success
                 & $emit Deployed ''
             }
             try {
                 Invoke-iSOCRestRequest -Method PUT -Path "$root/metadata/workbook-$guid" -ApiVersion $apiVersion -Body $bodies.Metadata | Out-Null
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "  Workbook deployed but metadata failed: $displayName ($($_.Exception.Message))" -Level Warning
             }
-        }
-        catch {
+        } catch {
             Write-iSOCLog "  Failed to deploy workbook: $displayName - $($_.Exception.Message)" -Level Error
             & $emit Failed $_.Exception.Message
         }

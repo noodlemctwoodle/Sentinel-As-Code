@@ -165,11 +165,11 @@ function Invoke-SentinelRest {
                 # Restricting the regex to the public host stripped the bearer
                 # token from paginator nextLinks on sovereign clouds, breaking
                 # every 2nd-page ARM call with a 401.
-                $armHostPattern   = '^https?://management\.(azure|usgovcloudapi|chinacloudapi|microsoftazure)\.[a-z.]+/'
+                $armHostPattern = '^https?://management\.(azure|usgovcloudapi|chinacloudapi|microsoftazure)\.[a-z.]+/'
                 $armHostPrefixPat = '^https?://management\.(azure|usgovcloudapi|chinacloudapi|microsoftazure)\.[a-z.]+'
-                $isAbsolute       = $url -match '^https?://'
-                $isArmAbsolute    = $isAbsolute -and ($url -match $armHostPattern)
-                $effectivePath    = if ($isArmAbsolute) {
+                $isAbsolute = $url -match '^https?://'
+                $isArmAbsolute = $isAbsolute -and ($url -match $armHostPattern)
+                $effectivePath = if ($isArmAbsolute) {
                     $url -replace $armHostPrefixPat, ''
                 } else { $url }
 
@@ -191,12 +191,11 @@ function Invoke-SentinelRest {
                     $response = $raw.Content | ConvertFrom-Json -ErrorAction Stop
                 }
                 break
-            }
-            catch {
+            } catch {
                 $message = $_.Exception.Message
                 $isRetryable = $message -match '\b(429|503|504|408)\b' -or
-                               $message -match 'TooManyRequests' -or
-                               $message -match 'timed? out'
+                $message -match 'TooManyRequests' -or
+                $message -match 'timed? out'
 
                 if ($attempt -ge $MaxAttempts -or -not $isRetryable) {
                     throw

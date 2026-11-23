@@ -186,10 +186,10 @@ $(Format-BlueprintTable -Items $msIncidentRows -Columns 'Name','Product','Severi
     $mitreRows = foreach ($t in $tactics) {
         $count = $tacticCounts[$t.sentinelShortName]
         [pscustomobject]@{
-            ID = $t.id
-            Tactic = $t.name
+            ID           = $t.id
+            Tactic       = $t.name
             EnabledRules = $count
-            Coverage = if ($count -eq 0) { 'None' } elseif ($count -lt 3) { 'Thin' } else { 'Covered' }
+            Coverage     = if ($count -eq 0) { 'None' } elseif ($count -lt 3) { 'Thin' } else { 'Covered' }
         }
     }
 
@@ -225,39 +225,39 @@ $(Format-BlueprintTable -Items $msIncidentRows -Columns 'Name','Product','Severi
     }
     $ruleAttackRows = @($attackCoverage.Rules | Sort-Object @{ Expression = { -not $_.Enabled } }, Name | ForEach-Object {
             [pscustomobject]@{
-                'Rule'           = $_.Name
-                'Status'         = $(if ($_.Enabled) { 'Enabled' } else { 'Disabled' })
-                'Tactics'        = $(
+                'Rule'               = $_.Name
+                'Status'             = $(if ($_.Enabled) { 'Enabled' } else { 'Disabled' })
+                'Tactics'            = $(
                     if ($_.Tactics.Count) {
                         ($_.Tactics |
                             ForEach-Object { if ($tacticNameByShort.ContainsKey($_)) { $tacticNameByShort[$_] } else { Format-TacticName ([string]$_) } }) -join
                             ', '
-                    } else { 'None' }
-                )
-                'Techniques'     = $(if ($_.Techniques.Count) { $_.Techniques -join ', ' } else { 'None' })
-                'Sub-techniques' = $(if ($_.SubTechniques.Count) { $_.SubTechniques -join ', ' } else { 'None' })
-            }
-        })
-    $rulesEnabledCount = $enabledIdx.Count
-    $rulesWithoutTechnique = @($attackCoverage.Rules | Where-Object { $_.Enabled -and -not $_.Techniques.Count }).Count
-    $rulesWithSub = @($attackCoverage.Rules | Where-Object { $_.Enabled -and $_.SubTechniques.Count }).Count
-    $enabledTechniques = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($tac in $mitreHierarchy.Keys) { foreach ($tech in $mitreHierarchy[$tac].Keys) { [void]$enabledTechniques.Add($tech) } }
-    $disabledOnlyTechniques = @($anyTechniques | Where-Object { -not $enabledTechniques.Contains($_) }).Count
+                        } else { 'None' }
+                    )
+                    'Techniques'     = $(if ($_.Techniques.Count) { $_.Techniques -join ', ' } else { 'None' })
+                    'Sub-techniques' = $(if ($_.SubTechniques.Count) { $_.SubTechniques -join ', ' } else { 'None' })
+                }
+            })
+        $rulesEnabledCount = $enabledIdx.Count
+        $rulesWithoutTechnique = @($attackCoverage.Rules | Where-Object { $_.Enabled -and -not $_.Techniques.Count }).Count
+        $rulesWithSub = @($attackCoverage.Rules | Where-Object { $_.Enabled -and $_.SubTechniques.Count }).Count
+        $enabledTechniques = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($tac in $mitreHierarchy.Keys) { foreach ($tech in $mitreHierarchy[$tac].Keys) { [void]$enabledTechniques.Add($tech) } }
+        $disabledOnlyTechniques = @($anyTechniques | Where-Object { -not $enabledTechniques.Contains($_) }).Count
 
-    # Left in the render context for later sections.
-    $Context.disabledOnlyTechniques = $disabledOnlyTechniques
-    $Context.mitreHierarchy = $mitreHierarchy
-    $Context.r = $r
-    $Context.row = $row
-    $Context.ruleAttackRows = $ruleAttackRows
-    $Context.rulesBody = $rulesBody
-    $Context.rulesEnabledCount = $rulesEnabledCount
-    $Context.rulesWithoutTechnique = $rulesWithoutTechnique
-    $Context.rulesWithSub = $rulesWithSub
-    $Context.subTotalByParent = $subTotalByParent
-    $Context.t = $t
-    $Context.tacticCounts = $tacticCounts
-    $Context.tactics = $tactics
-    $Context.techNameById = $techNameById
-}
+        # Left in the render context for later sections.
+        $Context.disabledOnlyTechniques = $disabledOnlyTechniques
+        $Context.mitreHierarchy = $mitreHierarchy
+        $Context.r = $r
+        $Context.row = $row
+        $Context.ruleAttackRows = $ruleAttackRows
+        $Context.rulesBody = $rulesBody
+        $Context.rulesEnabledCount = $rulesEnabledCount
+        $Context.rulesWithoutTechnique = $rulesWithoutTechnique
+        $Context.rulesWithSub = $rulesWithSub
+        $Context.subTotalByParent = $subTotalByParent
+        $Context.t = $t
+        $Context.tacticCounts = $tacticCounts
+        $Context.tactics = $tactics
+        $Context.techNameById = $techNameById
+    }

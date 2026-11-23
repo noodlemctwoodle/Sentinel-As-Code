@@ -39,7 +39,7 @@ function Test-ContentHubUpdatesAvailable {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.ContentPackages -or -not $Inventory.ContentProductPackages) { return $null }
     $latest = @{}
     foreach ($p in $Inventory.ContentProductPackages) {
@@ -48,10 +48,10 @@ function Test-ContentHubUpdatesAvailable {
         if ($id -and $v) { $latest[$id] = $v }
     }
     $stale = @($Inventory.ContentPackages | Where-Object {
-        $id = Get-PropOrDefault $_ 'properties.contentId' ''
-        $installed = Get-PropOrDefault $_ 'properties.version' ''
-        $id -and $installed -and $latest.ContainsKey($id) -and ($latest[$id] -ne $installed)
-    })
+            $id = Get-PropOrDefault $_ 'properties.contentId' ''
+            $installed = Get-PropOrDefault $_ 'properties.version' ''
+            $id -and $installed -and $latest.ContainsKey($id) -and ($latest[$id] -ne $installed)
+        })
     if ($stale.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $stale.Count 'installed Content Hub solution') $(Select-GapWording $stale.Count 'has' 'have') a newer version available." -Detail @{ Count = $stale.Count }
     }

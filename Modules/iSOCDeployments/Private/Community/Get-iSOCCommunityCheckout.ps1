@@ -72,8 +72,7 @@ function Get-iSOCCommunityCheckout {
         if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) { throw "The source folder '$SourcePath' does not exist." }
         $path = (Resolve-Path -LiteralPath $SourcePath).ProviderPath
         Write-iSOCLog "Source: $path"
-    }
-    else {
+    } else {
         if (-not $Destination) { throw 'A clone needs a destination.' }
         $path = $Destination
         Write-iSOCLog "Cloning $SourceRepo ($SourceBranch)" -Level Section
@@ -86,8 +85,7 @@ function Get-iSOCCommunityCheckout {
     try {
         $head = Invoke-iSOCGit -ArgumentList '-C', $path, 'rev-parse', 'HEAD' -AllowFailure
         if ($head.ExitCode -eq 0 -and @($head.Output).Count -gt 0) { $commit = ([string]$head.Output[0]).Trim() }
-    }
-    catch { $commit = 'unknown' }
+    } catch { $commit = 'unknown' }
     Write-iSOCLog "Source commit: $commit"
     [pscustomobject]@{ Path = $path; Commit = $commit }
 }

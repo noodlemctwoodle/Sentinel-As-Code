@@ -144,8 +144,7 @@ function Invoke-DcrFromSchemaDeploy {
     }
     if ($t.Resource.type -eq 'Microsoft.OperationalInsights/workspaces/tables') {
         $State.Tables[$short] = [ordered]@{ subType = 'DataCollectionRuleBased'; columns = @($t.Resource.properties.schema.columns | ForEach-Object { [ordered]@{ name = $_.name; type = $_.type } }) }
-    }
-    else {
+    } else {
         $State.Dcrs[$short] = [ordered]@{
             immutableId = "dcr-$(($short -replace '[^a-z0-9]', '').PadRight(32, '0').Substring(0, 32))"
             endpoint    = if ($State.NoEndpoint) { $null } else { "https://$short-abcd.uksouth-1.ingest.monitor.azure.com" }

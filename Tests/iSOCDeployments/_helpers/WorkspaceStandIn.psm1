@@ -255,8 +255,7 @@ function Get-PipelineStep {
                 }
             }
         }
-    }
-    else {
+    } else {
         foreach ($jobName in $yaml.jobs.Keys) {
             foreach ($step in (Expand-PipelineSequence -Items @($yaml.jobs[$jobName].steps) -Values $values)) {
                 if ($step -is [System.Collections.IDictionary]) { $step['PipelineStage'] = $null; $step['PipelineJob'] = $jobName }

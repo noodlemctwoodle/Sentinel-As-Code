@@ -75,12 +75,12 @@ function ConvertTo-SectionBlocks {
                         $blocks.Add([ordered]@{ t = 'chart'; kind = [string]$b.kind; title = $title; data = $b.data })
                     } else {
                         $blocks.Add([ordered]@{
-                            t = 'chart'
-                            kind = [string]$b.kind
-                            title = $title
-                            data = (ConvertTo-DashboardChartData -Chart $b)
-                            source = [string]$b.source
-                        })
+                                t      = 'chart'
+                                kind   = [string]$b.kind
+                                title  = $title
+                                data   = (ConvertTo-DashboardChartData -Chart $b)
+                                source = [string]$b.source
+                            })
                     }
                 }
             }

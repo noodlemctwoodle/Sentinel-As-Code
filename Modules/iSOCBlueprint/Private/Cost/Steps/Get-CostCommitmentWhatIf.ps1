@@ -73,7 +73,7 @@ function Get-CostCommitmentWhatIf {
             $totalGb30d = ($byPlan.Values | Measure-Object -Property Gb30d -Sum).Sum
             $dailyAvg = $totalGb30d / $windowDays
             $smallestRung = ($commitmentTiers.rungsGbPerDay | Measure-Object -Minimum).Minimum
-            $qualifying   = @($commitmentTiers.rungsGbPerDay | Where-Object { $dailyAvg -ge $_ })
+            $qualifying = @($commitmentTiers.rungsGbPerDay | Where-Object { $dailyAvg -ge $_ })
             $rung = if ($qualifying) {
                 ($qualifying | Measure-Object -Maximum).Maximum
             } elseif ($dailyAvg -ge ($smallestRung * 0.8)) {

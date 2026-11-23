@@ -66,9 +66,9 @@ BeforeAll {
     function Get-Hnt01([string]$Dir) {
         $out = [System.Collections.Generic.List[object]]::new()
         $findings = (Get-SentinelGap -InputRoot $Dir -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json') `
-            -OutcomeCollector $out)
+                -OutcomeCollector $out)
         # Get-SentinelGap returns its list as one object; the pipe unrolls it.
-        [pscustomobject]@{ Outcome = ($out | Where-Object Id -eq 'SAC-HNT-01').Outcome; Finding = ($findings | Where-Object Id -eq 'SAC-HNT-01') }
+        [pscustomobject]@{ Outcome = ($out | Where-Object Id -EQ 'SAC-HNT-01').Outcome; Finding = ($findings | Where-Object Id -EQ 'SAC-HNT-01') }
     }
 }
 
@@ -87,20 +87,20 @@ Describe 'Get-HuntingActivity' {
 
     It 'reads no change from an empty HuntingBookmark table that keeps the whole window' {
         $a = Get-HuntingActivity -BookmarksCount ([pscustomobject]@{
-            Count = 350
-        }) -BookmarksFromLogs @() -WorkspaceTables $script:table90 -WindowDays 90 -AsOf $script:asOf
+                Count = 350
+            }) -BookmarksFromLogs @() -WorkspaceTables $script:table90 -WindowDays 90 -AsOf $script:asOf
         $a.Bookmarks | Should -Be 350
         $a.BookmarksRecent | Should -Be 0
     }
 
     It 'leaves it unknown when the table keeps fewer days than the window, or was not read' {
         (Get-HuntingActivity -BookmarksCount ([pscustomobject]@{
-            Count = 350
-        }) -BookmarksFromLogs @() -WorkspaceTables $script:table90 -WindowDays 180 -AsOf $script:asOf).BookmarksRecent |
+                Count = 350
+            }) -BookmarksFromLogs @() -WorkspaceTables $script:table90 -WindowDays 180 -AsOf $script:asOf).BookmarksRecent |
             Should -BeNullOrEmpty
         (Get-HuntingActivity -BookmarksCount ([pscustomobject]@{
-            Count = 350
-        }) -WorkspaceTables $script:table90 -WindowDays 30 -AsOf $script:asOf).BookmarksRecent |
+                Count = 350
+            }) -WorkspaceTables $script:table90 -WindowDays 30 -AsOf $script:asOf).BookmarksRecent |
             Should -BeNullOrEmpty
     }
 
@@ -120,9 +120,9 @@ Describe 'Get-HuntingActivity' {
 Describe 'Rule SAC-HNT-01 judges recent hunting' {
     It 'fires when bookmarks exist but the HuntingBookmark table shows no change in the window' {
         $dir = New-HuntingRaw @{
-            'bookmarks-count.json' = @{ Count = 350; Source = 'too large' }
+            'bookmarks-count.json'     = @{ Count = 350; Source = 'too large' }
             'bookmarks-from-logs.json' = @()
-            'hunts.json' = @()
+            'hunts.json'               = @()
         } -Lookback 30
         try {
             $tables = @(Get-Content (Join-Path $dir 'workspace-tables.json') -Raw | ConvertFrom-Json) + $script:table90
@@ -157,8 +157,7 @@ Describe 'Rule SAC-HNT-01 judges recent hunting' {
         try {
             (Get-Hnt01 $dir).Finding.Evidence |
                 Should -Be 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.'
-        }
-        finally { Remove-Item $dir -Recurse -Force }
+        } finally { Remove-Item $dir -Recurse -Force }
     }
 }
 

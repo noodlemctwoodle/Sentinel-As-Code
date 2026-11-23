@@ -38,33 +38,32 @@ function ConvertTo-SacChartFallbackHtml {
     if ($Chart.title) { [void]$sb.Append('<p><strong>' + (ConvertTo-SacHtmlText ([string]$Chart.title)) + '</strong></p>') }
     # @() keeps a one-row chart a list of rows rather than one row's cells.
     $rows = @(switch ([string]$Chart.kind) {
-        'pie' { foreach ($s in @($Chart.data.slices)) { , @([string]$s.label, [string]$s.value) } }
-        'sankey' { foreach ($l in @($Chart.data.links)) { , @("$($l.source) to $($l.target)", [string]$l.value) } }
-        'incident-lifecycle' {
-            $d = $Chart.data
-            foreach ($f in @(
-                @('Raised', 'raised'), @('New', 'new'), @('Active', 'active'), @('Closed', 'closed'), @('Closed without acknowledgement', 'unacknowledged')
-            )) {
-                $v = if ($d -is [System.Collections.IDictionary]) {
-                    $d[$f[1]]
-                } elseif ($d -and $d.PSObject.Properties[$f[1]]) { $d.PSObject.Properties[$f[1]].Value } else { $null }
-                if ($null -ne $v) { , @($f[0], [string]$v) }
+            'pie' { foreach ($s in @($Chart.data.slices)) { , @([string]$s.label, [string]$s.value) } }
+            'sankey' { foreach ($l in @($Chart.data.links)) { , @("$($l.source) to $($l.target)", [string]$l.value) } }
+            'incident-lifecycle' {
+                $d = $Chart.data
+                foreach ($f in @(
+                        @('Raised', 'raised'), @('New', 'new'), @('Active', 'active'), @('Closed', 'closed'), @('Closed without acknowledgement', 'unacknowledged')
+                    )) {
+                    $v = if ($d -is [System.Collections.IDictionary]) {
+                        $d[$f[1]]
+                    } elseif ($d -and $d.PSObject.Properties[$f[1]]) { $d.PSObject.Properties[$f[1]].Value } else { $null }
+                    if ($null -ne $v) { , @($f[0], [string]$v) }
+                }
             }
-        }
-        'xy' {
-            $labels = @($Chart.data.xAxis.labels)
-            for ($i = 0; $i -lt $labels.Count; $i++) {
-                , @([string]$labels[$i], ((@($Chart.data.series) | ForEach-Object { [string]@($_.values)[$i] }) -join ' / '))
+            'xy' {
+                $labels = @($Chart.data.xAxis.labels)
+                for ($i = 0; $i -lt $labels.Count; $i++) {
+                    , @([string]$labels[$i], ((@($Chart.data.series) | ForEach-Object { [string]@($_.values)[$i] }) -join ' / '))
+                }
             }
-        }
-        default { }
-    })
+            default { }
+        })
     if ($rows.Count) {
         [void]$sb.Append('<div class="canvasRteResponsiveTable"><div class="tableWrapper"><table title="Table"><tbody>')
         foreach ($r in $rows) { [void]$sb.Append('<tr><td>' + (ConvertTo-SacHtmlText $r[0]) + '</td><td>' + (ConvertTo-SacHtmlText $r[1]) + '</td></tr>') }
         [void]$sb.Append('</tbody></table></div></div>')
-    }
-    else {
+    } else {
         [void]$sb.Append('<p><em>This chart is drawn by the iSOC Blueprint chart web part, which is not on this site yet.</em></p>')
     }
     return $sb.ToString()

@@ -38,8 +38,8 @@ function Get-GapEnabledQueryRule {
     [CmdletBinding()]
     param([object]$Inventory)
     return @($Inventory.AlertRules | Where-Object {
-        $null -ne $_ -and
-        ((Get-PropOrDefault $_ 'kind' '') -in @('Scheduled', 'NRT')) -and
-        (ConvertTo-GapBool (Get-PropOrDefault $_ 'properties.enabled' $false))
-    })
+            $null -ne $_ -and
+            ((Get-PropOrDefault $_ 'kind' '') -in @('Scheduled', 'NRT')) -and
+            (ConvertTo-GapBool (Get-PropOrDefault $_ 'properties.enabled' $false))
+        })
 }

@@ -74,9 +74,9 @@ function Get-WatchlistFreshness {
         $rules = if ($RuleUse -and $alias -and $RuleUse.ContainsKey($alias.ToLowerInvariant())) { @($RuleUse[$alias.ToLowerInvariant()]).Count } else { 0 }
         $contentHub = $source -eq 'ContentHub'
         $status = if ($contentHub) { 'Content Hub' }
-            elseif ($null -eq $age -or $age -lt $script:WatchlistStaleDays) { 'Current' }
-            elseif ($rules -gt 0) { 'Stale, used by rules' }
-            else { 'Stale' }
+        elseif ($null -eq $age -or $age -lt $script:WatchlistStaleDays) { 'Current' }
+        elseif ($rules -gt 0) { 'Stale, used by rules' }
+        else { 'Stale' }
         [pscustomobject]@{
             Name         = [string](& $prop 'displayName')
             Alias        = $alias

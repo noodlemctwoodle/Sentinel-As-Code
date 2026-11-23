@@ -45,8 +45,7 @@ function Invoke-iSOCBlueprintRunCollect {
         if ($Run.NoDateFolder) { $collect.NoDateFolder = $true }
         $inventory = Export-iSOCBlueprintInventory @collect
         if ($inventory -and $inventory.Path) { $Run.Workspace = $inventory.Path }
-    }
-    elseif (-not (Test-Path -LiteralPath (Join-Path $Run.Workspace '_raw') -PathType Container)) {
+    } elseif (-not (Test-Path -LiteralPath (Join-Path $Run.Workspace '_raw') -PathType Container)) {
         throw "-SkipCollection needs an inventory at $(Join-Path $Run.Workspace '_raw')."
     }
 }

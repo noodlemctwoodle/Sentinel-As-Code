@@ -39,12 +39,12 @@ function Test-WorkspaceLockPresent {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $locks = @($Inventory.WorkspaceLocks)
     $relevant = @($locks | Where-Object {
-        $level = Get-PropOrDefault $_ 'properties.level' ''
-        $level -in @('CanNotDelete','ReadOnly')
-    })
+            $level = Get-PropOrDefault $_ 'properties.level' ''
+            $level -in @('CanNotDelete', 'ReadOnly')
+        })
     if ($relevant.Count -gt 0) { return $null }
     return New-Finding -Evidence 'No CanNotDelete or ReadOnly lock on the workspace. Accidental or malicious deletion would lose all detection rules, watchlists, hunting queries, and historical incident data.'
 }

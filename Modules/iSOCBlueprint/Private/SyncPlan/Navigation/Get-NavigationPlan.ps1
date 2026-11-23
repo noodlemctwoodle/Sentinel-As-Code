@@ -74,9 +74,9 @@ function Get-NavigationPlan {
 
     foreach ($family in $FamilyOrder) {
         $children = @($Sections |
-            Where-Object { $_.family -eq $family -and $exists.Contains([string]$_.page) } |
-            Sort-Object { [int]$_.num } |
-            ForEach-Object { [ordered]@{ title = [string]$_.title; url = "~site/SitePages/$($_.page).aspx"; children = @() } })
+                Where-Object { $_.family -eq $family -and $exists.Contains([string]$_.page) } |
+                Sort-Object { [int]$_.num } |
+                ForEach-Object { [ordered]@{ title = [string]$_.title; url = "~site/SitePages/$($_.page).aspx"; children = @() } })
         if ($family -eq 'Assessment' -and $children.Count -gt 0) {
             $children += [ordered]@{ title = 'Findings list'; url = "~site/$FindingsListUrl/AllItems.aspx"; children = @() }
         }

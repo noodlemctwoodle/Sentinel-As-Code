@@ -79,8 +79,7 @@ function Invoke-PublishAssets {
         $history = Add-SacMaturityHistoryEntry -History (Read-SacMaturityHistory) -Entry $entry
         Save-SacMaturityHistory -History $history
         Write-Host "  Maturity history: $(if ($WhatIfPreference) { 'would append' } else { 'appended' }) score $($entry.overall.score) for bundle $($entry.bundleBuiltUtc) ($(@($history.entries).Count) entries)"
-    }
-    else {
+    } else {
         Write-Host '  Maturity history: no assessment in this bundle, nothing appended.'
     }
 
@@ -102,8 +101,7 @@ function Invoke-PublishAssets {
         )
         Save-SacProgressHistory -History $progress
         Write-Host "  Progress history: $(if ($WhatIfPreference) { 'would keep' } else { 'kept' }) $(@($progress.entries).Count) run(s)"
-    }
-    else {
+    } else {
         Write-Host '  Progress history: no progress record in this bundle (built before progress tracking), nothing added.'
     }
 
@@ -156,8 +154,7 @@ function Invoke-PublishAssets {
         if ($seeded) { Write-Host "  Snapshots: $seeded earlier day(s) from the bundle $(if ($WhatIfPreference) { 'would be' } else { 'were' }) added" }
         Save-SacSnapshotIndex -Index $snapshots
         Write-Host "  Snapshots: $(if ($WhatIfPreference) { 'would keep' } else { 'kept' }) $snapFile; $(@($snapshots.entries).Count) day(s) in the last $HistoryDays, $(@($snapshots.removed).Count) dropped"
-    }
-    else {
+    } else {
         Write-Host '  Snapshots: off (-HistoryDays 0).'
     }
 }

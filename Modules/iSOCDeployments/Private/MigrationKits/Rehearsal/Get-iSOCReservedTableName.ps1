@@ -69,8 +69,7 @@ function Get-iSOCReservedTableName {
                 [void]$names.Add([string]$tableName)
             }
         }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not read the solution mapping: $($_.Exception.Message.Split([char]10)[0]). Falling back to the static reserved-name floor." -Level Warning
     }
     @($names)

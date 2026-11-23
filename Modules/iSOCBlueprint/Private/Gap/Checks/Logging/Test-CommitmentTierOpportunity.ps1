@@ -39,7 +39,7 @@ function Test-CommitmentTierOpportunity {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $sku = Get-PropOrDefault $Inventory.Workspace 'properties.sku.name' ''
     if ($sku -ne 'PerGB2018') { return $null }
 

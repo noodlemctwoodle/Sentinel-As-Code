@@ -55,17 +55,17 @@ function Get-iSOCDefenderDetectionContract {
     param()
 
     [ordered]@{
-        ValidDetectionSeverities     = @('informational', 'low', 'medium', 'high')
-        ValidDetectionStatuses       = @('enabled', 'disabled')
-        ValidDetectionTactics        = @(
+        ValidDetectionSeverities       = @('informational', 'low', 'medium', 'high')
+        ValidDetectionStatuses         = @('enabled', 'disabled')
+        ValidDetectionTactics          = @(
             'Reconnaissance', 'ResourceDevelopment', 'InitialAccess', 'Execution', 'Persistence',
             'PrivilegeEscalation', 'DefenseEvasion', 'CredentialAccess', 'Discovery', 'LateralMovement',
             'Collection', 'CommandAndControl', 'Exfiltration', 'Impact'
         )
         # Rule frequencies the service runs, as whole hours.
-        ValidDetectionFrequencyHours = @(1, 3, 12, 24)
+        ValidDetectionFrequencyHours   = @(1, 3, 12, 24)
 
-        EntityMappingCollections     = @(
+        EntityMappingCollections       = @(
             'accounts', 'amazonResources', 'azureResources', 'cloudApplications', 'dns', 'files',
             'googleCloudResources', 'hosts', 'ips', 'mailboxes', 'mailClusters', 'mailMessages',
             'oAuthApplications', 'processes', 'registryValues', 'securityGroups', 'urls'
@@ -93,7 +93,7 @@ function Get-iSOCDefenderDetectionContract {
 
         # Old responseActions @odata.type -> new automatedActions member and the
         # column property its single identifier fills.
-        LegacyResponseActionMap      = @{
+        LegacyResponseActionMap        = @{
             markUserAsCompromisedResponseAction       = @{ Member = 'markUsersAsCompromised'; Column = 'accountObjectIdColumn' }
             forceUserPasswordResetResponseAction      = @{ Member = 'forceUserPasswordResets'; Column = 'accountSidColumn' }
             disableUserResponseAction                 = @{ Member = 'disableUsers'; Column = 'accountSidColumn' }
@@ -114,7 +114,7 @@ function Get-iSOCDefenderDetectionContract {
 
         # Identifier tokens that name a specific column property when an old action
         # carried several comma-separated identifiers.
-        LegacyMultiIdentifierColumns = @{
+        LegacyMultiIdentifierColumns   = @{
             networkMessageId      = 'networkMessageIdColumn'
             recipientEmailAddress = 'recipientColumn'
             deviceId              = 'deviceIdColumn'

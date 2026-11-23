@@ -57,7 +57,7 @@ function Invoke-PublishPages {
     # ago in step 2 may not have registered yet. A page built without it holds
     # its charts as tables and is left unrecorded, so the next run rebuilds it.
     $needsCharts = @($pagePlan | Where-Object { $_.Action -in 'Create', 'Update' } | ForEach-Object {
-            $doc = $pageDocs[$_.Name]; if ($doc) { @($doc.segments | Where-Object type -eq 'chart') }
+            $doc = $pageDocs[$_.Name]; if ($doc) { @($doc.segments | Where-Object type -EQ 'chart') }
         }).Count -gt 0
     $chartReady = $false
     if ($needsCharts -and -not $WhatIfPreference) {
@@ -78,8 +78,7 @@ function Invoke-PublishPages {
                 } else { 'neither web part from the package is listed' }
                 Write-Host "  Chart web part not on the site ($which); charts go in as tables and those pages are rebuilt next run." -ForegroundColor Yellow
             }
-        }
-        else {
+        } else {
             # A first publish: no page exists yet to read the list through, so
             # each new page looks the web part up itself as it is built.
             $chartReady = $true
@@ -87,7 +86,7 @@ function Invoke-PublishPages {
     }
     foreach ($step in $pagePlan) {
         if ($step.Action -eq 'Delete') { continue }
-        $hash = ($desired | Where-Object Name -eq $step.Name | Select-Object -First 1).Hash
+        $hash = ($desired | Where-Object Name -EQ $step.Name | Select-Object -First 1).Hash
         if ($step.Action -eq 'Skip') { $publishedHashes[$step.Name] = $hash; continue }
         Assert-TokenFresh "page $($step.Name)"
         try {
@@ -95,8 +94,7 @@ function Invoke-PublishPages {
                 'Create') -WebServerRelativeUrl $webRel -ChartComponentAvailable:$chartReady
             if (-not $WhatIfPreference -and $native) { $publishedHashes[$step.Name] = $hash }
             Write-Host "  $($step.Action): $($step.Name)$(if (-not $native) { ' (charts as tables)' })"
-        }
-        catch {
+        } catch {
             $pageErrors.Add("$($step.Name): $($_.Exception.Message)")
             Write-Host "  FAILED $($step.Name): $($_.Exception.Message)" -ForegroundColor Red
         }

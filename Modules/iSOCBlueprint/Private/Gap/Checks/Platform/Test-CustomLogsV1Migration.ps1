@@ -39,7 +39,7 @@ function Test-CustomLogsV1Migration {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.WorkspaceTables -or -not $Inventory.TablesWithData -or -not $Inventory.Dcrs) { return $null }
 
     # Project the set of _CL tables that have any DCR feeding them. A DCR's
@@ -70,10 +70,10 @@ function Test-CustomLogsV1Migration {
     # written to them. The `_CL` name suffix is enforced at table creation
     # and is the authoritative custom-table marker.
     $clv1 = @($Inventory.WorkspaceTables | Where-Object {
-        $name = Get-PropOrDefault $_ 'name' ''
-        $type = Get-PropOrDefault $_ 'properties.schema.tableType' ''
-        ($type -eq 'CustomLog') -and ($name -like '*_CL') -and $active.ContainsKey($name) -and (-not $tablesWithDcr.ContainsKey($name))
-    })
+            $name = Get-PropOrDefault $_ 'name' ''
+            $type = Get-PropOrDefault $_ 'properties.schema.tableType' ''
+            ($type -eq 'CustomLog') -and ($name -like '*_CL') -and $active.ContainsKey($name) -and (-not $tablesWithDcr.ContainsKey($name))
+        })
     if ($clv1.Count -eq 0) { return $null }
     $names = ($clv1 | ForEach-Object { Get-EvidenceName $_ 'name' 'Unnamed table' }) -join ', '
     return New-Finding -Evidence "$(Format-BlueprintPlural $clv1.Count 'custom log table') $(Select-GapWording $clv1.Count 'receives' 'receive') data but no DCR feeds $(Select-GapWording $clv1.Count 'it' 'them'), likely still using the HTTP Data Collector API (CLv1). Affected: $names. The API $(if ([datetime]::UtcNow -ge [datetime]::new(2026, 9, 14, 0, 0, 0, [System.DateTimeKind]::Utc)) { 'retired on 14 Sep 2026' } else { 'retires on 14 Sep 2026' })." -Detail @{ Count = $clv1.Count }

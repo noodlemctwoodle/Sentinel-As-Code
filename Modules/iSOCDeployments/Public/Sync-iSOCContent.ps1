@@ -97,13 +97,11 @@ function Sync-iSOCContent {
                     if ($changed) {
                         $item.SyncAction = 'Updated'
                         Write-iSOCLog "  Synced YAML: $($item.SourceRef)" -Level Success
-                    }
-                    else {
+                    } else {
                         $item.SyncAction = 'NoMatch'
                         Write-iSOCLog "  No-op on YAML: $($item.SourceRef) (regex did not match; manual edit required)" -Level Warning
                     }
-                }
-                catch {
+                } catch {
                     $item.SyncAction = 'Failed'
                     Write-iSOCLog "  Failed to update '$($item.SourceRef)': $($_.Exception.Message)" -Level Error
                 }
@@ -120,8 +118,7 @@ function Sync-iSOCContent {
                 $item.SyncPath = $path
                 $message = if ($provenance -eq 'ContentHub') { 'Promoted ContentHub drift to Custom YAML' } else { 'Absorbed orphan into Custom YAML' }
                 Write-iSOCLog "  $message ($($item.SyncAction.ToLowerInvariant())): $path" -Level Success
-            }
-            catch {
+            } catch {
                 $item.SyncAction = 'Failed'
                 Write-iSOCLog "  Failed to $verb '$($item.Name)': $($_.Exception.Message)" -Level Error
             }

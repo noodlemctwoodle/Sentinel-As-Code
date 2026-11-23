@@ -88,8 +88,7 @@ function Invoke-iSOCAnalyticsRuleDeploy {
         if ($Disabled) { return @{ Outcome = 'DeployedDisabled'; Reason = 'missing dependencies' } }
         if ($Item.Source -eq 'Community') { return @{ Outcome = 'DeployedDisabled'; Reason = 'Community rule' } }
         return @{ Outcome = 'Deployed'; Reason = '' }
-    }
-    catch {
+    } catch {
         $errorMsg = $_.Exception.Message
         $isKqlError = $errorMsg -match 'FailedToResolveColumn|FailedToResolveScalarExpression|SemanticError|could not be found|Failed to run the analytics rule query'
 

@@ -79,8 +79,7 @@ function Deploy-iSOCDcrTemplate {
             TemplateFile      = $TemplatePath
             Force             = $true
         }
-    }
-    catch {
+    } catch {
         $detail = $null
         try {
             $operations = @(Invoke-iSOCRestRequest -Method GET -Path "/subscriptions/$($Context.SubscriptionId)/resourceGroups/$ResourceGroupName/providers/Microsoft.Resources/deployments/$deploymentName/operations" -ApiVersion (Get-iSOCApiVersion Deployments))
@@ -90,8 +89,7 @@ function Deploy-iSOCDcrTemplate {
                         $message = Get-iSOCPropertyValue -InputObject $_ -Path 'properties.statusMessage'
                         if ($message -is [string]) { $message } else { ConvertTo-Json -InputObject $message -Depth 8 -Compress }
                     }) -join ' | '
-        }
-        catch {
+        } catch {
             Write-iSOCLog "Could not read deployment operations: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
         }
         if ($detail) { throw "Deployment failed: $detail" }

@@ -53,19 +53,19 @@ function ConvertFrom-BpMermaidSequence {
         if ($t -eq 'autonumber') { $autonumber = $true; continue }
         if ($t -match '^(?<kind>participant|actor)\s+(?<id>\S+)(?:\s+as\s+(?<label>.+))?$') {
             $participants[$Matches['id']] = [ordered]@{
-                id = $Matches['id']
+                id    = $Matches['id']
                 label = $(if ($Matches['label']) { $Matches['label'].Trim() } else { $Matches['id'] })
-                kind = $Matches['kind']
+                kind  = $Matches['kind']
             }
             continue
         }
         if ($t -match '^Note\s+(?<pos>over|left of|right of)\s+(?<who>[^:]+):\s*(?<text>.*)$') {
             $steps.Add([ordered]@{
-                kind = 'note'
-                position = $Matches['pos']
-                over = @($Matches['who'] -split '\s*,\s*')
-                text = ConvertTo-BpMermaidText $Matches['text']
-            })
+                    kind     = 'note'
+                    position = $Matches['pos']
+                    over     = @($Matches['who'] -split '\s*,\s*')
+                    text     = ConvertTo-BpMermaidText $Matches['text']
+                })
             continue
         }
         if ($t -match '^(?<block>loop|alt|else|opt|par|and|critical|break|rect)\b\s*(?<text>.*)$') {

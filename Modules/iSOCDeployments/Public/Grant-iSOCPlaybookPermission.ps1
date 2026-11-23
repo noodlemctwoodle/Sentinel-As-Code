@@ -169,13 +169,11 @@ function Grant-iSOCPlaybookPermission {
                 if ($created -eq 'Exists') {
                     Write-iSOCLog "  [OK]   $role - already assigned (conflict)."
                     $results.Add((New-iSOCPermissionResult @result -Outcome Unchanged -Reason 'already assigned (conflict)'))
-                }
-                else {
+                } else {
                     Write-iSOCLog "  [OK]   Assigned: $role" -Level Success
                     $results.Add((New-iSOCPermissionResult @result -Outcome Assigned))
                 }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "  [FAIL] $role - $($_.Exception.Message)" -Level Error
                 $results.Add((New-iSOCPermissionResult @result -Outcome Failed -Reason $_.Exception.Message))
             }

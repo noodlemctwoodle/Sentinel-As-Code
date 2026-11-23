@@ -39,11 +39,11 @@ function Test-RetentionOverArchive {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $bad = @($Inventory.WorkspaceTables | Where-Object {
-        $r = [int](Get-PropOrDefault $_ 'properties.retentionInDays' 0)
-        $r -gt 90
-    })
+            $r = [int](Get-PropOrDefault $_ 'properties.retentionInDays' 0)
+            $r -gt 90
+        })
     if ($bad.Count -gt 0) {
         return New-Finding -Evidence "$(Format-BlueprintPlural $bad.Count 'table') $(Select-GapWording $bad.Count 'has' 'have') interactive retention of more than 90 days. Consider lowering retentionInDays and using totalRetentionInDays for archive." -Detail @{ Count = $bad.Count }
     }

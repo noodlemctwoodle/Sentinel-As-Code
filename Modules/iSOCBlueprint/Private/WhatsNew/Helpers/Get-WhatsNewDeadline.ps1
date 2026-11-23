@@ -47,8 +47,7 @@ function Get-WhatsNewDeadline {
             if ($day -ge 1 -and $day -le [datetime]::DaysInMonth($year, $mon)) {
                 [pscustomobject]@{ Sort = (Get-Date -Year $year -Month $mon -Day $day).Date; Text = '{0:D4}-{1:D2}-{2:D2}' -f $year, $mon, $day }
             }
-        }
-        else { [pscustomobject]@{ Sort = (Get-Date -Year $year -Month $mon -Day 1).Date; Text = '{0:D4}-{1:D2}' -f $year, $mon } }
+        } else { [pscustomobject]@{ Sort = (Get-Date -Year $year -Month $mon -Day 1).Date; Text = '{0:D4}-{1:D2}' -f $year, $mon } }
     }
     if (-not $found) { return $null }
     return (@($found) | Sort-Object Sort | Select-Object -Last 1).Text

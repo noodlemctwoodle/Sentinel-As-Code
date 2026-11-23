@@ -47,8 +47,7 @@ function Wait-SacPageComponent {
     while ($true) {
         try {
             if (Test-SacPageComponent -ComponentId $ComponentId -PageName $PageName) { return $true }
-        }
-        catch {
+        } catch {
             # Shown, not swallowed: a lookup that fails every time would
             # otherwise look like a web part that never arrives.
             Write-Host "  Could not read the component list through $PageName.aspx: $($_.Exception.Message)" -ForegroundColor Yellow

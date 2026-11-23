@@ -72,8 +72,7 @@ function Invoke-iSOCBlueprintConnectorCatalogueUpdate {
 
     $raw = if ($Source -match '^https?://') {
         (Invoke-WebRequest -Uri $Source -UseBasicParsing).Content
-    }
-    else {
+    } else {
         Get-Content -LiteralPath $Source -Raw
     }
     $doc = $raw | ConvertFrom-Json -Depth 16

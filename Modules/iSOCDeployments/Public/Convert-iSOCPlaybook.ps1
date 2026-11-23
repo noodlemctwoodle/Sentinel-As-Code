@@ -162,8 +162,7 @@ function Convert-iSOCPlaybook {
                     if ($versionKey.Count -eq 1 -and [string]$resource[$versionKey[0]] -eq '2017-07-01') { $resource[$versionKey[0]] = '2019-05-01' }
                 }
                 $text = ConvertTo-iSOCPlaybookBicep -Template $template
-            }
-            catch {
+            } catch {
                 & $newResult $item 'Failed' "cannot be written as Bicep: $($_.Exception.Message)"
                 continue
             }
@@ -213,14 +212,12 @@ function Convert-iSOCPlaybook {
                     Write-iSOCTextFile -Path $candidate.Target -Content $candidate.Text
                     Remove-Item -LiteralPath $candidate.Item.Path -Force -WhatIf:$false -Confirm:$false
                     & $newResult $candidate.Item 'Converted' '' $warnings
-                }
-                else {
+                } else {
                     & $newResult $candidate.Item 'WhatIf' "would write $bicepName and remove the JSON" $warnings
                 }
             }
         }
-    }
-    finally {
+    } finally {
         if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -WhatIf:$false -Confirm:$false }
     }
 

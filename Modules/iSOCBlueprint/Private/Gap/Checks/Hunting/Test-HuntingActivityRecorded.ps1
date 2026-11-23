@@ -39,7 +39,7 @@ function Test-HuntingActivityRecorded {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # Both captures must have run: hunts.json is only written on success,
     # and an empty bookmarks list means nothing without it. When the
     # bookmarks list was too large to fetch, the collector keeps the count
@@ -52,7 +52,7 @@ function Test-HuntingActivityRecorded {
     }
     if (@($Inventory.Hunts).Count -eq 0 -and $bookmarkCount -eq 0) {
         return New-Finding -Evidence 'No hunts and no bookmarks exist in the workspace, so there is no record of proactive hunting in Sentinel.' -Detail @{
-            Hunts = 0
+            Hunts     = 0
             Bookmarks = 0
         }
     }
@@ -75,10 +75,10 @@ function Test-HuntingActivityRecorded {
     if ($activity.BookmarksRecent -ne 0 -or $activity.HuntsRecent -ne 0) { return $null }
     $hunts = @($Inventory.Hunts).Count
     return New-Finding -Evidence "$(Format-BlueprintPlural $bookmarkCount 'bookmark') and $(Format-BlueprintPlural $hunts 'hunt') exist, but none has been created or changed in the last $(Format-GapDays $days), so there is no record of recent proactive hunting in Sentinel." -Detail @{
-        Hunts = $hunts
-        Bookmarks = $bookmarkCount
-        RecentHunts = 0
+        Hunts           = $hunts
+        Bookmarks       = $bookmarkCount
+        RecentHunts     = 0
         RecentBookmarks = 0
-        WindowDays = $days
+        WindowDays      = $days
     }
 }

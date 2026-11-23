@@ -79,9 +79,9 @@ function Resolve-MaturitySource {
             $value = $Metrics[$path]
             if ($null -eq $value) {
                 return [pscustomobject]@{
-                    Status = 'Unknown'
-                    Metric = $null
-                    Rule = $null
+                    Status   = 'Unknown'
+                    Metric   = $null
+                    Rule     = $null
                     Evidence = "Metric '$path' has no value in this run (not captured, or nothing to measure)."
                 }
             }
@@ -111,7 +111,7 @@ function Resolve-MaturitySource {
             } else {
                 if ($statuses -contains 'Met') { 'Met' } elseif ($statuses -contains 'Unknown') { 'Unknown' } else { 'Gap' }
             }
-            $decider = @($parts | Where-Object Status -eq $status | Select-Object -First 1)
+            $decider = @($parts | Where-Object Status -EQ $status | Select-Object -First 1)
             $metric = @($parts | Where-Object { $null -ne $_.Metric } | Select-Object -First 1 | ForEach-Object { $_.Metric })
             $evidence = @($parts | Where-Object { $_.Status -eq $status -and $_.Evidence } | ForEach-Object { $_.Evidence }) -join ' '
             return [pscustomobject]@{

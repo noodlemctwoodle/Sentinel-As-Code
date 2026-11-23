@@ -154,12 +154,12 @@ function Get-AzureRetailPrice {
     }
 
     $result = [pscustomobject]@{
-        FetchedAtUtc = (Get-Date).ToUniversalTime().ToString('o')
-        Region       = $Region
-        Currency     = $CurrencyCode
+        FetchedAtUtc   = (Get-Date).ToUniversalTime().ToString('o')
+        Region         = $Region
+        Currency       = $CurrencyCode
         CurrencySource = $CurrencySource
-        Services     = $ServiceNames
-        Prices       = $allPrices.ToArray()
+        Services       = $ServiceNames
+        Prices         = $allPrices.ToArray()
     }
 
     $result | ConvertTo-Json -Depth 10 | Set-Content -Path $cacheFile -Encoding UTF8

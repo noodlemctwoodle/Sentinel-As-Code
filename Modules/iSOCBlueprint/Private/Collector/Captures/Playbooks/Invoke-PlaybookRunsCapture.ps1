@@ -48,14 +48,14 @@ function Invoke-PlaybookRunsCapture {
         if ($wf.PSObject.Properties.Name -contains 'properties' -and $null -ne $wf.properties -and
             $wf.properties.PSObject.Properties.Name -contains 'state') { $state = [string]$wf.properties.state }
         $row = [ordered]@{
-            Playbook = $wfName
-            Id = [string]$wf.id
-            Runs7d = 0
-            Failed7d = 0
+            Playbook       = $wfName
+            Id             = [string]$wf.id
+            Runs7d         = 0
+            Failed7d       = 0
             LastFailureUtc = $null
-            LastRunStatus = $null
-            Note = $null
-            Daily = @()
+            LastRunStatus  = $null
+            Note           = $null
+            Daily          = @()
         }
         if ($state -eq 'Enabled') {
             $runsTried++
@@ -96,8 +96,8 @@ function Invoke-PlaybookRunsCapture {
     }
     # One line for the playbooks whose history could not be read, not one each.
     foreach ($issue in @(
-        Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total $runsTried -Failures $runFailures
-    )) {
+            Write-PartialCaptureIssue -Label 'playbook-runs' -What 'the run history of' -Noun 'playbook', 'playbooks' -Total $runsTried -Failures $runFailures
+        )) {
         $script:CaptureErrors.Add($issue)
     }
     Save-Json -FileName 'playbook-runs.json' -Data $runRows

@@ -88,8 +88,7 @@ function Wait-iSOCFixtureQueryable {
                 $subType = [string](Get-iSOCPropertyValue -InputObject $detail -Path 'properties.schema.tableSubType')
                 if (-not $subType) { $subType = 'Unknown' }
                 if ($subType -ne 'Unknown') { break }
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "Table $($table.TableName) not present yet: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
             }
             $poll++
@@ -113,8 +112,7 @@ function Wait-iSOCFixtureQueryable {
                 Invoke-iSOCAzLogQuery -WorkspaceId $Context.WorkspaceId -Query "$($table.TableName) | take 1" | Out-Null
                 $queryable = $true
                 break
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "Table $($table.TableName) not queryable yet: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
                 Start-Sleep -Seconds 15
             }

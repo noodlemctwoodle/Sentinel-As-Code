@@ -127,8 +127,7 @@ function Resolve-iSOCTableSchema {
     $names = @($resolved | ForEach-Object { $_.Name })
     if ($names -notcontains 'TimeGenerated') {
         $schemaIssues.Add([pscustomobject]@{ Severity = 'Error'; Message = 'no TimeGenerated column. Every custom table needs one, of type datetime.'; Fix = 'AddTimeGenerated' })
-    }
-    else {
+    } else {
         $timeGenerated = @($resolved | Where-Object { $_.Name -eq 'TimeGenerated' })[0]
         if ($timeGenerated.Type -ne 'dateTime') {
             $schemaIssues.Add([pscustomobject]@{ Severity = 'Error'; Message = "TimeGenerated is declared '$($timeGenerated.DeclaredType)'. It must be datetime."; Fix = 'FixTimeGeneratedType' })

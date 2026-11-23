@@ -90,11 +90,11 @@ Describe 'Hunting query handlers' {
 
     It 'turns the description, tactics, techniques and the file''s own tags into saved search tags' {
         $tags = @((Get-Request $script:hunt).Body.properties.tags)
-        ($tags | Where-Object name -eq 'description').value | Should -Match 'used by the iSOCDeployments tests'
-        ($tags | Where-Object name -eq 'tactics').value | Should -BeExactly 'CredentialAccess,InitialAccess'
-        ($tags | Where-Object name -eq 'techniques').value | Should -BeExactly 'T1110'
-        ($tags | Where-Object name -eq 'subTechniques').value | Should -BeExactly 'T1110.003'
-        ($tags | Where-Object name -eq 'owner').value | Should -Be 'soc'
+        ($tags | Where-Object name -EQ 'description').value | Should -Match 'used by the iSOCDeployments tests'
+        ($tags | Where-Object name -EQ 'tactics').value | Should -BeExactly 'CredentialAccess,InitialAccess'
+        ($tags | Where-Object name -EQ 'techniques').value | Should -BeExactly 'T1110'
+        ($tags | Where-Object name -EQ 'subTechniques').value | Should -BeExactly 'T1110.003'
+        ($tags | Where-Object name -EQ 'owner').value | Should -Be 'soc'
     }
 
     It 'sends no tags when the file has none to give' {

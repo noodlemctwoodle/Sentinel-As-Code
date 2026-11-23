@@ -44,6 +44,6 @@ function Resolve-iSOCBlueprintRunFolder {
     $Run.Root = $root
     $Run.WorkspaceRoot = $workspaceRoot
     $Run.Workspace = if ($Run.NoDateFolder) { $workspaceRoot }
-        elseif ($Run.SkipCollection) { Resolve-iSOCBlueprintRunPath -Path $workspaceRoot }
-        else { Join-Path $workspaceRoot (Get-iSOCBlueprintRunFolderName) }
+    elseif ($Run.SkipCollection) { Resolve-iSOCBlueprintRunPath -Path $workspaceRoot }
+    else { Join-Path $workspaceRoot (Get-iSOCBlueprintRunFolderName) }
 }

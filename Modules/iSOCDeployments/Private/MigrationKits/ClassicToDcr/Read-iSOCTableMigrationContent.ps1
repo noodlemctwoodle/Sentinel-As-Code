@@ -69,8 +69,7 @@ function Read-iSOCTableMigrationContent {
     Write-iSOCLog '  Loading workbooks...'
     try {
         $workbooks = @(Invoke-iSOCRestRequest -Method GET -Path "$subscription/providers/Microsoft.Insights/workbooks?category=sentinel&canFetchContent=true" -ApiVersion (Get-iSOCApiVersion Workbooks))
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Workbook load failed: $($_.Exception.Message)" -Level Warning
         $workbooks = @()
     }
@@ -80,8 +79,7 @@ function Read-iSOCTableMigrationContent {
                 try {
                     $detail = Invoke-iSOCRestRequest -Method GET -Path "$($id)?canFetchContent=true" -ApiVersion (Get-iSOCApiVersion Workbooks)
                     if (Get-iSOCPropertyValue -InputObject $detail -Path 'properties.serializedData') { $wb = $detail }
-                }
-                catch {
+                } catch {
                     Write-iSOCLog "Workbook '$(Get-iSOCPropertyValue -InputObject $wb -Path 'properties.displayName')' content load failed: $($_.Exception.Message)" -Level Warning
                 }
             }
@@ -91,8 +89,7 @@ function Read-iSOCTableMigrationContent {
     Write-iSOCLog '  Loading data collection rules...'
     try {
         $dcrs = @(Invoke-iSOCRestRequest -Method GET -Path "$subscription/providers/Microsoft.Insights/dataCollectionRules" -ApiVersion (Get-iSOCApiVersion DataCollectionRules))
-    }
-    catch {
+    } catch {
         Write-iSOCLog "DCR load failed: $($_.Exception.Message)" -Level Warning
         $dcrs = @()
     }
@@ -100,8 +97,7 @@ function Read-iSOCTableMigrationContent {
     Write-iSOCLog '  Loading Logic Apps (playbooks)...'
     try {
         $logicApps = @(Invoke-iSOCRestRequest -Method GET -Path "$subscription/providers/Microsoft.Logic/workflows" -ApiVersion (Get-iSOCApiVersion LogicApps))
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Logic App load failed: $($_.Exception.Message)" -Level Warning
         $logicApps = @()
     }

@@ -54,9 +54,9 @@ function Get-CostPlanRates {
     $auxUnit = if ($lakeEnrolled -and $lakeUnit -gt 0) { $lakeUnit } else { (Get-CostUnitPrice $unitPrices 'SentinelAuxiliary') + (Get-CostUnitPrice $unitPrices 'AuxiliaryIngestion') }
     # Older property names, kept for any caller reading them.
     $unitPrices.AnalyticsIngestionPerGb = $analyticsUnit
-    $unitPrices.BasicIngestionPerGb     = $basicUnit
+    $unitPrices.BasicIngestionPerGb = $basicUnit
     $unitPrices.AuxiliaryIngestionPerGb = $auxUnit
-    $unitPrices.DataLakeIngestionPerGb  = $lakeUnit
+    $unitPrices.DataLakeIngestionPerGb = $lakeUnit
 
     # Left for the steps after this one.
     $Context.simplified = $simplified

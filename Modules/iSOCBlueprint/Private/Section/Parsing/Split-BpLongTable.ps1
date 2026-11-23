@@ -53,7 +53,7 @@ function Split-BpLongTable {
         $line = $lines[$i]
         if ($line -match '^\s*(```|~~~)') { $inFence = -not $inFence; $out.Add($line); $i++; continue }
         $isTable = -not $inFence -and $line -match '^\|' -and ($i + 1) -lt $lines.Count -and
-            $lines[$i + 1] -match '^\|(\s*:?-+:?\s*\|)+\s*$'
+        $lines[$i + 1] -match '^\|(\s*:?-+:?\s*\|)+\s*$'
         if (-not $isTable) { $out.Add($line); $i++; continue }
 
         $header = $line

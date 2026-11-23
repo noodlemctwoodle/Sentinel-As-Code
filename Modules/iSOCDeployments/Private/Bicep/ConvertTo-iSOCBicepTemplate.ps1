@@ -203,8 +203,7 @@ function ConvertTo-iSOCBicepTemplate {
                     $nameVariable = $Matches[1]
                     $stem = if ($symbols.Variables.ContainsKey($nameVariable)) { $symbols.Variables[$nameVariable] } else { ConvertTo-iSOCBicepCamelCase -Name $nameVariable }
                     $stem -replace 'Name$', ''
-                }
-                else { 'connection' }
+                } else { 'connection' }
                 break
             }
             default { $segment = ($type -split '/')[-1]; $segment.Substring(0, 1).ToLowerInvariant() + $segment.Substring(1) -replace 's$', '' }
@@ -247,8 +246,7 @@ function ConvertTo-iSOCBicepTemplate {
                         if ($meta.Key -ieq 'description') {
                             $decorators.Add("@description($(ConvertTo-iSOCBicepString -Value ([string]$meta.Value)))")
                             $described = $true
-                        }
-                        else { throw "Parameter '$($parameter.Key)' has metadata '$($meta.Key)', which is not written as Bicep." }
+                        } else { throw "Parameter '$($parameter.Key)' has metadata '$($meta.Key)', which is not written as Bicep." }
                     }
                 }
                 default { throw "Parameter '$($parameter.Key)' has '$($entry.Key)', which is not written as Bicep." }
@@ -287,7 +285,7 @@ function ConvertTo-iSOCBicepTemplate {
     # on, so a playbook builds clean. Keys are type@apiVersion in lower case.
     $typeGaps = @{
         # No type data at all for this api-version.
-        'microsoft.logic/workflows@2017-07-01'  = @{ Resource = 'BCP081' }
+        'microsoft.logic/workflows@2017-07-01' = @{ Resource = 'BCP081' }
         # kind (V1) and properties.parameterValueType (Alternative, for a
         # managed identity connection) are valid but not in the type data.
         'microsoft.web/connections@2016-06-01' = @{ Lines = @{ '  kind: ' = 'BCP187'; '    parameterValueType: ' = 'BCP037' } }
@@ -327,8 +325,7 @@ function ConvertTo-iSOCBicepTemplate {
                     throw "Resource '$($entry.Symbol)' depends on '$dependency', which is not a resource in the template."
                 }
                 @{ Type = $node.Arguments[0].Value; NameText = ConvertTo-iSOCArmExpressionText -Node $node.Arguments[1] }
-            }
-            else { @{ Type = $null; NameText = & $nameTextOf $dependency } }
+            } else { @{ Type = $null; NameText = & $nameTextOf $dependency } }
             $target = @($symbols.Resources | Where-Object { $_.NameText -ieq $text.NameText -and (-not $text.Type -or $_.Type -ieq $text.Type) })
             if ($target.Count -ne 1) { throw "Resource '$($entry.Symbol)' depends on '$dependency', which is not a resource in the template." }
             if ($body -notmatch "(?<![A-Za-z0-9_])$([regex]::Escape($target[0].Symbol))\.") { $target[0].Symbol }

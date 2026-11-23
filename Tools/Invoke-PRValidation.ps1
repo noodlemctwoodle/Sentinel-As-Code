@@ -157,13 +157,13 @@ if (-not (Test-Path $testsRoot)) {
 }
 
 $config = New-PesterConfiguration
-$config.Run.Path        = $testsRoot
-$config.Run.PassThru    = $true
-$config.Run.Exit        = $false   # we handle exit code ourselves
+$config.Run.Path = $testsRoot
+$config.Run.PassThru = $true
+$config.Run.Exit = $false   # we handle exit code ourselves
 $config.Output.Verbosity = 'Detailed'
-$config.TestResult.Enabled       = $true
-$config.TestResult.OutputFormat  = 'NUnitXml'
-$config.TestResult.OutputPath    = $TestResultsPath
+$config.TestResult.Enabled = $true
+$config.TestResult.OutputFormat = 'NUnitXml'
+$config.TestResult.OutputPath = $TestResultsPath
 
 if ($TestNameFilter) {
     $config.Filter.FullName = $TestNameFilter

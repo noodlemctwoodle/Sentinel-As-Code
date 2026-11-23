@@ -46,7 +46,7 @@ function Get-ConnectorAggregateState {
     param([psobject]$Connector)
     # RestApiPoller / Push connectors don't carry a dataTypes map. Treat the
     # presence of a dataType + dcrConfig as 'enabled' for that kind.
-    if ($Connector.kind -in @('RestApiPoller','Push')) {
+    if ($Connector.kind -in @('RestApiPoller', 'Push')) {
         $hasDataType = $Connector.properties.PSObject.Properties.Name -contains 'dataType' -and $Connector.properties.dataType
         $hasDcr = $Connector.properties.PSObject.Properties.Name -contains 'dcrConfig' -and $Connector.properties.dcrConfig
         if ($hasDataType -and $hasDcr) { return 'enabled' }
@@ -61,7 +61,7 @@ function Get-ConnectorAggregateState {
         $s = $dataTypes.$n.state
         if ($s) { $s.ToLowerInvariant() } else { 'unknown' }
     }
-    $enabled  = @($states | Where-Object { $_ -eq 'enabled' }).Count
+    $enabled = @($states | Where-Object { $_ -eq 'enabled' }).Count
     $disabled = @($states | Where-Object { $_ -eq 'disabled' }).Count
     if ($enabled -eq $states.Count) { 'enabled' }
     elseif ($disabled -eq $states.Count) { 'disabled' }

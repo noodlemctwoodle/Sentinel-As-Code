@@ -40,12 +40,12 @@ function Read-CostInputs {
     $InputRoot = $Context.InputRoot
     $ResourcesRoot = $Context.ResourcesRoot
 
-    $tables       = @(Read-CostJson (Join-Path $InputRoot 'tables-with-data.json'))
-    $schemas      = @(Read-CostJson (Join-Path $InputRoot 'workspace-tables.json'))
-    $workspace    = Read-CostJson (Join-Path $InputRoot 'workspace.json')
+    $tables = @(Read-CostJson (Join-Path $InputRoot 'tables-with-data.json'))
+    $schemas = @(Read-CostJson (Join-Path $InputRoot 'workspace-tables.json'))
+    $workspace = Read-CostJson (Join-Path $InputRoot 'workspace.json')
     # How Sentinel is billed: the SecurityInsights solution's properties.sku
     # (Unified is simplified pricing, anything else classic).
-    $billedModel  = $null
+    $billedModel = $null
     foreach ($sol in @(Read-CostJson (Join-Path $InputRoot 'solutions-installed.json'))) {
         if (-not $sol -or -not $sol.PSObject.Properties['plan'] -or -not $sol.plan -or [string]$sol.plan.product -notmatch 'SecurityInsights$') { continue }
         $solProps = if ($sol.PSObject.Properties['properties']) { $sol.properties } else { $null }
@@ -54,17 +54,17 @@ function Read-CostInputs {
         } else { '' }
         if ($solSku) { $billedModel = if ($solSku -eq 'Unified') { 'Simplified' } else { 'Classic' } }
     }
-    $pricesBlob   = Read-CostJson (Join-Path $InputRoot 'retail-prices.json')
-    $benefitJson  = Read-CostJson (Join-Path $ResourcesRoot 'sentinel-benefit-tables.json')
+    $pricesBlob = Read-CostJson (Join-Path $InputRoot 'retail-prices.json')
+    $benefitJson = Read-CostJson (Join-Path $ResourcesRoot 'sentinel-benefit-tables.json')
     # The days of Usage the tables carry: the run's lookback (run-context.json),
     # 30 for a run collected before the setting existed. A month is projected
     # from it as 30 days at the window's rate.
-    $runContext   = Read-CostJson (Join-Path $InputRoot 'run-context.json')
-    $windowDays   = 30
+    $runContext = Read-CostJson (Join-Path $InputRoot 'run-context.json')
+    $windowDays = 30
     if ($runContext -and $runContext.PSObject.Properties['LookbackDays'] -and [int]$runContext.LookbackDays -ge 1) {
         $windowDays = [int]$runContext.LookbackDays
     }
-    $toMonth      = 30.0 / $windowDays
+    $toMonth = 30.0 / $windowDays
 
     # Left for the steps after this one.
     $Context.tables = $tables

@@ -81,10 +81,10 @@ function New-BlueprintEstateModel {
         if ($dn) { $queryRuleKeys["name:$dn"] = $true }
     }
     $firedEnabled = @($rulesFired | Where-Object {
-        if (-not $_) { return $false }
-        $k = ([string](Get-BlueprintRawProperty $_ 'AlertRuleId' '')).ToLowerInvariant(); if ($k -match '/') { $k = ($k -split '/')[-1] }
-        if ($k) { $queryRuleKeys.ContainsKey($k) } else { $queryRuleKeys.ContainsKey("name:$([string](Get-BlueprintRawProperty $_ 'AlertName' ''))") }
-    }).Count
+            if (-not $_) { return $false }
+            $k = ([string](Get-BlueprintRawProperty $_ 'AlertRuleId' '')).ToLowerInvariant(); if ($k -match '/') { $k = ($k -split '/')[-1] }
+            if ($k) { $queryRuleKeys.ContainsKey($k) } else { $queryRuleKeys.ContainsKey("name:$([string](Get-BlueprintRawProperty $_ 'AlertName' ''))") }
+        }).Count
     # Every alert from every product, so alerts and incidents count the same
     # things (in a workspace joined to the Defender portal every incident is
     # a Defender XDR one, whichever product raised its alerts); the rules'
@@ -92,8 +92,8 @@ function New-BlueprintEstateModel {
     $alerts = [long]0
     foreach ($v in @($ruleVolumesAll | Where-Object { $_ })) { $alerts += [long](ConvertTo-BlueprintNumber (Get-BlueprintRawProperty $v 'Alerts' 0)) }
     if ($alerts -le 0) { $alerts = $ruleAlerts }
-    $incidents = if ($incSummary -and $incSummary.PSObject.Properties['Count'])  { [int](ConvertTo-BlueprintNumber $incSummary.Count) }  else { 0 }
-    $closed    = if ($incSummary -and $incSummary.PSObject.Properties['Closed']) { [int](ConvertTo-BlueprintNumber $incSummary.Closed) } else { 0 }
+    $incidents = if ($incSummary -and $incSummary.PSObject.Properties['Count']) { [int](ConvertTo-BlueprintNumber $incSummary.Count) }  else { 0 }
+    $closed = if ($incSummary -and $incSummary.PSObject.Properties['Closed']) { [int](ConvertTo-BlueprintNumber $incSummary.Closed) } else { 0 }
     # First-party alerts by family: raised inside Defender XDR, Entra ID
     # Protection, Defender for Identity or Defender for Cloud, so they read
     # no workspace table and sit beside the family instead of in coverage.
@@ -108,29 +108,29 @@ function New-BlueprintEstateModel {
         $productAgg[$key].Detections++
     }
     [pscustomobject]@{
-        Sources             = $sources
-        ProductAlerts       = @($productAgg.Values | Sort-Object { -$_.Alerts })
+        Sources                  = $sources
+        ProductAlerts            = @($productAgg.Values | Sort-Object { - $_.Alerts })
         CustomDetectionsCaptured = $customDetectionsCaptured
         CustomDetectionsTotal    = @($customDetectionsRaw | Where-Object { $_ }).Count
         CustomDetectionsEnabled  = @($customDetectionRefs | Where-Object { $_ -and (Get-BlueprintRawProperty $_ 'Enabled' $false) -eq $true }).Count
-        TablesSeen          = @($tablesWithData | Where-Object { $_ -and (ConvertTo-BlueprintNumber $_.BillableLast30d) -gt 0 }).Count
-        TablesActive        = $tablesActive
-        TablesCovered       = $tablesCovered
-        TotalGb             = [math]::Round($totalGb, 2)
-        CoveredGb           = [math]::Round($coveredGb, 2)
-        UncoveredGb         = [math]::Round($totalGb - $coveredGb, 2)
-        TemplatesApplicable = @(
+        TablesSeen               = @($tablesWithData | Where-Object { $_ -and (ConvertTo-BlueprintNumber $_.BillableLast30d) -gt 0 }).Count
+        TablesActive             = $tablesActive
+        TablesCovered            = $tablesCovered
+        TotalGb                  = [math]::Round($totalGb, 2)
+        CoveredGb                = [math]::Round($coveredGb, 2)
+        UncoveredGb              = [math]::Round($totalGb - $coveredGb, 2)
+        TemplatesApplicable      = @(
             $templateTableRefs |
                 Where-Object { $_.Deprecated -ne $true -and -not (Test-TemplateRetired -Map $templateSolutionMap -TemplateId ([string]$_.TemplateId)) }
         ).Count
-        RulesEnabled        = $enabledRules.Count
-        RulesQueryEnabled   = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
-        RulesFired          = $firedEnabled
-        Alerts              = $alerts
-        RuleAlerts          = $ruleAlerts
-        XdrAlerts           = [long](($productAgg.Values | Measure-Object -Property Alerts -Sum).Sum)
-        Incidents           = $incidents
-        IncidentsClosed     = $closed
-        IncidentsOpen       = [math]::Max(0, $incidents - $closed)
+        RulesEnabled             = $enabledRules.Count
+        RulesQueryEnabled        = @($enabledRules | Where-Object { $_.kind -in @('Scheduled', 'NRT') }).Count
+        RulesFired               = $firedEnabled
+        Alerts                   = $alerts
+        RuleAlerts               = $ruleAlerts
+        XdrAlerts                = [long](($productAgg.Values | Measure-Object -Property Alerts -Sum).Sum)
+        Incidents                = $incidents
+        IncidentsClosed          = $closed
+        IncidentsOpen            = [math]::Max(0, $incidents - $closed)
     }
 }

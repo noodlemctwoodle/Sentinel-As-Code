@@ -39,7 +39,7 @@ function Test-HighVolumeTablePlanCandidate {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
-    [CmdletBinding()] param([Parameter(Mandatory=$true)]$Inventory)
+    [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $analytics = @{}
     foreach ($t in @($Inventory.WorkspaceTables)) {
         $name = Get-PropOrDefault $t 'name' ''
@@ -47,9 +47,9 @@ function Test-HighVolumeTablePlanCandidate {
         if ($name -and $plan -eq 'Analytics') { $analytics[$name] = $true }
     }
     $candidates = @($Inventory.TablesWithData | Where-Object {
-        (ConvertTo-GapPer30Days ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -gt 50.0 -and
-        $analytics.ContainsKey((Get-PropOrDefault $_ 'DataType' ''))
-    })
+            (ConvertTo-GapPer30Days ([double](Get-PropOrDefault $_ 'BillableLast30d' 0)) $Inventory) -gt 50.0 -and
+            $analytics.ContainsKey((Get-PropOrDefault $_ 'DataType' ''))
+        })
     if ($candidates.Count -gt 0) {
         $names = ($candidates | Select-Object -ExpandProperty DataType) -join ', '
         return New-Finding -Evidence "$(Select-GapWording $candidates.Count 'Analytics-plan table above 50 GB per 30 days that is a Basic/Auxiliary candidate' 'Analytics-plan tables above 50 GB per 30 days that are Basic/Auxiliary candidates'): $names." -Detail @{ Tables = $names }

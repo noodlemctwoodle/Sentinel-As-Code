@@ -149,69 +149,69 @@ Describe 'The schema helpers' {
 
     It 'reads every shipped example' {
         $expected = [ordered]@{
-            'annotated.json' = '{"TableName":"PaymentAudit_CL",' +
-                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the gateway recorded the event."},' +
-                '{"name":"TransactionId","type":"guid","description":"Gateway transaction identifier. Declared string in the DCR stream and cast back by the transform, because a stream declaration cannot express guid."},' +
-                '{"name":"MerchantName","type":"string","displayName":"Merchant","description":"Trading name of the merchant."},' +
-                '{"name":"SourceIp","type":"string","dataTypeHint":"ip","description":"Caller address. The ip hint lets the portal and Sentinel entity mapping treat it as an address rather than text."},' +
-                '{"name":"GatewayResourceId","type":"string","dataTypeHint":"armPath","description":"Resource ID of the gateway instance."},' +
-                '{"name":"CallbackUrl","type":"string","dataTypeHint":"uri","description":"Merchant callback endpoint."},' +
-                '{"name":"AmountMinorUnits","type":"long","description":"Amount in minor units. Integral on purpose: a real would introduce floating-point error into money."},' +
-                '{"name":"Succeeded","type":"boolean","description":"Whether the gateway authorised the payment."},' +
-                '{"name":"RiskScore","type":"real","description":"Fraud score between 0 and 1."},' +
-                '{"name":"GatewayResponse","type":"dynamic","description":"Full gateway response body, kept as an object so it stays queryable."}],' +
-                '"Extra":{"description":"Payment gateway audit events, pushed over the Logs Ingestion API.",' +
-                '"dcrName":"dcr-payment-audit",' +
-                '"plan":"Analytics",' +
-                '"retentionInDays":30,' +
-                '"totalRetentionInDays":730,' +
-                '"transformKql":"source | where isnotempty(TransactionId) | extend TransactionId = toguid(TransactionId)"}}'
-            'auxiliary-plan.json' = '{"TableName":"NetFlowArchive_CL",' +
-                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"Flow timestamp. An Auxiliary table only accepts ISO 8601 with six decimal places, for example 2026-07-30T09:15:22.123456Z."},' +
-                '{"name":"SourceIp","type":"string","dataTypeHint":"ip","description":"Flow source address."},' +
-                '{"name":"DestinationIp","type":"string","dataTypeHint":"ip","description":"Flow destination address."},' +
-                '{"name":"DestinationPort","type":"int","description":"Destination port."},' +
-                '{"name":"Protocol","type":"string","description":"Transport protocol."},' +
-                '{"name":"BytesSent","type":"long","description":"Bytes sent. Long rather than int, because a flow archive overflows a 32-bit counter."},' +
-                '{"name":"BytesReceived","type":"long","description":"Bytes received."},' +
-                '{"name":"Action","type":"string","description":"Whether the flow was allowed or denied."}],' +
-                '"Extra":{"description":"Verbose network flow records kept for compliance. Auxiliary plan: cheapest ingestion, 30-day fixed interactive retention, low-fidelity query only. TimeGenerated must be sent as ISO 8601 with six decimal places.",' +
-                '"dcrName":"dcr-netflow-archive",' +
-                '"plan":"Auxiliary",' +
-                '"totalRetentionInDays":365}}'
-            'basic-plan.json' = '{"TableName":"AppTrace_CL",' +
-                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the application emitted the trace."},' +
-                '{"name":"Component","type":"string","description":"Emitting component. Keep the filterable fields as real columns, because Basic tables support a reduced KQL surface."},' +
-                '{"name":"Level","type":"string","description":"Trace level, for example Information or Warning."},' +
-                '{"name":"CorrelationId","type":"string","description":"Request correlation identifier."},' +
-                '{"name":"Message","type":"string","description":"Trace message."},' +
-                '{"name":"Properties","type":"dynamic","description":"Structured trace properties."}],' +
-                '"Extra":{"description":"High-volume application traces. Basic plan: cheap to ingest, 30-day fixed interactive retention, no alerting.",' +
-                '"dcrName":"dcr-app-trace",' +
-                '"plan":"Basic",' +
-                '"totalRetentionInDays":365}}'
-            'minimal.json' = '{"TableName":"MyApp_CL",' +
-                '"Columns":[{"name":"TimeGenerated","type":"datetime"},' +
-                '{"name":"Message","type":"string"}],' +
-                '"Extra":{}}'
+            'annotated.json'           = '{"TableName":"PaymentAudit_CL",' +
+            '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the gateway recorded the event."},' +
+            '{"name":"TransactionId","type":"guid","description":"Gateway transaction identifier. Declared string in the DCR stream and cast back by the transform, because a stream declaration cannot express guid."},' +
+            '{"name":"MerchantName","type":"string","displayName":"Merchant","description":"Trading name of the merchant."},' +
+            '{"name":"SourceIp","type":"string","dataTypeHint":"ip","description":"Caller address. The ip hint lets the portal and Sentinel entity mapping treat it as an address rather than text."},' +
+            '{"name":"GatewayResourceId","type":"string","dataTypeHint":"armPath","description":"Resource ID of the gateway instance."},' +
+            '{"name":"CallbackUrl","type":"string","dataTypeHint":"uri","description":"Merchant callback endpoint."},' +
+            '{"name":"AmountMinorUnits","type":"long","description":"Amount in minor units. Integral on purpose: a real would introduce floating-point error into money."},' +
+            '{"name":"Succeeded","type":"boolean","description":"Whether the gateway authorised the payment."},' +
+            '{"name":"RiskScore","type":"real","description":"Fraud score between 0 and 1."},' +
+            '{"name":"GatewayResponse","type":"dynamic","description":"Full gateway response body, kept as an object so it stays queryable."}],' +
+            '"Extra":{"description":"Payment gateway audit events, pushed over the Logs Ingestion API.",' +
+            '"dcrName":"dcr-payment-audit",' +
+            '"plan":"Analytics",' +
+            '"retentionInDays":30,' +
+            '"totalRetentionInDays":730,' +
+            '"transformKql":"source | where isnotempty(TransactionId) | extend TransactionId = toguid(TransactionId)"}}'
+            'auxiliary-plan.json'      = '{"TableName":"NetFlowArchive_CL",' +
+            '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"Flow timestamp. An Auxiliary table only accepts ISO 8601 with six decimal places, for example 2026-07-30T09:15:22.123456Z."},' +
+            '{"name":"SourceIp","type":"string","dataTypeHint":"ip","description":"Flow source address."},' +
+            '{"name":"DestinationIp","type":"string","dataTypeHint":"ip","description":"Flow destination address."},' +
+            '{"name":"DestinationPort","type":"int","description":"Destination port."},' +
+            '{"name":"Protocol","type":"string","description":"Transport protocol."},' +
+            '{"name":"BytesSent","type":"long","description":"Bytes sent. Long rather than int, because a flow archive overflows a 32-bit counter."},' +
+            '{"name":"BytesReceived","type":"long","description":"Bytes received."},' +
+            '{"name":"Action","type":"string","description":"Whether the flow was allowed or denied."}],' +
+            '"Extra":{"description":"Verbose network flow records kept for compliance. Auxiliary plan: cheapest ingestion, 30-day fixed interactive retention, low-fidelity query only. TimeGenerated must be sent as ISO 8601 with six decimal places.",' +
+            '"dcrName":"dcr-netflow-archive",' +
+            '"plan":"Auxiliary",' +
+            '"totalRetentionInDays":365}}'
+            'basic-plan.json'          = '{"TableName":"AppTrace_CL",' +
+            '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the application emitted the trace."},' +
+            '{"name":"Component","type":"string","description":"Emitting component. Keep the filterable fields as real columns, because Basic tables support a reduced KQL surface."},' +
+            '{"name":"Level","type":"string","description":"Trace level, for example Information or Warning."},' +
+            '{"name":"CorrelationId","type":"string","description":"Request correlation identifier."},' +
+            '{"name":"Message","type":"string","description":"Trace message."},' +
+            '{"name":"Properties","type":"dynamic","description":"Structured trace properties."}],' +
+            '"Extra":{"description":"High-volume application traces. Basic plan: cheap to ingest, 30-day fixed interactive retention, no alerting.",' +
+            '"dcrName":"dcr-app-trace",' +
+            '"plan":"Basic",' +
+            '"totalRetentionInDays":365}}'
+            'minimal.json'             = '{"TableName":"MyApp_CL",' +
+            '"Columns":[{"name":"TimeGenerated","type":"datetime"},' +
+            '{"name":"Message","type":"string"}],' +
+            '"Extra":{}}'
             'threat-intel-alerts.json' = '{"TableName":"ThreatIntelAlert_CL",' +
-                '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the record was ingested."},' +
-                '{"name":"AlertCreated","type":"datetime","description":"When the feed raised the alert. Kept separate from TimeGenerated so feed latency stays measurable."},' +
-                '{"name":"AlertId","type":"string","description":"Feed identifier for the alert."},' +
-                '{"name":"AlertType","type":"string","description":"Feed classification of the alert."},' +
-                '{"name":"AlertName","type":"string","description":"Human-readable alert title."},' +
-                '{"name":"AlertQuery","type":"string","description":"Query or rule the feed matched on."},' +
-                '{"name":"AlertSource","type":"string","description":"Which feed or collection the alert came from."},' +
-                '{"name":"Resource","type":"dynamic","description":"Affected resource, as an object."},' +
-                '{"name":"HighlightText","type":"string","description":"Matched excerpt, flattened for full-text search."},' +
-                '{"name":"Highlights","type":"dynamic","description":"Matched excerpts with their offsets."},' +
-                '{"name":"Tags","type":"dynamic","description":"Feed tags. Dynamic rather than a delimited string, so tags stay individually queryable."},' +
-                '{"name":"RawData","type":"dynamic","description":"Full original payload, retained for reprocessing."}],' +
-                '"Extra":{"description":"Alerts pushed from a threat intelligence feed over the Logs Ingestion API.",' +
-                '"dcrName":"dcr-threat-intel-alert",' +
-                '"plan":"Analytics",' +
-                '"retentionInDays":90,' +
-                '"totalRetentionInDays":365}}'
+            '"Columns":[{"name":"TimeGenerated","type":"datetime","description":"When the record was ingested."},' +
+            '{"name":"AlertCreated","type":"datetime","description":"When the feed raised the alert. Kept separate from TimeGenerated so feed latency stays measurable."},' +
+            '{"name":"AlertId","type":"string","description":"Feed identifier for the alert."},' +
+            '{"name":"AlertType","type":"string","description":"Feed classification of the alert."},' +
+            '{"name":"AlertName","type":"string","description":"Human-readable alert title."},' +
+            '{"name":"AlertQuery","type":"string","description":"Query or rule the feed matched on."},' +
+            '{"name":"AlertSource","type":"string","description":"Which feed or collection the alert came from."},' +
+            '{"name":"Resource","type":"dynamic","description":"Affected resource, as an object."},' +
+            '{"name":"HighlightText","type":"string","description":"Matched excerpt, flattened for full-text search."},' +
+            '{"name":"Highlights","type":"dynamic","description":"Matched excerpts with their offsets."},' +
+            '{"name":"Tags","type":"dynamic","description":"Feed tags. Dynamic rather than a delimited string, so tags stay individually queryable."},' +
+            '{"name":"RawData","type":"dynamic","description":"Full original payload, retained for reprocessing."}],' +
+            '"Extra":{"description":"Alerts pushed from a threat intelligence feed over the Logs Ingestion API.",' +
+            '"dcrName":"dcr-threat-intel-alert",' +
+            '"plan":"Analytics",' +
+            '"retentionInDays":90,' +
+            '"totalRetentionInDays":365}}'
         }
         foreach ($file in $expected.Keys) {
             $path = Join-Path $script:examples $file
@@ -311,107 +311,107 @@ Describe 'The schema helpers' {
         $display = ('D' * 125) + '...'
         $new = & $script:inModule { param($C) Resolve-iSOCTableSchema -Column $C } @{ C = $columns }
         $expected = '{"Columns":[{"Name":"Alert",' +
-            '"Type":"string",' +
-            '"DeclaredType":"string",' +
-            '"Description":"two lines",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"}]},' +
-            '{"Name":"alert",' +
-            '"Type":"boolean",' +
-            '"DeclaredType":"bool",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"Dup",' +
-            '"Type":"int",' +
-            '"DeclaredType":"integer",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"Dup",' +
-            '"Type":"long",' +
-            '"DeclaredType":"long",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"9Bad",' +
-            '"Type":"string",' +
-            '"DeclaredType":"string",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"}]},' +
-            '{"Name":"Src",' +
-            '"Type":"string",' +
-            '"DeclaredType":"string",' +
-            '"Description":"",' +
-            '"DisplayName":"<display>",' +
-            '"DataTypeHint":"ipv4",' +
-            '"Issues":[{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]},' +
-            '{"Name":"TimeGenerated",' +
-            '"Type":"string",' +
-            '"DeclaredType":"string",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"Sketch",' +
-            '"Type":"hyperloglog",' +
-            '"DeclaredType":"hyperloglog",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[{"Severity":"Error","Message":"type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]}],' +
-            '"SchemaIssues":[{"Severity":"Error",' +
-            '"Message":"duplicate column name ''Dup'' appears 2 times."},' +
-            '{"Severity":"Warning",' +
-            '"Message":"column names differ only by case: alert, Alert. Analytics and Basic tables treat these as separate columns; an Auxiliary table drops rows because of them.",' +
-            '"Kind":"CaseCollision"},' +
-            '{"Severity":"Error",' +
-            '"Message":"TimeGenerated is declared ''string''. It must be datetime.",' +
-            '"Fix":"FixTimeGeneratedType"}]}'
+        '"Type":"string",' +
+        '"DeclaredType":"string",' +
+        '"Description":"two lines",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"}]},' +
+        '{"Name":"alert",' +
+        '"Type":"boolean",' +
+        '"DeclaredType":"bool",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"Dup",' +
+        '"Type":"int",' +
+        '"DeclaredType":"integer",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"Dup",' +
+        '"Type":"long",' +
+        '"DeclaredType":"long",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"9Bad",' +
+        '"Type":"string",' +
+        '"DeclaredType":"string",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[{"Severity":"Error","Message":"must start with an ASCII letter and then contain only letters, digits and underscores"}]},' +
+        '{"Name":"Src",' +
+        '"Type":"string",' +
+        '"DeclaredType":"string",' +
+        '"Description":"",' +
+        '"DisplayName":"<display>",' +
+        '"DataTypeHint":"ipv4",' +
+        '"Issues":[{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]},' +
+        '{"Name":"TimeGenerated",' +
+        '"Type":"string",' +
+        '"DeclaredType":"string",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"Sketch",' +
+        '"Type":"hyperloglog",' +
+        '"DeclaredType":"hyperloglog",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[{"Severity":"Error","Message":"type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]}],' +
+        '"SchemaIssues":[{"Severity":"Error",' +
+        '"Message":"duplicate column name ''Dup'' appears 2 times."},' +
+        '{"Severity":"Warning",' +
+        '"Message":"column names differ only by case: alert, Alert. Analytics and Basic tables treat these as separate columns; an Auxiliary table drops rows because of them.",' +
+        '"Kind":"CaseCollision"},' +
+        '{"Severity":"Error",' +
+        '"Message":"TimeGenerated is declared ''string''. It must be datetime.",' +
+        '"Fix":"FixTimeGeneratedType"}]}'
         (& $script:canonical $new) | Should -BeExactly $expected.Replace('<display>', $display)
 
         $newRepaired = @(& $script:inModule { param($C) Mock Write-iSOCLog { }; Repair-iSOCTableSchema -Column (Resolve-iSOCTableSchema -Column $C).Columns.ToArray() } @{ C = $columns })
         $expectedRepaired = '[{"Name":"alert",' +
-            '"Type":"boolean",' +
-            '"DeclaredType":"bool",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"Dup",' +
-            '"Type":"int",' +
-            '"DeclaredType":"integer",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"Src",' +
-            '"Type":"string",' +
-            '"DeclaredType":"string",' +
-            '"Description":"",' +
-            '"DisplayName":"<display>",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]},' +
-            '{"Name":"TimeGenerated",' +
-            '"Type":"dateTime",' +
-            '"DeclaredType":"datetime",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[]},' +
-            '{"Name":"Sketch",' +
-            '"Type":"hyperloglog",' +
-            '"DeclaredType":"hyperloglog",' +
-            '"Description":"",' +
-            '"DisplayName":"",' +
-            '"DataTypeHint":"",' +
-            '"Issues":[{"Severity":"Error","Message":"type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]}]'
+        '"Type":"boolean",' +
+        '"DeclaredType":"bool",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"Dup",' +
+        '"Type":"int",' +
+        '"DeclaredType":"integer",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"Src",' +
+        '"Type":"string",' +
+        '"DeclaredType":"string",' +
+        '"Description":"",' +
+        '"DisplayName":"<display>",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[{"Severity":"Error","Message":"dataTypeHint ''ipv4'' is not valid. Use one of: armPath, guid, ip, uri"}]},' +
+        '{"Name":"TimeGenerated",' +
+        '"Type":"dateTime",' +
+        '"DeclaredType":"datetime",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[]},' +
+        '{"Name":"Sketch",' +
+        '"Type":"hyperloglog",' +
+        '"DeclaredType":"hyperloglog",' +
+        '"Description":"",' +
+        '"DisplayName":"",' +
+        '"DataTypeHint":"",' +
+        '"Issues":[{"Severity":"Error","Message":"type ''hyperloglog'' is not a Log Analytics column type. Use one of: boolean, dateTime, dynamic, guid, int, long, real, string"}]}]'
         (& $script:canonical $newRepaired) | Should -BeExactly $expectedRepaired.Replace('<display>', $display)
 
         $noTime = @([pscustomobject]@{ name = 'A'; type = 'string' })
@@ -459,30 +459,30 @@ Describe 'The schema helpers' {
         $tables = @(
             @{ Plan = 'Analytics'; Retention = 90; Total = 365; Hint = $false; Description = 'A table.'
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
-                    '"apiVersion":"2025-07-01",' +
-                    '"name":"law/T_CL",' +
-                    '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","displayName":"Source"}],"description":"A table."},"plan":"Analytics","retentionInDays":90,"totalRetentionInDays":365}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
+                '"apiVersion":"2025-07-01",' +
+                '"name":"law/T_CL",' +
+                '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","displayName":"Source"}],"description":"A table."},"plan":"Analytics","retentionInDays":90,"totalRetentionInDays":365}}]}'
             }
             @{ Plan = 'Basic'; Retention = 30; Total = -1; Hint = $true; Description = ''
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
-                    '"apiVersion":"2025-07-01",' +
-                    '"name":"law/T_CL",' +
-                    '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","dataTypeHint":"ip","displayName":"Source"}]},"plan":"Basic","totalRetentionInDays":-1}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
+                '"apiVersion":"2025-07-01",' +
+                '"name":"law/T_CL",' +
+                '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","dataTypeHint":"ip","displayName":"Source"}]},"plan":"Basic","totalRetentionInDays":-1}}]}'
             }
             @{ Plan = ''; Retention = 0; Total = 0; Hint = $false; Description = 'x'
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
-                    '"apiVersion":"2025-07-01",' +
-                    '"name":"law/T_CL",' +
-                    '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","displayName":"Source"}],"description":"x"}}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Custom log table T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.OperationalInsights/workspaces/tables",' +
+                '"apiVersion":"2025-07-01",' +
+                '"name":"law/T_CL",' +
+                '"properties":{"schema":{"name":"T_CL","columns":[{"name":"TimeGenerated","type":"dateTime","description":"When."},{"name":"Src","type":"string","displayName":"Source"}],"description":"x"}}}]}'
             }
         )
         foreach ($c in $tables) {
@@ -495,69 +495,69 @@ Describe 'The schema helpers' {
         $rules = @(
             @{ Description = 'A rule.'; Endpoint = ''
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
-                    '"apiVersion":"2023-03-11",' +
-                    '"name":"dcr-t",' +
-                    '"location":"uksouth",' +
-                    '"kind":"Direct",' +
-                    '"properties":{"description":"A rule.","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                '"apiVersion":"2023-03-11",' +
+                '"name":"dcr-t",' +
+                '"location":"uksouth",' +
+                '"kind":"Direct",' +
+                '"properties":{"description":"A rule.","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
             @{ Description = 'A rule.'; Endpoint = $endpoint
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
-                    '"apiVersion":"2023-03-11",' +
-                    '"name":"dcr-t",' +
-                    '"location":"uksouth",' +
-                    '"kind":"Direct",' +
-                    '"properties":{"description":"A rule.","dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                '"apiVersion":"2023-03-11",' +
+                '"name":"dcr-t",' +
+                '"location":"uksouth",' +
+                '"kind":"Direct",' +
+                '"properties":{"description":"A rule.","dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
             @{ Description = ('Long ' * 80); Endpoint = ''
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
-                    '"apiVersion":"2023-03-11",' +
-                    '"name":"dcr-t",' +
-                    '"location":"uksouth",' +
-                    '"kind":"Direct",' +
-                    '"properties":{"description":"Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Lon...","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                '"apiVersion":"2023-03-11",' +
+                '"name":"dcr-t",' +
+                '"location":"uksouth",' +
+                '"kind":"Direct",' +
+                '"properties":{"description":"Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Lon...","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
             @{ Description = ('Long ' * 80); Endpoint = $endpoint
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
-                    '"apiVersion":"2023-03-11",' +
-                    '"name":"dcr-t",' +
-                    '"location":"uksouth",' +
-                    '"kind":"Direct",' +
-                    '"properties":{"description":"Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Lon...","dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                '"apiVersion":"2023-03-11",' +
+                '"name":"dcr-t",' +
+                '"location":"uksouth",' +
+                '"kind":"Direct",' +
+                '"properties":{"description":"Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Lon...","dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
             @{ Description = ''; Endpoint = ''
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
-                    '"apiVersion":"2023-03-11",' +
-                    '"name":"dcr-t",' +
-                    '"location":"uksouth",' +
-                    '"kind":"Direct",' +
-                    '"properties":{"streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                '"apiVersion":"2023-03-11",' +
+                '"name":"dcr-t",' +
+                '"location":"uksouth",' +
+                '"kind":"Direct",' +
+                '"properties":{"streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
             @{ Description = ''; Endpoint = $endpoint
                 Expected = '{"$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",' +
-                    '"contentVersion":"1.0.0.0",' +
-                    '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
-                    '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
-                    '"apiVersion":"2023-03-11",' +
-                    '"name":"dcr-t",' +
-                    '"location":"uksouth",' +
-                    '"kind":"Direct",' +
-                    '"properties":{"dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
+                '"contentVersion":"1.0.0.0",' +
+                '"metadata":{"description":"Data collection rule for Custom-T_CL, generated by New-iSOCDcrFromSchema."},' +
+                '"resources":[{"type":"Microsoft.Insights/dataCollectionRules",' +
+                '"apiVersion":"2023-03-11",' +
+                '"name":"dcr-t",' +
+                '"location":"uksouth",' +
+                '"kind":"Direct",' +
+                '"properties":{"dataCollectionEndpointId":"/subscriptions/x/resourceGroups/y/providers/Microsoft.Insights/dataCollectionEndpoints/z","streamDeclarations":{"Custom-T_CL":{"columns":[{"name":"TimeGenerated","type":"datetime"},{"name":"Src","type":"string"}]}},"destinations":{"logAnalytics":[{"workspaceResourceId":"/ws","name":"workspaceDestination"}]},"dataFlows":[{"streams":["Custom-T_CL"],"destinations":["workspaceDestination"],"transformKql":"source","outputStream":"Custom-T_CL"}]}}]}'
             }
         )
         foreach ($r in $rules) {
@@ -644,7 +644,6 @@ Describe 'New-iSOCDcrFromSchema' {
             $run.DcrTemplatePath | Should -Be (Join-Path (Join-Path (Get-Location).ProviderPath 'relative') 'dcr-myapp.json')
             Test-Path -LiteralPath $run.DcrTemplatePath | Should -BeTrue
             $module.Error | Should -BeNullOrEmpty
-        }
-        finally { Pop-Location }
+        } finally { Pop-Location }
     }
 }

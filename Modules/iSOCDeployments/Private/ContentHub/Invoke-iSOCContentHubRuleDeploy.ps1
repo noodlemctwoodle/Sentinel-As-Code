@@ -129,8 +129,7 @@ function Invoke-iSOCContentHubRuleDeploy {
     try {
         $allTemplates = @(Get-iSOCContentHubTemplate -Context $Context -Kind AnalyticsRule -ExpandMainTemplate)
         Write-iSOCLog "Found $($allTemplates.Count) Analytics Rule templates."
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Failed to fetch Analytics Rule templates: $($_.Exception.Message)" -Level Error
         return
     }
@@ -207,8 +206,7 @@ function Invoke-iSOCContentHubRuleDeploy {
         if ($decision.Action -eq 'Protected') {
             if (@($decision.Modifications).Count -gt 0) {
                 Write-iSOCLog "  CUSTOMISED RULE DETECTED: $displayName - Modified fields: $($decision.Modifications -join ', ') - Skipping update." -Level Warning
-            }
-            else {
+            } else {
                 Write-iSOCLog "  CUSTOMISED RULE DETECTED (name match, no template link): $displayName - Skipping update." -Level Warning
             }
             & $emit Protected $decision.Reason
@@ -229,8 +227,7 @@ function Invoke-iSOCContentHubRuleDeploy {
         if ($kind -eq 'NRT' -and $needsUpdate -and $existingRule) {
             try {
                 Invoke-iSOCRestRequest -Method DELETE -Path "$workspace/providers/Microsoft.SecurityInsights/alertRules/$($existingRule.name)" -ApiVersion $ruleApi | Out-Null
-            }
-            catch {
+            } catch {
                 Write-iSOCLog "  Warning: Could not delete existing NRT rule $displayName for recreation: $($_.Exception.Message)" -Level Warning
             }
             $existingRule = $null
@@ -244,8 +241,7 @@ function Invoke-iSOCContentHubRuleDeploy {
             if ($needsUpdate) {
                 Write-iSOCLog "  Updated rule: $displayName ($ruleSeverity)" -Level Success
                 & $emit Updated ''
-            }
-            else {
+            } else {
                 Write-iSOCLog "  Deployed rule: $displayName ($ruleSeverity)" -Level Success
                 & $emit Deployed ''
             }
@@ -253,8 +249,7 @@ function Invoke-iSOCContentHubRuleDeploy {
             $resultName = Get-iSOCPropertyValue -InputObject $ruleResult -Path 'name'
             & $link $record $(if ($resultId) { $resultId } else { $rulePath }) $(if ($resultName) { $resultName } else { $ruleId })
             Start-Sleep -Milliseconds 500
-        }
-        catch {
+        } catch {
             # Classified on the status and the service's message, without the
             # rule's path, which the REST client's error names and the
             # script's did not: a new rule's GUID can contain 400.
@@ -272,12 +267,10 @@ function Invoke-iSOCContentHubRuleDeploy {
                 $detail = $combinedError.Substring(0, [Math]::Min(300, $combinedError.Length))
                 Write-iSOCLog "  Skipping $displayName ($kind) - bad request.$nrtHint Detail: $detail" -Level Warning
                 & $emit Skipped "bad request: $detail"
-            }
-            elseif ($skip) {
+            } elseif ($skip) {
                 Write-iSOCLog "  Skipping $displayName - $skip." -Level Warning
                 & $emit Skipped $skip
-            }
-            else {
+            } else {
                 Write-iSOCLog "  Failed to deploy rule: $displayName - $combinedError" -Level Error
                 & $emit Failed $combinedError.Trim()
             }

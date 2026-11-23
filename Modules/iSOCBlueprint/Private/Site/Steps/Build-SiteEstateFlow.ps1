@@ -55,7 +55,7 @@ function Build-SiteEstateFlow {
         $wsTablesRaw |
             Where-Object {
                 $_ -and $_.PSObject.Properties['properties'] -and $_.properties -and $_.properties.PSObject.Properties['plan'] -and $_.properties.plan -eq
-                    'DataLake'
+                'DataLake'
             }
     ).Count
     $lakeEnrolled = ($dataLake.Count -gt 0) -or $unifiedBilling -or ($lakePlanTables -gt 0)
@@ -64,10 +64,10 @@ function Build-SiteEstateFlow {
     # box. Basic and Auxiliary tables keep their plan name: they are neither
     # analytics-tier nor lake-mirrored.
     $script:FlowTierLabel = @{
-        AnalyticsOnly = 'Analytics plan'
-        MirroredOnly = 'Analytics + Lake mirror'
+        AnalyticsOnly    = 'Analytics plan'
+        MirroredOnly     = 'Analytics + Lake mirror'
         MirroredExtended = 'Analytics + Lake extended'
-        LakeOnly = 'Data lake only'
+        LakeOnly         = 'Data lake only'
     }
 
     $flowNodes = @()
@@ -86,10 +86,10 @@ function Build-SiteEstateFlow {
             $gb = [math]::Round([double]$t.Gb30d, 3)
             $billedGb = Get-FlowBilledGb $t $gb
             $tableRows += [ordered]@{
-                table = $t.Table
+                table  = $t.Table
                 family = (Get-TableFamily $t.Table)
-                gb = $gb
-                parts = @([ordered]@{ plan = (Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)); gb = $gb; billedGb = $billedGb })
+                gb     = $gb
+                parts  = @([ordered]@{ plan = (Get-FlowPlanLabel -Table $t.Table -Plan ([string]$t.Plan)); gb = $gb; billedGb = $billedGb })
             }
         }
         if ($rest.Count -gt 0) {

@@ -69,7 +69,7 @@ function Write-BlueprintOverviewSection {
     $estate = New-BlueprintEstateModel
 
     $estateBlock = if ($estate.Sources.Count -gt 0 -and $estate.TotalGb -gt 0) {
-    @"
+        @"
 
 ## Estate flow
 
@@ -91,7 +91,7 @@ GB that reaches **Not monitored** is ingested and billed but read by no enabled 
         $familyTail = if (@($estate.ProductAlerts).Count -gt 0 -or $estate.CustomDetectionsCaptured) {
             "`n`n" + (Format-BlueprintEstateFamilyTable -Estate $estate)
         } else { '' }
-    @"
+        @"
 
 ## Estate flow
 
@@ -112,13 +112,13 @@ _No billable ingestion in the last {lookback}, so there is no flow to draw._$fam
         $pts = @($usageDaily | Sort-Object { [datetime]$_.Day })
         # Day labels read "13 Sep", not "09-13".
         $labels = ($pts |
-            ForEach-Object { "`"$(([datetime]$_.Day).ToUniversalTime().ToString('d MMM', [System.Globalization.CultureInfo]::InvariantCulture))`"" }) -join
-            ', '
+                ForEach-Object { "`"$(([datetime]$_.Day).ToUniversalTime().ToString('d MMM', [System.Globalization.CultureInfo]::InvariantCulture))`"" }) -join
+        ', '
         $bill = ($pts | ForEach-Object { [math]::Round((ConvertTo-BlueprintNumber $_.BillableGB), 2) }) -join ', '
         $free = ($pts | ForEach-Object { [math]::Round((ConvertTo-BlueprintNumber $_.FreeGB), 2) }) -join ', '
         $max = 1.0
         foreach ($pt in $pts) { $v = (ConvertTo-BlueprintNumber $pt.BillableGB) + (ConvertTo-BlueprintNumber $pt.FreeGB); if ($v -gt $max) { $max = $v } }
-    @"
+        @"
 
 ### Daily ingestion (last {lookback})
 
@@ -150,7 +150,7 @@ Billable GB per day, and free GB (the Sentinel benefit and other non-billable da
     # matches `_GetWatchlist("X")`, `_GetWatchlist('X')`, and `_GetWatchlist
     # (  "X"  )` with case-insensitive function-name match.
     $rulesByWatchlistAlias = @{}
-    $watchlistsByRuleId    = @{}
+    $watchlistsByRuleId = @{}
     $rxWatchlistRef = [regex]::new("_GetWatchlist\s*\(\s*['""]([^'""]+)['""]\s*\)", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     foreach ($r in $rules) {
         $q = $r.properties.query
@@ -158,8 +158,8 @@ Billable GB per day, and free GB (the Sentinel benefit and other non-billable da
         $references = $rxWatchlistRef.Matches([string]$q)
         if ($references.Count -eq 0) { continue }
         $ruleName = $r.properties.displayName
-        $ruleId   = $r.name
-        $aliases  = New-Object System.Collections.Generic.HashSet[string]
+        $ruleId = $r.name
+        $aliases = New-Object System.Collections.Generic.HashSet[string]
         foreach ($m in $references) { [void]$aliases.Add($m.Groups[1].Value) }
         $watchlistsByRuleId[$ruleId] = @($aliases)
         foreach ($a in $aliases) {

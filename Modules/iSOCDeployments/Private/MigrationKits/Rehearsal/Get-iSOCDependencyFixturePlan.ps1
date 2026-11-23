@@ -95,8 +95,7 @@ function Get-iSOCDependencyFixturePlan {
     try {
         $state = Invoke-iSOCRestRequest -Method GET -Path "$sentinelBase/onboardingStates/default" -ApiVersion (Get-iSOCApiVersion SecurityInsights) -AllowNotFound
         if ($null -eq $state) { $onboarded = $false }
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Could not confirm the Sentinel onboarding state ($($_.Exception.Message.Split([char]10)[0])). Continuing, but analytics rule creation may fail." -Level Warning
     }
     if (-not $onboarded) {

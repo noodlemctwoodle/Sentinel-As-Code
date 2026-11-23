@@ -44,8 +44,8 @@ function Resolve-iSOCBlueprintRunPath {
         if (Test-Path -LiteralPath (Join-Path $full $marker)) { return $full }
     }
     $days = @(Get-ChildItem -LiteralPath $full -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and ((Test-Path -LiteralPath (Join-Path $_.FullName '_raw')) -or (Test-Path -LiteralPath (Join-Path $_.FullName 'sections'))) } |
-        Sort-Object Name -Descending)
+            Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}$' -and ((Test-Path -LiteralPath (Join-Path $_.FullName '_raw')) -or (Test-Path -LiteralPath (Join-Path $_.FullName 'sections'))) } |
+            Sort-Object Name -Descending)
     if ($days.Count) { return $days[0].FullName }
     return $full
 }

@@ -50,8 +50,7 @@ function Get-SacAppPackageInfo {
         if (-not $entry) { throw "No AppManifest.xml in '$Path'; is it an SPFx .sppkg?" }
         $reader = [System.IO.StreamReader]::new($entry.Open())
         try { [xml]$manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
-    }
-    finally { $zip.Dispose() }
+    } finally { $zip.Dispose() }
 
     $app = $manifest.App
     $title = if ($app.Properties -and $app.Properties.Title) { [string]$app.Properties.Title } else { [string]$app.Name }

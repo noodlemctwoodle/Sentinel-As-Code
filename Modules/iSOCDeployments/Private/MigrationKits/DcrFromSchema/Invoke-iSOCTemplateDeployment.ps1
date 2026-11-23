@@ -76,8 +76,7 @@ function Invoke-iSOCTemplateDeployment {
     $validationErrors = $null
     try {
         $validationErrors = @(Test-iSOCAzResourceGroupDeployment -Parameters @{ ResourceGroupName = $ResourceGroupName; TemplateFile = $TemplatePath })
-    }
-    catch {
+    } catch {
         Write-iSOCLog "Pre-deployment validation could not run: $($_.Exception.Message.Split([char]10)[0])" -Level Debug
     }
 

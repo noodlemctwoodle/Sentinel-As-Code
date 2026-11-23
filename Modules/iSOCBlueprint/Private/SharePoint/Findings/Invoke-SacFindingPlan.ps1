@@ -40,8 +40,7 @@ function Invoke-SacFindingPlan {
     foreach ($step in $Plan) {
         if ($step.Action -eq 'Add') {
             Add-PnPListItem -List $script:SacFindingsListUrl -Values $step.Values -Batch $batch
-        }
-        else {
+        } else {
             Set-PnPListItem -List $script:SacFindingsListUrl -Identity $step.ItemId -Values $step.Values -Batch $batch
         }
     }

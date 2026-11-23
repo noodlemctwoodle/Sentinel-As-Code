@@ -54,5 +54,5 @@ function Format-PieSlices {
         $rest = (@($sorted | Select-Object -Skip $shown.Count) | Measure-Object -Property Value -Sum).Sum
         $lines += "    `"Other ($($sorted.Count - $shown.Count))`" : $rest"
     }
-    return ,$lines
+    return , $lines
 }
