@@ -108,6 +108,36 @@ label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.m
   next. See
   [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
   [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **iSOC Blueprint is functions, not scripts** - the eight engine scripts under
+  `Modules/iSOCBlueprint/Engine` (`Export-SentinelInventory.ps1`,
+  `Convert-SentinelInventoryToMarkdown.ps1`, `Convert-MarkdownToWord.ps1`,
+  `Build-SentinelDocsSite.ps1`, `Publish-SentinelDocsSite.ps1`,
+  `Initialize-SentinelDocsSite.ps1`, `Convert-MermaidToImage.ps1` and
+  `Update-ConnectorCatalogue.ps1`) and their loaders are gone. Each public
+  command calls a private function directly, and the commands, their
+  parameters and what they write are unchanged. The module is one function to
+  a file under `Private/`, and the static files it reads (rules and
+  catalogues, the section schemas, the Word reference document, the dashboard
+  templates) moved from `Engine/` to `Modules/iSOCBlueprint/Resources`. Anything
+  that ran an Engine script by path calls the command instead
+  (`Export-iSOCBlueprintInventory`, `ConvertTo-iSOCBlueprint`,
+  `Export-iSOCBlueprintWord`, `New-iSOCBlueprintSite`,
+  `Publish-iSOCBlueprintSite`, `Initialize-iSOCBlueprintSite`,
+  `ConvertTo-iSOCBlueprintChartImage` or
+  `Update-iSOCBlueprintConnectorCatalogue`), and `Tools/Migrate-ForkLayout.ps1`
+  moves a fork's customised rules, schemas, templates and reference document to
+  `Resources` from either earlier layout. Four behaviours change with it. The
+  Word conversion stops with an error when pandoc, the source folder or the
+  reference document is missing, or when pandoc fails; it used to return
+  quietly, and `New-iSOCBlueprint` went on without a report. A command that
+  needs a missing module says "This command needs: ..." in place of
+  PowerShell's script-requirements error. The navigation preview of
+  `Publish-iSOCBlueprintSite -WhatIf` now lists the pages the run would
+  create, which it left out. And the references page (page 99 of a report)
+  names `Invoke-CaptureAttempt` and `Resources/Data` where it named
+  `Try-Capture` and `Private/Resources`. The SharePoint web part is 1.15.1 (its
+  "dashboard not found" message names `Publish-iSOCBlueprintSite`); upload the
+  new package to the app catalogue to take it.
 - **Playbooks are Bicep** - the 90 playbooks under `Content/Playbooks/`
   are Bicep files now, converted by the new `Convert-iSOCPlaybook`, which
   compiled each and proved it deploys exactly what its ARM template did
