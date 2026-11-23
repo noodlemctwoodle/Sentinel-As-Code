@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-03
-    Version:      0.3.3
-    Last Updated: 2026-11-09
+    Version:      0.3.4
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml, the Bicep CLI
 #>
 
@@ -136,6 +136,12 @@ Describe 'Get-iSOCDeploymentConfig' {
     It 'reads the repository''s own config' {
         $config = InModuleScope iSOCDeployments -Parameters @{ R = $script:repoRoot } { param($R) Get-iSOCDeploymentConfig -RepoPath $R }
         $config.Excluded | Should -Contain 'Content/PromptBooks'
+    }
+
+    It 'names only files and folders the repository has' {
+        $config = InModuleScope iSOCDeployments -Parameters @{ R = $script:repoRoot } { param($R) Get-iSOCDeploymentConfig -RepoPath $R }
+        $missing = @(@($config.Prioritized) + @($config.Excluded) | Where-Object { $_ -and -not (Test-Path -LiteralPath (Join-Path $script:repoRoot $_)) })
+        $missing | Should -BeNullOrEmpty -Because 'a path that does not exist is ignored silently, so a prioritised file would never come first'
     }
 }
 
