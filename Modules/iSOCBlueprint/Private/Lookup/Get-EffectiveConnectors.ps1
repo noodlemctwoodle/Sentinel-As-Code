@@ -63,13 +63,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.2
-    Last Updated: 2026-11-16
+    Version:      0.1.3
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
-    This file defines functions rather than running. Per-parameter detail
+    This file defines a function rather than running. Per-parameter detail
     lives on the function's own help block.
 #>
+
+# Keeps the file help above from being read as the help of the function below.
+
 function Get-EffectiveConnectors {
     [CmdletBinding()]
     param(

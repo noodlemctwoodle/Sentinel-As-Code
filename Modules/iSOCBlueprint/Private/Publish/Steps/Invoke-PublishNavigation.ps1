@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+
 
@@ -47,7 +47,7 @@ function Invoke-PublishNavigation {
     # Get-SacGeneratedPageNames returns its array as one object; assign it
     # directly rather than wrapping it in @(), which would nest it.
     $pagesNow = Get-SacGeneratedPageNames
-    if ($WhatIfPreference) { $pagesNow = @($pagesNow) + @($pagePlan | Where-Object Action -eq 'Create' | ForEach-Object Name) }
+    if ($WhatIfPreference) { $pagesNow = @($pagesNow) + @($pagePlan | Where-Object Action -eq 'Create' | ForEach-Object { $_.Name }) }
     $navPlan = Get-NavigationPlan -Sections @($site.sections) -ExistingPages $pagesNow -FamilyOrder @($site.familyOrder) `
         -DashboardPage ([string]$site.dashboard.page) -FindingsListUrl ([string]$site.findingsList.url)
     $currentSignature = Get-NavigationSignature -Nodes (Get-SacNavigation -WebServerRelativeUrl $webRel)

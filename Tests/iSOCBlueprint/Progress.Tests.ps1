@@ -20,8 +20,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.2.4
-    Last Updated: 2026-11-16
+    Version:      0.2.5
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -29,7 +29,8 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     $sp = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint'
-    . (Join-Path $sp '../../Private/SiteShared/Get-SacProgress.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area SiteShared)
     . (Join-Path $sp '../../Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
     $script:html = Get-SiteDashboardTemplate -Root (Join-Path $sp 'templates/dashboard')
     $script:publisher = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse |

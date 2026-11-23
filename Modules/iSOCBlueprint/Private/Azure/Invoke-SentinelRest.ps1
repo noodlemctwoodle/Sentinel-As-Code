@@ -51,8 +51,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-05-06
-    Version:        0.1.2
-    Last Updated:   2026-11-09
+    Version:        0.1.3
+    Last Updated:   2026-11-23
     Component:      iSOC Blueprint
     Requires:       PowerShell 7.6+, Az.Accounts
 
@@ -79,6 +79,8 @@
       cmdlet, direct Invoke-RestMethod with a manually-cached header is
       explicitly NOT the pattern this helper uses, by design.
 #>
+
+# Keeps the file help above from being read as the help of the function below.
 
 function Invoke-SentinelRest {
     [CmdletBinding()]

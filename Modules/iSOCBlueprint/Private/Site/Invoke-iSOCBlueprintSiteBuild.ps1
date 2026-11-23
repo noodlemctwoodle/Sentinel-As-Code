@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.3.0
-    Last Updated: 2026-11-16
+    Version:      0.3.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site build
     Requires:     PowerShell 7.6+
 
@@ -32,6 +32,7 @@
     much of the Blueprint's health, coverage and maturity reporting.
 #>
 
+# Keeps the file help above from being read as the help of the function below.
 
 function Invoke-iSOCBlueprintSiteBuild {
     <#

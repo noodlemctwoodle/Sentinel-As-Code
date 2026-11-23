@@ -18,16 +18,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.2
-    Last Updated: 2026-11-09
+    Version:      0.1.3
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1')
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1')
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Kql, Azure)
     $fixture = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
     $script:rules = Get-Content (Join-Path $fixture 'defender-custom-detections.json') -Raw | ConvertFrom-Json -Depth 32
     $script:expected = Get-Content (Join-Path $fixture 'custom-detection-table-references.json') -Raw | ConvertFrom-Json -Depth 32

@@ -14,8 +14,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+
 
@@ -63,7 +63,7 @@ function Invoke-PublishPages {
     if ($needsCharts -and -not $WhatIfPreference) {
         # The component list is read through a page that already exists: the
         # first page this run rebuilds, or the dashboard page.
-        $probe = @($pagePlan | Where-Object { $_.Action -in 'Update', 'Skip' } | ForEach-Object Name)[0]
+        $probe = @($pagePlan | Where-Object { $_.Action -in 'Update', 'Skip' } | ForEach-Object { $_.Name })[0]
         if (-not $probe -and (Get-PnPPage -Identity ([string]$site.dashboard.page) -ErrorAction SilentlyContinue)) { $probe = [string]$site.dashboard.page }
         if ($probe) {
             # Wait for it only when step 2 deployed a package this run; otherwise

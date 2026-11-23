@@ -10,14 +10,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Maturity Engine
     Requires:     PowerShell 7.6+
 
     This file defines a function rather than running. Per-parameter detail
     lives on the function's own help block.
 #>
+
+# Keeps the file help above from being read as the help of the function below.
 
 function Resolve-MaturitySource {
     <#
@@ -74,15 +76,15 @@ function Resolve-MaturitySource {
                     Resolve-MaturitySource -Source $s -Metrics $Metrics -OutcomeById $OutcomeById -EvidenceById $EvidenceById
                 }
             )
-            $statuses = @($parts | ForEach-Object Status)
+            $statuses = @($parts | ForEach-Object { $_.Status })
             $status = if ($kind -eq 'allOf') {
                 if ($statuses -contains 'Gap') { 'Gap' } elseif ($statuses -contains 'Unknown') { 'Unknown' } else { 'Met' }
             } else {
                 if ($statuses -contains 'Met') { 'Met' } elseif ($statuses -contains 'Unknown') { 'Unknown' } else { 'Gap' }
             }
             $decider = @($parts | Where-Object Status -eq $status | Select-Object -First 1)
-            $metric = @($parts | Where-Object { $null -ne $_.Metric } | Select-Object -First 1 | ForEach-Object Metric)
-            $evidence = @($parts | Where-Object { $_.Status -eq $status -and $_.Evidence } | ForEach-Object Evidence) -join ' '
+            $metric = @($parts | Where-Object { $null -ne $_.Metric } | Select-Object -First 1 | ForEach-Object { $_.Metric })
+            $evidence = @($parts | Where-Object { $_.Status -eq $status -and $_.Evidence } | ForEach-Object { $_.Evidence }) -join ' '
             return [pscustomobject]@{
                 Status   = $status
                 Metric   = $(if ($metric.Count -gt 0) { $metric[0] } else { $null })

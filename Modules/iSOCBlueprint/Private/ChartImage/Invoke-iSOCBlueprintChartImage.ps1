@@ -11,14 +11,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-14
-    Version:      0.2.0
-    Last Updated: 2026-11-16
+    Version:      0.2.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, chart images
     Requires:     PowerShell 7.6+, Node.js, @mermaid-js/mermaid-cli
 
     This file defines a function rather than running. Per-parameter detail
     lives on the function's own help block.
 #>
+
+# Keeps the file help above from being read as the help of the function below.
 
 function Invoke-iSOCBlueprintChartImage {
     <#

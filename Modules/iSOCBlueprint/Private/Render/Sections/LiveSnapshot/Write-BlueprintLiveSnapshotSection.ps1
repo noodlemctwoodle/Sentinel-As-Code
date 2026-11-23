@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -142,7 +142,7 @@ function Write-BlueprintLiveSnapshotSection {
     ) |
         Measure-Object -Sum).Sum
     $has01 = { param($f) Test-Path (Join-Path $rawRoot $f) }
-    $deprecatedConnectors01 = @($catalogueStatus | Where-Object Deprecated | ForEach-Object Connector | Sort-Object -Unique)
+    $deprecatedConnectors01 = @($catalogueStatus | Where-Object Deprecated | ForEach-Object { $_.Connector } | Sort-Object -Unique)
     $legacyRows = @(
         Format-BlueprintLegacyRow 'Deprecated data connectors still connected' $deprecatedConnectors01.Count ([bool]$connectorCatalogue -and
             (& $has01 'data-connectors-classic.json')) "$(Format-BlueprintPlural $deprecatedConnectors01.Count 'connector')$(if ($deprecatedConnectors01.Count) { ': ' + ($deprecatedConnectors01 -join '; ') })" '[10-data-connectors.md](10-data-connectors.md)'

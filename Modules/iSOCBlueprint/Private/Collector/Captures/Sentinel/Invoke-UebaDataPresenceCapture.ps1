@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -46,7 +46,7 @@ function Invoke-UebaDataPresenceCapture {
     # fell back to synthetic positional names (union_arg0/1/2) instead of
     # the real table name. The fix: extend Table at the source, summarize
     # by Table after the union. `isfuzzy=true` also handles a workspace
-    # that hasn't enabled UEBA yet (UserPeerAnalytics may be missing), 
+    # that hasn't enabled UEBA yet (UserPeerAnalytics may be missing),
     # KQL skips the missing arm rather than throwing.
     $kql = @'
 union isfuzzy=true

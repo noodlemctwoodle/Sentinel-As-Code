@@ -8,7 +8,7 @@
     Entry point of the collector. Sets up the run (the window every KQL
     capture reads, the output folder, the Azure scope), writes
     run-context.json, then runs each capture in order. A capture is one
-    Invoke-*Capture function under Captures/<Area>; Try-Capture runs it, so a
+    Invoke-*Capture function under Captures/<Area>; Invoke-CaptureAttempt runs it, so a
     capture that fails is recorded and the run carries on. The captures share
     the run's scope and paths through a context hashtable, and the shared
     results through $script: variables. The run ends with the capture summary.
@@ -19,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.3.0
-    Last Updated: 2026-11-16
+    Version:      0.3.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -36,6 +36,7 @@
     of the Blueprint's health, coverage and maturity reporting.
 #>
 
+# Keeps the file help above from being read as the help of the function below.
 
 function Invoke-iSOCBlueprintCollect {
     <#
@@ -210,7 +211,7 @@ function Invoke-iSOCBlueprintCollect {
 
     foreach ($label in $script:CollectorCaptures.Keys) {
         $capture = $script:CollectorCaptures[$label]
-        Try-Capture $label { & $capture -Context $context }
+        Invoke-CaptureAttempt $label { & $capture -Context $context }
     }
 
     Complete-CollectorRun -RunContext $runContext -RawOut $rawOut

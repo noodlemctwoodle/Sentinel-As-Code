@@ -64,8 +64,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.6.3
-    Last Updated: 2026-11-16
+    Version:      0.6.4
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -78,6 +78,8 @@
     coverage and maturity reporting. The scoring, the Unknown handling
     and the area taxonomy are this project's own.
 #>
+
+# Keeps the file help above from being read as the help of the function below.
 
 function Get-SentinelMaturity {
     <#

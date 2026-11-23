@@ -417,9 +417,9 @@ are described in the validate table above.
   already carries a query string or its own `api-version`).
 - [`Get-KqlTableReferences.Tests.ps1`](../../Tests/iSOCBlueprint/Get-KqlTableReferences.Tests.ps1)
   dot-sources the module's own KQL helpers
-  (`Private/Kql/Vendor/SentinelCommon.Kql.ps1`, once a copy of
-  `Sentinel.Common`'s, so it needs no Azure modules) and
-  [`Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1`](../../Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1).
+  (`Private/Kql/Vendor`, once a copy of `Sentinel.Common`'s, so it needs no
+  Azure modules) and the table-reference functions in
+  [`Modules/iSOCBlueprint/Private/Kql`](../../Modules/iSOCBlueprint/Private/Kql).
 - [`Get-SentinelMaturity.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelMaturity.Tests.ps1)
   loads the gap engine and the functions under
   [`Modules/iSOCBlueprint/Private/Maturity`](../../Modules/iSOCBlueprint/Private/Maturity)
@@ -434,8 +434,8 @@ are described in the validate table above.
   runs; the conversion itself runs pandoc) through the PowerShell parser and drives
   them on small Markdown strings; no pandoc, no fixture.
 - [`Get-ConnectorCatalogue.Tests.ps1`](../../Tests/iSOCBlueprint/Get-ConnectorCatalogue.Tests.ps1)
-  dot-sources
-  [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1),
+  dot-sources the
+  [`Modules/iSOCBlueprint/Private/Lookup`](../../Modules/iSOCBlueprint/Private/Lookup) functions,
   checks the shipped catalogue and drives the helpers against a small
   catalogue written to a temporary file; no Azure modules.
 - [`Get-TableFamily.Tests.ps1`](../../Tests/iSOCBlueprint/Get-TableFamily.Tests.ps1)

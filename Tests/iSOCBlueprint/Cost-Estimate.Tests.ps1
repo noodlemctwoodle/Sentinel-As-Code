@@ -20,8 +20,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.4
-    Last Updated: 2026-11-16
+    Version:      0.1.5
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -208,7 +208,7 @@ Describe 'Data grants' {
 
 Describe 'The currency it prices in' {
     BeforeAll {
-        . (Join-Path $script:moduleRoot 'Private/Azure/Get-AzureRetailPrice.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Area Azure)
         $script:repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     }
 

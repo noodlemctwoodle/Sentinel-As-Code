@@ -96,7 +96,7 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.9
+    Version:      0.2.10
     Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
 
@@ -147,9 +147,10 @@ $raw = Join-Path $OutputPath '_raw'
 if (Test-Path -LiteralPath $raw) { Remove-Item -LiteralPath $raw -Recurse -Force }
 New-Item -ItemType Directory -Path $raw -Force | Out-Null
 
-. (Join-Path $moduleRoot 'Private/Kql/Vendor/SentinelCommon.Kql.ps1')
-. (Join-Path $moduleRoot 'Private/Kql/Get-KqlTableReferences.ps1')
-. (Join-Path $moduleRoot 'Private/Azure/Get-DefenderCustomDetections.ps1')
+$demoHelpers = @(Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private/Kql') -Filter '*.ps1' -File -Recurse | Sort-Object FullName) +
+    @(Get-Item -LiteralPath (Join-Path $moduleRoot 'Private/Azure/Get-DefenderCustomDetections.ps1'),
+        (Join-Path $moduleRoot 'Private/Azure/Get-CustomDetectionTableReferences.ps1'))
+foreach ($helper in $demoHelpers) { . $helper.FullName }
 
 $asOfUtc = if ($AsOf.Kind -eq [System.DateTimeKind]::Unspecified) { [datetime]::SpecifyKind($AsOf, 'Utc') } else { $AsOf.ToUniversalTime() }
 $asOfUtc = [datetime]::new($asOfUtc.Year, $asOfUtc.Month, $asOfUtc.Day, $asOfUtc.Hour, $asOfUtc.Minute, 0, [System.DateTimeKind]::Utc)
@@ -2285,7 +2286,7 @@ if ($Build) {
     # met until last week is a gap now.
     $progressPath = if ($bundle) { Join-Path $bundle 'progress.json' } else { $null }
     if ($progressPath -and (Test-Path -LiteralPath $progressPath)) {
-        . (Join-Path $moduleRoot 'Private/SiteShared/Get-SacProgress.ps1')
+        foreach ($helper in @(Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private/SiteShared') -Filter '*.ps1' -File -Recurse | Sort-Object FullName)) { . $helper.FullName }
         $now = Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json -Depth 32
         $firing = @($now.sets.findings | ForEach-Object { [string]$_.id })
         $fixed = @((Get-Content -LiteralPath (Join-Path $resources 'best-practices.json') -Raw | ConvertFrom-Json -Depth 16).rules |

@@ -107,7 +107,7 @@ Private/             the Blueprint as functions, one folder per concern; path de
   Path/              the folder defaults and path resolving every command shares, one function per file
     Invoke-iSOCBlueprintCollect.ps1  entry point
     Captures/<Area>/                 one Invoke-*Capture function per capture
-    Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Try-Capture, capture order
+    Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Invoke-CaptureAttempt, capture order
   CaptureSummary/    the collector's capture notes and end-of-run summary, one function per file (loaded with the module)
     Write-CaptureSummary.ps1         entry point
     Issues/  Helpers/                sorting a failed capture and its notes, then wrapping and file counts

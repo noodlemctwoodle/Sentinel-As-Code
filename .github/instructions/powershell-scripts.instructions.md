@@ -264,7 +264,7 @@ themselves.
    doesn't fit your need, change or add one in the module (with a Pester
    test) rather than inlining a copy. The `iSOCBlueprint` module is
    separate and shares no code with `iSOCDeployments`; its
-   `Private/Kql/Vendor/SentinelCommon.Kql.ps1` is its own code since
+   the helpers under `Private/Kql/Vendor` are its own code since
    `Sentinel.Common` retired.
 2. **PSGallery module pins.** Every workflow / pipeline pins
    `powershell-yaml` and `Pester` to specific versions (env vars

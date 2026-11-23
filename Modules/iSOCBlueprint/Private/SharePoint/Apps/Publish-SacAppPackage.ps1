@@ -10,14 +10,16 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1 (when the SharePoint functions are called)
 
     This file defines a function rather than running. Per-parameter detail
     lives on the function's own help block.
 #>
+
+# Keeps the file help above from being read as the help of the function below.
 
 function Publish-SacAppPackage {
     <#
@@ -70,7 +72,7 @@ function Publish-SacAppPackage {
         if ($stale.Count) {
             # Remove-PnPApp logs a refused removal on a no-script site and
             # returns, so check rather than trust it.
-            $staleIds = @($stale | ForEach-Object Id)
+            $staleIds = @($stale | ForEach-Object { $_.Id })
             $left = @(Get-SacCatalogApp | Where-Object { $staleIds -contains $_.Id })
             if ($left.Count) {
                 throw "Could not remove '$($left[0].Title)' from this site's app catalog. Remove it by hand (Site contents, Apps for SharePoint) and run the publish again."

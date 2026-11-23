@@ -15,8 +15,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.1
-    Last Updated: 2026-11-16
+    Version:      0.1.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Gap Engine
     Requires:     PowerShell 7.6+
 
@@ -53,7 +53,7 @@ function Test-CustomLogsV1Migration {
         if ($name -and $gb90 -gt 0) { $active[$name] = $true }
     }
 
-    # Filter to genuine custom-log tables. tableType alone is unreliable, 
+    # Filter to genuine custom-log tables. tableType alone is unreliable,
     # some workspaces report AzureDiagnostics and other Microsoft service
     # tables as 'CustomLog' when custom diagnostic settings have been
     # written to them. The `_CL` name suffix is enforced at table creation

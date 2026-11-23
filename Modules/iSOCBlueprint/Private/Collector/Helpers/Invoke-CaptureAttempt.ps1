@@ -5,13 +5,13 @@
     Run one capture, recording a failure instead of stopping the run.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Private/Collector/Helpers/Try-Capture.ps1
+    File:         Modules/iSOCBlueprint/Private/Collector/Helpers/Invoke-CaptureAttempt.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -19,7 +19,9 @@
     lives on the function's own help block.
 #>
 
-function Try-Capture {
+# Keeps the file help above from being read as the help of the function below.
+
+function Invoke-CaptureAttempt {
     param(
         [Parameter(Mandatory)] [string]$Label,
         [Parameter(Mandatory)] [scriptblock]$Action
@@ -29,7 +31,7 @@ function Try-Capture {
         & $Action
     } catch {
         $msg = Get-CaptureErrorText $_
-        # Surface the failure prominently. Try-Capture used to log only a
+        # Surface the failure prominently. Invoke-CaptureAttempt used to log only a
         # Write-Warning which is easy to miss in long ADO logs and silently
         # leaves the corresponding _raw/<file>.json absent or stale. We now
         # also accumulate the failure into a summary written at the end,

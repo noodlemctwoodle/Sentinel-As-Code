@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.3.3
-    Last Updated: 2026-11-16
+    Version:      0.3.4
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -491,7 +491,7 @@ Describe 'maturity-criteria.json schema guards' {
 Describe 'Get-FindingMaturityLink' {
     BeforeAll {
         $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $root 'Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Area Lookup)
         $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json'
         $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/iSOCBlueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
         $script:links = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $script:fixtureMaturity

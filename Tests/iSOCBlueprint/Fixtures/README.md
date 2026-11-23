@@ -33,7 +33,7 @@ Examples of the brokenness:
 | `rbac-workspace.json` | A legacy admin group holds `Owner` at workspace scope |
 | `resource-providers.json` | `Microsoft.Insights` is `NotRegistered` |
 | `alert-rules.json` | Rule `eeee` is enabled with no `entityMappings`, `createIncident: false` and a query on `ThreatIntelligenceIndicator`; rule `dddd` is an enabled `MicrosoftSecurityIncidentCreation` rule |
-| `rule-table-references.json`, `template-table-references.json` | Hand-authored output of `Get-KqlTableReferences.ps1` for the fixture rules and templates; `FirewallLogs_CL`, `SecurityEvent` and `OfficeActivity` are read by no enabled rule, and the only template for `FirewallLogs_CL` is `[Deprecated]` |
+| `rule-table-references.json`, `template-table-references.json` | Hand-authored output of `Get-RuleTableReferences` and `Get-TemplateTableReferences` for the fixture rules and templates; `FirewallLogs_CL`, `SecurityEvent` and `OfficeActivity` are read by no enabled rule, and the only template for `FirewallLogs_CL` is `[Deprecated]` |
 | `tables-with-data.json` | `AuditLogs` has `IngestedLast7d: 0` while rule `aaaa` reads it; `AZFWNetworkRule` carries data alongside the `AzureFirewall*` categories in `azure-diagnostics-categories.json` |
 | `rule-effectiveness.json` | `aaaa` closed 24 incidents, 19 of them false positive; `eeee` closed 8 (under the floor) |
 | `playbook-runs.json` | `IncidentEnrich-IP` failed 5 of 42 runs; `NotifyOnHighSev` is clean |

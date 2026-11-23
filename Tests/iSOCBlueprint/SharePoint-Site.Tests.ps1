@@ -29,8 +29,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-08
-    Version:      0.13.6
-    Last Updated: 2026-11-16
+    Version:      0.13.7
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -38,8 +38,7 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
     . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/SiteShared/Get-SectionFamily.ps1')
-    . (Get-iSOCBlueprintAreaLoader -Area PageSegments, SyncPlan, SharePoint, Mermaid, Section)
+    . (Get-iSOCBlueprintAreaLoader -Area SiteShared, PageSegments, SyncPlan, SharePoint, Mermaid, Section)
 
     # Pages are built from the section model; these tests write the section
     # as Markdown for readability and convert it the way the renderer does.
@@ -2412,7 +2411,7 @@ Describe 'Build-SentinelDocsSite against the fixture' {
     }
 
     It 'gives a tactic outside the Enterprise matrix (an ICS one) a grid column of its own' {
-        . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup/Get-AttackCoverage.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Area Lookup)
         $catalogue = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/mitre-attack.json') -Raw | ConvertFrom-Json
         $rule = [pscustomobject]@{ name = 'ics'; kind = 'Scheduled'; properties = [pscustomobject]@{
                 displayName = 'Process control tampering'; enabled = $true; severity = 'High'

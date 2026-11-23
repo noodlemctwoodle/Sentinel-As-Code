@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.0
-    Last Updated: 2026-11-12
+    Version:      0.1.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -25,6 +25,7 @@
                                without touching the captures
 #>
 
+# Keeps the file help above from being read as the help of the function below.
 
 function Get-CollectorApiVersion {
     <#
@@ -41,7 +42,7 @@ function Get-CollectorApiVersion {
 
     # API versions are hardcoded here rather than read from Blueprint.psd1.
     # Reading the manifest at script start was failing silently on the ADO Linux
-    # agent, with $apiVersions arriving empty inside Try-Capture's child scope,
+    # agent, with $apiVersions arriving empty inside Invoke-CaptureAttempt's child scope,
     # every subsequent REST call then fired without an api-version and Azure
     # returned 400 'MissingApiVersionParameter'. Inlining the table removes the
     # external file as a moving part. Keep these values in sync with the

@@ -10,8 +10,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-12
-    Version:      0.1.2
-    Last Updated: 2026-11-16
+    Version:      0.1.3
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Collector
     Requires:     PowerShell 7.6+
 
@@ -19,6 +19,7 @@
     lives on the function's own help block.
 #>
 
+# Keeps the file help above from being read as the help of the function below.
 
 function New-CollectorRunContext {
     <#

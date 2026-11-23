@@ -19,8 +19,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.2.1
-    Last Updated: 2026-11-16
+    Version:      0.2.2
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, Word report
     Requires:     PowerShell 7.6+, pandoc on PATH
 
@@ -28,6 +28,7 @@
     lives on the function's own help block.
 #>
 
+# Keeps the file help above from being read as the help of the function below.
 
 function Invoke-iSOCBlueprintWordConversion {
     <#

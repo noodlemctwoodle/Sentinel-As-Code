@@ -56,11 +56,11 @@ beneath it.
 | `Tools/Blueprint/Private/ConvertTo-BlueprintSection.ps1` | Retire | | | Converter split one function per file into `Private/Section`, loaded with the module |
 | `Tools/Blueprint/Private/GapChecks.ps1` | Retire | | | Split one check per file into `Private/Gap`, loaded with the module |
 | `Tools/Blueprint/Private/Get-AzureRetailPrice.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-AzureRetailPrice.ps1` | | |
-| `Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1` | | |
+| `Tools/Blueprint/Private/Get-ConnectorCatalogue.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Import-ConnectorCatalogue.ps1` | | Split one function per file in `Private/Lookup` |
 | `Tools/Blueprint/Private/Get-DefenderCustomDetections.ps1` | Move | `Modules/iSOCBlueprint/Private/Azure/Get-DefenderCustomDetections.ps1` | | |
 | `Tools/Blueprint/Private/Get-EffectiveConnectors.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1` | | |
 | `Tools/Blueprint/Private/Get-FindingMaturityLink.ps1` | Move | `Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1` | | |
-| `Tools/Blueprint/Private/Get-KqlTableReferences.ps1` | Move | `Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1` | | Its KQL helpers come from the vendored copy |
+| `Tools/Blueprint/Private/Get-KqlTableReferences.ps1` | Move | `Modules/iSOCBlueprint/Private/Kql/**` | | Split one function per file; its KQL helpers come from the vendored copy |
 | `Tools/Blueprint/Private/Get-SentinelCostEstimate.ps1` | Retire | | | Split into steps and helpers in `Private/Cost`, loaded with the module |
 | `Tools/Blueprint/Private/Get-SentinelGap.ps1` | Move | `Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1` | | `Get-iSOCBlueprintFinding` |
 | `Tools/Blueprint/Private/Get-SentinelMaturity.ps1` | Retire | | | Split into `Private/Maturity`, loaded with the module; `Get-iSOCBlueprintMaturity` runs it |
@@ -89,5 +89,5 @@ beneath it.
 | `Tools/Blueprint/SharePoint/Private/SacSharePoint.ps1` | Retire | | | Split one function per file into `Private/SharePoint`, loaded with the module |
 | `Tools/Blueprint/SharePoint/templates/sharepoint-dashboard.html` | Move | `Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard/**` | | Split into numbered parts that `Get-SiteDashboardTemplate` joins; the joined page is the original file byte for byte |
 | `Tools/Blueprint/SharePoint/webpart/isoc-blueprint/**` | Move | `Modules/iSOCBlueprint/WebParts/**` | | SPFx web part source (TypeScript, not PowerShell): beside the engine, outside what the module loads |
-| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Private/Kql/Vendor/SentinelCommon.Kql.ps1` | | `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
+| `Modules/Sentinel.Common/Sentinel.Common.psm1` | Adopted | `Modules/iSOCBlueprint/Private/Kql/Vendor/**` | | One function per file. `Remove-KqlComments` and `Get-KqlBareIdentifiers` only; the shared module needed Az.Accounts, the renderer does not. Sentinel.Common retired in 26.11.0, so the copy is the Blueprint's own |
 | `Docs/Modules/iSOCBlueprint/Blueprint-References.md` | Vendor | `Modules/iSOCBlueprint/Resources/Data/Blueprint-References.md` | | Shipped copy for page 99, so a run outside the repository still has it |

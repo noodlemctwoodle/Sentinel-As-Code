@@ -21,13 +21,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.4
-    Last Updated: 2026-11-16
+    Version:      0.1.5
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
-    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Lookup)
     $script:resource = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json'
 
     $script:testCatalogue = Join-Path ([System.IO.Path]::GetTempPath()) "connector-catalogue-$(New-Guid).json"

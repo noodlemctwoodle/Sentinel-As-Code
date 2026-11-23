@@ -31,8 +31,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.5.4
-    Last Updated: 2026-11-16
+    Version:      0.5.5
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+
 #>
 
@@ -2175,7 +2175,8 @@ Describe 'Every report page opens with what it covers' {
 
 Describe 'Detection opportunities name each template''s Content Hub solution' {
     BeforeAll {
-        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Lookup/Get-TemplateSolution.ps1')
+        . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Area Lookup)
         $dep = {
             param($ids) [pscustomobject]@{
                 operator = 'AND'

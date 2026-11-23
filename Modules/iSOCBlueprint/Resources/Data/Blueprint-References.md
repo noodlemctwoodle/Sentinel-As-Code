@@ -147,11 +147,11 @@ Nearly everything is read over REST by convention. These are the surfaces where 
 ## Recurring KQL queries
 
 The collector runs **43 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
-its own `Try-Capture` block that writes one `_raw/<name>.json`, and a 44th only when the
+its own `Invoke-CaptureAttempt` block that writes one `_raw/<name>.json`, and a 44th only when the
 bookmarks API refuses its list (below). About half read raw
 operational and security tables, not only billing metadata, so they cost query time on a
 busy workspace, and more the longer the lookback. To list them, grep the collector for
-`Try-Capture` blocks that set `$kql`.
+`Invoke-CaptureAttempt` blocks that set `$kql`.
 
 Every query reads **one lookback**: `-LookbackDays` (1 to 730, default 30, the
 `lookbackDays` pipeline parameter). `Add-BpWindow` declares `let lookback = <n>d;`,

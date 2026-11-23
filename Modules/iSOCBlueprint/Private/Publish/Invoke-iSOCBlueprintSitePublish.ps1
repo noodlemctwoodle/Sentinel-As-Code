@@ -17,8 +17,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-13
-    Version:      0.2.0
-    Last Updated: 2026-11-16
+    Version:      0.2.1
+    Last Updated: 2026-11-23
     Component:    iSOC Blueprint, SharePoint site publisher
     Requires:     PowerShell 7.6+, PnP.PowerShell 3.4.1
 
@@ -26,6 +26,7 @@
     lives on the function's own help block.
 #>
 
+# Keeps the file help above from being read as the help of the function below.
 
 function Invoke-iSOCBlueprintSitePublish {
     <#

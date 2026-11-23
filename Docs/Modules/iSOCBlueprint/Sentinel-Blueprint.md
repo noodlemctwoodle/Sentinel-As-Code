@@ -515,8 +515,8 @@ reads `(ConvertFrom-Json).rules`. Each entry looks like:
 ```
 
 `Get-SentinelGap` builds one `$Inventory` object from the JSON files in `_raw/`,
-then for each rule dot-sources `GapChecks.ps1` and dispatches the named `check`
-function. Every check function takes that single `$Inventory` parameter and
+then for each rule calls the named `check` function (one file each under
+`Private/Gap/Checks`, loaded with the module). Every check function takes that single `$Inventory` parameter and
 returns `$null` on pass or an Evidence/Detail object on fail; the engine wires the
 rule metadata (id, title, category, severity, remediation, Learn link) around the
 result.
@@ -673,13 +673,13 @@ result cells arrive as strings, so the checks read numbers through small
 
 1. Write `Test-MyNewRule` as its own file under
    `Modules/iSOCBlueprint/Private/Gap/Checks/<Area>/`, the area named for the
-   rule id prefix. `GapChecks.ps1` picks it up; nothing else needs registering.
+   rule id prefix. The module loads it with the rest; nothing else needs registering.
 2. Add a row to `best-practices.json` referencing it by name.
 3. Add a fixture-driven Pester test under
    `Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`.
 
 That's the complete change. If the rule reads a capture that can be
-absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
+absent, read it through `Read-JsonArray` in `New-InventoryFromRaw.ps1` and check
 `$Inventory.RawFiles` before treating an empty array as a finding.
 
 ---
@@ -889,8 +889,8 @@ billable data or wasn't seen in the 90-day usage window.
   reference of API versions, modules, and Microsoft Learn pages.
 - [iSOC Blueprint SharePoint Site](Sentinel-SharePoint-Site.md): the generated
   SharePoint site built from this tool's output.
-- [`Test-SentinelRuleDrift.ps1`](../../../Tools/Test-SentinelRuleDrift.ps1): sister
-  read-only tool that detects portal-edited rules. The Blueprint answers
+- [`Export-iSOCDriftReport`](../../../Modules/iSOCDeployments/Public/Export-iSOCDriftReport.ps1): sister
+  read-only command that detects portal-edited rules. The Blueprint answers
   "what is deployed?"; drift detection answers "is what's deployed what's in the
   repo?".
 - [Microsoft Sentinel best practices](https://learn.microsoft.com/azure/sentinel/best-practices):

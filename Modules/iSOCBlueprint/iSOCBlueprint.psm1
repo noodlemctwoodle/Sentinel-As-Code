@@ -44,5 +44,5 @@ foreach ($folder in 'Private', 'Public') {
 # shows only where the run went; every property is still on the object.
 Update-TypeData -TypeName 'iSOCBlueprint.Blueprint' -DefaultDisplayPropertySet 'WorkspaceName', 'Path' -Force
 
-$public = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Public') -Filter '*.ps1' -File | ForEach-Object BaseName)
+$public = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Public') -Filter '*.ps1' -File | ForEach-Object { $_.BaseName })
 Export-ModuleMember -Function $public

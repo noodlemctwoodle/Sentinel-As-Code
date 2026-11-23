@@ -29,39 +29,14 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.2
-    Last Updated: 2026-11-16
+    Version:      0.1.3
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running.
 #>
 
-function Get-HuntingActivityTime {
-    <#
-    .SYNOPSIS
-        The latest of the named date properties on an object (UTC), or
-        $null when it has none that parse.
-    #>
-    [CmdletBinding()]
-    param(
-        [AllowNull()] $Object,
-        [string[]] $Names
-    )
-    if ($null -eq $Object) { return $null }
-    $latest = $null
-    foreach ($n in $Names) {
-        $p = $Object.PSObject.Properties[$n]
-        if (-not $p -or -not $p.Value) { continue }
-        $t = [datetime]::MinValue
-        if ($p.Value -is [datetime]) { $t = $p.Value.ToUniversalTime() }
-        elseif (-not [datetime]::TryParse([string]$p.Value, [System.Globalization.CultureInfo]::InvariantCulture,
-                [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$t)) {
-            continue
-        }
-        if ($null -eq $latest -or $t -gt $latest) { $latest = $t }
-    }
-    $latest
-}
+# Keeps the file help above from being read as the help of the function below.
 
 function Get-HuntingActivity {
     <#

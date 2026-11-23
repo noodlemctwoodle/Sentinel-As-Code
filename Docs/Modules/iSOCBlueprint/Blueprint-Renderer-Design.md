@@ -226,7 +226,7 @@ External helpers used by the renderer:
   synthesised connector view that fuses classic + CCF + DCR + diagnostic-settings + active-tables.
 - `Get-SentinelCostEstimate` (`Private/Cost`), used by the **exporter** (not the renderer) to
   produce `_raw/cost-estimate.json` which the renderer consumes via `Read-BlueprintRaw`.
-- `Get-SentinelGap` + the gap checks (`Private/Gap`, loaded by `GapChecks.ps1`), also exporter-side; produces
+- `Get-SentinelGap` + the gap checks (`Private/Gap`, loaded with the module), also exporter-side; produces
   `_raw/gap-analysis.json`.
 - The `Format-Blueprint*` helpers,
   [`Modules/iSOCBlueprint/Private/Format`](../../../Modules/iSOCBlueprint/Private/Format) (one function per file, loaded with the module),
@@ -542,7 +542,7 @@ assets root).
 | [`Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1`](../../../Modules/iSOCBlueprint/Private/ChartImage/Invoke-iSOCBlueprintChartImage.ps1) | Stage 3 (ADO only), pre-renders Mermaid fences to PNG via `mmdc` |
 | [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml) | ADO pipeline that runs the renderer + PNG pre-render (`prerenderChartsToPng`) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnectors.ps1) | Dot-sourced helper for the 10-data-connectors synthesised view |
-| [`Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-ConnectorCatalogue.ps1) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-ConnectorCatalogue.ps1`](../../../Modules/iSOCBlueprint/Engine/Update-ConnectorCatalogue.ps1) |
+| [`Modules/iSOCBlueprint/Private/Lookup`](../../../Modules/iSOCBlueprint/Private/Lookup) (`Import-ConnectorCatalogue` and the helpers beside it) + [`Resources/connector-catalogue.json`](../../../Modules/iSOCBlueprint/Resources/Data/connector-catalogue.json) | Data connector catalogue: connected connectors against their tables (page 10, SAC-PLT-10), the connector behind a table (pages 10 and 81), the solution that ships a table (page 28). Refreshed by [`Update-iSOCBlueprintConnectorCatalogue`](../../../Modules/iSOCBlueprint/Public/Update-iSOCBlueprintConnectorCatalogue.ps1) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-FindingMaturityLink.ps1) | Maps each finding to the maturity criteria it decides, with status and lift (page 90's Maturity column and card line; the dashboard's finding chips) |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1) | Dot-sourced helper mapping table names to source families, shared with the SharePoint build so the estate flow and the dashboard Sankey agree |
 | [`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1) | Dot-sourced helper classifying operational tables by data lake tier, shared with the SharePoint build so section 88 and the dashboard's lake panel agree |

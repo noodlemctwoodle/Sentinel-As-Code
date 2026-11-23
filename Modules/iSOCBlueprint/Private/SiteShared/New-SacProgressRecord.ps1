@@ -2,57 +2,26 @@
 
 <#
 .SYNOPSIS
-    One run's progress record, and the history of them the dashboard's
-    Progress tab compares.
+    This run's progress record, from the dashboard model
 
 .DESCRIPTION
-    Each export is a snapshot: the window slider re-scopes its activity, but
-    posture (rules enabled, findings, criteria, coverage) is as it was on the
-    day. To show change, every site build writes a progress record for its
-    run: the headline numbers and the lists a change is read from. The
-    records are kept as a history:
-
-      progress.json          this run's record, in the bundle
-      progress-history.json  every kept day's record, oldest first: in the
-                             bundle from earlier day folders (a local run),
-                             and on the site, where the publisher adds each
-                             run's record (a pipeline run starts with no
-                             earlier folders)
-
-    The dashboard compares the run it shows with a baseline from the
-    history: the previous run, a run 7, 30 or 90 days earlier, or the first.
+    Split from Get-SacProgress.ps1 so each file holds one function.
 
 .NOTES
-    File:         Modules/iSOCBlueprint/Private/SiteShared/Get-SacProgress.ps1
+    File:         Modules/iSOCBlueprint/Private/SiteShared/New-SacProgressRecord.ps1
     Repository:   Sentinel-As-Code
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.3
-    Last Updated: 2026-11-16
+    Version:      0.1.0
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
-    This file defines functions rather than running. Per-parameter detail
-    lives on each function's own help block.
+    This file defines a function rather than running. Per-parameter detail
+    lives on the function's own help block.
 #>
 
-function Get-SacProgressValue {
-    <#
-    .SYNOPSIS
-        A property of a dictionary or an object, or $null; a dotted path
-        walks down ('maturity.overall.score').
-    #>
-    [CmdletBinding()]
-    param([AllowNull()] $Object, [Parameter(Mandatory)] [string] $Path)
-    $cur = $Object
-    foreach ($part in $Path.Split('.')) {
-        if ($null -eq $cur) { return $null }
-        if ($cur -is [System.Collections.IDictionary]) { $cur = if ($cur.Contains($part)) { $cur[$part] } else { $null } }
-        elseif ($cur.PSObject.Properties[$part]) { $cur = $cur.PSObject.Properties[$part].Value }
-        else { return $null }
-    }
-    $cur
-}
+# Keeps the file help above from being read as the help of the function below.
 
 function New-SacProgressRecord {
     <#
@@ -141,7 +110,7 @@ function New-SacProgressRecord {
     $openBy = & $v 'alertLifecycle.openBySeverity'
     if ($null -ne $openBy) {
         $open = 0
-        $props = if ($openBy -is [System.Collections.IDictionary]) { $openBy.Values } else { $openBy.PSObject.Properties | ForEach-Object Value }
+        $props = if ($openBy -is [System.Collections.IDictionary]) { $openBy.Values } else { $openBy.PSObject.Properties | ForEach-Object { $_.Value } }
         foreach ($n in $props) { if ($null -ne $n) { $open += [int]$n } }
     }
     $daily = @(@(& $v 'usageDaily') | Where-Object { $_ })
@@ -192,49 +161,4 @@ function New-SacProgressRecord {
             uncovered  = $uncovered
         }
     }
-}
-
-function Merge-SacProgressHistory {
-    <#
-    .SYNOPSIS
-        A history with the given records added: one record a day (a later
-        record for the same day replaces the earlier), oldest first, and
-        none more than -Days days before the newest (a run exactly -Days
-        earlier is kept, so the dashboard's 90-day baseline has one). Pure;
-        the inputs are not changed.
-
-    .PARAMETER History
-        The history so far, @{ entries = @(...) }, or $null.
-
-    .PARAMETER Records
-        Records to add.
-
-    .PARAMETER Days
-        How many days back from the newest record to keep, that day
-        included. Defaults to 90.
-
-    .OUTPUTS
-        [ordered] schemaVersion and entries.
-    #>
-    [CmdletBinding()]
-    param(
-        [AllowNull()] $History,
-        [AllowNull()] [AllowEmptyCollection()] [object[]] $Records = @(),
-        [ValidateRange(1, 3650)] [int] $Days = 90
-    )
-    $byDate = [ordered]@{}
-    $add = {
-        param($r)
-        if ($null -eq $r) { return }
-        $d = [string](Get-SacProgressValue -Object $r -Path 'date')
-        if ($d -match '^\d{4}-\d{2}-\d{2}$') { $byDate[$d] = $r }
-    }
-    foreach ($e in @(Get-SacProgressValue -Object $History -Path 'entries')) { & $add $e }
-    foreach ($r in @($Records)) { & $add $r }
-    $dates = @($byDate.Keys | Sort-Object)
-    if ($dates.Count) {
-        $cutoff = [datetime]::ParseExact($dates[-1], 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture).AddDays(-$Days).ToString('yyyy-MM-dd')
-        $dates = @($dates | Where-Object { [string]::CompareOrdinal($_, $cutoff) -ge 0 })
-    }
-    [ordered]@{ schemaVersion = 1; entries = @($dates | ForEach-Object { $byDate[$_] }) }
 }
