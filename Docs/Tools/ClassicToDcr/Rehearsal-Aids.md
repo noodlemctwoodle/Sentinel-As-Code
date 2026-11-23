@@ -306,9 +306,10 @@ principal, which needs Monitoring Metrics Publisher on the DCR.
 
 ### Configuring the service principal
 
-The tester reads its credentials from the environment. Copy
-`Rehearsal/.env.example` (removed with the scripts) to
-`Rehearsal/.env` (the real `.env` is git-ignored) and fill in:
+`Test-iSOCDcrIngestion` reads its credentials from the parameters, the environment or a `.env`
+file. Copy
+[`Modules/iSOCDeployments/Resources/ClassicToDcr/.env.example`](../../../Modules/iSOCDeployments/Resources/ClassicToDcr/.env.example)
+to `.env` in the folder you run the command from (the real `.env` is git-ignored) and fill in:
 
 ```text
 DCR_INGEST_TENANT_ID=<tenant guid>
@@ -316,15 +317,16 @@ DCR_INGEST_CLIENT_ID=<app id>
 DCR_INGEST_CLIENT_SECRET=<secret>
 ```
 
-Resolution order for a relative `-EnvFile` is the **current directory first, then next to the
-script**, so a `.env` kept alongside the toolkit is found whether you run from `Rehearsal/` or
-from one level up as `./Rehearsal/Test-DcrIngestion.ps1`. An absolute path is used as given.
-Values already present in the environment are never overwritten, so an explicit export always
-beats the file. Explicit parameters beat both. The fallback env var names `AZURE_TENANT_ID`,
-`AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are also accepted.
+A relative `-EnvFile` (default `.env`) is read from the **current folder only**. The removed script
+also looked next to itself, so a `.env` kept beside the toolkit was found from anywhere; the command
+does not, so run it from the folder that holds the file or pass the path with `-EnvFile`. An
+absolute path is used as given, and a file that does not exist is ignored. Values already present
+in the environment are never overwritten, so an explicit export always beats the file. Explicit
+parameters beat both. The fallback env var names `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and
+`AZURE_CLIENT_SECRET` are also accepted.
 
 The secret is held in memory only and never printed. The same `DCR_INGEST_CLIENT_ID` is what you
-pass to `Invoke-ClassicTableMigration.ps1 -GrantIngestionRoleTo`.
+pass to `Invoke-iSOCClassicTableMigration -GrantIngestionRoleTo`.
 
 ### Arrival confirmation
 
@@ -343,7 +345,7 @@ Ingestion is asynchronous, so rows have not surfaced yet by the time the next ba
 | `-DcrResourceGroupName` | string | required | Resource group containing the DCR |
 | `-TenantId`, `-ClientId` | string | from environment | Sending service principal |
 | `-ClientSecret` | SecureString | from environment | Kept out of shell history and the process argument list |
-| `-EnvFile` | string | `.env` | Dotenv file of `KEY=VALUE` lines. Ignored if it does not exist |
+| `-EnvFile` | string | `.env` | Dotenv file of `KEY=VALUE` lines, read from the current folder when relative. Ignored if it does not exist |
 | `-StreamName` | string | inferred | Input stream, for example `Custom-MyApp_CL`. Optional when the DCR declares exactly one stream, which is the usual case for a migrated table |
 | `-BatchSize` | int, 1 to 1000 | `10` | Records per POST. Keep the JSON body under 1 MB |
 | `-IntervalSeconds` | int, 1 to 3600 | `5` | Seconds between batches |
