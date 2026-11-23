@@ -79,8 +79,8 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-29
-    Version:        1.1.1
-    Last Updated:   2026-11-09
+    Version:        1.1.2
+    Last Updated:   2026-11-23
     Requires:       PowerShell 7.6+, Pester 5+ and powershell-yaml (both auto-installed if missing)
 #>
 
@@ -179,7 +179,9 @@ Write-Host ("  Duration:     {0}" -f $result.Duration)
 function Write-PRValidationError {
     param([object[]] $ErrorRecord)
     foreach ($record in @($ErrorRecord | Where-Object { $_ })) {
-        $text = if ($record.PSObject.Properties['DisplayErrorMessage'] -and $record.DisplayErrorMessage) { $record.DisplayErrorMessage } else { $record.Exception.Message }
+        $text = if ($record.PSObject.Properties['DisplayErrorMessage'] -and $record.DisplayErrorMessage) {
+            $record.DisplayErrorMessage
+        } else { $record.Exception.Message }
         foreach ($line in ([string]$text -split '\r?\n')) { Write-Host ('##[error]    {0}' -f $line) }
     }
 }
