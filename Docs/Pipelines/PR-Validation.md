@@ -227,6 +227,8 @@ paths:
   include:
     - Content/AnalyticalRules
     - Content/HuntingQueries
+    - Content/Workbooks
+    - Content/CodelessConnectors
     - Modules
     - Deploy
     - Tools
@@ -240,7 +242,10 @@ paths:
 - `trigger` provides a green baseline on push to `main`.
 
 Unlike the GitHub workflow, the ADO pipeline **does** filter by path: it only
-runs when one of the listed paths changes.
+runs when one of the listed paths changes. Every folder that holds PowerShell
+must be listed, so the PSScriptAnalyzer lint sees changes to it, and the
+branch policy's path filter (see [ADO OIDC setup](../Deploy/ADO-OIDC-Setup.md))
+must match these lists.
 
 ### Variables
 

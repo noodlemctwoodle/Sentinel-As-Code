@@ -151,6 +151,15 @@ workbook-export suites.
 | PR template validator | [`Tests/Test-PullRequestTemplate.Tests.ps1`](../../Tests/Test-PullRequestTemplate.Tests.ps1) | `Remove-MarkdownComment`, `Get-PullRequestSection`, `Test-PullRequestTemplateBody` (required-section + tick-box rules for the PR description) |
 | Copilot customisations | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses, required keys present, display-name prefix, `applyTo` glob hygiene, and a cross-reference link checker across `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, and `AGENTS.md` |
 | PowerShell 7.6 floor | [`Tests/Test-PowerShellVersion.Tests.ps1`](../../Tests/Test-PowerShellVersion.Tests.ps1) | Every tracked `.ps1` and `.psm1` opens with `#Requires -Version 7.6`, reads as 7.6 to the PowerShell parser and has one `Requires: PowerShell 7.6+` key in `.NOTES`; both module manifests declare `PowerShellVersion = '7.6'`; no workflow, composite action or ADO pipeline runs a step in Windows PowerShell; every Azure Automation runtime environment is PowerShell 7.6, every PowerShell runbook runs on one and the DCR inventory pipelines link the runbook to it; no file other than `CHANGELOG.md` and `MIGRATION.md` states a PowerShell requirement below 7.6 |
+| Export-SentinelWorkbooks | [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation, parity against existing `Content/Workbooks/<Folder>/` names, `Format-WorkbookJson` round-trip |
+| SdlMigrationExport | [`Tests/Test-ExportSdlMigrationWorkbook.Tests.ps1`](../../Tests/Test-ExportSdlMigrationWorkbook.Tests.ps1) | Coding standard rules PSScriptAnalyzer has no built-in rule for, one test per rule ( filename/function, UTF-8 without BOM, backticks, comment casing, spaces in parentheses, header spacing, param placement, blank lines, parameter grouping, positional arguments, `+=`, 300-line cap), module manifest and named exports, deprecation, KQL helpers, function-reached rule references, commitment-tier rates, retention-aware lets, culture-safe numbers, automatic Azure sign-in, error scenarios (HTTP 403, 429 retry, expired sign-in, retry budget, failed query, locked file, Windows path, retention guard) |
+| PSScriptAnalyzer lint | [`Tests/Test-PSScriptAnalyzer.Tests.ps1`](../../Tests/Test-PSScriptAnalyzer.Tests.ps1) | Every `.ps1`, `.psm1` and `.psd1` in the repository through the profiles in [`Tests/PSScriptAnalyzer/`](../../Tests/PSScriptAnalyzer), as a ratchet against `PSScriptAnalyzerBaseline.psd1` (see [PSScriptAnalyzer lint](#psscriptanalyzer-lint)) |
+| New-DcrFromSchema | [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../Tests/Test-NewDcrFromSchema.Tests.ps1) | The full pure surface of the DCR-from-schema wizard: `Import-TableSpec` (three schema shapes, plus the refusal when handed a data sample), `Remove-JsonNoise` / `ConvertTo-StraightPunctuation` / `ConvertTo-SafeText` (paste repair that respects string state), `Get-ColumnIssue` and `Test-TableName` (the documented Azure Monitor limits), `Resolve-TableSchema` / `Repair-TableSchema` (duplicate and case handling, what is safe to auto-fix), `ConvertTo-StreamColumn` and `Get-DefaultTransform` (the guid-to-string reconciliation), `Test-TransformKql`, `Compare-TableSchema`, `Format-DeploymentError` (nested ARM preflight errors), both ARM template builders, and an end-to-end pass over all five shipped example schemas |
+| ClassicToDcr migration | [`Tests/Test-InvokeClassicTableMigration.Tests.ps1`](../../Tests/Test-InvokeClassicTableMigration.Tests.ps1) | `Get-DcrColumnType`, `ConvertTo-StreamColumn`, `Build-DcrArmTemplate`, `Get-DefaultTransform` and `Invoke-ArmRequest` routing; the migration call, the ARM reads and the deployment need a live workspace and are not covered |
+| ClassicToDcr review | [`Tests/Test-InvokeTableMigrationReview.Tests.ps1`](../../Tests/Test-InvokeTableMigrationReview.Tests.ps1) | The decisions the review report hinges on: table references by word boundary, connector kind, function-alias safety, the parser graph and indirect impact through parsers, and the report template's contracts; the ARM calls, the Content Hub fetch and the writers are not covered |
+| ClassicToDcr rehearsal: ingestion test | [`Tests/Test-DcrIngestion.Tests.ps1`](../../Tests/Test-DcrIngestion.Tests.ps1) | The ingestion target, stream and table names, the Logs Ingestion URI, records matching the stream schema, the token request shape, `.env` loading and setting resolution; the token call and the streaming loop are not covered |
+| ClassicToDcr rehearsal: classic table fixture | [`Tests/Test-NewClassicTableFixture.Tests.ps1`](../../Tests/Test-NewClassicTableFixture.Tests.ps1) | The Data Collector API SharedKey signature and the synthetic records behind the classic column types; the live POST and the table poll are not covered |
+| ClassicToDcr rehearsal: dependency fixture | [`Tests/Test-NewDependencyFixture.Tests.ps1`](../../Tests/Test-NewDependencyFixture.Tests.ps1) | The naming plan for the dependency chains, the reserved-name and alias-collision guards, the ownership gates that authorise a delete, and the alert-rule, saved-search and record builders; the live writes are not covered |
 | Blueprint renderer | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Renders the Blueprint Markdown from the `Tests/iSOCBlueprint/Fixtures/sample/_raw` JSON corpus and asserts expected output plus empty-state safety |
 | Blueprint gap engine | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Drives the gap-analysis engine against a deliberately-broken fixture and asserts each gap rule fires |
 | Blueprint REST wrapper | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | URL construction inside `Invoke-SentinelRest` (api-version appending, existing query-string handling) |
@@ -235,7 +244,7 @@ build policy. Configure the gate once per platform:
 Policies → Branch policies for `main`:
 - Build validation → + Add build policy
 - Build pipeline: `Sentinel-PR-Validation`
-- Path filter: `Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json`
+- Path filter: `Content/AnalyticalRules/*;Content/HuntingQueries/*;Content/Workbooks/*;Content/CodelessConnectors/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/Sentinel-PR-Validation.yml`
 - Trigger: Automatic
 - Policy requirement: Required
 - Build expiration: Immediately when the source branch is updated
@@ -262,6 +271,45 @@ or not. Twelve CommonSecurityLog rules were overwriting twelve SigninLogs
 rules that way until they were given ids of their own (release 26.11.0),
 and the check now covers the whole tree. See
 [Community Rules](../Content/Community-Rules.md#rule-ids).
+
+## PSScriptAnalyzer lint
+
+Every `.ps1`, `.psm1` and `.psd1` in the repository (files git ignores are
+skipped) goes through PSScriptAnalyzer in
+[`Tests/Test-PSScriptAnalyzer.Tests.ps1`](../../Tests/Test-PSScriptAnalyzer.Tests.ps1),
+one test per file, on every PR. The profiles live in
+[`Tests/PSScriptAnalyzer/`](../../Tests/PSScriptAnalyzer):
+
+| Profile | Used for |
+| --- | --- |
+| `PSScriptAnalyzerSettings.psd1` | Source files: every built-in rule at every severity, plus the opt-in rules of the repository's PowerShell coding standard (OTBS braces, whitespace, indentation, aligned hashtables, keyword and operator casing, single-quoted constant strings, no semicolon line terminators, named parameters, comment help on every function) |
+| `PSScriptAnalyzerTestSettings.psd1` | Files under `Tests/`: the same, with the exclusions test code needs (each one explained in the file) |
+| `PSScriptAnalyzerFormatting.psd1` | A second pass over every file with command-name casing on, which the main profiles turn off because of [PSScriptAnalyzer #1708](https://github.com/PowerShell/PSScriptAnalyzer/issues/1708) |
+
+The gate is a ratchet. When the lint was introduced 118 existing files had
+findings; [`PSScriptAnalyzerBaseline.psd1`](../../Tests/PSScriptAnalyzer/PSScriptAnalyzerBaseline.psd1)
+records each one's count. A file may not have more findings than its baseline,
+and a file that is not listed (every new file) must be clean. When you fix
+findings the test fails until you lower the baseline, so the gain is kept:
+
+```powershell
+./Tools/Update-PSScriptAnalyzerBaseline.ps1
+```
+
+Never run it to let new findings in; review the baseline diff in the PR.
+
+Both PR pipelines install PSScriptAnalyzer 1.25.0 (`PSSA_VERSION` in
+`.github/workflows/pr-validation.yml`, the install step in
+`Pipelines/Sentinel-PR-Validation.yml`). Locally the test is skipped when
+PSScriptAnalyzer is missing; in CI it fails. Any analyser error fails a file's
+test.
+
+PSScriptAnalyzer 1.25 resolves commands on parallel threads and can crash with
+a `NullReferenceException` (#1708). The shared helper
+[`Tests/_helpers/PSScriptAnalyzerLint.psm1`](../../Tests/_helpers/PSScriptAnalyzerLint.psm1)
+avoids it: it lints one file per call, and warms PSScriptAnalyzer's command
+cache with a throwaway analysis first, because the crash only happens on the
+first analysis of a module in a fresh process.
 
 ## Test file layout
 
@@ -655,6 +703,15 @@ the content tree). Run `Invoke-Pester -Path Tests` for a current total.
 | [`Tests/Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) | ARM-vs-gallery format detection + GUID uniqueness for ARM workbooks | 11 |
 | [`Tests/Test-CopilotCustomisations.Tests.ps1`](../../Tests/Test-CopilotCustomisations.Tests.ps1) | Frontmatter parses + required keys present + display-name prefix + applyTo glob hygiene + cross-reference link checker for `.github/agents/`, `.github/instructions/`, `.github/prompts/`, `.github/copilot-instructions.md`, `AGENTS.md` | ~106 (per-file) |
 | [`Tests/Test-PowerShellVersion.Tests.ps1`](../../Tests/Test-PowerShellVersion.Tests.ps1) | PowerShell 7.6 everywhere: `#Requires`, `Requires:` and manifest versions, no Windows PowerShell pipeline steps, the Automation runtime environment and the runbook's link to it, no stated requirement below 7.6 | 13 |
+| [`Tests/Test-ExportSentinelWorkbooks.Tests.ps1`](../../Tests/Test-ExportSentinelWorkbooks.Tests.ps1) | `ConvertTo-FolderName` PascalCase derivation + parity check against existing `Content/Workbooks/<Folder>/` names; `Format-WorkbookJson` round-trip | 11 |
+| [`Tests/Test-ExportSdlMigrationWorkbook.Tests.ps1`](../../Tests/Test-ExportSdlMigrationWorkbook.Tests.ps1) | SdlMigrationExport module: a check per custom coding-standard rule, manifest and exports, deprecation, KQL helpers, rule references, pricing, Azure sign-in, error scenarios, review regressions | 579 |
+| [`Tests/Test-PSScriptAnalyzer.Tests.ps1`](../../Tests/Test-PSScriptAnalyzer.Tests.ps1) | Repository-wide PSScriptAnalyzer lint, one test per PowerShell file, ratcheted against the baseline | 194 |
+| [`Tests/Test-DcrIngestion.Tests.ps1`](../../Tests/Test-DcrIngestion.Tests.ps1) | The ClassicToDcr rehearsal ingestion test (`Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1`): `Get-DcrIngestionTarget`, `Get-DcrStreamName`, `Get-DestinationTableName`, `Get-IngestionUri`, `New-StreamRecord`, `New-TokenRequest`, the SecureString round-trip, `Import-DotEnv`, `Resolve-Setting` | 39 |
+| [`Tests/Test-InvokeClassicTableMigration.Tests.ps1`](../../Tests/Test-InvokeClassicTableMigration.Tests.ps1) | `Get-DcrColumnType`, `ConvertTo-StreamColumn` (reserved, system and hidden columns dropped, `TimeGenerated` kept), `Build-DcrArmTemplate`, `Get-DefaultTransform`, `Invoke-ArmRequest` routing | 63 |
+| [`Tests/Test-InvokeTableMigrationReview.Tests.ps1`](../../Tests/Test-InvokeTableMigrationReview.Tests.ps1) | `Test-KqlReferencesTable` word-boundary matching, `Resolve-ConnectorKind`, `Get-FunctionAliasSafety`, the KQL identifier helpers, transitive parser dependency resolution (chains, cycles, fan-out, depth, severed chains), and the report template's contracts | 184 |
+| [`Tests/Test-NewClassicTableFixture.Tests.ps1`](../../Tests/Test-NewClassicTableFixture.Tests.ps1) | `New-DataCollectorSignature` (HMAC-SHA256 SharedKey over the UTF-8 byte length), `New-FixtureRecord` (the field types behind the classic `_s` / `_d` / `_b` / `_g` columns) | 20 |
+| [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../Tests/Test-NewDcrFromSchema.Tests.ps1) | The DCR-from-schema wizard: schema import and paste repair, the documented table and column rules, schema repair, stream and transform generation, the diff against an existing table, both ARM templates, and every shipped example end to end | ~200 (per-example) |
+| [`Tests/Test-NewDependencyFixture.Tests.ps1`](../../Tests/Test-NewDependencyFixture.Tests.ps1) | `Get-FixtureNamingPlan` (including the rule that must not name its table and the orphan table), `Test-ReservedTableName`, `Get-AliasCollisionReason`, the `Test-FixtureOwned*` delete gates, `New-AlertRuleBody` and the other request builders | 143 |
 | [`Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1`](../../Tests/iSOCBlueprint/Convert-SentinelInventoryToMarkdown.Tests.ps1) | Blueprint Markdown render from the `Fixtures/sample/_raw` corpus, the merged analytics page, the health-check sections, the orphan-capture tables, the health-check cross-reference sections, the sections added for health-check build 38, full lists with no emoji, the connector catalogue, other saved searches and Sentinel pricing, the pages split out for health-check granularity (02, 16, 21, 22, 89), findings linked to the maturity criteria they decide, and empty-state safety | ~250 |
 | [`Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`](../../Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1) | Gap-analysis engine (`Get-SentinelGap`) against a deliberately-broken fixture, per-check outcomes, absent-capture behaviour, the rules ported from health-check build 38, evidence that names every item, SAC-PLT-10 against the connector catalogue | 97 |
 | [`Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1`](../../Tests/iSOCBlueprint/Invoke-SentinelRest.Tests.ps1) | `Invoke-SentinelRest` URL construction (api-version / query-string handling) | 5 |

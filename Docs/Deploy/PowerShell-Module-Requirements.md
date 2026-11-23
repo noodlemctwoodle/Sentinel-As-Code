@@ -81,9 +81,10 @@ and is missing.
 
 ## Companion workbook export
 
-[`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1)
-is a standalone helper (not part of the deploy path) that needs:
-`Az.Accounts`, `Az.OperationalInsights`, and `ImportExcel`.
+The deprecated [`SdlMigrationExport`](../../Content/Workbooks/SentinelDataLake/SdlMigrationExport)
+module (not part of the deploy path) needs `Az.Accounts`,
+`Az.OperationalInsights` and `ImportExcel` at run time, and its lint tests
+need `PSScriptAnalyzer` 1.25.0, which both PR pipelines install.
 
 ## External (non-module) dependencies
 

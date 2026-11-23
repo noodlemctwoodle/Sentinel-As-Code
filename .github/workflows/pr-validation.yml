@@ -67,6 +67,7 @@ concurrency:
 # version before merging.
 env:
   PESTER_VERSION: "5.7.1"
+  PSSA_VERSION:   "1.25.0"
   YAML_VERSION:   "0.4.12"
 
 jobs:
@@ -109,6 +110,7 @@ jobs:
           pester-version: ${{ env.PESTER_VERSION }}
           yaml-version:   ${{ env.YAML_VERSION }}
           pnp-version:    ${{ steps.pnp.outputs.version }}
+          pssa-version:   ${{ env.PSSA_VERSION }}
 
       # Bicep playbooks are compiled with the standalone Bicep CLI, which
       # the iSOCDeployments module (and Az.Resources) need on the PATH.

@@ -60,3 +60,6 @@ migration-report/
 .env
 .env.*
 !.env.example
+
+# Sentinel Data Lake exporter output: workspace data, never committed.
+SdlMigrationExport_*.xlsx

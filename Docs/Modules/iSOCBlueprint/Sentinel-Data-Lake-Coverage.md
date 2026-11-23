@@ -326,7 +326,7 @@ retention chart.
   query / advanced data insights) per table, because the Retail Prices API
   names meters at the catalogue level, not per-workspace-usage. A sibling
   tool already closes most of this gap outside the Blueprint pipeline:
-  [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1)
+  [`Content/Workbooks/SentinelDataLake/SdlMigrationExport/Public/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/SdlMigrationExport/Public/Export-SdlMigrationWorkbook.ps1)
   computes distinct per-table `LakeIngestCost`, `LakeProcCost` and
   `LakeStorageCost` fields (3 of the 5 Lake meters) via KQL mirrored
   against the workspace. It is not integrated into the Blueprint's
@@ -367,7 +367,7 @@ retention chart.
 | [`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) | DataLake plan handling in the cost split |
 | [`Modules/iSOCBlueprint/Resources/Data/cost-meters.json`](../../../Modules/iSOCBlueprint/Resources/Data/cost-meters.json) | Lake meter → category mapping |
 | [`Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
-| [`Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |
+| [`Content/Workbooks/SentinelDataLake/SdlMigrationExport/Public/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/SdlMigrationExport/Public/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |
 
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`
 / Office\* / Behavior\* pattern match) is driven by the `$assetTableNames`
