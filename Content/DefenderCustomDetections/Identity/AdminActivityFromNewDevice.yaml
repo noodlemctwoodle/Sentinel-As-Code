@@ -1,5 +1,6 @@
+id: admin-activity-from-new-device
 displayName: Privileged account logon from previously unseen device
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     let PrivilegedAccounts = IdentityDirectoryEvents
@@ -20,9 +21,8 @@ queryCondition:
     | join kind=leftanti KnownDevices on AccountUpn, DeviceName
     | project Timestamp, ReportId, AccountUpn, AccountObjectId,
               AccountSid, DeviceName, IPAddress, Application
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Privileged account logon from previously unseen device"
@@ -31,18 +31,21 @@ detectionAction:
       successfully authenticated from a device not seen in the previous 30 days.
       This may indicate credential theft or unauthorised use of admin credentials.
     severity: high
-    category: PrivilegeEscalation
-    mitreTechniques:
-      - T1078.002
+    tactics:
+      - tactic: PrivilegeEscalation
+        techniques:
+          - technique: T1078
+            subTechniques:
+              - T1078.002
     recommendedActions: |
       1. Verify with the account owner whether the logon was expected.
       2. Check the device for compliance status and recent activity.
       3. Review the logon source IP and location for anomalies.
       4. If unauthorised, force password reset and revoke sessions.
       5. Check for subsequent privileged actions from this session.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
-      identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId
+  automatedActions:
+    markUsersAsCompromised:
+      - accountObjectIdColumn: AccountObjectId

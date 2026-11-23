@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -10,7 +10,9 @@
     The publisher only meets SharePoint in a pipeline run, so a call that
     cannot bind (an unknown parameter, or two parameters that sit in
     different parameter sets) used to surface one run at a time. This suite
-    parses Modules/iSOCBlueprint/Engine/SharePoint/*.ps1 and Private/*.ps1 and, for each
+    parses the publisher functions under Modules/iSOCBlueprint/Private/SharePoint,
+    the page conversion under Private/PageSegments, the publish steps under
+    Private/Publish and the site set-up under Private/SiteSetup, and, for each
     call to a PnP.PowerShell cmdlet or to one of the scripts' own functions,
     checks that:
 
@@ -46,21 +48,24 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.3.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.4+, Pester 5+, PnP.PowerShell (pinned version)
+    Version:      0.3.5
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+, PnP.PowerShell (pinned version)
 #>
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Blueprint.yml')
     $script:pnpVersion = if ($pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?') { $Matches['v'] } else { '' }
-    $script:pnpAvailable = [bool]($script:pnpVersion -and (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
+    $script:pnpAvailable = [bool]($script:pnpVersion -and
+        (Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pnpVersion }))
     $script:inCi = [bool]($env:TF_BUILD -or $env:GITHUB_ACTIONS)
-    $sp = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
     $script:scriptFiles = @(
-        Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
-        Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteSetup') -Filter '*.ps1' -File -Recurse
+        Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteShared') -Filter '*.ps1' -File
     ) | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } }
 }
 
@@ -77,22 +82,33 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
         # The scripts' own functions, and the Blueprint helpers the build
         # script uses, defined in a throwaway module so Get-Command sees
         # their parameters. Only definitions are evaluated, no script body.
-        $sp = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
         $sources = @(
-            Get-ChildItem -LiteralPath $sp -Filter '*.ps1' -File
-            Get-ChildItem -LiteralPath (Join-Path $sp 'Private') -Filter '*.ps1' -File
-            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private') -Filter '*.ps1' -File
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SharePoint') -Filter '*.ps1' -File -Recurse
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/PageSegments') -Filter '*.ps1' -File -Recurse
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Publish') -Filter '*.ps1' -File -Recurse
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteSetup') -Filter '*.ps1' -File -Recurse
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/SiteShared') -Filter '*.ps1' -File
+            Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Lookup') -Filter '*.ps1' -File
         )
         $definitions = foreach ($file in $sources) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
             $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) | ForEach-Object { $_.Extent.Text }
         }
-        $script:defsModule = New-Module -Name SacCallCheck -ScriptBlock ([scriptblock]::Create(($definitions -join "`n`n") + "`nExport-ModuleMember -Function *")) |
-            Import-Module -PassThru -Force
+        $moduleParameters = @{
+            Name        = 'SacCallCheck'
+            ScriptBlock = [scriptblock]::Create(($definitions -join "`n`n") + "`nExport-ModuleMember -Function *")
+        }
+        $script:defsModule = New-Module @moduleParameters | Import-Module -PassThru -Force
 
         $common = [System.Management.Automation.Cmdlet]::CommonParameters + [System.Management.Automation.Cmdlet]::OptionalCommonParameters
 
         function Test-SacCommandCall {
+            <#
+            .SYNOPSIS
+                Returns the calls in a script that use parameters the command does not have.
+            .PARAMETER Path
+                The script to check.
+            #>
             param([string] $Path)
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
             foreach ($cmd in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)) {
@@ -108,7 +124,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
                 if ($info.CommandType -eq 'Application' -or -not $info.Parameters) { continue }
                 if ($info.Source -ne 'PnP.PowerShell' -and $info.Source -ne 'SacCallCheck') { continue }
                 $dynamic = $info.PSObject.Properties['ImplementingType'] -and $info.ImplementingType -and
-                    [System.Management.Automation.IDynamicParameters].IsAssignableFrom($info.ImplementingType)
+                [System.Management.Automation.IDynamicParameters].IsAssignableFrom($info.ImplementingType)
 
                 $keys = @($info.Parameters.Keys)
                 $used = [System.Collections.Generic.List[string]]::new()
@@ -131,8 +147,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
                         $full = [string]$match[0]
                         $used.Add($full)
                         if (-not $info.Parameters[$full].SwitchParameter -and -not $el.Argument) { $i++ }
-                    }
-                    elseif ($el -is [System.Management.Automation.Language.VariableExpressionAst] -and $el.Splatted) { $splatted = $true }
+                    } elseif ($el -is [System.Management.Automation.Language.VariableExpressionAst] -and $el.Splatted) { $splatted = $true }
                     else { $positional++ }
                 }
                 if ($splatted -or $unknown) { continue }
@@ -161,8 +176,7 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
                     "$at is missing a mandatory parameter (" + (($candidates | ForEach-Object {
                                 "$($_.Name): " + ((@($_.Parameters | Where-Object { $_.IsMandatory -and $_.Name -notin $used }).Name) -join ', ')
                             }) -join '; ') + ')'
-                }
-                elseif ($satisfied.Count -gt 1 -and $sets.Count -gt 1 -and -not ($satisfied | Where-Object IsDefault)) {
+                } elseif ($satisfied.Count -gt 1 -and $sets.Count -gt 1 -and -not ($satisfied | Where-Object IsDefault)) {
                     "$at matches more than one parameter set ($(($satisfied.Name) -join ', '))"
                 }
             }
@@ -174,7 +188,8 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
     }
 
     It 'has the pinned PnP.PowerShell installed' {
-        $script:pnpReady | Should -BeTrue -Because "the PR validation job installs PnP.PowerShell $script:pinnedPnP (pnpVersion in Pipelines/Sentinel-Blueprint.yml)"
+        $script:pnpReady |
+            Should -BeTrue -Because "the PR validation job installs PnP.PowerShell $script:pinnedPnP (pnpVersion in Pipelines/Sentinel-Blueprint.yml)"
     }
 
     It 'every call in <Name> binds' -ForEach $script:scriptFiles {
@@ -184,51 +199,54 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
     }
 }
 
-Describe 'Commands the SharePoint entry scripts call are loaded by them' -Skip:(-not $script:pnpAvailable -and -not $script:inCi) {
+Describe 'Commands the SharePoint workers call are defined by the module' -Skip:(-not $script:pnpAvailable -and -not $script:inCi) {
 
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        $script:spRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint'
+        $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
         $pipeline = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'Pipelines/Sentinel-Blueprint.yml')
         $null = $pipeline -match '(?m)-\s*name:\s*pnpVersion\s*\r?\n\s*value:\s*"?(?<v>[\d.]+)"?'
         $script:pinned = $Matches['v']
         $script:ready = [bool](Get-Module -ListAvailable -Name PnP.PowerShell | Where-Object { [string]$_.Version -eq $script:pinned })
         if ($script:ready) { Import-Module PnP.PowerShell -RequiredVersion $script:pinned -ErrorAction Stop }
 
-        # The files an entry script loads: itself and everything it
-        # dot-sources as '. (Join-Path $PSScriptRoot '<path>')', followed
-        # through each loaded file in turn.
-        function Get-SacLoadedFile([string]$Path, [System.Collections.Generic.HashSet[string]]$Seen) {
-            $full = (Resolve-Path -LiteralPath $Path).Path
-            if (-not $Seen.Add($full)) { return }
-            $full
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile($full, [ref]$null, [ref]$null)
-            foreach ($c in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] -and $args[0].InvocationOperator -eq 'Dot' }, $true)) {
-                if ($c.CommandElements[0].Extent.Text -match "Join-Path \`$PSScriptRoot '([^']+)'") {
-                    Get-SacLoadedFile -Path (Join-Path (Split-Path $full) $Matches[1]) -Seen $Seen
-                }
+        # Every function the module defines: the workers run inside the
+        # module, so a command is available to them when any file under
+        # Private or Public defines it.
+        $script:defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $script:moduleRoot 'Private'),
+            (Join-Path $script:moduleRoot 'Public') -Filter '*.ps1' -File -Recurse) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
+            foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
+                [void]$script:defined.Add($d.Name)
             }
         }
     }
 
-    # Each script runs on its own in a pipeline, so a function defined in a
-    # file it does not load fails only there (as ConvertTo-SacChartFallbackHtml
-    # once did in the publisher). The binding suite above loads every file
-    # together and cannot see that.
-    It '<_> defines or imports every command it calls' -ForEach @('Publish-SentinelDocsSite.ps1', 'Initialize-SentinelDocsSite.ps1', 'Build-SentinelDocsSite.ps1') {
+    # A command that no file defines fails only when a run reaches it (as
+    # ConvertTo-SacChartFallbackHtml once did in the publisher), and the
+    # binding suite above judges the calls it can resolve, not the ones it
+    # cannot.
+    It '<Name> calls only commands the module defines or PnP and PowerShell provide' -ForEach @(
+        @{ Name = 'The publish'; Folder = 'Private/Publish' }
+        @{ Name = 'The site build'; Folder = 'Private/Site' }
+        @{ Name = 'The site set-up'; Folder = 'Private/SiteSetup' }
+    ) {
         if (-not $script:ready) { Set-ItResult -Skipped -Because "PnP.PowerShell $script:pinned is not installed"; return }
-        $files = @(Get-SacLoadedFile -Path (Join-Path $script:spRoot $_) -Seen ([System.Collections.Generic.HashSet[string]]::new()))
-        $defined = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         $calls = @{}
-        foreach ($f in $files) {
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$null, [ref]$null)
-            foreach ($d in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) { [void]$defined.Add($d.Name) }
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $script:moduleRoot $Folder) -Filter '*.ps1' -File -Recurse) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
             foreach ($c in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)) {
                 $n = $c.GetCommandName()
-                if ($n -and -not $calls.ContainsKey($n)) { $calls[$n] = "$(Split-Path $f -Leaf):$($c.Extent.StartLineNumber)" }
+                if ($n -and -not $calls.ContainsKey($n)) { $calls[$n] = "$($f.Name):$($c.Extent.StartLineNumber)" }
             }
         }
-        $missing = @($calls.Keys | Where-Object { -not $defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) } | Sort-Object | ForEach-Object { "$_ ($($calls[$_]))" })
-        $missing | Should -BeNullOrEmpty -Because "$_ loads $(($files | ForEach-Object { Split-Path $_ -Leaf }) -join ', ')"
+        $missing = @(
+            $calls.Keys |
+                Where-Object { -not $script:defined.Contains($_) -and -not (Get-Command $_ -ErrorAction SilentlyContinue) } |
+                Sort-Object |
+                ForEach-Object { "$_ ($($calls[$_]))" }
+        )
+        $missing | Should -BeNullOrEmpty
     }
 }

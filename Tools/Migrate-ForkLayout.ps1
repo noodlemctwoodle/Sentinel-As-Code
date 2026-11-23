@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -11,7 +11,13 @@
     (Tools/Documenter, later Tools/Blueprint, became
     Modules/iSOCBlueprint/Engine, its SharePoint web part became
     Modules/iSOCBlueprint/WebParts, and Tests/Documenter became
-    Tests/iSOCBlueprint). Tracked files move automatically when you
+    Tests/iSOCBlueprint). Release 26.11 then moved the engine's static files
+    (rules and catalogues, schemas, the Word reference document, the dashboard
+    templates) to Modules/iSOCBlueprint/Resources and turned its scripts into
+    functions under Modules/iSOCBlueprint/Private, so those files are moved
+    there from either layout; any script of yours still in an old folder is
+    left under Modules/iSOCBlueprint/Engine, where the module does not load
+    it, to be ported by hand. Tracked files move automatically when you
     merge or rebase the restructure (git rename detection reconciles your
     customisations). This helper catches stragglers (untracked custom
     content or conflict leftovers still sitting at an old path) and moves
@@ -56,11 +62,12 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-06-03
-    Version:        0.1.4
-    Last Updated:   2026-10-23
-    Requires:       PowerShell 7.2+, git
+    Version:        0.1.6
+    Last Updated:   2026-11-23
+    Requires:       PowerShell 7.6+, git
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The closing summary is operator-facing console output, written straight to the host and not meant to be captured.')]
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory = $false)]
@@ -75,40 +82,49 @@ $ErrorActionPreference = 'Stop'
 # Old (repo-relative) -> new (repo-relative). Order: directories first, then
 # the individual scripts and config that split out of the old Scripts/ folder.
 $moveMap = [ordered]@{
-    'AnalyticalRules'                       = 'Content/AnalyticalRules'
-    'AutomationRules'                       = 'Content/AutomationRules'
-    'DefenderCustomDetections'              = 'Content/DefenderCustomDetections'
-    'HuntingQueries'                        = 'Content/HuntingQueries'
-    'Parsers'                               = 'Content/Parsers'
-    'Playbooks'                             = 'Content/Playbooks'
-    'SummaryRules'                          = 'Content/SummaryRules'
-    'Watchlists'                            = 'Content/Watchlists'
-    'Workbooks'                             = 'Content/Workbooks'
-    'Bicep/main.bicep'                      = 'Infra/sentinel/main.bicep'
-    'Bicep/sentinel.bicep'                  = 'Infra/sentinel/sentinel.bicep'
-    'Bicep/test/main.bicep'                 = 'Infra/test-workspace/main.bicep'
-    'Automation/DCR-Watchlist/main.bicep'   = 'Infra/dcr-watchlist/main.bicep'
-    'Automation/DCR-Watchlist/modules'      = 'Infra/dcr-watchlist/modules'
+    'AnalyticalRules'                                              = 'Content/AnalyticalRules'
+    'AutomationRules'                                              = 'Content/AutomationRules'
+    'DefenderCustomDetections'                                     = 'Content/DefenderCustomDetections'
+    'HuntingQueries'                                               = 'Content/HuntingQueries'
+    'Parsers'                                                      = 'Content/Parsers'
+    'Playbooks'                                                    = 'Content/Playbooks'
+    'SummaryRules'                                                 = 'Content/SummaryRules'
+    'Watchlists'                                                   = 'Content/Watchlists'
+    'Workbooks'                                                    = 'Content/Workbooks'
+    'Bicep/main.bicep'                                             = 'Infra/sentinel/main.bicep'
+    'Bicep/sentinel.bicep'                                         = 'Infra/sentinel/sentinel.bicep'
+    'Bicep/test/main.bicep'                                        = 'Infra/test-workspace/main.bicep'
+    'Automation/DCR-Watchlist/main.bicep'                          = 'Infra/dcr-watchlist/main.bicep'
+    'Automation/DCR-Watchlist/modules'                             = 'Infra/dcr-watchlist/modules'
     'Automation/DCR-Watchlist/scripts/Invoke-DCRWatchlistSync.ps1' = 'Tools/Invoke-DCRWatchlistSync.ps1'
     'Automation/DCR-Watchlist/scripts/Set-RunbookPermissions.ps1'  = 'Deploy/permissions/Set-RunbookPermissions.ps1'
-    'Scripts/Deploy-CustomContent.ps1'      = 'Deploy/content/Deploy-CustomContent.ps1'
-    'Scripts/Deploy-DefenderDetections.ps1' = 'Deploy/content/Deploy-DefenderDetections.ps1'
-    'Scripts/Deploy-SentinelContentHub.ps1' = 'Deploy/content/Deploy-SentinelContentHub.ps1'
-    'Scripts/Set-PlaybookPermissions.ps1'   = 'Deploy/permissions/Set-PlaybookPermissions.ps1'
-    'Scripts/Setup-ServicePrincipal.ps1'    = 'Deploy/setup/Setup-ServicePrincipal.ps1'
-    'sentinel-deployment.config'            = 'Deploy/content/sentinel-deployment.config'
-    'Scripts/Build-DependencyManifest.ps1'  = 'Tools/Build-DependencyManifest.ps1'
-    'Scripts/Test-SentinelRuleDrift.ps1'    = 'Tools/Test-SentinelRuleDrift.ps1'
-    'Scripts/Invoke-PRValidation.ps1'       = 'Tools/Invoke-PRValidation.ps1'
-    'Scripts/Export-SentinelWorkbooks.ps1'  = 'Tools/Export-SentinelWorkbooks.ps1'
-    'Scripts/Import-CommunityRules.ps1'     = 'Tools/Import-CommunityRules.ps1'
-    'Scripts/Documenter'                    = 'Modules/iSOCBlueprint/Engine'
-    'Tools/Documenter'                      = 'Modules/iSOCBlueprint/Engine'
-    'Tests/Documenter'                      = 'Tests/iSOCBlueprint'
-    'Tests/Blueprint'                       = 'Tests/iSOCBlueprint'
+    'Scripts/Deploy-CustomContent.ps1'                             = 'Deploy/content/Deploy-CustomContent.ps1'
+    'Scripts/Deploy-DefenderDetections.ps1'                        = 'Deploy/content/Deploy-DefenderDetections.ps1'
+    'Scripts/Deploy-SentinelContentHub.ps1'                        = 'Deploy/content/Deploy-SentinelContentHub.ps1'
+    'Scripts/Set-PlaybookPermissions.ps1'                          = 'Deploy/permissions/Set-PlaybookPermissions.ps1'
+    'Scripts/Setup-ServicePrincipal.ps1'                           = 'Deploy/setup/Setup-ServicePrincipal.ps1'
+    'sentinel-deployment.config'                                   = 'Deploy/content/sentinel-deployment.config'
+    'Scripts/Build-DependencyManifest.ps1'                         = 'Tools/Build-DependencyManifest.ps1'
+    'Scripts/Test-SentinelRuleDrift.ps1'                           = 'Tools/Test-SentinelRuleDrift.ps1'
+    'Scripts/Invoke-PRValidation.ps1'                              = 'Tools/Invoke-PRValidation.ps1'
+    'Scripts/Export-SentinelWorkbooks.ps1'                         = 'Tools/Export-SentinelWorkbooks.ps1'
+    'Scripts/Import-CommunityRules.ps1'                            = 'Tools/Import-CommunityRules.ps1'
+    'Scripts/Documenter'                                           = 'Modules/iSOCBlueprint/Engine'
+    'Tools/Documenter'                                             = 'Modules/iSOCBlueprint/Engine'
+    'Tests/Documenter'                                             = 'Tests/iSOCBlueprint'
+    'Tests/Blueprint'                                              = 'Tests/iSOCBlueprint'
     # The web part first, so the folder below does not carry it into the engine.
-    'Tools/Blueprint/SharePoint/webpart/isoc-blueprint' = 'Modules/iSOCBlueprint/WebParts'
-    'Tools/Blueprint'                       = 'Modules/iSOCBlueprint/Engine'
+    'Tools/Blueprint/SharePoint/webpart/isoc-blueprint'            = 'Modules/iSOCBlueprint/WebParts'
+    'Tools/Blueprint'                                              = 'Modules/iSOCBlueprint/Engine'
+    # The folders above all land in Engine; the static files the module reads
+    # now live in Modules/iSOCBlueprint/Resources, so they move on from there
+    # (and from a 26.10 layout, which kept them in Engine).
+    'Modules/iSOCBlueprint/Engine/Private/Resources'               = 'Modules/iSOCBlueprint/Resources/Data'
+    'Modules/iSOCBlueprint/Engine/Schemas'                         = 'Modules/iSOCBlueprint/Resources/Schemas'
+    'Modules/iSOCBlueprint/Engine/Report/templates'                = 'Modules/iSOCBlueprint/Resources/Report/templates'
+    'Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py'        = 'Modules/iSOCBlueprint/Resources/Report/Update-WordToc.py'
+    'Modules/iSOCBlueprint/Engine/SharePoint/templates'            = 'Modules/iSOCBlueprint/Resources/SharePoint/templates'
+    'Modules/iSOCBlueprint/Engine/Blueprint.psd1'                  = 'Modules/iSOCBlueprint/Resources/Blueprint.psd1'
 }
 
 # Merges one folder into another at any depth: moves what the destination
@@ -116,6 +132,17 @@ $moveMap = [ordered]@{
 # sides have (a genuine conflict, left in place), and removes a source folder
 # the merge leaves empty.
 function Merge-ForkFolder {
+    <#
+    .SYNOPSIS
+        Merge one folder into another at any depth, leaving real conflicts in place.
+
+    .PARAMETER From
+        The source folder; it is removed once the merge leaves it empty.
+
+    .PARAMETER To
+        The destination folder.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The function has no CmdletBinding of its own; it reaches the script-level $PSCmdlet through dynamic scope, so -WhatIf and -Confirm apply.')]
     param([string]$From, [string]$To)
 
     foreach ($item in Get-ChildItem -LiteralPath $From -Force) {
@@ -125,11 +152,9 @@ function Merge-ForkFolder {
                 Move-Item -LiteralPath $item.FullName -Destination $dest
                 $script:moved++
             }
-        }
-        elseif ($item.PSIsContainer -and (Test-Path -LiteralPath $dest -PathType Container)) {
+        } elseif ($item.PSIsContainer -and (Test-Path -LiteralPath $dest -PathType Container)) {
             Merge-ForkFolder -From $item.FullName -To $dest
-        }
-        else {
+        } else {
             Write-Warning "  collision (left in place): $($item.FullName)"
             $script:warned++
         }
@@ -150,7 +175,7 @@ try {
     if (-not $AllowDirty) {
         $dirty = git status --porcelain 2>$null
         if ($dirty) {
-            throw "Working tree has uncommitted changes. Commit or stash first, or pass -AllowDirty."
+            throw 'Working tree has uncommitted changes. Commit or stash first, or pass -AllowDirty.'
         }
     }
 
@@ -203,7 +228,6 @@ try {
     Write-Host "  warned:  $warned"
     Write-Host ''
     Write-Host 'Next: review `git status`, run ./Tools/Build-DependencyManifest.ps1 -Mode Generate, then commit.'
-}
-finally {
+} finally {
     Pop-Location
 }

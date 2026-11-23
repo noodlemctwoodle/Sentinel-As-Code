@@ -8,8 +8,8 @@
 #                         Tools/Invoke-PRValidation.ps1 (same entry-
 #                         point ADO uses); publishes JUnit XML to the
 #                         PR check UI and uploads it as an artefact
-#   bicep-build           Bicep syntax + parameter type check (offline)
-#   arm-validate          ARM template What-If for every Content/Playbooks/**.json (OIDC)
+#   bicep-build           Bicep syntax + parameter type check for Infra/ and Content/Playbooks/ (offline)
+#   arm-validate          ARM template What-If for every playbook under Content/Playbooks/ (OIDC)
 #   kql-validate          KQL syntax check via Microsoft.Azure.Kusto.Language (offline)
 #   dependency-manifest   dependencies.json drift check vs auto-discovery (offline)
 #
@@ -35,7 +35,9 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [main]
+    # release/** so a long-lived release branch gets the same five gates
+    # before it merges to main (mirrors the ADO pr trigger).
+    branches: [main, 'release/**']
     types: [opened, synchronize, reopened, ready_for_review]
 
   # CI baseline on push to main. Mirrors the ADO pipeline's `trigger:`
@@ -45,7 +47,7 @@ on:
   # ever goes red, the most recent run is the place to start the
   # post-mortem.
   push:
-    branches: [main]
+    branches: [main, 'release/**']
 
   # Lets maintainers run the same validation manually against any branch.
   workflow_dispatch:
@@ -110,6 +112,20 @@ jobs:
           pnp-version:    ${{ steps.pnp.outputs.version }}
           pssa-version:   ${{ env.PSSA_VERSION }}
 
+      # Bicep playbooks are compiled with the standalone Bicep CLI, which
+      # the iSOCDeployments module (and Az.Resources) need on the PATH.
+      - name: Put the Bicep CLI on the PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
+
       # Calls the cross-platform PR-validation entrypoint that the ADO
       # pipeline also calls. Single source of truth for test discovery,
       # NUnit-XML emission, and exit-code logic. Any change to test-
@@ -151,7 +167,9 @@ jobs:
   # ---------------------------------------------------------------------------
   # C1: Bicep build
   # ---------------------------------------------------------------------------
-  # Compiles every .bicep file under Infra/ to ARM JSON. Catches syntax
+  # Compiles every .bicep file under Infra/ and Content/Playbooks/ to ARM
+  # JSON. Playbook warnings fail too: Content/Playbooks/bicepconfig.json
+  # and the module's writer keep a playbook warning-free. Catches syntax
   # errors, undefined parameter references, type mismatches, and lint
   # violations before they reach the deploy pipeline. No Azure auth needed
   # — `az bicep build` is fully offline.
@@ -166,12 +184,21 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Ensure Bicep CLI is available
+      # Use the Bicep CLI already on the runner. When the runner has none,
+      # install it with the Azure CLI and put it on the PATH. az bicep
+      # install does nothing when bicep is already on the PATH, so the
+      # CLI's own folder cannot be assumed to exist.
+      - name: Put the Bicep CLI on the PATH
         shell: bash
         run: |
-          # The runner has az pre-installed; ensure the Bicep extension is current.
-          az bicep install
-          az bicep version
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
 
       - name: Build every .bicep file
         shell: bash
@@ -180,6 +207,20 @@ jobs:
           shopt -s globstar nullglob
 
           failed=0
+          # The playbooks in one run of the standalone CLI: starting it costs
+          # more than building a playbook.
+          out_dir="$(mktemp -d)"
+          echo "::group::bicep build Content/Playbooks/**/*.bicep"
+          if ! output=$(bicep build --pattern "$PWD/Content/Playbooks/**/*.bicep" --outdir "$out_dir" 2>&1); then
+              echo "$output"
+              echo "::error::One or more playbooks failed to build."
+              failed=1
+          elif echo "$output" | grep -q ' : Warning '; then
+              echo "$output"
+              echo "::error::One or more playbooks built with warnings; playbooks build without warnings."
+              failed=1
+          fi
+          echo "::endgroup::"
           for f in Infra/**/*.bicep; do
               echo "::group::az bicep build $f"
               if ! az bicep build --file "$f" --stdout > /dev/null; then
@@ -198,7 +239,8 @@ jobs:
   # ---------------------------------------------------------------------------
   # C2: ARM What-If for every playbook template
   # ---------------------------------------------------------------------------
-  # Runs Test-AzResourceGroupDeployment -WhatIf against every Content/Playbooks/**/*.json
+  # Runs Test-AzResourceGroupDeployment -WhatIf against every playbook under
+  # Content/Playbooks/ (each .bicep and ARM .json template)
   # to catch malformed ARM templates, missing required parameters, and
   # schema-version mismatches before they reach the deploy pipeline.
   #
@@ -254,6 +296,21 @@ jobs:
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # Bicep playbooks are compiled with the standalone Bicep CLI, which
+      # the iSOCDeployments module (and Az.Resources) need on the PATH.
+      - name: Put the Bicep CLI on the PATH
+        if: steps.fork_check.outputs.should_skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
+
       - name: Validate every playbook ARM template
         if: steps.fork_check.outputs.should_skip != 'true'
         shell: pwsh
@@ -280,7 +337,8 @@ jobs:
               Recipients                 = 'pr-validation@example.com'
           }
 
-          $playbooks = Get-ChildItem -Path 'Content/Playbooks' -Recurse -Filter '*.json' -File
+          $playbooks = @(Get-ChildItem -Path 'Content/Playbooks' -Recurse -File -Include '*.bicep', '*.json' |
+              Where-Object { $_.Name -ne 'bicepconfig.json' -and $_.Name -notlike '*.parameters.json' })
           if (-not $playbooks) {
               Write-Host '##[warning]No playbook ARM templates found under Content/Playbooks/.'
               exit 0
@@ -293,7 +351,12 @@ jobs:
               try {
                   # Build a parameter object with only the params this template declares,
                   # otherwise New-AzResourceGroupDeployment rejects extras.
-                  $arm = Get-Content $pb.FullName -Raw | ConvertFrom-Json -Depth 64
+                  $arm = if ($pb.Extension -eq '.bicep') {
+                      (& bicep build $pb.FullName --stdout) -join "`n" | ConvertFrom-Json -Depth 64
+                  }
+                  else {
+                      Get-Content $pb.FullName -Raw | ConvertFrom-Json -Depth 64
+                  }
                   $declaredParams = @{}
                   if ($arm.PSObject.Properties.Name -contains 'parameters' -and $arm.parameters) {
                       foreach ($paramName in $arm.parameters.PSObject.Properties.Name) {
@@ -485,27 +548,28 @@ jobs:
   # ---------------------------------------------------------------------------
   # C4: Dependency manifest drift gate
   # ---------------------------------------------------------------------------
-  # Runs Tools/Build-DependencyManifest.ps1 -Mode Verify, which walks every
-  # Content/AnalyticalRules/**.yaml + Content/HuntingQueries/**.yaml, runs the discovery
-  # extractors from Modules/Sentinel.Common, and compares the discovered
+  # Runs Test-iSOCDependencyManifest (Modules/iSOCDeployments), which walks
+  # every Content/AnalyticalRules/**.yaml + Content/HuntingQueries/**.yaml,
+  # runs the module's discovery extractors, and compares the discovered
   # manifest against the on-disk dependencies.json. Any drift fails the gate.
   #
-  # Why this matters: dependencies.json is the input to Deploy-CustomContent.ps1's
+  # Why this matters: dependencies.json is the input to Deploy-iSOCContent's
   # internal-dependency ordering. A rule whose manifest entry is stale or
   # missing will deploy with an incorrect dependency graph, which can cause
   # the deploy to attempt to create a rule before its parser, watchlist, or
   # external function exists in the workspace.
   #
-  # Authors fix drift by running the script locally and committing the
+  # Authors fix drift by running the command locally and committing the
   # regenerated manifest:
   #
-  #   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+  #   Import-Module ./Modules/iSOCDeployments
+  #   Update-iSOCDependencyManifest
   #   git add dependencies.json && git commit
   #
   # Or by waiting for the daily Update workflow (see
   # sentinel-dependency-update.yml) to open an auto-PR.
   #
-  # Offline — no Azure auth needed; the script reads YAML/JSON only.
+  # Offline - no Azure auth needed; the command reads YAML/JSON only.
   dependency-manifest:
     name: dependency-manifest
     runs-on: ubuntu-latest
@@ -526,9 +590,10 @@ jobs:
       - name: Verify dependency manifest matches discovery
         shell: pwsh
         run: |
-          ./Tools/Build-DependencyManifest.ps1 -Mode Verify
-          if ($LASTEXITCODE -ne 0) {
+          Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1 -Force
+          $result = Test-iSOCDependencyManifest -RepoPath $PWD.Path
+          if (-not $result.Exists -or $result.HasDrift) {
               Write-Host '##[error]dependencies.json is out of sync with content.'
-              Write-Host '##[error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result.'
+              Write-Host '##[error]Fix: run Update-iSOCDependencyManifest locally and commit the result.'
               exit 1
           }

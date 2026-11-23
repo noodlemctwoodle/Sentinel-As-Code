@@ -1,0 +1,155 @@
+#Requires -Version 7.6
+
+<#
+.SYNOPSIS
+    Combine a folder of Markdown files into one formatted Word document.
+
+.DESCRIPTION
+    Entry point of the Word conversion. Runs the steps under Steps/ in order:
+    check pandoc and resolve the paths, collect and order the Markdown, write
+    cleaned copies, run pandoc (and LibreOffice for the table of contents page
+    numbers), then report. The steps share their values through a context
+    hashtable. A step that cannot go on throws, saying why; a folder with no
+    Markdown stops with a warning; a -WhatIf run stops after listing what it
+    would write.
+
+.NOTES
+    File:         Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1
+    Repository:   Sentinel-As-Code
+    Author:       noodlemctwoodle
+    Website:      https://sentinel.blog
+    Created:      2026-11-13
+    Version:      0.2.2
+    Last Updated: 2026-11-23
+    Component:    iSOC Blueprint, Word report
+    Requires:     PowerShell 7.6+, pandoc on PATH
+
+    This file defines a function rather than running. Per-parameter detail
+    lives on the function's own help block.
+#>
+
+# Keeps the file help above from being read as the help of the function below.
+
+function Invoke-iSOCBlueprintWordConversion {
+    <#
+    .SYNOPSIS
+        Combine a folder of Markdown files into a single, formatted Word
+        document with pandoc.
+
+    .DESCRIPTION
+        The parameters are those of Export-iSOCBlueprintWord, whose help
+        describes the ordering, the cleaning and the table of contents modes.
+        Strict mode is turned off for the call, as the script this replaces
+        always ran without it.
+
+    .PARAMETER Source
+        The folder of Markdown files.
+
+    .PARAMETER OutputPath
+        The .docx to write. Defaults to <Source>.docx beside the folder.
+
+    .PARAMETER Title
+        Document title. Defaults to the folder name.
+
+    .PARAMETER ReferenceDoc
+        A pandoc reference document for the styles.
+
+    .PARAMETER NoReferenceDoc
+        Ignore the bundled reference document.
+
+    .PARAMETER Toc
+        Baked, Field or Styled.
+
+    .PARAMETER TocDepth
+        Heading levels in the table of contents.
+
+    .PARAMETER FrontFile
+        File names to float to the top, in this order.
+
+    .PARAMETER ExcludeFile
+        File names at the source root to leave out.
+
+    .PARAMETER StripLinePattern
+        Regex for the provenance line removed from every file after the first.
+
+    .PARAMETER NoReformatFindings
+        Leave finding bullets and status words as they are.
+
+    .PARAMETER ReportRoot
+        The Resources/Report folder, which holds the templates and the LibreOffice
+        helper. Defaults to the module's own.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The conversion step it runs calls ShouldProcess itself and inherits -WhatIf and -Confirm from this command.')]
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Source,
+
+        [Parameter(Mandatory = $false)]
+        [string]$OutputPath,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Title,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ReferenceDoc,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoReferenceDoc,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Baked', 'Field', 'Styled')]
+        [string]$Toc = 'Baked',
+
+        [Parameter(Mandatory = $false)]
+        [int]$TocDepth = 2,
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$FrontFile = @('README.md'),
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$ExcludeFile = @('index.md'),
+
+        [Parameter(Mandatory = $false)]
+        [string]$StripLinePattern = '(?m)^[ \t]*>.*\bWorkspace\b.*\bBlueprint\b.*\r?\n?',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoReformatFindings,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ReportRoot = (Join-Path $script:iSOCBlueprintResourcesRoot 'Report')
+    )
+
+    Set-StrictMode -Off
+    $ErrorActionPreference = 'Stop'
+
+    $script:WordReportRoot = $ReportRoot
+
+    $context = @{
+        Source             = $Source
+        OutputPath         = $OutputPath
+        Title              = $Title
+        ReferenceDoc       = $ReferenceDoc
+        NoReferenceDoc     = $NoReferenceDoc
+        Toc                = $Toc
+        TocDepth           = $TocDepth
+        FrontFile          = $FrontFile
+        ExcludeFile        = $ExcludeFile
+        StripLinePattern   = $StripLinePattern
+        NoReformatFindings = $NoReformatFindings
+        reportRoot         = $ReportRoot
+        stop               = $false
+    }
+
+    $steps = @(
+        'Resolve-WordSource'
+        'Get-WordMarkdown'
+        'Build-WordInput'
+        'Invoke-WordPandoc'
+        'Write-WordSummary'
+    )
+    foreach ($step in $steps) {
+        & $step -Context $context
+        if ($context.stop) { break }
+    }
+}

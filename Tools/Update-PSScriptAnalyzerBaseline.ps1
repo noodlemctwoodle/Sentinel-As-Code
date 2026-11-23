@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules PSScriptAnalyzer
 
 <#
@@ -32,8 +32,8 @@
     Website:      https://sentinel.blog
     Created:      2026-11-16
     Version:      0.1.0
-    Last Updated: 2026-11-16
-    Requires:     PowerShell 7.2+, PSScriptAnalyzer 1.25.0
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, PSScriptAnalyzer 1.25.0
 #>
 
 [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess)]

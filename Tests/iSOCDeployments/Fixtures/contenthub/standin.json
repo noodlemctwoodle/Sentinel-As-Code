@@ -1,0 +1,2580 @@
+{
+  "_comment": "A synthetic Content Hub for the Content Hub parity tests: no real tenant, workspace or organisation. Tests/iSOCDeployments/_helpers/ContentHubStandIn.psm1 serves it.",
+  "workspace": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws",
+  "catalogue": [
+    {
+      "name": "azuresentinel.fixture-alpha",
+      "type": "Microsoft.SecurityInsights/contentProductPackages",
+      "properties": {
+        "displayName": "Fixture Alpha",
+        "contentId": "azuresentinel.fixture-alpha",
+        "version": "3.0.1",
+        "contentKind": "Solution",
+        "contentProductId": "prod-alpha"
+      }
+    },
+    {
+      "name": "bravo-pkg",
+      "type": "Microsoft.SecurityInsights/contentProductPackages",
+      "properties": {
+        "displayName": "Fixture Bravo",
+        "contentId": "azuresentinel.fixture-bravo",
+        "version": "2.0.0",
+        "contentKind": "Solution",
+        "contentProductId": "prod-bravo"
+      }
+    },
+    {
+      "name": "azuresentinel.fixture-charlie",
+      "type": "Microsoft.SecurityInsights/contentProductPackages",
+      "properties": {
+        "displayName": "Fixture Charlie",
+        "contentId": "azuresentinel.fixture-charlie",
+        "version": "1.2.0",
+        "contentKind": "Solution",
+        "contentProductId": "prod-charlie"
+      }
+    },
+    {
+      "name": "azuresentinel.fixture-delta",
+      "type": "Microsoft.SecurityInsights/contentProductPackages",
+      "properties": {
+        "displayName": "Fixture Delta",
+        "contentId": "azuresentinel.fixture-delta",
+        "version": "1.0.0",
+        "contentKind": "Solution",
+        "contentProductId": "prod-delta"
+      }
+    },
+    {
+      "name": "azuresentinel.fixture-echo",
+      "type": "Microsoft.SecurityInsights/contentProductPackages",
+      "properties": {
+        "displayName": "Fixture Echo",
+        "contentId": "azuresentinel.fixture-echo",
+        "version": "1.0.0",
+        "contentKind": "Solution",
+        "contentProductId": "prod-echo"
+      }
+    }
+  ],
+  "installed": [
+    {
+      "name": "azuresentinel.fixture-alpha",
+      "properties": {
+        "displayName": "Fixture Alpha",
+        "contentId": "azuresentinel.fixture-alpha",
+        "installedVersion": "3.0.0",
+        "version": "3.0.0"
+      }
+    },
+    {
+      "name": "azuresentinel.fixture-bravo",
+      "properties": {
+        "displayName": "Fixture Bravo",
+        "contentId": "azuresentinel.fixture-bravo",
+        "version": "2.0.0"
+      }
+    },
+    {
+      "name": "azuresentinel.fixture-delta",
+      "properties": {
+        "displayName": "Fixture Delta",
+        "contentId": "azuresentinel.fixture-delta",
+        "installedVersion": "1.0.0"
+      }
+    },
+    {
+      "name": "azuresentinel.fixture-echo",
+      "properties": {
+        "displayName": "Fixture Echo",
+        "contentId": "azuresentinel.fixture-echo",
+        "installedVersion": "1.0.0"
+      }
+    }
+  ],
+  "products": {
+    "azuresentinel.fixture-alpha": {
+      "name": "azuresentinel.fixture-alpha",
+      "properties": {
+        "displayName": "Fixture Alpha",
+        "isInstalled": true,
+        "packagedContent": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "workspace": {
+              "type": "string"
+            },
+            "workspace-location": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+              "apiVersion": "2023-04-01-preview",
+              "name": "alpha-template",
+              "properties": {
+                "contentId": "alpha-template",
+                "mainTemplate": {
+                  "$schema": "x",
+                  "contentVersion": "1.0.0",
+                  "metadata": {
+                    "author": "Fixture",
+                    "postDeployment": [
+                      "Enable the connector"
+                    ],
+                    "description": "Caf\u00e9 fixture"
+                  },
+                  "resources": []
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+              "apiVersion": "2023-04-01-preview",
+              "name": "alpha-package",
+              "properties": {
+                "version": "1.0.0"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "bravo-pkg": {
+      "name": "bravo-pkg",
+      "properties": {
+        "displayName": "Fixture Bravo",
+        "isInstalled": true,
+        "installedVersion": "2.0.0"
+      }
+    },
+    "azuresentinel.fixture-charlie": {
+      "name": "azuresentinel.fixture-charlie",
+      "properties": {
+        "displayName": "Fixture Charlie"
+      }
+    },
+    "azuresentinel.fixture-delta": {
+      "name": "azuresentinel.fixture-delta",
+      "properties": {
+        "displayName": "Fixture Delta",
+        "isInstalled": false,
+        "packagedContent": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "workspace": {
+              "type": "string"
+            },
+            "workspace-location": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+              "apiVersion": "2023-04-01-preview",
+              "name": "delta-template",
+              "properties": {
+                "contentId": "delta-template",
+                "mainTemplate": {
+                  "$schema": "x",
+                  "contentVersion": "1.0.0",
+                  "metadata": {
+                    "author": "Fixture",
+                    "postDeployment": [
+                      "Enable the connector"
+                    ],
+                    "description": "Caf\u00e9 fixture"
+                  },
+                  "resources": []
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+              "apiVersion": "2023-04-01-preview",
+              "name": "delta-package",
+              "properties": {
+                "version": "1.0.0"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "templates": [
+    {
+      "name": "tmpl-a1",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a1",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha new rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a1",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha new rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  },
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account2"
+                      }
+                    ]
+                  },
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account3"
+                      }
+                    ]
+                  },
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account4"
+                      }
+                    ]
+                  },
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account5"
+                      }
+                    ]
+                  },
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account6"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                },
+                "incidentConfiguration": {
+                  "createIncident": true,
+                  "groupingConfiguration": {
+                    "enabled": true,
+                    "lookbackDuration": "5h",
+                    "reopenClosedIncident": false
+                  }
+                },
+                "metadata": {
+                  "source": {
+                    "kind": "Solution"
+                  }
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a1-meta",
+              "properties": {
+                "version": "1.0.1",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a2",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a2",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha current rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a2",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha current rule",
+                "description": "Fixture rule.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a2-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a3",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a3",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha newer template",
+        "version": "1.1.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a3",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha newer template",
+                "description": "Fixture rule.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a3-meta",
+              "properties": {
+                "version": "1.1.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a4",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a4",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha customised rule",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a4",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha customised rule",
+                "description": "Fixture rule.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a4-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a5",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a5",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha hand made rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a5",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha hand made rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a5-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a6",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a6",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "[Deprecated] Alpha old rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a6",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "[Deprecated] Alpha old rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a6-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a7",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a7",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha informational rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a7",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha informational rule",
+                "description": "Fixture rule.",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a7-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a8",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a8",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha NRT rule",
+        "version": "1.0.5",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a8",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "NRT",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha NRT rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a8-meta",
+              "properties": {
+                "version": "1.0.5",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a9",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a9",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha missing table rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a9",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha missing table rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a9-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a10",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a10",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha conflict rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a10",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha conflict rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a10-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-a11",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a11",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "tmpl-a11",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "tmpl-a12",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a12",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "tmpl-a12",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": []
+        }
+      }
+    },
+    {
+      "name": "tmpl-a13",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-a13",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha bad request rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-a13",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Alpha bad request rule",
+                "description": "Fixture rule.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-a13-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-b1",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-b1",
+        "contentKind": "AnalyticsRule",
+        "packageId": "bravo-pkg",
+        "displayName": "Bravo enabled rule",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-b1",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Bravo enabled rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-b1-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-b2",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-b2",
+        "contentKind": "AnalyticsRule",
+        "packageId": "bravo-pkg",
+        "displayName": "Bravo disabled rule",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-b2",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Bravo disabled rule",
+                "description": "Fixture rule.",
+                "severity": "Low",
+                "enabled": false,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-b2-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-c1",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-c1",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-charlie",
+        "displayName": "Charlie low rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-c1",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Charlie low rule",
+                "description": "Fixture rule.",
+                "severity": "Low",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                },
+                "incidentConfiguration": {
+                  "createIncident": true,
+                  "groupingConfiguration": null
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-c1-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-d1",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-d1",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-delta",
+        "displayName": "Delta single mapping rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-d1",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Delta single mapping rule",
+                "description": "Fixture rule.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": {
+                  "entityType": "Account",
+                  "fieldMappings": [
+                    {
+                      "identifier": "FullName",
+                      "columnName": "Account9"
+                    }
+                  ]
+                },
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-d1-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tmpl-e1",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "tmpl-e1",
+        "contentKind": "AnalyticsRule",
+        "packageId": "azuresentinel.fixture-echo",
+        "displayName": "Echo rule",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "tmpl-e1",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "displayName": "Echo rule",
+                "description": "Fixture rule.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SigninLogs\n| where ResultType != 0\n| summarize count() by UserPrincipalName",
+                "queryFrequency": "PT24H",
+                "queryPeriod": "PT24H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "tactics": [
+                  "InitialAccess"
+                ],
+                "techniques": [
+                  "T1078"
+                ],
+                "subTechniques": [
+                  "T1078.004"
+                ],
+                "entityMappings": [
+                  {
+                    "entityType": "Account",
+                    "fieldMappings": [
+                      {
+                        "identifier": "FullName",
+                        "columnName": "Account1"
+                      }
+                    ]
+                  }
+                ],
+                "eventGroupingSettings": {
+                  "aggregationKind": "SingleAlert"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "tmpl-e1-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "AnalyticsRule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-new",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-new",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha new workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha new workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha new workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-new-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-current",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-current",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha current workbook",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha current workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha current workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-current-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-update",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-update",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha updated workbook",
+        "version": "2.1.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha updated workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha updated workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-update-meta",
+              "properties": {
+                "version": "2.1.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-registered",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-registered",
+        "contentKind": "WorkbookTemplate",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha registered workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha registered workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha registered workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-registered-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-deprecated",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-deprecated",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "[Deprecated] Alpha old workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "[Deprecated] Alpha old workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## [Deprecated] Alpha old workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-deprecated-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-fallback-name",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-fallback",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha fallback workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha fallback workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha fallback workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-fallback-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-nodetail",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-nodetail",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha unreadable workbook",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "wb-alpha-noresource",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-noresource",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha template without a workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-noresource-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-nodata",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-nodata",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha workbook without data",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha workbook without data",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-nodata-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-alpha-refused",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-refused",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha refused workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha refused workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha refused workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-refused-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-bravo-new",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-bravo-new",
+        "contentKind": "Workbook",
+        "packageId": "bravo-pkg",
+        "displayName": "Bravo new workbook",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Bravo new workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Bravo new workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-bravo-new-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-delta-current",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-delta-current",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-delta",
+        "displayName": "Delta current workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Delta current workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Delta current workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-delta-current-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wb-echo",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-echo",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-echo",
+        "displayName": "Echo workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Echo workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Echo workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-echo-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "ar-a1",
+      "properties": {
+        "contentId": "ar-a1",
+        "contentKind": "AutomationRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "ar-a1",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "ar-e1",
+      "properties": {
+        "contentId": "ar-e1",
+        "contentKind": "AutomationRule",
+        "packageId": "azuresentinel.fixture-echo",
+        "displayName": "ar-e1",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "ar-a2",
+      "properties": {
+        "contentId": "ar-a2",
+        "contentKind": "AutomationRule",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "ar-a2",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "hq-a1",
+      "properties": {
+        "contentId": "hq-a1",
+        "contentKind": "HuntingQuery",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "hq-a1",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "hq-e1",
+      "properties": {
+        "contentId": "hq-e1",
+        "contentKind": "HuntingQuery",
+        "packageId": "azuresentinel.fixture-echo",
+        "displayName": "hq-e1",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "hq-b1",
+      "properties": {
+        "contentId": "hq-b1",
+        "contentKind": "HuntingQuery",
+        "packageId": "bravo-pkg",
+        "displayName": "hq-b1",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "hq-a2",
+      "properties": {
+        "contentId": "hq-a2",
+        "contentKind": "HuntingQuery",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "hq-a2",
+        "version": "1.0.0"
+      }
+    }
+  ],
+  "templateDetails": {
+    "wb-alpha-new": {
+      "name": "wb-alpha-new",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-new",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha new workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha new workbook (from the template detail)",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha new workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-new-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-current": {
+      "name": "wb-alpha-current",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-current",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha current workbook",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha current workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha current workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-current-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-update": {
+      "name": "wb-alpha-update",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-update",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha updated workbook",
+        "version": "2.1.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha updated workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha updated workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-update-meta",
+              "properties": {
+                "version": "2.1.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-registered": {
+      "name": "wb-alpha-registered",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-registered",
+        "contentKind": "WorkbookTemplate",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha registered workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha registered workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha registered workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-registered-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-deprecated": {
+      "name": "wb-alpha-deprecated",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-deprecated",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "[Deprecated] Alpha old workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "[Deprecated] Alpha old workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## [Deprecated] Alpha old workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-deprecated-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-noresource": {
+      "name": "wb-alpha-noresource",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-noresource",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha template without a workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-noresource-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-nodata": {
+      "name": "wb-alpha-nodata",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-nodata",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha workbook without data",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha workbook without data",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-nodata-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-alpha-refused": {
+      "name": "wb-alpha-refused",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-alpha-refused",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-alpha",
+        "displayName": "Alpha refused workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Alpha refused workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Alpha refused workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-alpha-refused-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-bravo-new": {
+      "name": "wb-bravo-new",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-bravo-new",
+        "contentKind": "Workbook",
+        "packageId": "bravo-pkg",
+        "displayName": "Bravo new workbook",
+        "version": "2.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Bravo new workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Bravo new workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-bravo-new-meta",
+              "properties": {
+                "version": "2.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-delta-current": {
+      "name": "wb-delta-current",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-delta-current",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-delta",
+        "displayName": "Delta current workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Delta current workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Delta current workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-delta-current-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wb-echo": {
+      "name": "wb-echo",
+      "type": "Microsoft.SecurityInsights/contentTemplates",
+      "properties": {
+        "contentId": "wb-echo",
+        "contentKind": "Workbook",
+        "packageId": "azuresentinel.fixture-echo",
+        "displayName": "Echo workbook",
+        "version": "1.0.0",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId')]",
+              "apiVersion": "2022-04-01",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "properties": {
+                "displayName": "Echo workbook",
+                "category": "sentinel",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [{\"type\": 1, \"content\": {\"json\": \"## Echo workbook\"}}]}"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "wb-echo-meta",
+              "properties": {
+                "version": "1.0.0",
+                "kind": "Workbook"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "alertRules": [
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-a2",
+      "name": "r-a2",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Alpha current rule",
+        "enabled": true,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "Medium",
+        "alertRuleTemplateName": "tmpl-a2",
+        "templateVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-a3",
+      "name": "r-a3",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Alpha newer template",
+        "enabled": true,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "P1D",
+        "queryPeriod": "P1D",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "Medium",
+        "alertRuleTemplateName": "tmpl-a3",
+        "templateVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-a4",
+      "name": "r-a4",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Alpha customised rule",
+        "enabled": true,
+        "query": "SigninLogs | take 5",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "Low",
+        "alertRuleTemplateName": "tmpl-a4",
+        "templateVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-a5",
+      "name": "r-a5",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Alpha hand made rule",
+        "enabled": true,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "High"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-a8",
+      "name": "r-a8",
+      "kind": "NRT",
+      "properties": {
+        "displayName": "Alpha NRT rule",
+        "enabled": true,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "High",
+        "alertRuleTemplateName": "tmpl-a8",
+        "templateVersion": "1.0.0"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-b1",
+      "name": "r-b1",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Bravo enabled rule",
+        "enabled": true,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "High",
+        "alertRuleTemplateName": "tmpl-b1",
+        "templateVersion": "2.0.0"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-b2",
+      "name": "r-b2",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Bravo disabled rule",
+        "enabled": false,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "Low",
+        "alertRuleTemplateName": "tmpl-b2",
+        "templateVersion": "2.0.0"
+      }
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/alertRules/r-d1",
+      "name": "r-d1",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Delta single mapping rule",
+        "enabled": true,
+        "query": "SigninLogs | where ResultType != 0 | summarize count() by UserPrincipalName",
+        "queryFrequency": "PT24H",
+        "queryPeriod": "PT24H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "Medium",
+        "alertRuleTemplateName": "tmpl-d1",
+        "templateVersion": "1.0.0"
+      }
+    }
+  ],
+  "workbookMetadata": [
+    {
+      "name": "workbook-11111111-1111-4111-8111-111111111111",
+      "properties": {
+        "contentId": "wb-alpha-current",
+        "kind": "Workbook",
+        "version": "2.0.0",
+        "parentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Insights/workbooks/11111111-1111-4111-8111-111111111111"
+      }
+    },
+    {
+      "name": "workbook-22222222-2222-4222-8222-222222222222",
+      "properties": {
+        "contentId": "wb-alpha-update",
+        "kind": "Workbook",
+        "version": "2.0.0",
+        "parentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Insights/workbooks/22222222-2222-4222-8222-222222222222"
+      }
+    },
+    {
+      "name": "workbook-registered",
+      "properties": {
+        "contentId": "wb-alpha-registered",
+        "kind": "Workbook",
+        "version": "1.0.0",
+        "parentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/ws/providers/Microsoft.SecurityInsights/contentTemplates/wb-alpha-registered"
+      }
+    },
+    {
+      "name": "workbook-33333333-3333-4333-8333-333333333333",
+      "properties": {
+        "contentId": "wb-delta-current",
+        "kind": "Workbook",
+        "version": "1.0.0",
+        "parentId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Insights/workbooks/33333333-3333-4333-8333-333333333333"
+      }
+    },
+    {
+      "name": "workbook-noparent",
+      "properties": {
+        "kind": "Workbook",
+        "version": "1.0.0"
+      }
+    }
+  ],
+  "refusals": {
+    "Alpha missing table rule": {
+      "status": 400,
+      "code": "BadRequest",
+      "message": "One of the tables does not exist: FixtureTable_CL"
+    },
+    "Alpha conflict rule": {
+      "status": 409,
+      "code": "Conflict",
+      "message": "The rule is being changed by another request."
+    },
+    "Alpha bad request rule": {
+      "status": 400,
+      "code": "BadRequest",
+      "message": "The property 'fixture' is not valid."
+    },
+    "Alpha refused workbook": {
+      "status": 403,
+      "code": "AuthorizationFailed",
+      "message": "The client cannot write workbooks."
+    }
+  },
+  "huntingQueryFirstPage": 2
+}

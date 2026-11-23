@@ -53,6 +53,11 @@ the import is self-organising.
 Full credit for the detection logic, KQL queries, and rule design belongs
 to David Alonso.
 
+> `Import-iSOCCommunityRule`, in the iSOCDeployments module, will replace
+> the import script in release 26.11.0.
+> [Community rule import](../Modules/iSOCDeployments/Community-Import.md)
+> maps each parameter to the command and lists what changes.
+
 The folder is fully managed by the import script. Running it (re)clones
 the upstream repo, normalises every rule, and writes:
 
@@ -157,7 +162,8 @@ The script shallow-clones the upstream repo (`git clone --depth 1
 in `Build-RuleYaml` (forces `enabled: false`, prepends the Dalonso
 attribution paragraph to descriptions, merges the required tags, expands
 short trigger operators such as `gt`/`lt` to `GreaterThan`/`LessThan`),
-and rewrites every YAML in the target folder. It also regenerates
+settles every rule's id (see [Rule ids](#rule-ids)) and rewrites every YAML
+in the target folder. It also regenerates
 [`Docs/Content/Community/Dalonso.md`](Community/Dalonso.md) (the auto-generated
 rule listing, written to `-DocsPath`) and `import-manifest.json` (the
 content-hash manifest, kept next to the rules under `-OutputPath`) so all
@@ -240,6 +246,35 @@ If a contributor doesn't have a bulk importer:
 If the manual diff becomes impractical, the Dalonso importer
 (`Tools/Import-CommunityRules.ps1`) is a working reference
 implementation to fork.
+
+## Rule ids
+
+The deployer names each rule in the workspace by its `id`, so every rule
+file needs an id of its own, Community rules included. Two files with one
+id are one rule: each deploy writes the first and then overwrites it with
+the second. The Dalonso upstream reuses ids across its categories, and
+until release 26.11.0 twelve CommonSecurityLog rules shared their ids with
+twelve SigninLogs rules, so only one rule of each pair existed in a
+workspace. The CommonSecurityLog rules now have ids of their own, edited
+after import, which their entries in `import-manifest.json` predate.
+
+The importer settles ids before it writes anything (`Resolve-CommunityRuleId`),
+in path order:
+
+1. A rule whose file is already in the repository keeps that file's id,
+   whatever the upstream now says, so a re-import never changes a deployed
+   rule's identity. This is what keeps the twelve CommonSecurityLog ids.
+2. Any other rule keeps its upstream id unless another rule file has it,
+   the in-house rules and other contributors included. Then it gets a
+   stable id of its own: an RFC 4122 version 5 GUID from the source
+   repository and the rule's path, the same on every run, so re-imports
+   stay idempotent. Each such id is logged as a warning.
+
+`Tests/Test-AnalyticalRuleYaml.Tests.ps1` checks ids are unique across the
+whole of `Content/AnalyticalRules/`, so a shared id that reaches a PR by any
+other route fails the gate. When you fix one by hand, give the newer rule
+the new id and keep the id a rule already has: changing a deployed rule's id
+creates a new rule and leaves the old one in the workspace.
 
 ## Deploy + drift workflow for community rules
 

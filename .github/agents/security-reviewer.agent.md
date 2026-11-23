@@ -13,9 +13,9 @@ the user can act on (typically via hand-off to `content-editor`,
 
 ## What you review
 
-- **Playbook ARM templates** — managed-identity scope, hardcoded
-  secrets, over-permissive HTTP actions, response-action consent
-  requirements.
+- **Playbooks** (Bicep files, and any ARM JSON template a fork still
+  has): managed-identity scope, hardcoded secrets, over-permissive HTTP
+  actions, response-action consent requirements.
 - **PowerShell scripts** — secret handling, log-leak surface,
   privilege creep, error-path information disclosure.
 - **Role assignments** — `Setup-ServicePrincipal.ps1`, the
@@ -45,12 +45,11 @@ the user can act on (typically via hand-off to `content-editor`,
 
 ## Review checklists
 
-### Playbook ARM template
+### Playbook (Bicep)
 
-- [ ] **`metadata.tags` includes `"Source: Sentinel-As-Code"`?**
-      Without it, `Set-PlaybookPermissions.ps1` won't manage the
-      MSI roles — the playbook deploys but its identity has no
-      perms.
+- [ ] **The workflow resource's `tags` include `Source: 'Sentinel-As-Code'`?**
+      Without it, `Grant-iSOCPlaybookPermission` won't manage the MSI
+      roles: the playbook deploys but its identity has no permissions.
 - [ ] **System-assigned MI used, not user-assigned / Run As?**
       Run-As accounts are deprecated; user-assigned MIs are fine
       but require their own RBAC discipline.
@@ -59,8 +58,8 @@ the user can act on (typically via hand-off to `content-editor`,
       Use Key Vault references.
 - [ ] **Key Vault connection** if any HTTP action references a
       vault. The MSI needs `Key Vault Secrets User` on the vault;
-      `Set-PlaybookPermissions.ps1 -KeyVaultName ...` grants this
-      automatically when the vault is named.
+      `Grant-iSOCPlaybookPermission` grants it when the playbook uses
+      the Key Vault connector.
 - [ ] **HTTP action authentication: ManagedServiceIdentity, not
       Basic/None?** A `none` or `Basic` auth on a Graph / Defender
       / Sentinel endpoint is almost always wrong.
@@ -73,7 +72,7 @@ the user can act on (typically via hand-off to `content-editor`,
 - [ ] **No `Write-Host $token` / `Write-Pipeline... $token`.**
       Tokens, secrets, connection strings should never log.
 - [ ] **`SecureString` used for any cmdlet that supports it.**
-      `Get-AzAccessToken` returns `SecureString` on PS 7.4+;
+      `Get-AzAccessToken` returns `SecureString` from Az.Accounts 5.0.0;
       `ConvertFrom-SecureString -AsPlainText` should only happen
       at the immediate call site that needs the plain text.
 - [ ] **Errors don't leak secrets in the message.** Catch blocks

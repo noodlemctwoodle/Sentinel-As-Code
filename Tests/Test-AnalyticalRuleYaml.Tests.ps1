@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -48,9 +48,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-04-29
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
+    Version:      0.2.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (auto-installed if missing)
 
     powershell-yaml is auto-installed by the harness if missing. Install
     Pester with: Install-Module Pester -Force -SkipPublisherCheck
@@ -64,7 +64,13 @@ BeforeDiscovery {
     }
     Import-Module powershell-yaml -ErrorAction Stop
 
-    function Get-YamlCases {
+    function Get-YamlCase {
+        <#
+        .SYNOPSIS
+            Reads every analytical-rule YAML file under a folder and returns one test case per file.
+        .PARAMETER Subdirectory
+            Folder under the repository root to scan recursively.
+        #>
         param([string]$Subdirectory)
         $path = Join-Path $repoRoot $Subdirectory
         if (-not (Test-Path $path)) { return @() }
@@ -76,8 +82,7 @@ BeforeDiscovery {
                 $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
                 if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
                 $yaml = ConvertFrom-Yaml $raw
-            }
-            catch {
+            } catch {
                 $parseError = $_.Exception.Message
             }
 
@@ -100,15 +105,15 @@ BeforeDiscovery {
         }
     }
 
-    $script:analyticalRuleCases = @(Get-YamlCases -Subdirectory 'Content/AnalyticalRules')
-    $script:huntingQueryCases   = @(Get-YamlCases -Subdirectory 'Content/HuntingQueries')
+    $script:analyticalRuleCases = @(Get-YamlCase -Subdirectory 'Content/AnalyticalRules')
+    $script:huntingQueryCases = @(Get-YamlCase -Subdirectory 'Content/HuntingQueries')
 }
 
 BeforeAll {
     # Schema constants. Keep these in sync with Docs/Content/Analytical-Rules.md
     # and the deployer's own tolerances in Deploy/content/Deploy-CustomContent.ps1.
-    $script:ValidSeverities       = @('High', 'Medium', 'Low', 'Informational')
-    $script:ValidKinds            = @('Scheduled', 'NRT')
+    $script:ValidSeverities = @('High', 'Medium', 'Low', 'Informational')
+    $script:ValidKinds = @('Scheduled', 'NRT')
     # Repo style is the short YAML form. Deploy-CustomContent.ps1 expands these
     # to long API form (gt -> GreaterThan etc.) at deploy time. Accepting long
     # forms here would let a YAML drift from the documented schema in
@@ -132,7 +137,7 @@ Describe 'Analytical rule schema: <RelativePath>' -ForEach $script:analyticalRul
 
     It 'parses as valid YAML with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
-        $Yaml       | Should -Not -BeNullOrEmpty
+        $Yaml | Should -Not -BeNullOrEmpty
         # Required-field assertions below all use $Yaml.ContainsKey(...). If
         # the YAML root parsed to a list or scalar instead of a mapping, those
         # would throw a method-not-found error. Catch that here with a clear
@@ -215,9 +220,9 @@ Describe 'Analytical rule schema: <RelativePath>' -ForEach $script:analyticalRul
         It 'does not include scheduling fields' {
             # NRT rules execute on a fixed Microsoft-managed cadence, so any
             # scheduling field in the YAML is rejected by the API on deploy.
-            $Yaml.ContainsKey('queryFrequency')   | Should -BeFalse
-            $Yaml.ContainsKey('queryPeriod')      | Should -BeFalse
-            $Yaml.ContainsKey('triggerOperator')  | Should -BeFalse
+            $Yaml.ContainsKey('queryFrequency') | Should -BeFalse
+            $Yaml.ContainsKey('queryPeriod') | Should -BeFalse
+            $Yaml.ContainsKey('triggerOperator') | Should -BeFalse
             $Yaml.ContainsKey('triggerThreshold') | Should -BeFalse
         }
     }
@@ -231,16 +236,16 @@ Describe 'Analytical rule schema: <RelativePath>' -ForEach $script:analyticalRul
                 # (IDictionary is also IEnumerable so we have to exclude it
                 # explicitly, otherwise `tactics: {a: b}` would pass).
                 ($Yaml.tactics -is [System.Collections.IEnumerable] -and
-                    -not ($Yaml.tactics -is [string]) -and
-                    -not ($Yaml.tactics -is [System.Collections.IDictionary])) | Should -BeTrue -Because 'tactics must be a YAML list'
+                -not ($Yaml.tactics -is [string]) -and
+                -not ($Yaml.tactics -is [System.Collections.IDictionary])) | Should -BeTrue -Because 'tactics must be a YAML list'
             }
         }
 
         It 'relevantTechniques is a list when present' {
             if ($Yaml.ContainsKey('relevantTechniques')) {
                 ($Yaml.relevantTechniques -is [System.Collections.IEnumerable] -and
-                    -not ($Yaml.relevantTechniques -is [string]) -and
-                    -not ($Yaml.relevantTechniques -is [System.Collections.IDictionary])) | Should -BeTrue -Because 'relevantTechniques must be a YAML list'
+                -not ($Yaml.relevantTechniques -is [string]) -and
+                -not ($Yaml.relevantTechniques -is [System.Collections.IDictionary])) | Should -BeTrue -Because 'relevantTechniques must be a YAML list'
             }
         }
 
@@ -265,15 +270,15 @@ Describe 'Analytical rules: cross-file invariants' {
         $repoRoot = Split-Path -Parent $PSScriptRoot
         $rulesPath = Join-Path $repoRoot 'Content/AnalyticalRules'
 
-        # Community rules under Content/AnalyticalRules/Community/ are imported from
-        # third-party repos. David's upstream deliberately reuses ids across
-        # categories. Since community rules are opt-in and force-disabled at
-        # deploy, an upstream id collision should not block our PR gate.
-        # Scope the uniqueness check to in-house rules only.
+        # Community rules are checked too. The deployer names each rule in the
+        # workspace by its id, so two files with one id are one rule: every
+        # deploy overwrites the first with the second, disabled or not. The
+        # Community/Dalonso upstream reuses ids across its categories, which is
+        # how 12 CommonSecurityLog rules came to overwrite 12 SigninLogs rules
+        # until they were given ids of their own.
         $script:idMap = @{}
         if (Test-Path $rulesPath) {
-            Get-ChildItem -Path $rulesPath -Recurse -Filter '*.yaml' -File |
-                Where-Object { $_.FullName -notmatch '[/\\]Community[/\\]' } |
+            Get-ChildItem -Path $rulesPath -Recurse -Include '*.yaml', '*.yml' -File |
                 ForEach-Object {
                     try {
                         $yaml = ConvertFrom-Yaml (Get-Content $_.FullName -Raw)
@@ -282,20 +287,19 @@ Describe 'Analytical rules: cross-file invariants' {
                         if (-not $script:idMap.ContainsKey($id)) { $script:idMap[$id] = @() }
                         $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                         $script:idMap[$id] += $rel
-                    }
-                    catch {
-                        # Schema tests catch parse errors; skip silently here.
+                    } catch {
+                        Write-Verbose -Message 'Schema tests catch parse errors; skip silently here.'
                     }
                 }
         }
     }
 
-    It 'every rule id is unique across in-house Content/AnalyticalRules/ (excluding Community/)' {
+    It 'every rule id is unique across Content/AnalyticalRules/, Community rules included' {
         $duplicates = $script:idMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {
-                "  id $($_.Key) used by:`n    - $($_.Value -join "`n    - ")"
-            }) -join "`n"
+                    "  id $($_.Key) used by:`n    - $($_.Value -join "`n    - ")"
+                }) -join "`n"
             throw "Duplicate analytical-rule ids found:`n$report"
         }
     }
@@ -305,7 +309,7 @@ Describe 'Hunting query schema: <RelativePath>' -ForEach $script:huntingQueryCas
 
     It 'parses as valid YAML' {
         $ParseError | Should -BeNullOrEmpty
-        $Yaml       | Should -Not -BeNullOrEmpty
+        $Yaml | Should -Not -BeNullOrEmpty
     }
 
     Context 'Required fields' -Skip:$ParseFailed {

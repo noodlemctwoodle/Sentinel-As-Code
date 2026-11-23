@@ -1,5 +1,6 @@
+id: conditional-access-policy-modified
 displayName: Conditional Access policy modified outside change window
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     AuditLogs
@@ -15,9 +16,8 @@ queryCondition:
     | extend ModifiedProperties = tostring(TargetResources[0].modifiedProperties)
     | project TimeGenerated, OperationName, AccountUpn, AccountObjectId,
               InitiatedByIp, TargetPolicy, ModifiedProperties, CorrelationId
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Conditional Access policy modified outside change window"
@@ -27,15 +27,18 @@ detectionAction:
       can weaken security posture by removing MFA requirements, location restrictions,
       or device compliance controls.
     severity: high
-    category: DefenseEvasion
-    mitreTechniques:
-      - T1562.001
+    tactics:
+      - tactic: DefenseEvasion
+        techniques:
+          - technique: T1562
+            subTechniques:
+              - T1562.001
     recommendedActions: |
       1. Verify the change was authorised through the change management process.
       2. Review the specific modifications made to the policy.
       3. Check if the initiating account shows signs of compromise.
       4. If unauthorised, revert the policy change immediately.
       5. Review sign-in logs for the initiating account around the time of change.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountUpn
+    entityMappings:
+      accounts:
+        - upnColumn: AccountUpn

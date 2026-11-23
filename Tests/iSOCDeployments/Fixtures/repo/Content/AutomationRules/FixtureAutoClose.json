@@ -1,0 +1,32 @@
+{
+  "automationRuleId": "b3c4d5e6-f7a8-4901-b2c3-d4e5f6a7b8c9",
+  "displayName": "Fixture: close informational incidents",
+  "order": 0,
+  "triggeringLogic": {
+    "isEnabled": true,
+    "triggersOn": "Incidents",
+    "triggersWhen": "Created",
+    "conditions": [
+      {
+        "conditionType": "Property",
+        "conditionProperties": {
+          "propertyName": "IncidentSeverity",
+          "operator": "Equals",
+          "propertyValues": [
+            "Informational"
+          ]
+        }
+      }
+    ]
+  },
+  "actions": [
+    {
+      "order": 1,
+      "actionType": "ModifyProperties",
+      "actionConfiguration": {
+        "status": "Closed",
+        "classification": "Undetermined"
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -6,7 +6,7 @@
     section model.
 
 .DESCRIPTION
-    Fully offline. Runs Engine/SharePoint/Build-SentinelDocsSite.ps1.
+    Fully offline: nothing here talks to SharePoint, Azure or the network.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/New-iSOCBlueprintSite.ps1
@@ -14,9 +14,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.2
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.2.0
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.
@@ -101,7 +101,7 @@ function New-iSOCBlueprintSite {
 
         Renders the section model, builds the bundle and publishes it.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The engine script makes the ShouldProcess calls; -WhatIf and -Confirm are passed on to it.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The worker function makes the ShouldProcess calls; -WhatIf and -Confirm reach it through the preference variables.')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([pscustomobject])]
     param(
@@ -136,7 +136,7 @@ function New-iSOCBlueprintSite {
         Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'ProductName', 'Title', 'WorkspaceName', 'WhatsNewFeedUrl', 'WhatsNewCount', 'MaxTableRows', 'HistoryDays'
         if ($SkipWhatsNew) { $params.SkipWhatsNew = $true }
 
-        $result = @(Invoke-iSOCBlueprintEngine -Script 'SharePoint/Build-SentinelDocsSite.ps1' -Parameters $params -BoundParameters $PSBoundParameters)
+        $result = @(Invoke-iSOCBlueprintSiteBuild @params)
         $bundle = if ($params.ContainsKey('OutputRoot')) { $params.OutputRoot } else { Join-Path $source 'sharepoint' }
         if ($result.Count -gt 0 -and $result[-1] -is [string]) { $bundle = $result[-1] }
 

@@ -1,5 +1,5 @@
 ---
-description: Regenerates dependencies.json from current content via Build-DependencyManifest, runs the cross-validation tests, and explains the diff.
+description: Regenerates dependencies.json from current content via Update-iSOCDependencyManifest, runs the cross-validation tests, and explains the diff.
 agent: agent
 tools: ['terminal/run', 'search/codebase']
 ---
@@ -14,7 +14,7 @@ from current content, then validate and explain the result.
 1. **Generate the manifest:**
 
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 
    This walks `Content/AnalyticalRules/**/*.yaml` and `Content/HuntingQueries/**/*.yaml`,
@@ -30,11 +30,15 @@ from current content, then validate and explain the result.
 2. **Verify against the now-on-disk file:**
 
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Verify
+   Import-Module ./Modules/iSOCDeployments
+   $result = Test-iSOCDependencyManifest
+   $result.HasDrift
    ```
 
-   Should exit 0. If it exits 1, that's a script bug — report
-   diff lines and stop.
+   `Test-iSOCDependencyManifest` does not set an exit code; it returns a
+   result. `HasDrift` should be `$false` and `Exists` `$true`. If
+   `HasDrift` is `$true`, that's a bug in discovery or in the
+   regeneration - report `$result.Diff` and stop.
 
 3. **Run the cross-reference tests:**
 

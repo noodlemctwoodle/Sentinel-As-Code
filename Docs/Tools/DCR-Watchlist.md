@@ -9,7 +9,7 @@ Deployment is driven by CI from either side of the mirror: the GitHub Actions wo
 ## What It Does
 
 1. **Lists all DCRs** in the subscription via the ARM REST API (`Get-DCRList`, with `nextLink` pagination)
-2. **Enumerates associations** for each DCR (`Get-DCRAssociations`) - the servers/resources sending data through it. The built-in `configurationAccessEndpoint` association is skipped, and each associated resource name, type, and resource group is derived from the association resource ID via regular-expression matching
+2. **Enumerates associations** for each DCR (`Get-DCRAssociation`) - the servers/resources sending data through it. The built-in `configurationAccessEndpoint` association is skipped, and each associated resource name, type, and resource group is derived from the association resource ID via regular-expression matching
 3. **Groups by DCR** - one watchlist row per DCR (keyed by DCR name) with the associated resource names as a delimited list
 4. **Upserts to a Sentinel watchlist** - creates the watchlist with data if it is missing (404), otherwise merges into existing items, and never deletes mid-billing-period
 5. **Tracks billing history** - maintains `AllResourceNames` (cumulative union, case-insensitive), `RemovedResourceNames`, `PeakResourceCount`, and `FirstSeenUtc` so removed servers are still billable for the period they were active
@@ -21,7 +21,7 @@ Deployment is driven by CI from either side of the mirror: the GitHub Actions wo
 ## Architecture
 
 ```
-Azure Automation Account (PowerShell 7.2)
+Azure Automation Account (PowerShell 7.6 runtime environment)
   ├── System-assigned managed identity
   ├── Invoke-DCRWatchlistSync.ps1 (runbook)
   └── Daily schedule (03:00 UTC)
@@ -160,6 +160,11 @@ The CI service principal does not have `roleAssignments/write`. After the first 
     -SentinelResourceGroup '<sentinel-resource-group>'
 ```
 
+> `Grant-iSOCRunbookPermission` and `Revoke-iSOCRunbookPermission`, in the
+> iSOCDeployments module, will replace the script in release 26.11.0.
+> [Permissions](../Modules/iSOCDeployments/Permissions.md) maps each
+> parameter to the commands.
+
 The script resolves the Automation Account's managed-identity principal ID, prints a permission summary and disclaimer, then prompts interactively (`Y/N`) before making any change. It supports `-WhatIf` (via `SupportsShouldProcess`) to preview the assignments without applying them.
 
 This assigns:
@@ -228,8 +233,8 @@ Pipelines/Sentinel-DCR-Inventory.yml               # Azure DevOps pipeline (mirr
 | Error | Cause | Fix |
 |---|---|---|
 | `The runbook does not have a published version` | Runbook exists as draft only | Pipeline Stage 2 publishes it — ensure both stages run |
-| `Update runbook with definition of different runbook kind` | Existing runbook was PS 5.1, new is PS 7.2 | Delete the runbook manually then re-deploy: `az automation runbook delete --automation-account-name aa-dcr-watchlist-sync --resource-group rg-dcr-watchlist-sync --name Invoke-DCRWatchlistSync --yes` |
+| `Update runbook with definition of different runbook kind` | The existing runbook is a PowerShell 7.2 (or 5.1) runbook; it is now a PowerShell runbook on the `PowerShell-76` runtime environment | Delete the runbook manually then re-deploy: `az automation runbook delete --automation-account-name aa-dcr-watchlist-sync --resource-group rg-dcr-watchlist-sync --name Invoke-DCRWatchlistSync --yes` |
 | `Schedule start time must be at least 5 minutes after` | Schedule start is in the past | Pipeline computes tomorrow 03:00 UTC automatically — re-run |
 | `Authorization failed for roleAssignments` | Pipeline SPN lacks `roleAssignments/write` | Expected — run `Set-RunbookPermissions.ps1` manually instead |
-| `GetTokenAsync method not implemented` | Az.Accounts too new for Automation sandbox | Az.Accounts is pinned to 3.0.5 in the Bicep module |
+| `The runbook is on runtime environment '...', not PowerShell-76` | The `PowerShell-76` runtime environment has not been deployed | Run the pipeline with `deployInfrastructure` so the Bicep creates it |
 | `No associations found across any DCR` | DCRs exist but have no resource associations | Verify agents are installed and DCR associations are configured in the portal |

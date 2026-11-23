@@ -215,7 +215,7 @@ A SharePoint-only run renders no Markdown and no PNGs.
 - `serviceConnection: sc-sentinel-as-code`.
 - `SuppressAzurePowerShellBreakingChangeWarnings: true`.
 - `pesterVersion: 5.7.1`, `yamlVersion: 0.4.12` (kept in sync with
-  `Modules/iSOCBlueprint/Engine/Blueprint.psd1` and the PR-validation
+  `Modules/iSOCBlueprint/Resources/Blueprint.psd1` and the PR-validation
   workflow).
 - `flagIncludePreview` (compile-time `${{ if }}` mapping of the
   `includePreview` parameter).

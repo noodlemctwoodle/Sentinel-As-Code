@@ -37,7 +37,7 @@ Start any unfamiliar task by reading [`Docs/README.md`](../Docs/README.md).
 | `Content/HuntingQueries/` | Custom hunting queries (YAML) | [Docs/Content/Hunting-Queries.md](../Docs/Content/Hunting-Queries.md) |
 | `Content/DefenderCustomDetections/` | Defender XDR custom detections (YAML) | [Docs/Content/Defender-Custom-Detections.md](../Docs/Content/Defender-Custom-Detections.md) |
 | `Content/Watchlists/` | Reusable data lists (`watchlist.json` + `data.csv` per alias) | [Docs/Content/Watchlists.md](../Docs/Content/Watchlists.md) |
-| `Content/Playbooks/` | Logic App playbooks (ARM templates, JSON) | [Docs/Content/Playbooks.md](../Docs/Content/Playbooks.md) |
+| `Content/Playbooks/` | Logic App playbooks (Bicep) | [Docs/Content/Playbooks.md](../Docs/Content/Playbooks.md) |
 | `Content/Workbooks/` | Workbook gallery JSON | [Docs/Content/Workbooks.md](../Docs/Content/Workbooks.md) |
 | `Content/Parsers/` | KQL parser/function YAMLs | [Docs/Deploy/Scripts.md](../Docs/Deploy/Scripts.md#deploy-customcontentps1) |
 | `Content/SummaryRules/` | Summary-rule JSON | [Docs/Content/Summary-Rules.md](../Docs/Content/Summary-Rules.md) |
@@ -73,7 +73,7 @@ separate `#`-comment banner - the path, author and dates live in
 `.NOTES`:
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts
 
 <#
@@ -88,7 +88,7 @@ separate `#`-comment banner - the path, author and dates live in
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
-    Requires:     PowerShell 7.2+, Az.Accounts
+    Requires:     PowerShell 7.6+, Az.Accounts
 #>
 ```
 
@@ -138,7 +138,7 @@ Conventional commit format: `type(scope): brief description`.
    pushed by their workflows.
 3. **Never modify `dependencies.json` by hand.** It is auto-derived.
    To update it, edit the content that generates it and run
-   `./Tools/Build-DependencyManifest.ps1 -Mode Generate`. The
+   `Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest`. The
    PR-validation `dependency-manifest` job will fail any hand-edit.
 4. **Don't commit secrets.** Use OIDC federated credentials for Azure
    auth (already configured); use Key Vault references for runtime

@@ -217,7 +217,7 @@ export default class IsocBlueprintWebPart extends BaseClientSideWebPart<IIsocBlu
       '<div style="font-family:Segoe UI,system-ui,sans-serif;border:1px solid #e7eaf3;border-radius:12px;padding:20px 22px;background:#fff">' +
       '<h3 style="margin:0 0 6px;color:#0f1222">Sentinel dashboard not found</h3>' +
       '<p style="margin:0 0 10px;color:#6b7280">Expected the published dashboard at <code>' + this._esc(rel) + '</code> in this site.</p>' +
-      '<p style="margin:0;color:#8b93a7;font-size:12px">Run the SharePoint publish pipeline (or Publish-SentinelDocsSite.ps1) to upload it, then refresh. (' + this._esc(detail) + ')</p>' +
+      '<p style="margin:0;color:#8b93a7;font-size:12px">Run the SharePoint publish pipeline (or Publish-iSOCBlueprintSite) to upload it, then refresh. (' + this._esc(detail) + ')</p>' +
       '</div>';
   }
 

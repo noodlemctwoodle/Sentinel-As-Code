@@ -48,13 +48,13 @@ labels, and the workspace provenance line shown once under the overview.
 
 The command is [`Export-iSOCBlueprintWord`](../../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1)
 from the iSOCBlueprint module. What it runs lives under
-[`Modules/iSOCBlueprint/Engine/Report/`](../../../Modules/iSOCBlueprint/Engine/Report):
+[`Modules/iSOCBlueprint/Resources/Report/`](../../../Modules/iSOCBlueprint/Resources/Report):
 
 | File | Role |
 |---|---|
-| [`Convert-MarkdownToWord.ps1`](../../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1) | The main converter. Collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
-| [`Update-WordToc.py`](../../../Modules/iSOCBlueprint/Engine/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by `Convert-MarkdownToWord.ps1` in its default `Baked` mode. |
-| [`templates/sentinel-report-reference.docx`](../../../Modules/iSOCBlueprint/Engine/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
+| [`Invoke-iSOCBlueprintWordConversion.ps1`](../../../Modules/iSOCBlueprint/Private/Word/Invoke-iSOCBlueprintWordConversion.ps1) | The converter, with the steps and helpers beside it in [`Private/Word`](../../../Modules/iSOCBlueprint/Private/Word), one function per file: it collects the Blueprint `*.md`, cleans and reformats them, runs pandoc, and (by default) bakes the page-numbered TOC. `Export-iSOCBlueprintWord` runs it, locally and in the pipeline. |
+| [`Update-WordToc.py`](../../../Modules/iSOCBlueprint/Resources/Report/Update-WordToc.py) | The LibreOffice/UNO helper that populates the TOC field's entries and page numbers in place. Called by the conversion in its default `Baked` mode. |
+| [`templates/sentinel-report-reference.docx`](../../../Modules/iSOCBlueprint/Resources/Report/templates/sentinel-report-reference.docx) | The pandoc reference document supplying the house styles: grey grid tables with a dark-blue header row and light row banding, heading colours, and the severity/contents character styles. |
 
 The stage that stitches these together lives in
 [`Pipelines/Sentinel-Blueprint.yml`](../../../Pipelines/Sentinel-Blueprint.yml).
@@ -66,7 +66,7 @@ The stage that stitches these together lives in
 ```
 SecurityDocs/<workspace>/            (from Sentinel-Blueprint.yml, on the ADO mirror)
   ├── <numbered section>.md  ─┐
-  ├── ...                     │   Convert-MarkdownToWord.ps1
+  ├── ...                     │   Export-iSOCBlueprintWord
   ├── index.md   (excluded)   │     - order + clean the Markdown
   ├── README.md  (floated up) │     - pandoc  -> styled .docx + empty TOC field
   └── assets/*.png            │     - Update-WordToc.py (LibreOffice/UNO)
@@ -74,7 +74,7 @@ SecurityDocs/<workspace>/            (from Sentinel-Blueprint.yml, on the ADO mi
                               └──> <workspace>.docx   (single, paginated report)
 ```
 
-`Convert-MarkdownToWord.ps1` does the ordering, cleaning and pandoc call; it then
+`Export-iSOCBlueprintWord` (through the steps under `Private/Word/Steps`) does the ordering, cleaning and pandoc call; it then
 delegates the pagination to `Update-WordToc.py` through the `Invoke-LibreOfficeBake`
 function. Only the `.md` files and their images are used; a sibling `_raw/` folder
 of JSON is deliberately ignored, because raw JSON makes a useless code-block dump
@@ -82,7 +82,7 @@ rather than a report.
 
 ### Why pandoc, not Word COM automation
 
-The converter is pure PowerShell 7 plus the pandoc binary. There is no
+The converter is pure PowerShell 7.6 plus the pandoc binary. There is no
 `New-Object -ComObject Word.Application`, so the toolchain runs on macOS, Linux and
 Windows alike (the COM route is Windows-only). It does not touch Azure, so it is
 safe to run anywhere.
@@ -103,7 +103,7 @@ LibreOffice.
 
 ## Table-of-contents strategies
 
-`Export-iSOCBlueprintWord` (through `Convert-MarkdownToWord.ps1`) supports three `-Toc` modes:
+`Export-iSOCBlueprintWord` supports three `-Toc` modes:
 
 | `-Toc` value | Result | External tools |
 |---|---|---|
@@ -139,7 +139,7 @@ Ubuntu   sudo apt-get install -y libreoffice-writer python3-uno
 macOS    brew install --cask libreoffice   (the app bundle carries its own python)
 ```
 
-The module requires **PowerShell 7.2+**. `Update-WordToc.py` requires a `python3`
+The module requires **PowerShell 7.6+**. `Update-WordToc.py` requires a `python3`
 that carries the `uno` module (`python3 -c 'import uno'` should succeed); on Ubuntu
 that is the `python3-uno` package. `Test-iSOCBlueprintPrerequisite -Step Word`
 reports which of these a machine has.
@@ -176,10 +176,10 @@ Two pandoc behaviours are always applied, learned against real Blueprint output:
   pandoc resolves them against the working directory and silently drops them.
 
 When `-NoReformatFindings` is *not* set, the script also rewrites the report for
-print: `Convert-FindingBullets` turns dense finding bullets shaped like
+print: `Convert-FindingBullet` turns dense finding bullets shaped like
 `- **<severity>** [<ID>](<link>) <title> - <description>` into a bold
 severity/ID/title lead line with the description beneath (resolving the title from
-the matching gap-analysis heading), and `Convert-StatusWords` colours the status
+the matching gap-analysis heading), and `Convert-StatusWord` colours the status
 words through a character style: a table cell under a Severity, Status, Coverage
 or Rating column whose whole text is a known status (`Warning`, `Gap`, `None`,
 `Strong`), and the value after `**Severity:**` on the finding cards. A word in any

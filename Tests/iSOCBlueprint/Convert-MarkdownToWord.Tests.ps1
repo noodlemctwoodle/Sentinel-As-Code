@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -6,8 +6,8 @@
     Pester tests for the Word report's Markdown rewrites.
 
 .DESCRIPTION
-    Convert-MarkdownToWord.ps1 runs pandoc when it is invoked, so these
-    tests load only its functions, through the parser, and drive them on
+    Export-iSOCBlueprintWord runs pandoc when it is invoked, so these
+    tests load only the Word helper functions, through the parser, and drive them on
     small Markdown strings. They pin how status words are coloured now that
     the Blueprint pages carry plain words instead of coloured emoji: a cell
     is coloured only under a status column, and the severity on a finding
@@ -19,24 +19,32 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.4
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
-    $path = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Report/Convert-MarkdownToWord.ps1'
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$null)
-    foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -in 'Convert-StatusWords', 'Convert-FindingBullets' }, $true)) {
-        . ([scriptblock]::Create($fn.Extent.Text))
+    $helpers = Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Word/Helpers/Markdown'
+    foreach ($name in 'Convert-StatusWord', 'Convert-FindingBullet') {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $helpers "$name.ps1"), [ref]$null, [ref]$null)
+        foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq $name }, $true)) {
+            . ([scriptblock]::Create($fn.Extent.Text))
+        }
     }
     function Invoke-Status([string]$Text) {
+        <#
+        .SYNOPSIS
+            Runs the status word converter and returns the text with the replacement count.
+        .PARAMETER Text
+            The Markdown to convert.
+        #>
         $count = [ref]0
-        [pscustomobject]@{ Text = (Convert-StatusWords -Text $Text -Count $count); Count = $count.Value }
+        [pscustomobject]@{ Text = (Convert-StatusWord -Text $Text -Count $count); Count = $count.Value }
     }
 }
 
-Describe 'Convert-StatusWords' {
+Describe 'Convert-StatusWord' {
 
     It 'colours the words in a Coverage column' {
         $r = Invoke-Status "| Tactic | Coverage |`n|---|---|`n| Recon | None |`n| Exec | Covered |`n| Persist | Thin |"
@@ -79,11 +87,12 @@ Describe 'Convert-StatusWords' {
     }
 }
 
-Describe 'Convert-FindingBullets' {
+Describe 'Convert-FindingBullet' {
 
     It 'colours a plain severity word on a finding bullet' {
         $count = [ref]0
-        $out = Convert-FindingBullets -Text '- **Warning** [SAC-LOG-22](90-gap-analysis.md#sac-log-22) SecurityEvent duplicates - two agents' -TitleMap @{} -Count $count
+        $out = Convert-FindingBullet -Text '- **Warning** [SAC-LOG-22](90-gap-analysis.md#sac-log-22) SecurityEvent duplicates - two agents' -TitleMap @{} `
+            -Count $count
         $out | Should -Match '\[Warning\]\{custom-style="SevWarning"\}'
         $count.Value | Should -Be 1
     }

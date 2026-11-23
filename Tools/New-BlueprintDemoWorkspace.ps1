@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -96,9 +96,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.2.4
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+, powershell-yaml (auto-installed if missing)
+    Version:      0.2.10
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, powershell-yaml (auto-installed if missing), the Bicep CLI (for Bicep playbooks)
 
     Offline: reads the repository and writes files, and calls no Azure
     API. Prices are the public UK South list prices in GBP as published on
@@ -139,17 +139,18 @@ Import-Module powershell-yaml -ErrorAction Stop
 
 $RepoPath = (Resolve-Path -LiteralPath $RepoPath).Path
 $content = Join-Path $RepoPath 'Content'
-$engine = Join-Path $RepoPath 'Modules/iSOCBlueprint/Engine'
-$resources = Join-Path $engine 'Private/Resources'
+$moduleRoot = Join-Path $RepoPath 'Modules/iSOCBlueprint'
+$resources = Join-Path $moduleRoot 'Resources/Data'
 $fixtureRaw = Join-Path $RepoPath 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
 if (-not $OutputPath) { $OutputPath = Join-Path $RepoPath "SecurityDocs/$WorkspaceName" }
 $raw = Join-Path $OutputPath '_raw'
 if (Test-Path -LiteralPath $raw) { Remove-Item -LiteralPath $raw -Recurse -Force }
 New-Item -ItemType Directory -Path $raw -Force | Out-Null
 
-. (Join-Path $engine 'Private/Vendor/SentinelCommon.Kql.ps1')
-. (Join-Path $engine 'Private/Get-KqlTableReferences.ps1')
-. (Join-Path $engine 'Private/Get-DefenderCustomDetections.ps1')
+$demoHelpers = @(Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private/Kql') -Filter '*.ps1' -File -Recurse | Sort-Object FullName) +
+@(Get-Item -LiteralPath (Join-Path $moduleRoot 'Private/Azure/Get-DefenderCustomDetection.ps1'),
+    (Join-Path $moduleRoot 'Private/Azure/Get-CustomDetectionTableReference.ps1'))
+foreach ($helper in $demoHelpers) { . $helper.FullName }
 
 $asOfUtc = if ($AsOf.Kind -eq [System.DateTimeKind]::Unspecified) { [datetime]::SpecifyKind($AsOf, 'Utc') } else { $AsOf.ToUniversalTime() }
 $asOfUtc = [datetime]::new($asOfUtc.Year, $asOfUtc.Month, $asOfUtc.Day, $asOfUtc.Hour, $asOfUtc.Minute, 0, [System.DateTimeKind]::Utc)
@@ -164,40 +165,148 @@ $region = 'uksouth'
 $wsId = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
 $siId = "$wsId/providers/Microsoft.SecurityInsights"
 
-function Get-DemoRandom { $script:Rng.NextDouble() }
-function Get-DemoBetween([double]$Min, [double]$Max) { $Min + ($Max - $Min) * $script:Rng.NextDouble() }
+function Get-DemoRandom {
+    <#
+    .SYNOPSIS
+        Return the next uniform random number from the demo generator, from 0 up to but not including 1.
+    #>
+    $script:Rng.NextDouble()
+}
+function Get-DemoBetween([double]$Min, [double]$Max) {
+    <#
+    .SYNOPSIS
+        Return a uniform random number between a minimum and a maximum.
+
+    .PARAMETER Min
+        The lower bound.
+
+    .PARAMETER Max
+        The upper bound.
+    #>
+    $Min + ($Max - $Min) * $script:Rng.NextDouble()
+}
 function Get-DemoNormal([double]$Mean, [double]$Sd) {
+    <#
+    .SYNOPSIS
+        Return a normally distributed random number (Box-Muller) for a mean and a standard deviation.
+
+    .PARAMETER Mean
+        The mean of the distribution.
+
+    .PARAMETER Sd
+        The standard deviation of the distribution.
+    #>
     $u1 = 1.0 - $script:Rng.NextDouble(); $u2 = $script:Rng.NextDouble()
     $Mean + $Sd * [math]::Sqrt(-2.0 * [math]::Log($u1)) * [math]::Cos(2 * [math]::PI * $u2)
 }
 function Get-DemoPoisson([double]$Lambda) {
+    <#
+    .SYNOPSIS
+        Return a Poisson distributed random count, using a normal approximation above a mean of 30.
+
+    .PARAMETER Lambda
+        The mean count. Zero or less returns 0.
+    #>
     if ($Lambda -le 0) { return 0 }
     if ($Lambda -gt 30) { return [int][math]::Max(0, [math]::Round((Get-DemoNormal $Lambda ([math]::Sqrt($Lambda))))) }
     $limit = [math]::Exp(-$Lambda); $k = 0; $p = 1.0
     do { $k++; $p *= $script:Rng.NextDouble() } while ($p -gt $limit)
     return $k - 1
 }
-function Get-DemoLogNormal([double]$Median, [double]$Sigma) { $Median * [math]::Exp((Get-DemoNormal 0 $Sigma)) }
-# One of $Items, chosen with the matching $Weights.
+function Get-DemoLogNormal([double]$Median, [double]$Sigma) {
+    <#
+    .SYNOPSIS
+        Return a log-normally distributed random number for a median and a sigma.
+
+    .PARAMETER Median
+        The median of the distribution.
+
+    .PARAMETER Sigma
+        The standard deviation of the underlying normal distribution.
+    #>
+    $Median * [math]::Exp((Get-DemoNormal 0 $Sigma))
+}
 function Get-DemoPick([object[]]$Items, [double[]]$Weights) {
+    <#
+    .SYNOPSIS
+        Return one of the items, chosen with the matching weights.
+
+    .PARAMETER Items
+        The items to choose from.
+
+    .PARAMETER Weights
+        The weight of each item, in the same order as the items.
+    #>
     $total = ($Weights | Measure-Object -Sum).Sum
     $x = $script:Rng.NextDouble() * $total
     for ($i = 0; $i -lt $Items.Count; $i++) { $x -= $Weights[$i]; if ($x -le 0) { return $Items[$i] } }
     return $Items[-1]
 }
-# The same GUID for the same key and seed, so ids are stable across runs.
-function New-DemoGuid([string]$Key) {
+function New-DemoGuid {
+    <#
+    .SYNOPSIS
+        Return a GUID derived from a key and the seed, so the same key gives the same id on every run.
+
+    .PARAMETER Key
+        The text the GUID is derived from, together with the seed.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    param([string]$Key)
     $md5 = [System.Security.Cryptography.MD5]::Create()
     try { ([guid]::new($md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes("$Seed|$Key")))).ToString() } finally { $md5.Dispose() }
 }
-function Get-DemoSum($Items, [string]$Property) { $t = 0.0; foreach ($x in @($Items)) { if ($null -ne $x -and $null -ne $x.$Property) { $t += $x.$Property } }; $t }
-function Format-DemoTime([datetime]$Time) { $Time.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
-# A time inside the day-ago bucket $Day (0 = the last 24 hours).
-function Get-DemoTimeIn([int]$Day) { $asOfUtc.AddDays(-$Day - (Get-DemoBetween 0.05 0.95)) }
+function Get-DemoSum($Items, [string]$Property) {
+    <#
+    .SYNOPSIS
+        Return the sum of one numeric property across a set of objects, skipping objects or values that are null.
+
+    .PARAMETER Items
+        The objects to sum over.
+
+    .PARAMETER Property
+        The name of the numeric property to add up.
+    #>
+    $t = 0.0
+    foreach ($x in @($Items)) { if ($null -ne $x -and $null -ne $x.$Property) { $t += $x.$Property } }
+    $t
+}
+function Format-DemoTime([datetime]$Time) {
+    <#
+    .SYNOPSIS
+        Format a time as an ISO 8601 UTC string, to the second.
+
+    .PARAMETER Time
+        The time to format.
+    #>
+    $Time.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
+function Get-DemoTimeIn([int]$Day) {
+    <#
+    .SYNOPSIS
+        Return a random time inside a day-ago bucket, counted back from the demo collection time.
+
+    .PARAMETER Day
+        The bucket, where 0 is the last 24 hours.
+    #>
+    $asOfUtc.AddDays(-$Day - (Get-DemoBetween 0.05 0.95))
+}
 function Save-DemoJson([string]$Name, $Data) {
+    <#
+    .SYNOPSIS
+        Write demo data as JSON to a file in the _raw folder, replacing the sample vendor name in it with the demo organisation.
+
+    .PARAMETER Name
+        The file name inside the _raw folder.
+
+    .PARAMETER Data
+        The data to write. Null becomes an empty array, and a single object is written as is.
+    #>
     $json = if ($null -eq $Data) { '[]' }
-    elseif ($Data -is [System.Collections.IDictionary] -or $Data -is [System.Management.Automation.PSCustomObject]) { ConvertTo-Json -InputObject $Data -Depth 64 }
-    else { ConvertTo-Json -InputObject @($Data) -Depth 64 }
+    elseif ($Data -is [System.Collections.IDictionary] -or $Data -is [System.Management.Automation.PSCustomObject]) {
+        ConvertTo-Json -InputObject $Data -Depth 64
+    } else { ConvertTo-Json -InputObject @($Data) -Depth 64 }
     if ([string]::IsNullOrWhiteSpace($json)) { $json = '[]' }
     # Some of the repository's rules and hunts carry Microsoft's sample
     # domain as a placeholder in their KQL; the demo's organisation, Sentinel
@@ -205,13 +314,41 @@ function Save-DemoJson([string]$Name, $Data) {
     $json = $json -replace '(?i)contoso\.com', 'sentinel-blog.example' -replace '(?i)contoso', 'sentinel-blog'
     Set-Content -LiteralPath (Join-Path $raw $Name) -Value $json -Encoding utf8NoBOM
 }
-function Read-DemoYaml([string]$Path) { ConvertFrom-Yaml (Get-Content -LiteralPath $Path -Raw) }
+function Read-DemoYaml([string]$Path) {
+    <#
+    .SYNOPSIS
+        Read a YAML file into a dictionary.
+
+    .PARAMETER Path
+        The path of the YAML file.
+    #>
+    ConvertFrom-Yaml (Get-Content -LiteralPath $Path -Raw)
+}
 function Get-DemoValue($Map, [string]$Key, $Default = $null) {
+    <#
+    .SYNOPSIS
+        Return the value of a key in a dictionary, or a default when the key is missing or null.
+
+    .PARAMETER Map
+        The dictionary to read. Anything that is not a dictionary gives the default.
+
+    .PARAMETER Key
+        The key to look up.
+
+    .PARAMETER Default
+        The value returned when the key is missing or null.
+    #>
     if ($null -ne $Map -and $Map -is [System.Collections.IDictionary] -and $Map.Contains($Key) -and $null -ne $Map[$Key]) { return $Map[$Key] }
     return $Default
 }
-# Minutes in an ISO 8601 duration (PT5M, PT1H, P1D).
 function ConvertFrom-DemoDuration([string]$Text) {
+    <#
+    .SYNOPSIS
+        Convert an ISO 8601 duration such as PT5M, PT1H or P1D to minutes.
+
+    .PARAMETER Text
+        The duration. Text that does not parse, and a zero duration, give 60.
+    #>
     if ($Text -notmatch '^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$') { return 60 }
     $m = 0
     if ($Matches[1]) { $m += 1440 * [int]$Matches[1] }
@@ -220,8 +357,32 @@ function ConvertFrom-DemoDuration([string]$Text) {
     if ($m -le 0) { 60 } else { $m }
 }
 $people = @('amara.okafor', 'ben.hughes', 'chloe.martin', 'dev.patel', 'ellie.brooks', 'farid.haddad', 'grace.lee', 'hamish.reid')
-function Get-DemoPerson { $p = $people[$script:Rng.Next($people.Count)]; "$p@sentinel-blog.example" }
-function New-DemoActor([string]$Upn) { [ordered]@{ objectId = (New-DemoGuid "user|$Upn"); email = $Upn; name = (($Upn -split '@')[0] -split '\.' | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_) }) -join ' '; userPrincipalName = $Upn } }
+function Get-DemoPerson {
+    <#
+    .SYNOPSIS
+        Return the address of a random demo analyst on the demo domain.
+    #>
+    $p = $people[$script:Rng.Next($people.Count)]; "$p@sentinel-blog.example"
+}
+function New-DemoActor {
+    <#
+    .SYNOPSIS
+        Build the actor object an incident records for a person, from their address.
+
+    .PARAMETER Upn
+        The user principal name, such as amara.okafor at the demo domain.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    param([string]$Upn)
+    [ordered]@{
+        objectId          = (New-DemoGuid "user|$Upn")
+        email             = $Upn
+        name              = (($Upn -split '@')[0] -split '\.' | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_) }) -join ' '
+        userPrincipalName = $Upn
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Tables: what the estate ingests a day, its plan and its retention
@@ -335,13 +496,25 @@ foreach ($s in $tableSpec) {
 $analyticsDaily /= $window30
 $rungs = @((Get-Content -LiteralPath (Join-Path $resources 'commitment-tiers.json') -Raw | ConvertFrom-Json).rungsGbPerDay)
 $commitmentGb = if ($analyticsDaily -ge 80) { [int]($rungs | Sort-Object { [math]::Abs($_ - $analyticsDaily) } | Select-Object -First 1) } else { 0 }
-function Get-SeriesSum([string]$Table, [int]$Days) { $t = 0.0; $d = $series[$Table]; for ($i = 0; $i -lt [math]::Min($Days, $L); $i++) { $t += $d[$i] }; $t }
+function Get-SeriesSum([string]$Table, [int]$Days) {
+    <#
+    .SYNOPSIS
+        Return the ingest of one table summed over its most recent days.
+
+    .PARAMETER Table
+        The table name, a key of the daily series.
+
+    .PARAMETER Days
+        How many days back from today to sum, capped at the lookback.
+    #>
+    $t = 0.0; $d = $series[$Table]; for ($i = 0; $i -lt [math]::Min($Days, $L); $i++) { $t += $d[$i] }; $t
+}
 
 $tablesWithData = foreach ($s in $tableSpec) {
     $billable = -not $s.ContainsKey('Free')
     $all = Get-SeriesSum $s.T $L; $rec = Get-SeriesSum $s.T $recentDays
     $first = $asOfUtc.AddDays(-$L).AddMinutes(17)
-    $last = if ($s.ContainsKey('Until')) { $asOfUtc.AddDays(-$s.Until).AddHours(-3) } else { $asOfUtc.AddMinutes(-(Get-DemoBetween 2 25)) }
+    $last = if ($s.ContainsKey('Until')) { $asOfUtc.AddDays(-$s.Until).AddHours(-3) } else { $asOfUtc.AddMinutes( - (Get-DemoBetween 2 25)) }
     [ordered]@{
         DataType        = $s.T
         Solution        = $s.Sol
@@ -365,7 +538,9 @@ $dailyUsage = foreach ($s in $tableSpec) {
 Save-DemoJson 'daily-table-usage.json' $dailyUsage
 
 $dayTotal = [double[]]::new($L); $dayBillable = [double[]]::new($L)
-foreach ($s in $tableSpec) { for ($i = 0; $i -lt $L; $i++) { $dayTotal[$i] += $series[$s.T][$i]; if (-not $s.ContainsKey('Free')) { $dayBillable[$i] += $series[$s.T][$i] } } }
+foreach ($s in $tableSpec) {
+    for ($i = 0; $i -lt $L; $i++) { $dayTotal[$i] += $series[$s.T][$i]; if (-not $s.ContainsKey('Free')) { $dayBillable[$i] += $series[$s.T][$i] } }
+}
 Save-DemoJson 'workspace-usage.json' @([ordered]@{
         TotalGB             = [math]::Round(($dayTotal | Measure-Object -Sum).Sum, 3)
         BillableTotalGB     = [math]::Round(($dayBillable | Measure-Object -Sum).Sum, 3)
@@ -374,7 +549,11 @@ Save-DemoJson 'workspace-usage.json' @([ordered]@{
         BillableAvgDailyGB  = [math]::Round(($dayBillable | Measure-Object -Average).Average, 3)
     })
 Save-DemoJson 'workspace-usage-daily.json' @(for ($i = $L - 1; $i -ge 0; $i--) {
-        [ordered]@{ Day = $asOfUtc.AddDays(-$i - 0.5).Date.ToString('yyyy-MM-ddT00:00:00Z'); BillableGB = [math]::Round($dayBillable[$i], 3); FreeGB = [math]::Round($dayTotal[$i] - $dayBillable[$i], 3) }
+        [ordered]@{
+            Day        = $asOfUtc.AddDays(-$i - 0.5).Date.ToString('yyyy-MM-ddT00:00:00Z')
+            BillableGB = [math]::Round($dayBillable[$i], 3)
+            FreeGB     = [math]::Round($dayTotal[$i] - $dayBillable[$i], 3)
+        }
     })
 
 # Table plans, retention and schema. An orphan custom table has a schema
@@ -391,7 +570,13 @@ $workspaceTables = foreach ($s in ($tableSpec + @(@{ T = 'OldAppAudit_CL'; Custo
             plan                          = $plan
             retentionInDaysAsDefault      = ($ret -eq 90)
             totalRetentionInDaysAsDefault = ($total -eq $ret)
-            schema                        = [ordered]@{ tableSubType = $(if ($custom) { $s.Custom } else { 'Any' }); name = $s.T; tableType = $(if ($custom) { 'CustomLog' } else { 'Microsoft' }); displayName = $s.T; solutions = @() }
+            schema                        = [ordered]@{
+                tableSubType = $(if ($custom) { $s.Custom } else { 'Any' })
+                name         = $s.T
+                tableType    = $(if ($custom) { 'CustomLog' } else { 'Microsoft' })
+                displayName  = $s.T
+                solutions    = @()
+            }
             provisioningState             = 'Succeeded'
             retentionInDays               = $ret
         }
@@ -404,46 +589,93 @@ Save-DemoJson 'workspace-tables.json' $workspaceTables
 # ---------------------------------------------------------------------------
 # The repository's content
 # ---------------------------------------------------------------------------
-$operatorMap = @{ gt = 'GreaterThan'; greaterthan = 'GreaterThan'; lt = 'LessThan'; lessthan = 'LessThan'; eq = 'Equal'; equal = 'Equal'; ne = 'NotEqual'; notequal = 'NotEqual' }
+$operatorMap = @{
+    gt          = 'GreaterThan'
+    greaterthan = 'GreaterThan'
+    lt          = 'LessThan'
+    lessthan    = 'LessThan'
+    eq          = 'Equal'
+    equal       = 'Equal'
+    ne          = 'NotEqual'
+    notequal    = 'NotEqual'
+}
 $ruleFiles = @(Get-ChildItem -LiteralPath (Join-Path $content 'AnalyticalRules') -Recurse -Filter '*.yaml' | Sort-Object FullName)
 $customYaml = [System.Collections.Generic.List[object]]::new()
 $communityYaml = [System.Collections.Generic.List[object]]::new()
 foreach ($f in $ruleFiles) {
     $y = Read-DemoYaml $f.FullName
     if (-not $y -or -not $y['id'] -or -not $y['query']) { continue }
-    $entry = [pscustomobject]@{ Yaml = $y; File = $f; Folder = $f.Directory.Name; Tables = @(Resolve-KqlTableNames -Query ([string]$y['query'])) }
+    $entry = [pscustomobject]@{ Yaml = $y; File = $f; Folder = $f.Directory.Name; Tables = @(Resolve-KqlTableName -Query ([string]$y['query'])) }
     if ($f.FullName -match '[/\\]Community[/\\]') { $communityYaml.Add($entry) } else { $customYaml.Add($entry) }
 }
 # A rule can fire when it reads a table the estate ingests.
-function Test-DemoReadable([string[]]$Tables) { foreach ($t in $Tables) { if ($hasData.ContainsKey($t)) { return $true } }; return $false }
+function Test-DemoReadable([string[]]$Tables) {
+    <#
+    .SYNOPSIS
+        Test whether any of the tables is one the demo estate ingests.
 
-function New-DemoRuleProperties($Y, [bool]$Enabled, [string]$Template, [string]$TemplateVersion) {
-    $kind = [string](Get-DemoValue $Y 'kind' 'Scheduled')
+    .PARAMETER Tables
+        The table names a rule or query reads.
+    #>
+    foreach ($t in $Tables) { if ($hasData.ContainsKey($t)) { return $true } }; return $false
+}
+
+function New-DemoRuleProperty {
+    <#
+    .SYNOPSIS
+        Build the properties of a deployed analytics rule from a repository rule definition.
+
+    .PARAMETER Y
+        The rule definition read from the repository YAML.
+
+    .PARAMETER Enabled
+        Whether the deployed rule is enabled.
+
+    .PARAMETER Template
+        The Content Hub template id the rule was deployed from, or null for a rule deployed from the repository.
+
+    .PARAMETER TemplateVersion
+        The template version recorded on a rule deployed from a template, or null.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    param($Y, [bool]$Enabled, [string]$Template, [string]$TemplateVersion)
+    $kind = [string](Get-DemoValue -Map $Y -Key 'kind' -Default 'Scheduled')
     $p = [ordered]@{
         displayName         = [string]$Y['name']
-        description         = ([string](Get-DemoValue $Y 'description' '')).Trim().Trim("'")
-        severity            = [string](Get-DemoValue $Y 'severity' 'Medium')
+        description         = ([string](Get-DemoValue -Map $Y -Key 'description' -Default '')).Trim().Trim("'")
+        severity            = [string](Get-DemoValue -Map $Y -Key 'severity' -Default 'Medium')
         enabled             = $Enabled
         query               = [string]$Y['query']
-        suppressionDuration = [string](Get-DemoValue $Y 'suppressionDuration' 'PT5H')
-        suppressionEnabled  = [bool](Get-DemoValue $Y 'suppressionEnabled' $false)
+        suppressionDuration = [string](Get-DemoValue -Map $Y -Key 'suppressionDuration' -Default 'PT5H')
+        suppressionEnabled  = [bool](Get-DemoValue -Map $Y -Key 'suppressionEnabled' -Default $false)
     }
     if ($kind -eq 'Scheduled') {
-        $p.queryFrequency = [string](Get-DemoValue $Y 'queryFrequency' 'PT1H')
-        $p.queryPeriod = [string](Get-DemoValue $Y 'queryPeriod' 'PT1H')
-        $op = ([string](Get-DemoValue $Y 'triggerOperator' 'gt')).ToLowerInvariant()
+        $p.queryFrequency = [string](Get-DemoValue -Map $Y -Key 'queryFrequency' -Default 'PT1H')
+        $p.queryPeriod = [string](Get-DemoValue -Map $Y -Key 'queryPeriod' -Default 'PT1H')
+        $op = ([string](Get-DemoValue -Map $Y -Key 'triggerOperator' -Default 'gt')).ToLowerInvariant()
         $p.triggerOperator = if ($operatorMap.ContainsKey($op)) { $operatorMap[$op] } else { 'GreaterThan' }
-        $p.triggerThreshold = [int](Get-DemoValue $Y 'triggerThreshold' 0)
+        $p.triggerThreshold = [int](Get-DemoValue -Map $Y -Key 'triggerThreshold' -Default 0)
     }
-    $p.tactics = @(Get-DemoValue $Y 'tactics' @())
-    $techs = @(Get-DemoValue $Y 'relevantTechniques' (Get-DemoValue $Y 'techniques' @()))
+    $p.tactics = @(Get-DemoValue -Map $Y -Key 'tactics' -Default @())
+    $techs = @(Get-DemoValue -Map $Y -Key 'relevantTechniques' -Default (Get-DemoValue -Map $Y -Key 'techniques' -Default @()))
     $p.techniques = @($techs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
     $p.subTechniques = @($techs | Where-Object { $_ -match '\.' } | Select-Object -Unique)
-    foreach ($k in 'entityMappings', 'customDetails', 'alertDetailsOverride', 'eventGroupingSettings') { if ($Y.ContainsKey($k) -and $Y[$k]) { $p[$k] = $Y[$k] } }
-    $inc = Get-DemoValue $Y 'incidentConfiguration' $null
-    $p.incidentConfiguration = if ($inc) { $inc } else { [ordered]@{ createIncident = $true; groupingConfiguration = [ordered]@{ enabled = $true; reopenClosedIncident = $false; lookbackDuration = 'PT5H'; matchingMethod = 'AllEntities' } } }
+    foreach ($k in 'entityMappings', 'customDetails', 'alertDetailsOverride', 'eventGroupingSettings') {
+        if ($Y.ContainsKey($k) -and $Y[$k]) { $p[$k] = $Y[$k] }
+    }
+    $inc = Get-DemoValue -Map $Y -Key 'incidentConfiguration' -Default $null
+    $p.incidentConfiguration = if ($inc) {
+        $inc
+    } else {
+        [ordered]@{
+            createIncident        = $true
+            groupingConfiguration = [ordered]@{ enabled = $true; reopenClosedIncident = $false; lookbackDuration = 'PT5H'; matchingMethod = 'AllEntities' }
+        }
+    }
     if ($Template) { $p.alertRuleTemplateName = $Template; $p.templateVersion = $TemplateVersion }
-    $p.lastModifiedUtc = Format-DemoTime ($asOfUtc.AddDays(-(Get-DemoBetween 3 400)))
+    $p.lastModifiedUtc = Format-DemoTime ($asOfUtc.AddDays( - (Get-DemoBetween 3 400)))
     return $p
 }
 
@@ -454,33 +686,85 @@ $alertRules = [System.Collections.Generic.List[object]]::new()
 $ruleModels = [System.Collections.Generic.List[object]]::new()
 foreach ($e in $customYaml) {
     $id = ([string]$e.Yaml['id']).ToLowerInvariant()
-    $enabled = [bool](Get-DemoValue $e.Yaml 'enabled' $true)
-    $kind = [string](Get-DemoValue $e.Yaml 'kind' 'Scheduled')
-    $alertRules.Add([ordered]@{ id = "$siId/alertRules/$id"; name = $id; etag = '"' + (New-DemoGuid "etag|$id") + '"'; type = 'Microsoft.SecurityInsights/alertRules'; kind = $kind; properties = (New-DemoRuleProperties $e.Yaml $enabled $null $null) })
-    $ruleModels.Add([pscustomobject]@{ Id = $id; Name = [string]$e.Yaml['name']; Kind = $kind; Severity = [string](Get-DemoValue $e.Yaml 'severity' 'Medium'); Enabled = $enabled; Tables = $e.Tables; Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue $e.Yaml 'queryFrequency' 'PT1H'))) })
+    $enabled = [bool](Get-DemoValue -Map $e.Yaml -Key 'enabled' -Default $true)
+    $kind = [string](Get-DemoValue -Map $e.Yaml -Key 'kind' -Default 'Scheduled')
+    $alertRules.Add([ordered]@{
+            id         = "$siId/alertRules/$id"
+            name       = $id
+            etag       = '"' + (New-DemoGuid "etag|$id") + '"'
+            type       = 'Microsoft.SecurityInsights/alertRules'
+            kind       = $kind
+            properties = (New-DemoRuleProperty -Y $e.Yaml -Enabled $enabled -Template $null -TemplateVersion $null)
+        })
+    $ruleModels.Add([pscustomobject]@{
+            Id        = $id
+            Name      = [string]$e.Yaml['name']
+            Kind      = $kind
+            Severity  = [string](Get-DemoValue -Map $e.Yaml -Key 'severity' -Default 'Medium')
+            Enabled   = $enabled
+            Tables    = $e.Tables
+            Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue -Map $e.Yaml -Key 'queryFrequency' -Default 'PT1H')))
+        })
 }
 $templateDeployed = @{}
 foreach ($e in $communityYaml) {
     if (-not (Test-DemoReadable $e.Tables) -or (Get-DemoRandom) -gt 0.5) { continue }
     $tid = ([string]$e.Yaml['id']).ToLowerInvariant()
     $id = New-DemoGuid "from-template|$tid"
-    $version = [string](Get-DemoValue $e.Yaml 'version' '1.0.0')
-    $alertRules.Add([ordered]@{ id = "$siId/alertRules/$id"; name = $id; etag = '"' + (New-DemoGuid "etag|$id") + '"'; type = 'Microsoft.SecurityInsights/alertRules'; kind = 'Scheduled'; properties = (New-DemoRuleProperties $e.Yaml $true $tid $version) })
-    $ruleModels.Add([pscustomobject]@{ Id = $id; Name = [string]$e.Yaml['name']; Kind = 'Scheduled'; Severity = [string](Get-DemoValue $e.Yaml 'severity' 'Medium'); Enabled = $true; Tables = $e.Tables; Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue $e.Yaml 'queryFrequency' 'PT1H'))) })
+    $version = [string](Get-DemoValue -Map $e.Yaml -Key 'version' -Default '1.0.0')
+    $alertRules.Add([ordered]@{
+            id         = "$siId/alertRules/$id"
+            name       = $id
+            etag       = '"' + (New-DemoGuid "etag|$id") + '"'
+            type       = 'Microsoft.SecurityInsights/alertRules'
+            kind       = 'Scheduled'
+            properties = (New-DemoRuleProperty -Y $e.Yaml -Enabled $true -Template $tid -TemplateVersion $version)
+        })
+    $ruleModels.Add([pscustomobject]@{
+            Id        = $id
+            Name      = [string]$e.Yaml['name']
+            Kind      = 'Scheduled'
+            Severity  = [string](Get-DemoValue -Map $e.Yaml -Key 'severity' -Default 'Medium')
+            Enabled   = $true
+            Tables    = $e.Tables
+            Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue -Map $e.Yaml -Key 'queryFrequency' -Default 'PT1H')))
+        })
     $templateDeployed[$tid] = $true
 }
 # Built-in analytics.
 foreach ($b in @(@{ Kind = 'Fusion'; Name = 'Advanced Multistage Attack Detection'; Sev = 'High'; Tmpl = 'f71aba3d-28fb-450b-b192-4e76a83015c8' },
         @{ Kind = 'ThreatIntelligence'; Name = 'Microsoft Threat Intelligence Analytics'; Sev = 'Medium'; Tmpl = '40ba9493-4183-4eee-974f-87fe39c8f267' })) {
     $id = New-DemoGuid "builtin|$($b.Kind)"
-    $alertRules.Add([ordered]@{ id = "$siId/alertRules/$id"; name = $id; etag = '"' + (New-DemoGuid "etag|$id") + '"'; type = 'Microsoft.SecurityInsights/alertRules'; kind = $b.Kind
-            properties = [ordered]@{ displayName = $b.Name; description = ''; alertRuleTemplateName = $b.Tmpl; tactics = @(); severity = $b.Sev; techniques = @(); subTechniques = @(); enabled = $true; lastModifiedUtc = (Format-DemoTime $asOfUtc.AddDays(-210)) } })
+    $alertRules.Add([ordered]@{ id = "$siId/alertRules/$id"
+            name                   = $id
+            etag                   = '"' + (New-DemoGuid "etag|$id") + '"'
+            type                   = 'Microsoft.SecurityInsights/alertRules'
+            kind                   = $b.Kind
+            properties             = [ordered]@{
+                displayName           = $b.Name
+                description           = ''
+                alertRuleTemplateName = $b.Tmpl
+                tactics               = @()
+                severity              = $b.Sev
+                techniques            = @()
+                subTechniques         = @()
+                enabled               = $true
+                lastModifiedUtc       = (Format-DemoTime $asOfUtc.AddDays(-210))
+            }
+        })
 }
 Save-DemoJson 'alert-rules.json' $alertRules
 
 # The Community rules as Content Hub templates, grouped into solutions by the
 # data they read.
 function Get-DemoSolutionFor([string[]]$Tables) {
+    <#
+    .SYNOPSIS
+        Return the name of the Content Hub solution a rule belongs to, chosen from the first table it reads that maps to one.
+
+    .PARAMETER Tables
+        The table names the rule reads.
+    #>
     foreach ($t in $Tables) {
         switch -regex ($t) {
             '^CommonSecurityLog$' { return 'Common Event Format' }
@@ -500,25 +784,32 @@ $templates = [System.Collections.Generic.List[object]]::new()
 $solutionTemplates = [ordered]@{}
 foreach ($e in $communityYaml) {
     $y = $e.Yaml; $tid = ([string]$y['id']).ToLowerInvariant()
-    $techs = @(Get-DemoValue $y 'relevantTechniques' (Get-DemoValue $y 'techniques' @()))
-    $created = $asOfUtc.AddDays(-(Get-DemoBetween 200 1400))
+    $techs = @(Get-DemoValue -Map $y -Key 'relevantTechniques' -Default (Get-DemoValue -Map $y -Key 'techniques' -Default @()))
+    $created = $asOfUtc.AddDays( - (Get-DemoBetween 200 1400))
     $templates.Add([ordered]@{
             id = "$siId/alertRuleTemplates/$tid"; name = $tid; type = 'Microsoft.SecurityInsights/alertRuleTemplates'; kind = 'Scheduled'
             properties = [ordered]@{
-                queryFrequency = [string](Get-DemoValue $y 'queryFrequency' 'PT1H'); queryPeriod = [string](Get-DemoValue $y 'queryPeriod' 'PT1H')
-                triggerOperator = 'GreaterThan'; triggerThreshold = [int](Get-DemoValue $y 'triggerThreshold' 0)
-                severity = [string](Get-DemoValue $y 'severity' 'Medium'); query = [string]$y['query']
-                entityMappings = @(Get-DemoValue $y 'entityMappings' @()); version = [string](Get-DemoValue $y 'version' '1.0.0')
-                tactics = @(Get-DemoValue $y 'tactics' @()); techniques = @($techs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
-                displayName = [string]$y['name']; description = ([string](Get-DemoValue $y 'description' '')).Trim().Trim("'")
+                queryFrequency                   = [string](Get-DemoValue -Map $y -Key 'queryFrequency' -Default 'PT1H')
+                queryPeriod                      = [string](Get-DemoValue -Map $y -Key 'queryPeriod' -Default 'PT1H')
+                triggerOperator = 'GreaterThan'; triggerThreshold = [int](Get-DemoValue -Map $y -Key 'triggerThreshold' -Default 0)
+                severity = [string](Get-DemoValue -Map $y -Key 'severity' -Default 'Medium'); query = [string]$y['query']
+                entityMappings                   = @(Get-DemoValue -Map $y -Key 'entityMappings' -Default @())
+                version                          = [string](Get-DemoValue -Map $y -Key 'version' -Default '1.0.0')
+                tactics                          = @(Get-DemoValue -Map $y -Key 'tactics' -Default @())
+                techniques                       = @($techs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
+                displayName = [string]$y['name']; description = ([string](Get-DemoValue -Map $y -Key 'description' -Default '')).Trim().Trim("'")
                 lastUpdatedDateUTC = (Format-DemoTime $created.AddDays(120)); createdDateUTC = (Format-DemoTime $created); status = 'Available'
-                requiredDataConnectors = @(Get-DemoValue $y 'requiredDataConnectors' @())
+                requiredDataConnectors           = @(Get-DemoValue -Map $y -Key 'requiredDataConnectors' -Default @())
                 alertRulesCreatedByTemplateCount = $(if ($templateDeployed.ContainsKey($tid)) { 1 } else { 0 })
             }
         })
     $sol = Get-DemoSolutionFor $e.Tables
     if (-not $solutionTemplates.Contains($sol)) { $solutionTemplates[$sol] = [System.Collections.Generic.List[object]]::new() }
-    $solutionTemplates[$sol].Add([ordered]@{ contentId = $tid; kind = 'AnalyticsRule'; version = [string](Get-DemoValue $y 'version' '1.0.0') })
+    $solutionTemplates[$sol].Add([ordered]@{
+            contentId = $tid
+            kind      = 'AnalyticsRule'
+            version   = [string](Get-DemoValue -Map $y -Key 'version' -Default '1.0.0')
+        })
 }
 Save-DemoJson 'alert-rule-templates.json' $templates
 # Every solution is installed except Azure Storage, so its template reads
@@ -526,12 +817,45 @@ Save-DemoJson 'alert-rule-templates.json' $templates
 $catalogue = [System.Collections.Generic.List[object]]::new(); $installed = [System.Collections.Generic.List[object]]::new()
 foreach ($sol in $solutionTemplates.Keys) {
     $sid = ($sol.ToLowerInvariant() -replace '[^a-z0-9]+', '')
-    $pkg = [ordered]@{ contentId = $sid; contentKind = 'Solution'; contentProductId = "$sid-sl"; isNew = $false; isPreview = $false; isFeatured = $false; isDeprecated = $false; version = '3.0.2'; displayName = $sol
-        source = [ordered]@{ kind = 'Solution'; name = $sol; sourceId = $sid }; author = [ordered]@{ name = 'Microsoft' }; support = [ordered]@{ tier = 'Microsoft'; name = 'Microsoft Corporation'; link = 'https://support.microsoft.com' }
-        dependencies = [ordered]@{ operator = 'AND'; criteria = @($solutionTemplates[$sol]) }; providers = @('Microsoft'); firstPublishDate = '2022-05-16'; lastPublishDate = (Format-DemoTime $asOfUtc.AddDays(-40)); categories = [ordered]@{ domains = @('Security - Threat Protection') } }
-    $catalogue.Add([ordered]@{ id = "$siId/contentProductPackages/$sid-sl"; name = "$sid-sl"; type = 'Microsoft.SecurityInsights/contentProductPackages'; properties = $pkg })
+    $pkg = [ordered]@{ contentId = $sid
+        contentKind              = 'Solution'
+        contentProductId         = "$sid-sl"
+        isNew                    = $false
+        isPreview                = $false
+        isFeatured               = $false
+        isDeprecated             = $false
+        version                  = '3.0.2'
+        displayName              = $sol
+        source                   = [ordered]@{ kind = 'Solution'; name = $sol; sourceId = $sid }
+        author                   = [ordered]@{ name = 'Microsoft' }
+        support                  = [ordered]@{ tier = 'Microsoft'; name = 'Microsoft Corporation'; link = 'https://support.microsoft.com' }
+        dependencies             = [ordered]@{ operator = 'AND'; criteria = @($solutionTemplates[$sol]) }
+        providers                = @('Microsoft')
+        firstPublishDate         = '2022-05-16'
+        lastPublishDate          = (Format-DemoTime $asOfUtc.AddDays(-40))
+        categories               = [ordered]@{ domains = @('Security - Threat Protection') }
+    }
+    $catalogue.Add([ordered]@{
+            id         = "$siId/contentProductPackages/$sid-sl"
+            name       = "$sid-sl"
+            type       = 'Microsoft.SecurityInsights/contentProductPackages'
+            properties = $pkg
+        })
     if ($sol -ne 'Azure Storage') {
-        $inst = [ordered]@{ contentKind = 'Solution'; contentProductId = "$sid-sl"; contentId = $sid; displayName = $sol; version = $(if ($sol -eq 'Microsoft Entra ID') { '3.0.0' } else { '3.0.2' }); source = $pkg.source; author = $pkg.author; support = $pkg.support; dependencies = $pkg.dependencies; providers = $pkg.providers; firstPublishDate = $pkg.firstPublishDate; categories = $pkg.categories }
+        $inst = [ordered]@{
+            contentKind      = 'Solution'
+            contentProductId = "$sid-sl"
+            contentId        = $sid
+            displayName      = $sol
+            version          = $(if ($sol -eq 'Microsoft Entra ID') { '3.0.0' } else { '3.0.2' })
+            source           = $pkg.source
+            author           = $pkg.author
+            support          = $pkg.support
+            dependencies     = $pkg.dependencies
+            providers        = $pkg.providers
+            firstPublishDate = $pkg.firstPublishDate
+            categories       = $pkg.categories
+        }
         $installed.Add([ordered]@{ id = "$siId/contentPackages/$sid"; name = $sid; type = 'Microsoft.SecurityInsights/contentPackages'; properties = $inst })
     }
 }
@@ -545,16 +869,41 @@ $hunting = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Hunt
     $id = New-DemoGuid "hunt|$($y['id'])"
     [ordered]@{
         properties = [ordered]@{ category = 'Hunting Queries'; displayName = [string]$y['name']; version = 2; query = [string]$y['query']
-            tags = @([ordered]@{ name = 'description'; value = ([string](Get-DemoValue $y 'description' '')).Trim() }, [ordered]@{ name = 'tactics'; value = (@(Get-DemoValue $y 'tactics' @()) -join ',') }, [ordered]@{ name = 'techniques'; value = (@(Get-DemoValue $y 'techniques' (Get-DemoValue $y 'relevantTechniques' @())) -join ',') }) }
-        id = "$wsId/savedSearches/$id"; name = $id; type = 'Microsoft.OperationalInsights/workspaces/savedSearches'; etag = "W/`"datetime'$(Format-DemoTime $asOfUtc.AddDays(-30))'`""
+            tags = @(
+                [ordered]@{
+                    name  = 'description'
+                    value = ([string](Get-DemoValue -Map $y -Key 'description' -Default '')).Trim()
+                }, [ordered]@{
+                    name  = 'tactics'
+                    value = (@(Get-DemoValue -Map $y -Key 'tactics' -Default @()) -join ',')
+                }, [ordered]@{
+                    name  = 'techniques'
+                    value = (@(Get-DemoValue -Map $y -Key 'techniques' -Default (Get-DemoValue -Map $y -Key 'relevantTechniques' -Default @())) -join ',')
+                }
+            )
+        }
+        id         = "$wsId/savedSearches/$id"
+        name       = $id
+        type       = 'Microsoft.OperationalInsights/workspaces/savedSearches'
+        etag       = "W/`"datetime'$(Format-DemoTime $asOfUtc.AddDays(-30))'`""
     }
 }
 Save-DemoJson 'hunting-queries.json' $hunting
 $parsers = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Parsers') -Recurse -Filter '*.yaml')) {
     $y = Read-DemoYaml $f.FullName
-    $alias = [string](Get-DemoValue $y 'functionAlias' $y['id'])
-    [ordered]@{ properties = [ordered]@{ category = [string](Get-DemoValue $y 'category' 'Security'); displayName = [string]$y['name']; version = 2; functionAlias = $alias; query = [string]$y['query'] }
-        id = "$wsId/savedSearches/$alias"; name = $alias; type = 'Microsoft.OperationalInsights/workspaces/savedSearches'; etag = "W/`"datetime'$(Format-DemoTime $asOfUtc.AddDays(-60))'`"" }
+    $alias = [string](Get-DemoValue -Map $y -Key 'functionAlias' -Default $y['id'])
+    [ordered]@{ properties = [ordered]@{
+            category      = [string](Get-DemoValue -Map $y -Key 'category' -Default 'Security')
+            displayName   = [string]$y['name']
+            version       = 2
+            functionAlias = $alias
+            query         = [string]$y['query']
+        }
+        id                 = "$wsId/savedSearches/$alias"
+        name               = $alias
+        type               = 'Microsoft.OperationalInsights/workspaces/savedSearches'
+        etag               = "W/`"datetime'$(Format-DemoTime $asOfUtc.AddDays(-60))'`""
+    }
 }
 Save-DemoJson 'parsers-functions.json' $parsers
 Save-DemoJson 'kql-savedsearches.json' (@($hunting) + @($parsers))
@@ -563,13 +912,35 @@ Save-DemoJson 'kql-savedsearches.json' (@($hunting) + @($parsers))
 $watchlists = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Watchlists') -Recurse -Filter 'watchlist.json' | Sort-Object FullName)) {
     $w = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json
     $alias = [string]$w.watchlistAlias
-    $created = $asOfUtc.AddDays(-(Get-DemoBetween 120 700))
-    $updated = if ((Get-DemoRandom) -lt 0.25) { $asOfUtc.AddDays(-(Get-DemoBetween 120 300)) } else { $asOfUtc.AddDays(-(Get-DemoBetween 0.2 25)) }
+    $created = $asOfUtc.AddDays( - (Get-DemoBetween 120 700))
+    $updated = if ((Get-DemoRandom) -lt 0.25) { $asOfUtc.AddDays( - (Get-DemoBetween 120 300)) } else { $asOfUtc.AddDays( - (Get-DemoBetween 0.2 25)) }
     $actor = New-DemoActor (Get-DemoPerson)
-    [ordered]@{ id = "$siId/watchlists/$alias"; name = $alias; etag = '"' + (New-DemoGuid "etag|wl|$alias") + '"'; type = 'Microsoft.SecurityInsights/Watchlists'
-        properties = [ordered]@{ watchlistId = (New-DemoGuid "wl|$alias"); displayName = [string]$w.displayName; provider = [string]$w.provider; source = 'data.csv'; itemsSearchKey = [string]$w.itemsSearchKey
-            created = (Format-DemoTime $created); updated = (Format-DemoTime $updated); createdBy = $actor; updatedBy = $actor; description = [string]$w.description; watchlistType = 'watchlist'
-            watchlistAlias = $alias; isDeleted = $false; labels = @(); tenantId = $tenantId; numberOfLinesToSkip = 0; provisioningState = 'Succeeded'; sasUri = ''; watchlistCategory = ''; watchlistKind = '' } }
+    [ordered]@{ id = "$siId/watchlists/$alias"
+        name       = $alias
+        etag       = '"' + (New-DemoGuid "etag|wl|$alias") + '"'
+        type       = 'Microsoft.SecurityInsights/Watchlists'
+        properties = [ordered]@{ watchlistId = (New-DemoGuid "wl|$alias")
+            displayName                      = [string]$w.displayName
+            provider                         = [string]$w.provider
+            source                           = 'data.csv'
+            itemsSearchKey                   = [string]$w.itemsSearchKey
+            created                          = (Format-DemoTime $created)
+            updated                          = (Format-DemoTime $updated)
+            createdBy                        = $actor
+            updatedBy                        = $actor
+            description                      = [string]$w.description
+            watchlistType                    = 'watchlist'
+            watchlistAlias                   = $alias
+            isDeleted                        = $false
+            labels                           = @()
+            tenantId                         = $tenantId
+            numberOfLinesToSkip              = 0
+            provisioningState                = 'Succeeded'
+            sasUri                           = ''
+            watchlistCategory                = ''
+            watchlistKind                    = ''
+        }
+    }
 }
 Save-DemoJson 'watchlists.json' $watchlists
 
@@ -578,45 +949,122 @@ $workbooks = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Wo
     $m = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json
     $wid = if ($m.PSObject.Properties['workbookId'] -and $m.workbookId) { [string]$m.workbookId } else { New-DemoGuid "wb|$($f.Directory.Name)" }
     $who = Get-DemoPerson
-    [ordered]@{ identity = [ordered]@{ type = 'None' }; kind = 'shared'; etag = '"' + (New-DemoGuid "etag|wb|$wid") + '"'; id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/microsoft.insights/workbooks/$wid"; name = $wid; type = 'microsoft.insights/workbooks'; location = $region
-        tags = [ordered]@{ 'hidden-title' = [string]$m.displayName; CreatorUPN = $who; 'Created By' = $who; CreatedDate = (Format-DemoTime $asOfUtc.AddDays(-200)) }
-        properties = [ordered]@{ displayName = [string]$m.displayName; serializedData = $null; version = '1.0'; category = 'sentinel'; userId = (New-DemoGuid "user|$who"); sourceId = $wsId.ToLowerInvariant(); timeModified = (Format-DemoTime $asOfUtc.AddDays(-(Get-DemoBetween 1 180))); tags = $null; storageUri = $null; revision = (New-DemoGuid "rev|$wid").Replace('-', '') } }
+    [ordered]@{ identity = [ordered]@{ type = 'None' }
+        kind             = 'shared'
+        etag             = '"' + (New-DemoGuid "etag|wb|$wid") + '"'
+        id               = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/microsoft.insights/workbooks/$wid"
+        name             = $wid
+        type             = 'microsoft.insights/workbooks'
+        location         = $region
+        tags             = [ordered]@{
+            'hidden-title' = [string]$m.displayName
+            CreatorUPN     = $who
+            'Created By'   = $who
+            CreatedDate    = (Format-DemoTime $asOfUtc.AddDays(-200))
+        }
+        properties       = [ordered]@{
+            displayName    = [string]$m.displayName
+            serializedData = $null
+            version        = '1.0'
+            category       = 'sentinel'
+            userId         = (New-DemoGuid "user|$who")
+            sourceId       = $wsId.ToLowerInvariant()
+            timeModified   = (Format-DemoTime $asOfUtc.AddDays( - (Get-DemoBetween 1 180)))
+            tags           = $null
+            storageUri     = $null
+            revision       = (New-DemoGuid "rev|$wid").Replace('-', '')
+        }
+    }
 }
 Save-DemoJson 'workbooks-saved.json' $workbooks
-$workbookTemplates = foreach ($n in @('Microsoft Entra ID Sign-in logs', 'Microsoft Entra ID Audit logs', 'Azure Activity', 'Common Event Format (CEF) overview', 'Windows Security Events', 'Microsoft Defender XDR', 'Threat Intelligence', 'Workspace Usage Report', 'SOC Process Framework', 'Data collection health monitoring')) {
+$workbookTemplates = foreach ($n in @(
+        'Microsoft Entra ID Sign-in logs', 'Microsoft Entra ID Audit logs', 'Azure Activity', 'Common Event Format (CEF) overview', 'Windows Security Events',
+        'Microsoft Defender XDR', 'Threat Intelligence', 'Workspace Usage Report', 'SOC Process Framework', 'Data collection health monitoring'
+    )) {
     $cid = ($n.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
     [ordered]@{ id = "$siId/contentTemplates/$cid"; name = $cid; type = 'Microsoft.SecurityInsights/contentTemplates'; systemData = [ordered]@{}
-        properties = [ordered]@{ packageKind = 'Solution'; packageId = 'sentinelsocessentials'; packageVersion = '3.0.2'; contentSchemaVersion = '3.0.0'; contentProductId = "$cid-wb"; contentId = $cid; displayName = $n; contentKind = 'Workbook'; version = '2.1.0'; source = [ordered]@{ kind = 'Solution'; name = 'Sentinel SOC Essentials'; sourceId = 'sentinelsocessentials' } } }
+        properties = [ordered]@{
+            packageKind          = 'Solution'
+            packageId            = 'sentinelsocessentials'
+            packageVersion       = '3.0.2'
+            contentSchemaVersion = '3.0.0'
+            contentProductId     = "$cid-wb"
+            contentId            = $cid
+            displayName          = $n
+            contentKind          = 'Workbook'
+            version              = '2.1.0'
+            source               = [ordered]@{ kind = 'Solution'; name = 'Sentinel SOC Essentials'; sourceId = 'sentinelsocessentials' }
+        }
+    }
 }
 Save-DemoJson 'workbook-templates.json' $workbookTemplates
 
-# Playbooks: each Logic App the repository ships, with its trigger.
+# Playbooks: each Logic App the repository ships, with its trigger. The
+# playbooks are Bicep (JSON in a fork not converted yet): the Bicep files
+# are compiled together, in one run of the Bicep CLI, into a temporary
+# folder, and each is read as its compiled template.
 $playbooks = [System.Collections.Generic.List[object]]::new(); $playbookModels = [System.Collections.Generic.List[object]]::new()
-foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Playbooks') -Recurse -Filter '*.json' | Sort-Object FullName)) {
-    $doc = try { Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json -Depth 64 } catch { $null }
+$playbookRoot = Join-Path $content 'Playbooks'
+$playbookFiles = @(Get-ChildItem -LiteralPath $playbookRoot -Recurse -File |
+        Where-Object { $_.Extension -in '.bicep', '.json' -and $_.Name -ne 'bicepconfig.json' -and $_.Name -notlike '*.parameters.json' } |
+        Sort-Object FullName)
+$compiledPlaybooks = $null
+if (@($playbookFiles | Where-Object Extension -EQ '.bicep').Count -gt 0) {
+    $bicep = Get-Command bicep -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $bicep) {
+        throw 'The Bicep CLI is needed on the PATH to read the Bicep playbooks: install it with az bicep install and put ~/.azure/bin on the PATH.'
+    }
+    $compiledPlaybooks = Join-Path ([System.IO.Path]::GetTempPath()) "demo-playbooks-$([guid]::NewGuid().ToString('N'))"
+    & $bicep.Source build --pattern "$($playbookRoot.Replace('\', '/'))/**/*.bicep" --outdir "$compiledPlaybooks" 2>$null | Out-Null
+}
+foreach ($f in $playbookFiles) {
+    $source = if ($f.Extension -eq '.bicep') {
+        Join-Path $compiledPlaybooks ([System.IO.Path]::ChangeExtension([System.IO.Path]::GetRelativePath($playbookRoot, $f.FullName), '.json'))
+    } else { $f.FullName }
+    $doc = try { Get-Content -LiteralPath $source -Raw -ErrorAction Stop | ConvertFrom-Json -Depth 64 } catch { $null }
     if (-not $doc -or -not $doc.PSObject.Properties['resources']) { continue }
     $wf = @($doc.resources | Where-Object { $_ -and $_.PSObject.Properties['type'] -and $_.type -eq 'Microsoft.Logic/workflows' }) | Select-Object -First 1
     if (-not $wf -or -not $wf.properties.definition) { continue }
     $name = $f.BaseName
     if ($name -like '*Template*') { continue }
     # Two folders can ship a playbook of the same name; a resource group cannot hold both.
-    if (@($playbookModels | Where-Object Name -eq $name).Count) { $name = "$name-$($f.Directory.Name)" }
+    if (@($playbookModels | Where-Object Name -EQ $name).Count) { $name = "$name-$($f.Directory.Name)" }
     $triggerKey = @($wf.properties.definition.triggers.PSObject.Properties | ForEach-Object { $_.Name }) | Select-Object -First 1
-    $trigger = switch -regex ("$triggerKey") { 'Sentinel_incident' { 'Incident' } 'Sentinel_alert' { 'Alert' } 'Sentinel_entity' { 'Entity' } 'Recurrence' { 'Recurrence' } default { 'Other' } }
+    $trigger = switch -regex ("$triggerKey") {
+        'Sentinel_incident' { 'Incident' } 'Sentinel_alert' { 'Alert' } 'Sentinel_entity' { 'Entity' } 'Recurrence' { 'Recurrence' } default { 'Other' }
+    }
     $hasIdentity = [bool]($wf.PSObject.Properties['identity'] -and $wf.identity)
     $miId = New-DemoGuid "mi|$name"
-    $created = $asOfUtc.AddDays(-(Get-DemoBetween 60 500))
+    $created = $asOfUtc.AddDays( - (Get-DemoBetween 60 500))
     $state = if ($name -match 'Legacy|Old') { 'Disabled' } else { 'Enabled' }
     $who = Get-DemoPerson
     $playbooks.Add([ordered]@{
-            properties = [ordered]@{ provisioningState = 'Succeeded'; createdTime = (Format-DemoTime $created); changedTime = (Format-DemoTime $created.AddDays((Get-DemoBetween 1 50))); state = $state; version = (New-DemoGuid "ver|$name").Replace('-', '').Substring(0, 20).ToUpperInvariant()
-                accessEndpoint = "https://prod-12.$region.logic.azure.com:443/workflows/$((New-DemoGuid "wf|$name").Replace('-', ''))"; definition = $wf.properties.definition; parameters = [ordered]@{} }
-            id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Logic/workflows/$name"; name = $name; type = 'Microsoft.Logic/workflows'; location = $region
-            tags = [ordered]@{ 'Created By' = $who; CreatedDate = (Format-DemoTime $created); CreatorUPN = $who }
-            identity = $(if ($hasIdentity) { [ordered]@{ type = 'SystemAssigned'; principalId = $miId; tenantId = $tenantId } } else { $null })
+            properties = [ordered]@{ provisioningState = 'Succeeded'
+                createdTime                            = (Format-DemoTime $created)
+                changedTime                            = (Format-DemoTime $created.AddDays((Get-DemoBetween 1 50)))
+                state                                  = $state
+                version                                = (New-DemoGuid "ver|$name").Replace('-', '').Substring(0, 20).ToUpperInvariant()
+                accessEndpoint                         = "https://prod-12.$region.logic.azure.com:443/workflows/$((New-DemoGuid "wf|$name").Replace('-', ''))"
+                definition                             = $wf.properties.definition
+                parameters                             = [ordered]@{}
+            }
+            id         = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Logic/workflows/$name"
+            name       = $name
+            type       = 'Microsoft.Logic/workflows'
+            location   = $region
+            tags       = [ordered]@{ 'Created By' = $who; CreatedDate = (Format-DemoTime $created); CreatorUPN = $who }
+            identity   = $(if ($hasIdentity) { [ordered]@{ type = 'SystemAssigned'; principalId = $miId; tenantId = $tenantId } } else { $null })
         })
-    $playbookModels.Add([pscustomobject]@{ Name = $name; Trigger = $trigger; State = $state; Identity = $hasIdentity; PrincipalId = $miId; Id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Logic/workflows/$name" })
+    $playbookModels.Add([pscustomobject]@{
+            Name        = $name
+            Trigger     = $trigger
+            State       = $state
+            Identity    = $hasIdentity
+            PrincipalId = $miId
+            Id          = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Logic/workflows/$name"
+        })
 }
+if ($compiledPlaybooks) { Remove-Item -LiteralPath $compiledPlaybooks -Recurse -Force -ErrorAction SilentlyContinue }
 Save-DemoJson 'playbooks.json' $playbooks
 $incidentPlaybooks = @($playbookModels | Where-Object { $_.Trigger -eq 'Incident' -and $_.State -eq 'Enabled' })
 
@@ -625,37 +1073,88 @@ $incidentPlaybooks = @($playbookModels | Where-Object { $_.Trigger -eq 'Incident
 $automation = [System.Collections.Generic.List[object]]::new()
 foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'AutomationRules') -Filter '*.json' | Sort-Object Name)) {
     $a = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json -Depth 32
-    $automation.Add([pscustomobject]@{ Id = [string]$a.automationRuleId; DisplayName = [string]$a.displayName; Order = [int]$a.order; Logic = $a.triggeringLogic; Actions = @($a.actions) })
+    $automation.Add([pscustomobject]@{
+            Id          = [string]$a.automationRuleId
+            DisplayName = [string]$a.displayName
+            Order       = [int]$a.order
+            Logic       = $a.triggeringLogic
+            Actions     = @($a.actions)
+        })
 }
 # Each runs the first of its playbooks the repository has, else any
 # incident playbook.
 $runRules = @(
     @{ Name = 'Enrich new incidents with IP reputation'; Order = 5; Sev = @('High', 'Medium'); Want = @('IPEnrichment', 'EnrichIPInfo', 'VTIPEnrichment') }
     @{ Name = 'Notify the SOC channel on high severity'; Order = 6; Sev = @('High'); Want = @('TeamsNotification', 'SendBasicEmail') }
-    @{ Name = 'Add vulnerability context to device incidents'; Order = 10; Sev = @('High', 'Medium', 'Low'); Want = @('VulnerabilityEnrichment', 'GetDeviceTags') }
+    @{
+        Name  = 'Add vulnerability context to device incidents'
+        Order = 10
+        Sev   = @('High', 'Medium', 'Low')
+        Want  = @('VulnerabilityEnrichment', 'GetDeviceTags')
+    }
 )
 foreach ($r in $runRules) {
     if ($incidentPlaybooks.Count -eq 0) { break }
     $pb = $null
-    foreach ($w in $r.Want) { $pb = $incidentPlaybooks | Where-Object Name -eq $w | Select-Object -First 1; if ($pb) { break } }
+    foreach ($w in $r.Want) { $pb = $incidentPlaybooks | Where-Object Name -EQ $w | Select-Object -First 1; if ($pb) { break } }
     if (-not $pb) { $pb = $incidentPlaybooks[$r.Order % $incidentPlaybooks.Count] }
     $automation.Add([pscustomobject]@{ Id = (New-DemoGuid "ar|$($r.Name)"); DisplayName = $r.Name; Order = $r.Order
-            Logic = [ordered]@{ isEnabled = $true; triggersOn = 'Incidents'; triggersWhen = 'Created'; conditions = @([ordered]@{ conditionType = 'Property'; conditionProperties = [ordered]@{ propertyName = 'IncidentSeverity'; operator = 'Equals'; propertyValues = $r.Sev } }) }
-            Actions = @([ordered]@{ order = 1; actionType = 'RunPlaybook'; actionConfiguration = [ordered]@{ logicAppResourceId = $pb.Id; tenantId = $tenantId } }); Playbook = $pb.Name; Severities = $r.Sev })
+            Logic      = [ordered]@{
+                isEnabled    = $true
+                triggersOn   = 'Incidents'
+                triggersWhen = 'Created'
+                conditions   = @(
+                    [ordered]@{
+                        conditionType       = 'Property'
+                        conditionProperties = [ordered]@{ propertyName = 'IncidentSeverity'; operator = 'Equals'; propertyValues = $r.Sev }
+                    }
+                )
+            }
+            Actions    = @(
+                [ordered]@{ order = 1; actionType = 'RunPlaybook'; actionConfiguration = [ordered]@{ logicAppResourceId = $pb.Id; tenantId = $tenantId } }
+            )
+            Playbook   = $pb.Name
+            Severities = $r.Sev
+        })
 }
 Save-DemoJson 'automation-rules.json' @(foreach ($a in $automation) {
         $who = New-DemoActor (Get-DemoPerson)
-        [ordered]@{ id = "$siId/automationRules/$($a.Id)"; name = $a.Id; etag = '"' + (New-DemoGuid "etag|ar|$($a.Id)") + '"'; type = 'Microsoft.SecurityInsights/AutomationRules'
-            properties = [ordered]@{ displayName = $a.DisplayName; order = $a.Order; triggeringLogic = $a.Logic; actions = $a.Actions; lastModifiedTimeUtc = (Format-DemoTime $asOfUtc.AddDays(-(Get-DemoBetween 5 120))); createdTimeUtc = (Format-DemoTime $asOfUtc.AddDays(-(Get-DemoBetween 130 400))); lastModifiedBy = $who; createdBy = $who } }
+        [ordered]@{ id = "$siId/automationRules/$($a.Id)"
+            name       = $a.Id
+            etag       = '"' + (New-DemoGuid "etag|ar|$($a.Id)") + '"'
+            type       = 'Microsoft.SecurityInsights/AutomationRules'
+            properties = [ordered]@{
+                displayName         = $a.DisplayName
+                order               = $a.Order
+                triggeringLogic     = $a.Logic
+                actions             = $a.Actions
+                lastModifiedTimeUtc = (Format-DemoTime $asOfUtc.AddDays( - (Get-DemoBetween 5 120)))
+                createdTimeUtc      = (Format-DemoTime $asOfUtc.AddDays( - (Get-DemoBetween 130 400)))
+                lastModifiedBy      = $who
+                createdBy           = $who
+            }
+        }
     })
 
 Save-DemoJson 'summary-rules.json' @(foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'SummaryRules') -Filter '*.json' | Sort-Object Name)) {
         $s = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json
         [ordered]@{ properties = [ordered]@{ ruleType = 'User'; displayName = [string]$s.displayName; description = [string]$s.description
-                ruleDefinition = [ordered]@{ query = [string]$s.query; binSize = [int]$s.binSize; binDelay = $(if ($s.PSObject.Properties['binDelay']) { [int]$s.binDelay } else { 10 }); timeSelector = 'TimeGenerated'; destinationTable = [string]$s.destinationTable }
-                isActive = $true; statusCode = 'UserAction'; provisioningState = 'Succeeded' }
-            systemData = [ordered]@{ createdBy = (Get-DemoPerson); createdAt = (Format-DemoTime $asOfUtc.AddDays(-90)); lastModifiedAt = (Format-DemoTime $asOfUtc.AddDays(-12)) }
-            id = "$wsId/summaryLogs/$($s.name)"; name = [string]$s.name }
+                ruleDefinition = [ordered]@{
+                    query            = [string]$s.query
+                    binSize          = [int]$s.binSize
+                    binDelay         = $(if ($s.PSObject.Properties['binDelay']) { [int]$s.binDelay } else { 10 })
+                    timeSelector     = 'TimeGenerated'
+                    destinationTable = [string]$s.destinationTable
+                }
+                isActive = $true; statusCode = 'UserAction'; provisioningState = 'Succeeded'
+            }
+            systemData         = [ordered]@{
+                createdBy      = (Get-DemoPerson)
+                createdAt      = (Format-DemoTime $asOfUtc.AddDays(-90))
+                lastModifiedAt = (Format-DemoTime $asOfUtc.AddDays(-12))
+            }
+            id = "$wsId/summaryLogs/$($s.name)"; name = [string]$s.name
+        }
     })
 
 # Defender XDR custom detections, in the Graph detectionRule shape.
@@ -664,13 +1163,40 @@ foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'DefenderCustomD
     $y = Read-DemoYaml $f.FullName
     if (-not $y -or -not $y['queryCondition']) { continue }
     $n++
-    $at = Get-DemoValue $y['detectionAction'] 'alertTemplate' @{}
-    $modified = $asOfUtc.AddDays(-(Get-DemoBetween 2 160))
-    $detections.Add([ordered]@{ id = "$n"; displayName = [string]$y['displayName']; isEnabled = [bool](Get-DemoValue $y 'isEnabled' $true); createdBy = 'secops@sentinel-blog.example'; createdDateTime = (Format-DemoTime $modified.AddDays(-30)); lastModifiedBy = 'secops@sentinel-blog.example'; lastModifiedDateTime = (Format-DemoTime $modified)
-            schedule = [ordered]@{ period = [string](Get-DemoValue $y['schedule'] 'period' '1H'); nextRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(37)) }
-            queryCondition = [ordered]@{ queryText = [string]$y['queryCondition']['queryText']; lastModifiedDateTime = (Format-DemoTime $modified) }
-            detectionAction = [ordered]@{ alertTemplate = [ordered]@{ title = [string](Get-DemoValue $at 'title' $y['displayName']); description = [string](Get-DemoValue $at 'description' ''); severity = [string](Get-DemoValue $at 'severity' 'medium'); category = [string](Get-DemoValue $at 'category' ''); mitreTechniques = @(Get-DemoValue $at 'mitreTechniques' @()); recommendedActions = [string](Get-DemoValue $at 'recommendedActions' ''); impactedAssets = @() }; organizationalScope = $null; responseActions = @() }
-            lastRunDetails = [ordered]@{ lastRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(-23)); status = 'completed'; failureReason = $null; errorCode = $null } })
+    $at = Get-DemoValue -Map $y['detectionAction'] -Key 'alertTemplate' -Default @{}
+    $modified = $asOfUtc.AddDays( - (Get-DemoBetween 2 160))
+    $detections.Add([ordered]@{ id = "$n"
+            displayName            = [string]$y['displayName']
+            isEnabled              = [bool](Get-DemoValue -Map $y -Key 'isEnabled' -Default $true)
+            createdBy              = 'secops@sentinel-blog.example'
+            createdDateTime        = (Format-DemoTime $modified.AddDays(-30))
+            lastModifiedBy         = 'secops@sentinel-blog.example'
+            lastModifiedDateTime   = (Format-DemoTime $modified)
+            schedule               = [ordered]@{
+                period          = [string](Get-DemoValue -Map $y['schedule'] -Key 'period' -Default '1H')
+                nextRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(37))
+            }
+            queryCondition         = [ordered]@{ queryText = [string]$y['queryCondition']['queryText']; lastModifiedDateTime = (Format-DemoTime $modified) }
+            detectionAction        = [ordered]@{
+                alertTemplate       = [ordered]@{
+                    title              = [string](Get-DemoValue -Map $at -Key 'title' -Default $y['displayName'])
+                    description        = [string](Get-DemoValue -Map $at -Key 'description' -Default '')
+                    severity           = [string](Get-DemoValue -Map $at -Key 'severity' -Default 'medium')
+                    category           = [string](Get-DemoValue -Map $at -Key 'category' -Default '')
+                    mitreTechniques    = @(Get-DemoValue -Map $at -Key 'mitreTechniques' -Default @())
+                    recommendedActions = [string](Get-DemoValue -Map $at -Key 'recommendedActions' -Default '')
+                    impactedAssets     = @()
+                }
+                organizationalScope = $null
+                responseActions     = @()
+            }
+            lastRunDetails         = [ordered]@{
+                lastRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(-23))
+                status          = 'completed'
+                failureReason   = $null
+                errorCode       = $null
+            }
+        })
 }
 Save-DemoJson 'defender-custom-detections.json' $detections
 
@@ -679,63 +1205,158 @@ Save-DemoJson 'defender-custom-detections.json' $detections
 # ---------------------------------------------------------------------------
 $classic = @(
     @{ Kind = 'MicrosoftThreatProtection'; Types = [ordered]@{ incidents = [ordered]@{ state = 'enabled' } } }
-    @{ Kind = 'Office365'; Types = [ordered]@{ exchange = [ordered]@{ state = 'enabled' }; sharePoint = [ordered]@{ state = 'enabled' }; teams = [ordered]@{ state = 'enabled' } } }
+    @{
+        Kind  = 'Office365'
+        Types = [ordered]@{ exchange = [ordered]@{ state = 'enabled' }; sharePoint = [ordered]@{ state = 'enabled' }; teams = [ordered]@{ state = 'enabled' } }
+    }
     @{ Kind = 'AzureActiveDirectory'; Types = [ordered]@{ alerts = [ordered]@{ state = 'enabled' } } }
     @{ Kind = 'MicrosoftDefenderAdvancedThreatProtection'; Types = [ordered]@{ alerts = [ordered]@{ state = 'enabled' } } }
     @{ Kind = 'AzureAdvancedThreatProtection'; Types = [ordered]@{ alerts = [ordered]@{ state = 'enabled' } } }
     @{ Kind = 'MicrosoftCloudAppSecurity'; Types = [ordered]@{ alerts = [ordered]@{ state = 'enabled' }; discoveryLogs = [ordered]@{ state = 'disabled' } } }
     @{ Kind = 'OfficeATP'; Types = [ordered]@{ alerts = [ordered]@{ state = 'enabled' } } }
     @{ Kind = 'AzureSecurityCenter'; Types = [ordered]@{ alerts = [ordered]@{ state = 'enabled' } } }
-    @{ Kind = 'MicrosoftThreatIntelligence'; Types = [ordered]@{ microsoftEmergingThreatFeed = [ordered]@{ state = 'enabled'; lookbackPeriod = '1970-01-01T00:00:00.000Z' } } }
+    @{
+        Kind  = 'MicrosoftThreatIntelligence'
+        Types = [ordered]@{ microsoftEmergingThreatFeed = [ordered]@{ state = 'enabled'; lookbackPeriod = '1970-01-01T00:00:00.000Z' } }
+    }
     @{ Kind = 'AmazonWebServicesS3'; Types = [ordered]@{ logs = [ordered]@{ state = 'enabled' } } }
 )
 Save-DemoJson 'data-connectors-classic.json' @(foreach ($c in $classic) {
         $id = New-DemoGuid "dc|$($c.Kind)"
-        [ordered]@{ id = "$siId/dataConnectors/$id"; name = $id; etag = '"' + (New-DemoGuid "etag|dc|$id") + '"'; type = 'Microsoft.SecurityInsights/dataConnectors'; kind = $c.Kind; properties = [ordered]@{ tenantId = $tenantId; subscriptionId = $subscriptionId; dataTypes = $c.Types } }
+        [ordered]@{
+            id         = "$siId/dataConnectors/$id"
+            name       = $id
+            etag       = '"' + (New-DemoGuid "etag|dc|$id") + '"'
+            type       = 'Microsoft.SecurityInsights/dataConnectors'
+            kind       = $c.Kind
+            properties = [ordered]@{ tenantId = $tenantId; subscriptionId = $subscriptionId; dataTypes = $c.Types }
+        }
     })
 $ccf = [System.Collections.Generic.List[object]]::new()
 foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'CodelessConnectors') -Recurse -Filter '*ConnectorDefinition.json')) {
     $d = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json -Depth 64
     $first = @($d)[0]
-    $ui = if ($first.PSObject.Properties['properties'] -and $first.properties.PSObject.Properties['connectorUiConfig']) { $first.properties.connectorUiConfig } else { $null }
+    $ui = if ($first.PSObject.Properties['properties'] -and $first.properties.PSObject.Properties['connectorUiConfig']) {
+        $first.properties.connectorUiConfig
+    } else { $null }
     $name = if ($ui -and $ui.PSObject.Properties['id']) { [string]$ui.id } else { $f.Directory.Name }
-    $ccf.Add([ordered]@{ id = "$siId/dataConnectorDefinitions/$name"; name = $name; etag = '"' + (New-DemoGuid "etag|ccf|$name") + '"'; type = 'Microsoft.SecurityInsights/dataConnectorDefinitions'; kind = 'Customizable'
-            properties = [ordered]@{ connectorUiConfig = $ui; createdTimeUtc = (Format-DemoTime $asOfUtc.AddDays(-150)); lastModifiedUtc = (Format-DemoTime $asOfUtc.AddDays(-20)) } })
+    $ccf.Add([ordered]@{ id = "$siId/dataConnectorDefinitions/$name"
+            name            = $name
+            etag            = '"' + (New-DemoGuid "etag|ccf|$name") + '"'
+            type            = 'Microsoft.SecurityInsights/dataConnectorDefinitions'
+            kind            = 'Customizable'
+            properties      = [ordered]@{
+                connectorUiConfig = $ui
+                createdTimeUtc    = (Format-DemoTime $asOfUtc.AddDays(-150))
+                lastModifiedUtc   = (Format-DemoTime $asOfUtc.AddDays(-20))
+            }
+        })
 }
-foreach ($c in @(@{ Id = 'GoogleWorkspaceCCPDefinition'; Title = 'Google Workspace Activities (via Codeless Connector Framework)' }, @{ Id = 'TailscaleAuditCCPDefinition'; Title = 'Tailscale audit logs (via Codeless Connector Framework)' })) {
-    $ccf.Add([ordered]@{ id = "$siId/dataConnectorDefinitions/$($c.Id)"; name = $c.Id; etag = '"' + (New-DemoGuid "etag|ccf|$($c.Id)") + '"'; type = 'Microsoft.SecurityInsights/dataConnectorDefinitions'; kind = 'Customizable'
-            properties = [ordered]@{ connectorUiConfig = [ordered]@{ id = $c.Id; title = $c.Title; publisher = 'Microsoft'; descriptionMarkdown = ('Ingests ' + ($c.Title -replace ' \(.*$', '') + ' into Microsoft Sentinel.') }; createdTimeUtc = (Format-DemoTime $asOfUtc.AddDays(-150)); lastModifiedUtc = (Format-DemoTime $asOfUtc.AddDays(-20)) } })
+foreach ($c in @(
+        @{
+            Id    = 'GoogleWorkspaceCCPDefinition'
+            Title = 'Google Workspace Activities (via Codeless Connector Framework)'
+        }, @{ Id = 'TailscaleAuditCCPDefinition'; Title = 'Tailscale audit logs (via Codeless Connector Framework)' }
+    )) {
+    $ccf.Add([ordered]@{ id = "$siId/dataConnectorDefinitions/$($c.Id)"
+            name            = $c.Id
+            etag            = '"' + (New-DemoGuid "etag|ccf|$($c.Id)") + '"'
+            type            = 'Microsoft.SecurityInsights/dataConnectorDefinitions'
+            kind            = 'Customizable'
+            properties      = [ordered]@{
+                connectorUiConfig = [ordered]@{
+                    id                  = $c.Id
+                    title               = $c.Title
+                    publisher           = 'Microsoft'
+                    descriptionMarkdown = ('Ingests ' + ($c.Title -replace ' \(.*$', '') + ' into Microsoft Sentinel.')
+                }
+                createdTimeUtc    = (Format-DemoTime $asOfUtc.AddDays(-150))
+                lastModifiedUtc   = (Format-DemoTime $asOfUtc.AddDays(-20))
+            }
+        })
 }
 Save-DemoJson 'data-connector-definitions.json' $ccf
 
 $dce = @('sentinel-blog-uks-dce-01', 'sentinel-blog-uks-dce-02')
 Save-DemoJson 'dces.json' @(foreach ($d in $dce) {
-        [ordered]@{ properties = [ordered]@{ immutableId = "dce-$((New-DemoGuid $d).Replace('-',''))"; configurationAccess = [ordered]@{ endpoint = "https://$d-abcd.$region-1.handler.control.monitor.azure.com" }; logsIngestion = [ordered]@{ endpoint = "https://$d-abcd.$region-1.ingest.monitor.azure.com" }; networkAcls = [ordered]@{ publicNetworkAccess = 'Disabled' }; provisioningState = 'Succeeded' }
-            location = $region; id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionEndpoints/$d"; name = $d; type = 'Microsoft.Insights/dataCollectionEndpoints'; etag = '"' + (New-DemoGuid "etag|$d") + '"' }
+        [ordered]@{ properties = [ordered]@{
+                immutableId         = "dce-$((New-DemoGuid $d).Replace('-',''))"
+                configurationAccess = [ordered]@{ endpoint = "https://$d-abcd.$region-1.handler.control.monitor.azure.com" }
+                logsIngestion       = [ordered]@{ endpoint = "https://$d-abcd.$region-1.ingest.monitor.azure.com" }
+                networkAcls         = [ordered]@{ publicNetworkAccess = 'Disabled' }
+                provisioningState   = 'Succeeded'
+            }
+            location           = $region
+            id                 = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionEndpoints/$d"
+            name               = $d
+            type               = 'Microsoft.Insights/dataCollectionEndpoints'
+            etag               = '"' + (New-DemoGuid "etag|$d") + '"'
+        }
     })
 $dcrSpec = @(
-    @{ Name = 'dcr-ama-windows-security'; Kind = 'Windows'; Stream = 'Microsoft-SecurityEvent'; Out = 'Microsoft-SecurityEvent'; Kql = 'source | where EventID !in (5156, 5158)' }
+    @{
+        Name   = 'dcr-ama-windows-security'
+        Kind   = 'Windows'
+        Stream = 'Microsoft-SecurityEvent'
+        Out    = 'Microsoft-SecurityEvent'
+        Kql    = 'source | where EventID !in (5156, 5158)'
+    }
     @{ Name = 'dcr-ama-windows-events'; Kind = 'Windows'; Stream = 'Microsoft-Event'; Out = 'Microsoft-Event'; Kql = 'source' }
     @{ Name = 'dcr-ama-linux-syslog'; Kind = 'Linux'; Stream = 'Microsoft-Syslog'; Out = 'Microsoft-Syslog'; Kql = 'source | where SeverityLevel != "debug"' }
     @{ Name = 'dcr-ama-cef-forwarders'; Kind = 'Linux'; Stream = 'Microsoft-CommonSecurityLog'; Out = 'Microsoft-CommonSecurityLog'; Kql = 'source' }
     @{ Name = 'dcr-ama-iis'; Kind = 'Windows'; Stream = 'Microsoft-W3CIISLog'; Out = 'Microsoft-W3CIISLog'; Kql = 'source' }
-    @{ Name = 'dcr-sophos-ccf'; Kind = ''; Stream = 'Custom-SophosEvents'; Out = 'Custom-SophosEvents_CL'; Kql = 'source | extend TimeGenerated = todatetime(created_at)' }
+    @{
+        Name   = 'dcr-sophos-ccf'
+        Kind   = ''
+        Stream = 'Custom-SophosEvents'
+        Out    = 'Custom-SophosEvents_CL'
+        Kql    = 'source | extend TimeGenerated = todatetime(created_at)'
+    }
     @{ Name = 'dcr-pfsense-logstash'; Kind = ''; Stream = 'Custom-pfsense'; Out = 'Custom-pfsense_logstash_CL'; Kql = 'source' }
     @{ Name = 'dcr-docker-flow'; Kind = ''; Stream = 'Custom-DockerFlow'; Out = 'Custom-DockerFlow_CL'; Kql = 'source' }
     @{ Name = 'dcr-tailscale-ccf'; Kind = ''; Stream = 'Custom-TailscaleAudit'; Out = 'Custom-TailscaleAudit_CL'; Kql = 'source' }
     @{ Name = 'dcr-registered-domains'; Kind = ''; Stream = 'Custom-RegisteredDomains'; Out = 'Custom-RegisteredDomains_CL'; Kql = 'source' }
     @{ Name = 'dcr-zscaler-aux'; Kind = ''; Stream = 'Custom-ZscalerWeb'; Out = 'Custom-ZscalerWebLogs_CL'; Kql = 'source' }
     @{ Name = 'dcr-netflow-lake'; Kind = ''; Stream = 'Custom-NetFlow'; Out = 'Custom-NetFlowRaw_CL'; Kql = 'source' }
-    @{ Name = 'dcr-workspace-transform'; Kind = 'WorkspaceTransforms'; Stream = 'Microsoft-Table-AADNonInteractiveUserSignInLogs'; Out = 'Microsoft-AADNonInteractiveUserSignInLogs'; Kql = 'source | where ResultType != "50126" or Category != ""' }
+    @{
+        Name   = 'dcr-workspace-transform'
+        Kind   = 'WorkspaceTransforms'
+        Stream = 'Microsoft-Table-AADNonInteractiveUserSignInLogs'
+        Out    = 'Microsoft-AADNonInteractiveUserSignInLogs'
+        Kql    = 'source | where ResultType != "50126" or Category != ""'
+    }
 )
 Save-DemoJson 'dcrs.json' @(foreach ($d in $dcrSpec) {
         $who = Get-DemoPerson
-        [ordered]@{ properties = [ordered]@{ immutableId = "dcr-$((New-DemoGuid $d.Name).Replace('-',''))"; dataCollectionEndpointId = $(if ($d.Kind -eq '' ) { "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionEndpoints/$($dce[0])" } else { $null })
-                streamDeclarations = $(if ($d.Stream -like 'Custom-*') { [ordered]@{ ($d.Stream) = [ordered]@{ columns = @([ordered]@{ name = 'TimeGenerated'; type = 'datetime' }, [ordered]@{ name = 'RawData'; type = 'string' }) } } } else { [ordered]@{} })
-                destinations = [ordered]@{ logAnalytics = @([ordered]@{ workspaceResourceId = $wsId; workspaceId = (New-DemoGuid 'workspace'); name = 'la-destination' }) }
-                dataFlows = @([ordered]@{ streams = @($d.Stream); destinations = @('la-destination'); transformKql = $d.Kql; outputStream = $d.Out }); provisioningState = 'Succeeded' }
-            location = $region; tags = [ordered]@{ 'Created By' = $who; CreatedDate = (Format-DemoTime $asOfUtc.AddDays(-180)); CreatorUPN = $who }; kind = $d.Kind
-            id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionRules/$($d.Name)"; name = $d.Name; type = 'Microsoft.Insights/dataCollectionRules'; etag = '"' + (New-DemoGuid "etag|$($d.Name)") + '"' }
+        [ordered]@{ properties = [ordered]@{ immutableId = "dcr-$((New-DemoGuid $d.Name).Replace('-',''))"
+                dataCollectionEndpointId                 = $(
+                    if ($d.Kind -eq '' ) {
+                        "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionEndpoints/$($dce[0])"
+                    } else { $null }
+                )
+                streamDeclarations                       = $(
+                    if ($d.Stream -like 'Custom-*') {
+                        [ordered]@{
+                            ($d.Stream) = [ordered]@{
+                                columns = @([ordered]@{ name = 'TimeGenerated'; type = 'datetime' }, [ordered]@{ name = 'RawData'; type = 'string' })
+                            }
+                        }
+                    } else { [ordered]@{} }
+                )
+                destinations                             = [ordered]@{
+                    logAnalytics = @([ordered]@{ workspaceResourceId = $wsId; workspaceId = (New-DemoGuid 'workspace'); name = 'la-destination' })
+                }
+                dataFlows                                = @([ordered]@{ streams = @($d.Stream); destinations = @('la-destination'); transformKql = $d.Kql; outputStream = $d.Out })
+                provisioningState                        = 'Succeeded'
+            }
+            location           = $region
+            tags               = [ordered]@{ 'Created By' = $who; CreatedDate = (Format-DemoTime $asOfUtc.AddDays(-180)); CreatorUPN = $who }
+            kind               = $d.Kind
+            id                 = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionRules/$($d.Name)"
+            name               = $d.Name
+            type               = 'Microsoft.Insights/dataCollectionRules'
+            etag               = '"' + (New-DemoGuid "etag|$($d.Name)") + '"'
+        }
     })
 
 # ---------------------------------------------------------------------------
@@ -748,13 +1369,27 @@ foreach ($r in @($ruleModels | Where-Object { $_.Enabled -and $_.Kind -in @('Sch
     $rate = 0.0
     if (Test-DemoReadable $r.Tables) {
         $u = Get-DemoRandom
-        $rate = if ($u -lt 0.3) { 0.0 } elseif ($u -lt 0.82) { Get-DemoBetween 0.03 0.6 } elseif ($u -lt 0.97) { Get-DemoBetween 0.8 5.0 } else { Get-DemoBetween 8 18 }
+        $rate = if ($u -lt 0.3) {
+            0.0
+        } elseif ($u -lt 0.82) { Get-DemoBetween 0.03 0.6 } elseif ($u -lt 0.97) { Get-DemoBetween 0.8 5.0 } else { Get-DemoBetween 8 18 }
         # High-severity rules are tuned tighter and fire less.
         if ($r.Severity -eq 'High') { $rate *= 0.45 }
     }
     $noisy = $rate -gt 10
-    $sources.Add([pscustomobject]@{ Key = $r.Id; RuleId = $r.Id; Name = $r.Name; Product = 'Azure Sentinel'; Provider = $(if ($r.Kind -eq 'NRT') { 'ASI NRT Alerts' } else { 'ASI Scheduled Alerts' }); Severity = $r.Severity
-            Rate = $rate; Weekend = 0.75; Group = (Get-DemoBetween 0.25 0.8); Tp = (Get-DemoBetween 0.02 0.18); Fp = $(if ($noisy) { Get-DemoBetween 0.5 0.8 } else { Get-DemoBetween 0.05 0.4 }); Xdr = $false; Title = $r.Name })
+    $sources.Add([pscustomobject]@{ Key = $r.Id
+            RuleId                      = $r.Id
+            Name                        = $r.Name
+            Product                     = 'Azure Sentinel'
+            Provider                    = $(if ($r.Kind -eq 'NRT') { 'ASI NRT Alerts' } else { 'ASI Scheduled Alerts' })
+            Severity                    = $r.Severity
+            Rate                        = $rate
+            Weekend                     = 0.75
+            Group                       = (Get-DemoBetween 0.25 0.8)
+            Tp                          = (Get-DemoBetween 0.02 0.18)
+            Fp                          = $(if ($noisy) { Get-DemoBetween 0.5 0.8 } else { Get-DemoBetween 0.05 0.4 })
+            Xdr                         = $false
+            Title                       = $r.Name
+        })
 }
 $xdrAlerts = @(
     , @('Microsoft Defender for Endpoint', 'MDATP', 'Suspicious PowerShell command line', 'Medium', 22, 0.18)
@@ -791,13 +1426,34 @@ $xdrAlerts = @(
     , @('Microsoft Defender for Cloud', 'Azure Security Center', 'Unusual user accessed a key vault', 'Medium', 0.6, 0.7)
 )
 foreach ($x in $xdrAlerts) {
-    $sources.Add([pscustomobject]@{ Key = $x[2]; RuleId = ''; Name = $x[2]; Product = $x[0]; Provider = $x[1]; Severity = $x[3]; Rate = [double]$x[4]; Weekend = 0.7; Group = [double]$x[5]
-            Tp = (Get-DemoBetween 0.04 0.2); Fp = (Get-DemoBetween 0.05 0.3); Xdr = $true; Title = $x[2] })
+    $sources.Add([pscustomobject]@{ Key = $x[2]
+            RuleId                      = ''
+            Name                        = $x[2]
+            Product                     = $x[0]
+            Provider                    = $x[1]
+            Severity                    = $x[3]
+            Rate                        = [double]$x[4]
+            Weekend                     = 0.7
+            Group                       = [double]$x[5]
+            Tp = (Get-DemoBetween 0.04 0.2); Fp = (Get-DemoBetween 0.05 0.3); Xdr = $true; Title = $x[2]
+        })
 }
 foreach ($d in @($detections | Where-Object { $_.isEnabled })) {
     $sev = (Get-Culture).TextInfo.ToTitleCase(([string]$d.detectionAction.alertTemplate.severity).ToLowerInvariant())
-    $sources.Add([pscustomobject]@{ Key = [string]$d.displayName; RuleId = ''; Name = [string]$d.displayName; Product = 'Microsoft Defender XDR'; Provider = 'Microsoft XDR'; Severity = $sev
-            Rate = $(if ((Get-DemoRandom) -lt 0.35) { 0.0 } else { Get-DemoBetween 0.05 2.5 }); Weekend = 0.7; Group = (Get-DemoBetween 0.5 1.0); Tp = (Get-DemoBetween 0.05 0.25); Fp = (Get-DemoBetween 0.05 0.35); Xdr = $true; Title = [string]$d.displayName })
+    $sources.Add([pscustomobject]@{ Key = [string]$d.displayName
+            RuleId                      = ''
+            Name                        = [string]$d.displayName
+            Product                     = 'Microsoft Defender XDR'
+            Provider                    = 'Microsoft XDR'
+            Severity                    = $sev
+            Rate                        = $(if ((Get-DemoRandom) -lt 0.35) { 0.0 } else { Get-DemoBetween 0.05 2.5 })
+            Weekend                     = 0.7
+            Group                       = (Get-DemoBetween 0.5 1.0)
+            Tp                          = (Get-DemoBetween 0.05 0.25)
+            Fp                          = (Get-DemoBetween 0.05 0.35)
+            Xdr                         = $true
+            Title                       = [string]$d.displayName
+        })
 }
 
 $alertCount = @{}   # key -> int[] per day
@@ -829,15 +1485,31 @@ foreach ($s in $sources) {
             $incNumber++
             $open = (Get-DemoRandom) -lt $(if ($i -lt $openShare.Count) { $openShare[$i] } else { 0.004 })
             $sev = $s.Severity
-            $inc = [pscustomobject]@{ Number = $incNumber; Day = $i; Severity = $sev; Status = 'Closed'; Class = ''; By = ''; Ack = $null; Rsv = $null; Source = $s }
+            $inc = [pscustomobject]@{
+                Number   = $incNumber
+                Day      = $i
+                Severity = $sev
+                Status   = 'Closed'
+                Class    = ''
+                By       = ''
+                Ack      = $null
+                Rsv      = $null
+                Source   = $s
+            }
             if ($open) {
                 $inc.Status = if ((Get-DemoRandom) -lt 0.6) { 'New' } else { 'Active' }
             } elseif ($sev -eq 'Informational') {
                 $inc.By = 'AutomationRule'; $inc.Class = 'BenignPositive'; $inc.Ack = Get-DemoBetween 0 1; $inc.Rsv = Get-DemoBetween 0.5 3
             } else {
-                $inc.By = Get-DemoPick @('AutomationRule', 'DefenderXdr', 'Other', 'Analyst') @(0.2, $(if ($s.Xdr) { 0.35 } else { 0.05 }), 0.02, $(if ($s.Xdr) { 0.43 } else { 0.73 }))
+                $inc.By = Get-DemoPick @(
+                    'AutomationRule', 'DefenderXdr', 'Other', 'Analyst'
+                ) @(0.2, $(if ($s.Xdr) { 0.35 } else { 0.05 }), 0.02, $(if ($s.Xdr) { 0.43 } else { 0.73 }))
                 $u = Get-DemoRandom
-                $inc.Class = if ($u -lt $s.Tp) { 'TruePositive' } elseif ($u -lt $s.Tp + $s.Fp) { 'FalsePositive' } elseif ($u -lt $s.Tp + $s.Fp + 0.32) { 'BenignPositive' } elseif ($u -lt $s.Tp + $s.Fp + 0.44) { 'Undetermined' } else { '' }
+                $inc.Class = if ($u -lt $s.Tp) {
+                    'TruePositive'
+                } elseif ($u -lt $s.Tp + $s.Fp) {
+                    'FalsePositive'
+                } elseif ($u -lt $s.Tp + $s.Fp + 0.32) { 'BenignPositive' } elseif ($u -lt $s.Tp + $s.Fp + 0.44) { 'Undetermined' } else { '' }
                 if ($inc.By -eq 'AutomationRule') { $inc.Class = 'BenignPositive' }
                 switch ($inc.By) {
                     'AutomationRule' { $inc.Ack = Get-DemoBetween 0 1; $inc.Rsv = Get-DemoBetween 0.5 4 }
@@ -853,72 +1525,178 @@ foreach ($s in $sources) {
         }
     }
 }
-$closedInc = @($incidents | Where-Object Status -eq 'Closed')
-$recentInc = @($incidents | Where-Object Day -lt $recentDays)
+$closedInc = @($incidents | Where-Object Status -EQ 'Closed')
+$recentInc = @($incidents | Where-Object Day -LT $recentDays)
 
 # Volumes, rules fired and the daily alert series.
 $volumes = foreach ($s in $sources) {
     $a = $alertCount[$s.Key]; $all = ($a | Measure-Object -Sum).Sum
     if ($all -le 0) { continue }
-    [ordered]@{ AlertName = $s.Name; ProductName = $s.Product; AlertSeverity = $s.Severity; Alerts = [int]$all; Alerts7d = [int](($a[0..($recentDays - 1)] | Measure-Object -Sum).Sum); ProviderName = $s.Provider }
+    [ordered]@{
+        AlertName     = $s.Name
+        ProductName   = $s.Product
+        AlertSeverity = $s.Severity
+        Alerts        = [int]$all
+        Alerts7d      = [int](($a[0..($recentDays - 1)] | Measure-Object -Sum).Sum)
+        ProviderName  = $s.Provider
+    }
 }
-Save-DemoJson 'analytics-rule-volumes.json' @($volumes | Sort-Object { -$_.Alerts })
+Save-DemoJson 'analytics-rule-volumes.json' @($volumes | Sort-Object { - $_.Alerts })
 Save-DemoJson 'rules-fired.json' @($(foreach ($s in @($sources | Where-Object { $_.RuleId })) {
-        $a = $alertCount[$s.Key]; $all = ($a | Measure-Object -Sum).Sum
-        if ($all -le 0) { continue }
-        $lastDay = 0; while ($lastDay -lt $L -and $a[$lastDay] -eq 0) { $lastDay++ }
-        [ordered]@{ AlertRuleId = $s.RuleId; AlertName = $s.Name; Alerts = [int]$all; LastAlert = (Format-DemoTime (Get-DemoTimeIn $lastDay)) }
-    }) | Sort-Object { -$_.Alerts })
+            $a = $alertCount[$s.Key]; $all = ($a | Measure-Object -Sum).Sum
+            if ($all -le 0) { continue }
+            $lastDay = 0; while ($lastDay -lt $L -and $a[$lastDay] -eq 0) { $lastDay++ }
+            [ordered]@{ AlertRuleId = $s.RuleId; AlertName = $s.Name; Alerts = [int]$all; LastAlert = (Format-DemoTime (Get-DemoTimeIn $lastDay)) }
+        }) | Sort-Object { - $_.Alerts })
 Save-DemoJson 'daily-alerts.json' @(foreach ($s in $sources) {
         $a = $alertCount[$s.Key]
-        for ($i = 0; $i -lt $L; $i++) { if ($a[$i] -gt 0) { [ordered]@{ DaysAgo = $i; AlertName = $s.Name; ProductName = $s.Product; AlertSeverity = $s.Severity; ProviderName = $s.Provider; AlertRuleId = $s.RuleId; Alerts = $a[$i] } } }
+        for ($i = 0; $i -lt $L; $i++) {
+            if ($a[$i] -gt 0) {
+                [ordered]@{
+                    DaysAgo       = $i
+                    AlertName     = $s.Name
+                    ProductName   = $s.Product
+                    AlertSeverity = $s.Severity
+                    ProviderName  = $s.Provider
+                    AlertRuleId   = $s.RuleId
+                    Alerts        = $a[$i]
+                }
+            }
+        }
     })
 
 # Incident captures.
-function Get-DemoBag($Items, [scriptblock]$Key) { $b = [ordered]@{}; foreach ($x in $Items) { $k = & $Key $x; if (-not $b.Contains($k)) { $b[$k] = 0 }; $b[$k]++ }; $b }
+function Get-DemoBag($Items, [scriptblock]$Key) {
+    <#
+    .SYNOPSIS
+        Count items by a key, returning an ordered dictionary of key to count.
+
+    .PARAMETER Items
+        The items to count.
+
+    .PARAMETER Key
+        A script block that returns the key for an item, called with the item as its argument.
+    #>
+    $b = [ordered]@{}
+    foreach ($x in $Items) { $k = & $Key $x; if (-not $b.Contains($k)) { $b[$k] = 0 }; $b[$k]++ }
+    $b
+}
 Save-DemoJson 'incidents-summary.json' @([ordered]@{
         Count = $incidents.Count; Closed = $closedInc.Count; Unified = $incidents.Count
-        Count7d = $recentInc.Count; Closed7d = @($recentInc | Where-Object Status -eq 'Closed').Count
-        FalsePositive7d = @($recentInc | Where-Object Class -eq 'FalsePositive').Count; TruePositive7d = @($recentInc | Where-Object Class -eq 'TruePositive').Count; Unified7d = $recentInc.Count
+        Count7d = $recentInc.Count; Closed7d = @($recentInc | Where-Object Status -EQ 'Closed').Count
+        FalsePositive7d  = @($recentInc | Where-Object Class -EQ 'FalsePositive').Count
+        TruePositive7d   = @($recentInc | Where-Object Class -EQ 'TruePositive').Count
+        Unified7d        = $recentInc.Count
         ByStatus = (Get-DemoBag $incidents { param($x) $x.Status }); BySeverity = (Get-DemoBag $incidents { param($x) $x.Severity })
-        ByClassification = (Get-DemoBag $closedInc { param($x) if ($x.Class) { $x.Class } else { 'Unclassified' } }); ByProvider = [ordered]@{ 'Microsoft XDR' = $incidents.Count }
-        OpenBySeverity = (Get-DemoBag @($incidents | Where-Object Status -ne 'Closed') { param($x) $x.Severity }); ClosedBy = (Get-DemoBag $closedInc { param($x) $x.By })
+        ByClassification = (Get-DemoBag $closedInc { param($x) if ($x.Class) { $x.Class } else { 'Unclassified' } })
+        ByProvider       = [ordered]@{ 'Microsoft XDR' = $incidents.Count }
+        OpenBySeverity   = (Get-DemoBag @($incidents | Where-Object Status -NE 'Closed') { param($x) $x.Severity })
+        ClosedBy         = (Get-DemoBag $closedInc { param($x) $x.By })
     })
-$avg = { param($xs, $p) $v = @($xs | ForEach-Object { $_.$p } | Where-Object { $null -ne $_ }); if ($v.Count) { [math]::Round(($v | Measure-Object -Average).Average, 1) } else { $null } }
-$recentClosed = @($closedInc | Where-Object Day -lt $recentDays)
-Save-DemoJson 'incidents-mttr.json' @([ordered]@{ ClosedCount = $closedInc.Count; AcknowledgedCount = $closedInc.Count; MTTAMinutes = (& $avg $closedInc 'Ack'); MTTRMinutes = (& $avg $closedInc 'Rsv')
-        ClosedCount7d = $recentClosed.Count; MTTAMinutes7d = (& $avg $recentClosed 'Ack'); MTTRMinutes7d = (& $avg $recentClosed 'Rsv') })
+$avg = {
+    param($xs, $p) $v = @($xs | ForEach-Object { $_.$p } | Where-Object { $null -ne $_ })
+    if ($v.Count) { [math]::Round(($v | Measure-Object -Average).Average, 1) } else { $null }
+}
+$recentClosed = @($closedInc | Where-Object Day -LT $recentDays)
+Save-DemoJson 'incidents-mttr.json' @([ordered]@{ ClosedCount = $closedInc.Count
+        AcknowledgedCount                                     = $closedInc.Count
+        MTTAMinutes                                           = (& $avg $closedInc 'Ack')
+        MTTRMinutes                                           = (& $avg $closedInc 'Rsv')
+        ClosedCount7d = $recentClosed.Count; MTTAMinutes7d = (& $avg $recentClosed 'Ack'); MTTRMinutes7d = (& $avg $recentClosed 'Rsv')
+    })
 $perDay = @($incidents | Group-Object Day | ForEach-Object { $_.Count })
-Save-DemoJson 'incidents-daily-metrics.json' @([ordered]@{ AvgDailyUniqueIncidents = [math]::Round(($perDay | Measure-Object -Average).Average, 1); PeakDailyNewIncidents = [int]($perDay | Measure-Object -Maximum).Maximum })
-Save-DemoJson 'daily-incidents.json' @(foreach ($g in ($incidents | Group-Object { "$($_.Day)|$($_.Severity)|$(if ($_.Status -eq 'Closed') { 'Closed' } else { 'Open' })|$($_.Class)|$($_.By)" })) {
-        $f = $g.Group[0]; $closed = @($g.Group | Where-Object Status -eq 'Closed')
-        [ordered]@{ DaysAgo = $f.Day; Severity = $f.Severity; Status = $(if ($f.Status -eq 'Closed') { 'Closed' } else { 'Open' }); Class = $(if ($f.Status -eq 'Closed') { if ($f.Class) { $f.Class } else { 'Unclassified' } } else { '' }); ClosedBy = $f.By
-            Incidents = $g.Count; AckCount = $closed.Count; AckSum = [math]::Round((Get-DemoSum $closed 'Ack'), 1); RsvCount = $closed.Count; RsvSum = [math]::Round((Get-DemoSum $closed 'Rsv'), 1) }
+Save-DemoJson 'incidents-daily-metrics.json' @(
+    [ordered]@{
+        AvgDailyUniqueIncidents = [math]::Round(($perDay | Measure-Object -Average).Average, 1)
+        PeakDailyNewIncidents   = [int]($perDay | Measure-Object -Maximum).Maximum
+    }
+)
+Save-DemoJson 'daily-incidents.json' @(foreach ($g in ($incidents |
+                Group-Object { "$($_.Day)|$($_.Severity)|$(if ($_.Status -eq 'Closed') { 'Closed' } else { 'Open' })|$($_.Class)|$($_.By)" })) {
+        $f = $g.Group[0]; $closed = @($g.Group | Where-Object Status -EQ 'Closed')
+        [ordered]@{ DaysAgo = $f.Day
+            Severity        = $f.Severity
+            Status          = $(if ($f.Status -eq 'Closed') { 'Closed' } else { 'Open' })
+            Class           = $(if ($f.Status -eq 'Closed') { if ($f.Class) { $f.Class } else { 'Unclassified' } } else { '' })
+            ClosedBy        = $f.By
+            Incidents       = $g.Count
+            AckCount        = $closed.Count
+            AckSum          = [math]::Round((Get-DemoSum $closed 'Ack'), 1)
+            RsvCount        = $closed.Count
+            RsvSum          = [math]::Round((Get-DemoSum $closed 'Rsv'), 1)
+        }
     })
 # Per detection: incidents and verdicts, overall and per day.
-function Get-DemoVerdicts($Items) {
-    $closed = @($Items | Where-Object Status -eq 'Closed')
-    [ordered]@{ Incidents = @($Items).Count; Closed = $closed.Count; TruePositive = @($closed | Where-Object Class -eq 'TruePositive').Count; FalsePositive = @($closed | Where-Object Class -eq 'FalsePositive').Count
-        BenignPositive = @($closed | Where-Object Class -eq 'BenignPositive').Count; Undetermined = @($closed | Where-Object { $_.Class -in @('Undetermined', '') }).Count }
+function Get-DemoVerdict($Items) {
+    <#
+    .SYNOPSIS
+        Summarise a set of incidents: how many there are, how many are closed and how the closed ones were classified.
+
+    .PARAMETER Items
+        The incidents to summarise.
+    #>
+    $closed = @($Items | Where-Object Status -EQ 'Closed')
+    [ordered]@{ Incidents = @($Items).Count
+        Closed            = $closed.Count
+        TruePositive      = @($closed | Where-Object Class -EQ 'TruePositive').Count
+        FalsePositive     = @($closed | Where-Object Class -EQ 'FalsePositive').Count
+        BenignPositive    = @($closed | Where-Object Class -EQ 'BenignPositive').Count
+        Undetermined      = @($closed | Where-Object { $_.Class -in @('Undetermined', '') }).Count
+    }
 }
 $byDetection = $incidents | Group-Object { $_.Source.Key }
 Save-DemoJson 'rule-effectiveness.json' @($(foreach ($g in $byDetection) {
-        $s = $g.Group[0].Source; $v = Get-DemoVerdicts $g.Group
-        [ordered]@{ AlertRuleId = $s.RuleId; RuleName = $s.Name; Product = $s.Product; Provider = $s.Provider } + $v + [ordered]@{ FPRate = [math]::Round(100.0 * $v.FalsePositive / [math]::Max(1, $v.Closed), 1); Source = $(if ($s.RuleId) { 'Analytics rule' } else { $s.Product }) }
-    }) | Sort-Object @{ Expression = { if ($_.AlertRuleId) { 0 } else { 1 } } }, @{ Expression = { -$_.Incidents } })
+            $s = $g.Group[0].Source; $v = Get-DemoVerdict $g.Group
+            [ordered]@{
+                AlertRuleId = $s.RuleId
+                RuleName    = $s.Name
+                Product     = $s.Product
+                Provider    = $s.Provider
+            } + $v + [ordered]@{
+                FPRate = [math]::Round(100.0 * $v.FalsePositive / [math]::Max(1, $v.Closed), 1)
+                Source = $(if ($s.RuleId) { 'Analytics rule' } else { $s.Product })
+            }
+        }) | Sort-Object @{ Expression = { if ($_.AlertRuleId) { 0 } else { 1 } } }, @{ Expression = { - $_.Incidents } })
 Save-DemoJson 'daily-rule-incidents.json' @(foreach ($g in ($incidents | Group-Object { "$($_.Source.Key)|$($_.Day)" })) {
         $s = $g.Group[0].Source
-        [ordered]@{ RuleKey = $(if ($s.RuleId) { $s.RuleId } else { $s.Name }); DaysAgo = $g.Group[0].Day; AlertRuleId = $s.RuleId; RuleName = $s.Name; Product = $s.Product; Provider = $s.Provider } + (Get-DemoVerdicts $g.Group)
+        [ordered]@{
+            RuleKey     = $(if ($s.RuleId) { $s.RuleId } else { $s.Name })
+            DaysAgo     = $g.Group[0].Day
+            AlertRuleId = $s.RuleId
+            RuleName    = $s.Name
+            Product     = $s.Product
+            Provider    = $s.Provider
+        } + (Get-DemoVerdict $g.Group)
     })
-Save-DemoJson 'incidents-by-rule.json' @(foreach ($g in ($incidents | Group-Object { $_.Source.Title } | Sort-Object Count -Descending)) { [ordered]@{ Title = $g.Name; Incidents = "$($g.Count)" } })
-Save-DemoJson 'incident-title-stats.json' @(foreach ($g in ($incidents | Group-Object { $_.Source.Title } | Where-Object Count -ge 5 | Sort-Object Count -Descending)) {
-        $closed = @($g.Group | Where-Object Status -eq 'Closed')
-        [ordered]@{ Title = $g.Name; Severity = $g.Group[0].Severity; Total = $g.Count; Closed = $closed.Count; AvgMinsToClose = (& $avg $closed 'Rsv'); ClosedWithinHour = @($closed | Where-Object { $_.Rsv -le 60 }).Count
-            FP = @($closed | Where-Object Class -eq 'FalsePositive').Count; TP = @($closed | Where-Object Class -eq 'TruePositive').Count; BP = @($closed | Where-Object Class -eq 'BenignPositive').Count }
+Save-DemoJson 'incidents-by-rule.json' @(
+    foreach ($g in ($incidents | Group-Object { $_.Source.Title } | Sort-Object Count -Descending)) { [ordered]@{ Title = $g.Name; Incidents = "$($g.Count)" } }
+)
+Save-DemoJson 'incident-title-stats.json' @(foreach ($g in ($incidents |
+                Group-Object { $_.Source.Title } |
+                Where-Object Count -GE 5 |
+                Sort-Object Count -Descending)) {
+        $closed = @($g.Group | Where-Object Status -EQ 'Closed')
+        [ordered]@{ Title    = $g.Name
+            Severity         = $g.Group[0].Severity
+            Total            = $g.Count
+            Closed           = $closed.Count
+            AvgMinsToClose   = (& $avg $closed 'Rsv')
+            ClosedWithinHour = @($closed | Where-Object { $_.Rsv -le 60 }).Count
+            FP               = @($closed | Where-Object Class -EQ 'FalsePositive').Count
+            TP               = @($closed | Where-Object Class -EQ 'TruePositive').Count
+            BP               = @($closed | Where-Object Class -EQ 'BenignPositive').Count
+        }
     })
-Save-DemoJson 'incidents-detail-by-provider.json' @(foreach ($g in ($incidents | Group-Object { "$($_.Source.Provider)|$($_.Source.Product)|$($_.Source.RuleId)" } | Sort-Object Count -Descending)) {
+Save-DemoJson 'incidents-detail-by-provider.json' @(foreach ($g in ($incidents |
+                Group-Object { "$($_.Source.Provider)|$($_.Source.Product)|$($_.Source.RuleId)" } |
+                Sort-Object Count -Descending)) {
         $s = $g.Group[0].Source
-        [ordered]@{ ProviderName = $s.Provider; ProductName = $s.Product; FirstRule = $s.RuleId; AlertCount = [int](($alertCount[$s.Key] | Measure-Object -Sum).Sum) }
+        [ordered]@{
+            ProviderName = $s.Provider
+            ProductName  = $s.Product
+            FirstRule    = $s.RuleId
+            AlertCount   = [int](($alertCount[$s.Key] | Measure-Object -Sum).Sum)
+        }
     })
 
 # ---------------------------------------------------------------------------
@@ -944,7 +1722,8 @@ foreach ($p in $playbookModels) {
 }
 # The notification playbook's Teams connection expired five days ago, and
 # the VirusTotal IP lookup hits the API's rate limit now and then.
-$failingPlaybook = @($automation | Where-Object { $_.PSObject.Properties['Playbook'] -and $_.DisplayName -like 'Notify*' } | ForEach-Object { $_.Playbook }) | Select-Object -First 1
+$failingPlaybook = @($automation | Where-Object { $_.PSObject.Properties['Playbook'] -and $_.DisplayName -like 'Notify*' } | ForEach-Object { $_.Playbook }) |
+    Select-Object -First 1
 foreach ($p in $playbookModels) {
     $rb = $runsByPlaybook[$p.Name]
     for ($i = 0; $i -lt $L; $i++) {
@@ -957,12 +1736,31 @@ Save-DemoJson 'playbook-runs.json' @(foreach ($p in $playbookModels) {
         $rb = $runsByPlaybook[$p.Name]; $runs = ($rb.Runs | Measure-Object -Sum).Sum; $failed = ($rb.Failed | Measure-Object -Sum).Sum
         $lastFail = $null; for ($i = 0; $i -lt $L; $i++) { if ($rb.Failed[$i] -gt 0) { $lastFail = Format-DemoTime (Get-DemoTimeIn $i); break } }
         [ordered]@{ Playbook = $p.Name; Id = $p.Id; Runs7d = [int]$runs; Failed7d = [int]$failed; LastFailureUtc = $lastFail
-            LastRunStatus = $(if ($p.State -ne 'Enabled' -or $runs -eq 0) { 'Skipped' } elseif ($rb.Failed[0] -gt 0) { 'Failed' } else { 'Succeeded' }); Note = $null
-            Daily = @(for ($i = 0; $i -lt $L; $i++) { if ($rb.Runs[$i] -gt 0) { [ordered]@{ DaysAgo = $i; Runs = $rb.Runs[$i]; Failed = $rb.Failed[$i] } } }) }
+            LastRunStatus = $(if ($p.State -ne 'Enabled' -or $runs -eq 0) { 'Skipped' } elseif ($rb.Failed[0] -gt 0) { 'Failed' } else { 'Succeeded' })
+            Note          = $null
+            Daily         = @(for ($i = 0; $i -lt $L; $i++) { if ($rb.Runs[$i] -gt 0) { [ordered]@{ DaysAgo = $i; Runs = $rb.Runs[$i]; Failed = $rb.Failed[$i] } } })
+        }
     })
 Save-DemoJson 'rbac-playbook-mi.json' @(foreach ($p in @($playbookModels | Where-Object Identity)) {
         $roles = if ($p.Trigger -in @('Incident', 'Alert', 'Entity')) { @('Microsoft Sentinel Responder') } else { @('Microsoft Sentinel Reader') }
-        [ordered]@{ Playbook = $p.Name; PrincipalId = $p.PrincipalId; AllAssignments = @(foreach ($r in $roles) { [ordered]@{ RoleAssignmentName = (New-DemoGuid "ra|$($p.Name)|$r"); Scope = $wsId; DisplayName = $p.Name; RoleDefinitionName = $r; ObjectId = $p.PrincipalId; ObjectType = 'ServicePrincipal'; CanDelegate = $false } }); WorkspaceRoles = $roles }
+        [ordered]@{
+            Playbook       = $p.Name
+            PrincipalId    = $p.PrincipalId
+            AllAssignments = @(
+                foreach ($r in $roles) {
+                    [ordered]@{
+                        RoleAssignmentName = (New-DemoGuid "ra|$($p.Name)|$r")
+                        Scope              = $wsId
+                        DisplayName        = $p.Name
+                        RoleDefinitionName = $r
+                        ObjectId           = $p.PrincipalId
+                        ObjectType         = 'ServicePrincipal'
+                        CanDelegate        = $false
+                    }
+                }
+            )
+            WorkspaceRoles = $roles
+        }
     })
 
 # Health: rule runs, NRT runs, automation, playbooks and connector fetches.
@@ -971,36 +1769,121 @@ $failingRules = @($enabledRules | Where-Object { $_.Kind -eq 'Scheduled' -and $_
 $failingName = @{}; foreach ($r in $failingRules) { $failingName[$r.Name] = $true }
 $failReasons = @('Query execution exceeded the 10 minute timeout.', "The query referenced a column that does not exist: 'ActorDisplayName'.")
 $health = @{}
-function Add-DemoHealth([int]$Day, [string]$Op, [string]$Status, [long]$N) { if ($N -le 0) { return }; $k = "$Day|$Op|$Status"; if (-not $health.ContainsKey($k)) { $health[$k] = 0 }; $health[$k] += $N }
+function Add-DemoHealth([int]$Day, [string]$Op, [string]$Status, [long]$N) {
+    <#
+    .SYNOPSIS
+        Add a count of runs to the health tally for a day, an operation and a status.
+
+    .PARAMETER Day
+        The day-ago bucket, where 0 is the last 24 hours.
+
+    .PARAMETER Op
+        The operation name, such as Scheduled analytics rule run.
+
+    .PARAMETER Status
+        The outcome, such as Success or Failure.
+
+    .PARAMETER N
+        The number of runs to add. Zero or less adds nothing.
+    #>
+    if ($N -le 0) { return }
+    $k = "$Day|$Op|$Status"
+    if (-not $health.ContainsKey($k)) { $health[$k] = 0 }
+    $health[$k] += $N
+}
 $resourceHealth = [System.Collections.Generic.List[object]]::new()
 foreach ($r in $enabledRules) {
     $perDay = if ($r.Kind -eq 'NRT') { 1440 } else { [int][math]::Max(1, [math]::Round(1440 / $r.Frequency)) }
     $op = if ($r.Kind -eq 'NRT') { 'NRT analytics rule run' } else { 'Scheduled analytics rule run' }
     $fails = 0; $lastFail = $null
     for ($i = 0; $i -lt $L; $i++) {
-        $f = if ($failingName.ContainsKey($r.Name) -and $i -lt 12) { [int][math]::Round($perDay * (Get-DemoBetween 0.2 0.5)) } elseif ((Get-DemoRandom) -lt 0.01) { 1 } else { 0 }
-        Add-DemoHealth $i $op 'Success' ($perDay - $f); Add-DemoHealth $i $op 'Failure' $f
+        $f = if ($failingName.ContainsKey($r.Name) -and $i -lt 12) {
+            [int][math]::Round($perDay * (Get-DemoBetween 0.2 0.5))
+        } elseif ((Get-DemoRandom) -lt 0.01) { 1 } else { 0 }
+        Add-DemoHealth -Day $i -Op $op -Status 'Success' -N ($perDay - $f); Add-DemoHealth -Day $i -Op $op -Status 'Failure' -N $f
         $fails += $f; if ($f -gt 0 -and -not $lastFail) { $lastFail = Format-DemoTime (Get-DemoTimeIn $i) }
     }
-    $resourceHealth.Add([ordered]@{ SentinelResourceName = $r.Name; SentinelResourceKind = $r.Kind; SentinelResourceType = 'Analytics Rule'; Events = [long]($perDay * $L); LastEvent = (Format-DemoTime $asOfUtc.AddMinutes(-(Get-DemoBetween 1 50))); Statuses = @($(if ($fails) { 'Success', 'Failure' } else { 'Success' })); Failures = $fails; LastFailure = $lastFail })
+    $resourceHealth.Add([ordered]@{
+            SentinelResourceName = $r.Name
+            SentinelResourceKind = $r.Kind
+            SentinelResourceType = 'Analytics Rule'
+            Events               = [long]($perDay * $L)
+            LastEvent            = (Format-DemoTime $asOfUtc.AddMinutes( - (Get-DemoBetween 1 50)))
+            Statuses             = @($(if ($fails) { 'Success', 'Failure' } else { 'Success' }))
+            Failures             = $fails
+            LastFailure          = $lastFail
+        })
 }
 foreach ($c in @('Sophos Endpoint Protection (CCF)', 'Google Workspace Activities (CCF)', 'Tailscale audit logs (CCF)')) {
     $fails = 0
-    for ($i = 0; $i -lt $L; $i++) { $f = if ($c -like 'Google*' -and $i -ge 40 -and $i -lt 43) { 96 } elseif ((Get-DemoRandom) -lt 0.05) { 2 } else { 0 }; Add-DemoHealth $i 'Data fetcher run' 'Success' (288 - $f); Add-DemoHealth $i 'Data fetcher run' 'Failure' $f; $fails += $f }
-    $resourceHealth.Add([ordered]@{ SentinelResourceName = $c; SentinelResourceKind = 'RestApiPoller'; SentinelResourceType = 'Data connector'; Events = [long](288 * $L); LastEvent = (Format-DemoTime $asOfUtc.AddMinutes(-4)); Statuses = @($(if ($fails) { 'Success', 'Failure' } else { 'Success' })); Failures = $fails; LastFailure = $(if ($fails) { Format-DemoTime (Get-DemoTimeIn 41) } else { $null }) })
+    for ($i = 0; $i -lt $L; $i++) {
+        $f = if ($c -like 'Google*' -and $i -ge 40 -and $i -lt 43) { 96 } elseif ((Get-DemoRandom) -lt 0.05) { 2 } else { 0 }
+        Add-DemoHealth -Day $i -Op 'Data fetcher run' -Status 'Success' -N (288 - $f)
+        Add-DemoHealth -Day $i -Op 'Data fetcher run' -Status 'Failure' -N $f
+        $fails += $f
+    }
+    $resourceHealth.Add([ordered]@{
+            SentinelResourceName = $c
+            SentinelResourceKind = 'RestApiPoller'
+            SentinelResourceType = 'Data connector'
+            Events               = [long](288 * $L)
+            LastEvent            = (Format-DemoTime $asOfUtc.AddMinutes(-4))
+            Statuses             = @($(if ($fails) { 'Success', 'Failure' } else { 'Success' }))
+            Failures             = $fails
+            LastFailure          = $(if ($fails) { Format-DemoTime (Get-DemoTimeIn 41) } else { $null })
+        })
 }
 $incPerDay = [int[]]::new($L); foreach ($inc in $incidents) { $incPerDay[$inc.Day]++ }
 foreach ($i in 0..($L - 1)) {
     $n = $incPerDay[$i]
-    Add-DemoHealth $i 'Automation rule run' 'Success' ([long]($n * $automation.Count * 0.98)); Add-DemoHealth $i 'Automation rule run' 'Partial success' ([long]($n * 0.02))
-    foreach ($p in $playbookModels) { $rb = $runsByPlaybook[$p.Name]; Add-DemoHealth $i 'Playbook was triggered' 'Success' ($rb.Runs[$i] - $rb.Failed[$i]); Add-DemoHealth $i 'Playbook was triggered' 'Failure' $rb.Failed[$i] }
+    Add-DemoHealth -Day $i -Op 'Automation rule run' -Status 'Success' -N ([long]($n * $automation.Count * 0.98))
+    Add-DemoHealth -Day $i -Op 'Automation rule run' -Status 'Partial success' -N ([long]($n * 0.02))
+    foreach ($p in $playbookModels) {
+        $rb = $runsByPlaybook[$p.Name]
+        Add-DemoHealth -Day $i -Op 'Playbook was triggered' -Status 'Success' -N ($rb.Runs[$i] - $rb.Failed[$i])
+        Add-DemoHealth -Day $i -Op 'Playbook was triggered' -Status 'Failure' -N $rb.Failed[$i]
+    }
 }
-foreach ($a in $automation) { $resourceHealth.Add([ordered]@{ SentinelResourceName = $a.DisplayName; SentinelResourceKind = 'Automation rule'; SentinelResourceType = 'Automation rule'; Events = [long]$incidents.Count; LastEvent = (Format-DemoTime $asOfUtc.AddMinutes(-9)); Statuses = @('Success'); Failures = 0; LastFailure = $null }) }
+foreach ($a in $automation) {
+    $resourceHealth.Add([ordered]@{
+            SentinelResourceName = $a.DisplayName
+            SentinelResourceKind = 'Automation rule'
+            SentinelResourceType = 'Automation rule'
+            Events               = [long]$incidents.Count
+            LastEvent            = (Format-DemoTime $asOfUtc.AddMinutes(-9))
+            Statuses             = @('Success')
+            Failures             = 0
+            LastFailure          = $null
+        })
+}
 Save-DemoJson 'sentinel-health.json' $resourceHealth
-Save-DemoJson 'daily-health.json' @(foreach ($k in $health.Keys) { $p = $k -split '\|', 3; [ordered]@{ DaysAgo = [int]$p[0]; OperationName = $p[1]; Status = $p[2]; LogCount = $health[$k] } })
-$healthSum = @{}; foreach ($k in $health.Keys) { $p = $k -split '\|', 3; $hk = "$($p[1])|$($p[2])"; if (-not $healthSum.ContainsKey($hk)) { $healthSum[$hk] = 0 }; $healthSum[$hk] += $health[$k] }
-Save-DemoJson 'sentinel-health-summary.json' @(foreach ($k in ($healthSum.Keys | Sort-Object { -$healthSum[$_] })) { $p = $k -split '\|', 2; [ordered]@{ OperationName = $p[0]; Status = $p[1]; LogCount = $healthSum[$k] } })
-Save-DemoJson 'rule-health.json' @(for ($i = 0; $i -lt $failingRules.Count; $i++) { [ordered]@{ RuleName = $failingRules[$i].Name; Status = 'Failure'; Failures = [int](@($resourceHealth | Where-Object { $_.SentinelResourceName -eq $failingRules[$i].Name })[0].Failures); LastFailure = (Format-DemoTime $asOfUtc.AddHours(-2 - $i)); Reason = $failReasons[$i] } })
+Save-DemoJson 'daily-health.json' @(
+    foreach ($k in $health.Keys) { $p = $k -split '\|', 3; [ordered]@{ DaysAgo = [int]$p[0]; OperationName = $p[1]; Status = $p[2]; LogCount = $health[$k] } }
+)
+$healthSum = @{}
+foreach ($k in $health.Keys) {
+    $p = $k -split '\|', 3
+    $hk = "$($p[1])|$($p[2])"
+    if (-not $healthSum.ContainsKey($hk)) { $healthSum[$hk] = 0 }
+    $healthSum[$hk] += $health[$k]
+}
+Save-DemoJson 'sentinel-health-summary.json' @(
+    foreach ($k in ($healthSum.Keys | Sort-Object { - $healthSum[$_] })) {
+        $p = $k -split '\|', 2
+        [ordered]@{ OperationName = $p[0]; Status = $p[1]; LogCount = $healthSum[$k] }
+    }
+)
+Save-DemoJson 'rule-health.json' @(
+    for ($i = 0; $i -lt $failingRules.Count; $i++) {
+        [ordered]@{
+            RuleName    = $failingRules[$i].Name
+            Status      = 'Failure'
+            Failures    = [int](@($resourceHealth | Where-Object { $_.SentinelResourceName -eq $failingRules[$i].Name })[0].Failures)
+            LastFailure = (Format-DemoTime $asOfUtc.AddHours(-2 - $i))
+            Reason      = $failReasons[$i]
+        }
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Telemetry captures
@@ -1009,28 +1892,99 @@ $gbToRows = { param([double]$Gb, [double]$BytesPerRow) [long]($Gb * 1GB / $Bytes
 $tiRows = & $gbToRows (Get-SeriesSum 'ThreatIntelIndicators' $L) 2400
 $tiRecent = & $gbToRows (Get-SeriesSum 'ThreatIntelIndicators' $recentDays) 2400
 Save-DemoJson 'threat-intel-counts.json' @(
-    [ordered]@{ SourceSystem = 'Microsoft Defender Threat Intelligence'; Count = [long]($tiRows * 0.58); Indicators = [long]($tiRows * 0.58 / 6.5); Last = (Format-DemoTime $asOfUtc.AddMinutes(-11)) }
-    [ordered]@{ SourceSystem = 'MISP (TAXII)'; Count = [long]($tiRows * 0.22); Indicators = [long]($tiRows * 0.22 / 9); Last = (Format-DemoTime $asOfUtc.AddMinutes(-48)) }
-    [ordered]@{ SourceSystem = 'Abuse.ch URLhaus (upload API)'; Count = [long]($tiRows * 0.14); Indicators = [long]($tiRows * 0.14 / 4); Last = (Format-DemoTime $asOfUtc.AddHours(-3)) }
-    [ordered]@{ SourceSystem = 'SOC analyst submissions'; Count = [long]($tiRows * 0.06); Indicators = [long]($tiRows * 0.06 / 2); Last = (Format-DemoTime $asOfUtc.AddDays(-2)) }
+    [ordered]@{
+        SourceSystem = 'Microsoft Defender Threat Intelligence'
+        Count        = [long]($tiRows * 0.58)
+        Indicators   = [long]($tiRows * 0.58 / 6.5)
+        Last         = (Format-DemoTime $asOfUtc.AddMinutes(-11))
+    }
+    [ordered]@{
+        SourceSystem = 'MISP (TAXII)'
+        Count        = [long]($tiRows * 0.22)
+        Indicators   = [long]($tiRows * 0.22 / 9)
+        Last         = (Format-DemoTime $asOfUtc.AddMinutes(-48))
+    }
+    [ordered]@{
+        SourceSystem = 'Abuse.ch URLhaus (upload API)'
+        Count        = [long]($tiRows * 0.14)
+        Indicators   = [long]($tiRows * 0.14 / 4)
+        Last         = (Format-DemoTime $asOfUtc.AddHours(-3))
+    }
+    [ordered]@{
+        SourceSystem = 'SOC analyst submissions'
+        Count        = [long]($tiRows * 0.06)
+        Indicators   = [long]($tiRows * 0.06 / 2)
+        Last         = (Format-DemoTime $asOfUtc.AddDays(-2))
+    }
 )
-Save-DemoJson 'threat-intel-by-type.json' @(foreach ($t in @(@('IP', 0.46), @('Domain', 0.22), @('URL', 0.19), @('FileHash', 0.11), @('Email', 0.02))) { [ordered]@{ Type = $t[0]; Count = [long]($tiRows * $t[1]); Indicators = [long]($tiRows * $t[1] / 6) } })
-Save-DemoJson 'threat-intel-objects.json' @(foreach ($t in @(@('indicator', 0.0), @('attack-pattern', 1840), @('threat-actor', 412), @('identity', 205), @('relationship', 5120), @('malware', 630))) { if ($t[1] -gt 0) { [ordered]@{ StixType = $t[0]; Count = [long]$t[1] } } })
+Save-DemoJson 'threat-intel-by-type.json' @(
+    foreach ($t in @(@('IP', 0.46), @('Domain', 0.22), @('URL', 0.19), @('FileHash', 0.11), @('Email', 0.02))) {
+        [ordered]@{ Type = $t[0]; Count = [long]($tiRows * $t[1]); Indicators = [long]($tiRows * $t[1] / 6) }
+    }
+)
+Save-DemoJson 'threat-intel-objects.json' @(
+    foreach ($t in @(@('indicator', 0.0), @('attack-pattern', 1840), @('threat-actor', 412), @('identity', 205), @('relationship', 5120), @('malware', 630))) {
+        if ($t[1] -gt 0) { [ordered]@{ StixType = $t[0]; Count = [long]$t[1] } }
+    }
+)
 Save-DemoJson 'threat-intel-tables.json' @(
-    [ordered]@{ Table = 'ThreatIntelIndicators'; Records30d = $tiRows; Records7d = $tiRecent; FirstSeen = (Format-DemoTime $asOfUtc.AddDays(-$L).AddMinutes(9)); LastSeen = (Format-DemoTime $asOfUtc.AddMinutes(-11)) }
-    [ordered]@{ Table = 'ThreatIntelObjects'; Records30d = 8207; Records7d = 911; FirstSeen = (Format-DemoTime $asOfUtc.AddDays(-$L).AddHours(2)); LastSeen = (Format-DemoTime $asOfUtc.AddHours(-1)) }
+    [ordered]@{
+        Table      = 'ThreatIntelIndicators'
+        Records30d = $tiRows
+        Records7d  = $tiRecent
+        FirstSeen  = (Format-DemoTime $asOfUtc.AddDays(-$L).AddMinutes(9))
+        LastSeen   = (Format-DemoTime $asOfUtc.AddMinutes(-11))
+    }
+    [ordered]@{
+        Table      = 'ThreatIntelObjects'
+        Records30d = 8207
+        Records7d  = 911
+        FirstSeen  = (Format-DemoTime $asOfUtc.AddDays(-$L).AddHours(2))
+        LastSeen   = (Format-DemoTime $asOfUtc.AddHours(-1))
+    }
 )
 $tiUnique = [long]($tiRows / 6.4)
-Save-DemoJson 'threat-intel-health.json' @([ordered]@{ Total = $tiUnique; Active = [long]($tiUnique * 0.81); Deleted = [long]($tiUnique * 0.07); Revoked = [long]($tiUnique * 0.02); StillValid = [long]($tiUnique * 0.78) })
+Save-DemoJson 'threat-intel-health.json' @(
+    [ordered]@{
+        Total      = $tiUnique
+        Active     = [long]($tiUnique * 0.81)
+        Deleted    = [long]($tiUnique * 0.07)
+        Revoked    = [long]($tiUnique * 0.02)
+        StillValid = [long]($tiUnique * 0.78)
+    }
+)
 $uebaRows = & $gbToRows (Get-SeriesSum 'BehaviorAnalytics' $L) 3800
 Save-DemoJson 'ueba-data-presence.json' @(
-    [ordered]@{ TableName = 'BehaviorAnalytics'; Count = $uebaRows; Count7d = (& $gbToRows (Get-SeriesSum 'BehaviorAnalytics' $recentDays) 3800); Count14d = $uebaRows }
-    [ordered]@{ TableName = 'IdentityInfo'; Count = (& $gbToRows (Get-SeriesSum 'IdentityInfo' $L) 5200); Count7d = (& $gbToRows (Get-SeriesSum 'IdentityInfo' $recentDays) 5200); Count14d = (& $gbToRows (Get-SeriesSum 'IdentityInfo' $L) 5200) }
-    [ordered]@{ TableName = 'UserPeerAnalytics'; Count = (& $gbToRows (Get-SeriesSum 'UserPeerAnalytics' $L) 900); Count7d = (& $gbToRows (Get-SeriesSum 'UserPeerAnalytics' $recentDays) 900); Count14d = (& $gbToRows (Get-SeriesSum 'UserPeerAnalytics' $L) 900) }
+    [ordered]@{
+        TableName = 'BehaviorAnalytics'
+        Count     = $uebaRows
+        Count7d   = (& $gbToRows (Get-SeriesSum 'BehaviorAnalytics' $recentDays) 3800)
+        Count14d  = $uebaRows
+    }
+    [ordered]@{
+        TableName = 'IdentityInfo'
+        Count     = (& $gbToRows (Get-SeriesSum 'IdentityInfo' $L) 5200)
+        Count7d   = (& $gbToRows (Get-SeriesSum 'IdentityInfo' $recentDays) 5200)
+        Count14d  = (& $gbToRows (Get-SeriesSum 'IdentityInfo' $L) 5200)
+    }
+    [ordered]@{
+        TableName = 'UserPeerAnalytics'
+        Count     = (& $gbToRows (Get-SeriesSum 'UserPeerAnalytics' $L) 900)
+        Count7d   = (& $gbToRows (Get-SeriesSum 'UserPeerAnalytics' $recentDays) 900)
+        Count14d  = (& $gbToRows (Get-SeriesSum 'UserPeerAnalytics' $L) 900)
+    }
 )
 $settingsDoc = [ordered]@{
-    Ueba            = [ordered]@{ name = 'Ueba'; kind = 'Ueba'; properties = [ordered]@{ dataSources = @('AuditLogs', 'AzureActivity', 'SecurityEvent', 'SigninLogs') } }
-    EntityAnalytics = [ordered]@{ name = 'EntityAnalytics'; kind = 'EntityAnalytics'; properties = [ordered]@{ entityProviders = @('AzureActiveDirectory', 'ActiveDirectory') } }
+    Ueba            = [ordered]@{
+        name       = 'Ueba'
+        kind       = 'Ueba'
+        properties = [ordered]@{ dataSources = @('AuditLogs', 'AzureActivity', 'SecurityEvent', 'SigninLogs') }
+    }
+    EntityAnalytics = [ordered]@{
+        name       = 'EntityAnalytics'
+        kind       = 'EntityAnalytics'
+        properties = [ordered]@{ entityProviders = @('AzureActiveDirectory', 'ActiveDirectory') }
+    }
     EyesOn          = [ordered]@{ name = 'EyesOn'; kind = 'EyesOn'; properties = [ordered]@{ isEnabled = $true } }
     Anomalies       = [ordered]@{ name = 'Anomalies'; kind = 'Anomalies'; properties = [ordered]@{ isEnabled = $true } }
 }
@@ -1046,16 +2000,35 @@ $agentMix = @(
     @{ OS = 'Windows'; Cat = 'Direct Agent'; Ver = '10.20.18069.0'; OSV = 'Windows Server 2016 Datacenter 10.0'; N = 58 }
     @{ OS = 'Linux'; Cat = 'Direct Agent'; Ver = '1.19.0'; OSV = 'CentOS 7.9'; N = 17 }
 )
-Save-DemoJson 'agent-heartbeat-mix.json' @(foreach ($m in $agentMix) { [ordered]@{ OSType = $m.OS; Category = $m.Cat; Version = $m.Ver; OSVersion = $m.OSV; Computers = $m.N; LastSeen = (Format-DemoTime $asOfUtc.AddMinutes(-1)) } })
+Save-DemoJson 'agent-heartbeat-mix.json' @(
+    foreach ($m in $agentMix) {
+        [ordered]@{
+            OSType    = $m.OS
+            Category  = $m.Cat
+            Version   = $m.Ver
+            OSVersion = $m.OSV
+            Computers = $m.N
+            LastSeen  = (Format-DemoTime $asOfUtc.AddMinutes(-1))
+        }
+    }
+)
 $hostNo = 100
-$amaMachines = foreach ($m in @($agentMix | Where-Object Cat -eq 'Azure Monitor Agent')) {
+$amaMachines = foreach ($m in @($agentMix | Where-Object Cat -EQ 'Azure Monitor Agent')) {
     for ($i = 1; $i -le $m.N; $i++) {
         $hostNo++
-        $role = if ($m.OS -eq 'Windows') { Get-DemoPick @('app', 'sql', 'web', 'dc', 'file', 'rds') @(5, 2, 3, 0.5, 1, 1) } else { Get-DemoPick @('app', 'web', 'k8s', 'db', 'fwd') @(5, 3, 3, 1, 0.3) }
+        $role = if ($m.OS -eq 'Windows') {
+            Get-DemoPick @('app', 'sql', 'web', 'dc', 'file', 'rds') @(5, 2, 3, 0.5, 1, 1)
+        } else { Get-DemoPick @('app', 'web', 'k8s', 'db', 'fwd') @(5, 3, 3, 1, 0.3) }
         $name = "$(if ($m.OS -eq 'Windows') { 'WIN' } else { 'lnx' })-$role-$('{0:d4}' -f $hostNo)"
         $late = (Get-DemoRandom) -lt 0.012
-        [ordered]@{ SourceComputerId = (New-DemoGuid "host|$name"); LastHeartbeat = (Format-DemoTime $(if ($late) { $asOfUtc.AddDays(-(Get-DemoBetween 2 20)) } else { $asOfUtc.AddMinutes(-(Get-DemoBetween 0.2 3)) })); OS = $m.OS; Version = $m.Ver; Solutions = '"security", "changeTracking"'; Computer = $name.ToLowerInvariant() + '.corp.sentinel-blog.example'
-            Resource = "/subscriptions/$subscriptionId/resourcegroups/rg-servers-$role/providers/microsoft.compute/virtualmachines/$($name.ToLowerInvariant())" }
+        [ordered]@{ SourceComputerId = (New-DemoGuid "host|$name")
+            LastHeartbeat            = (Format-DemoTime $(if ($late) { $asOfUtc.AddDays( - (Get-DemoBetween 2 20)) } else { $asOfUtc.AddMinutes( - (Get-DemoBetween 0.2 3)) }))
+            OS                       = $m.OS
+            Version                  = $m.Ver
+            Solutions                = '"security", "changeTracking"'
+            Computer                 = $name.ToLowerInvariant() + '.corp.sentinel-blog.example'
+            Resource                 = "/subscriptions/$subscriptionId/resourcegroups/rg-servers-$role/providers/microsoft.compute/virtualmachines/$($name.ToLowerInvariant())"
+        }
     }
 }
 Save-DemoJson 'ama-agents.json' $amaMachines
@@ -1065,39 +2038,173 @@ Save-DemoJson 'ama-mma-migration.json' @(
 )
 
 $cefRows = & $gbToRows (Get-SeriesSum 'CommonSecurityLog' $L) 1350
-Save-DemoJson 'cef-devices.json' @(foreach ($c in @(@('Palo Alto Networks', 'PAN-OS', 0.44), @('Fortinet', 'Fortigate', 0.27), @('Zscaler', 'NSSWeblog', 0.15), @('Check Point', 'VPN-1 & FireWall-1', 0.09), @('Cisco', 'ASA', 0.05))) { [ordered]@{ DeviceVendor = $c[0]; DeviceProduct = $c[1]; LogCount = [long]($cefRows * $c[2]) } })
+Save-DemoJson 'cef-devices.json' @(
+    foreach ($c in @(
+            @(
+                'Palo Alto Networks', 'PAN-OS', 0.44
+            ), @('Fortinet', 'Fortigate', 0.27), @('Zscaler', 'NSSWeblog', 0.15), @('Check Point', 'VPN-1 & FireWall-1', 0.09), @('Cisco', 'ASA', 0.05)
+        )) {
+        [ordered]@{ DeviceVendor = $c[0]; DeviceProduct = $c[1]; LogCount = [long]($cefRows * $c[2]) }
+    }
+)
 Save-DemoJson 'cef-in-syslog.json' @([ordered]@{ Computer = 'lnx-fwd-0007.corp.sentinel-blog.example'; ProductVendor = 'Cisco-ASA'; LogCount = 184220 })
 $sysRows = & $gbToRows (Get-SeriesSum 'Syslog' $L) 420
-Save-DemoJson 'syslog-contributors.json' @(foreach ($h in @(@('lnx-k8s-0412.corp.sentinel-blog.example', 'daemon', 0.24), @('lnx-app-0233.corp.sentinel-blog.example', 'local4', 0.16), @('lnx-web-0117.corp.sentinel-blog.example', 'authpriv', 0.09), @('lnx-db-0031.corp.sentinel-blog.example', 'daemon', 0.07), @('lnx-app-0298.corp.sentinel-blog.example', 'user', 0.05))) { [ordered]@{ Computer = $h[0]; Facility = $h[1]; LogCount = [long]($sysRows * $h[2]); SizeMB = [math]::Round($sysRows * $h[2] * 420 / 1MB, 1) } })
+Save-DemoJson 'syslog-contributors.json' @(
+    foreach ($h in @(
+            @(
+                'lnx-k8s-0412.corp.sentinel-blog.example', 'daemon', 0.24
+            ), @(
+                'lnx-app-0233.corp.sentinel-blog.example', 'local4', 0.16
+            ), @(
+                'lnx-web-0117.corp.sentinel-blog.example', 'authpriv', 0.09
+            ), @('lnx-db-0031.corp.sentinel-blog.example', 'daemon', 0.07), @('lnx-app-0298.corp.sentinel-blog.example', 'user', 0.05)
+        )) {
+        [ordered]@{ Computer = $h[0]; Facility = $h[1]; LogCount = [long]($sysRows * $h[2]); SizeMB = [math]::Round($sysRows * $h[2] * 420 / 1MB, 1) }
+    }
+)
 $secRows = & $gbToRows (Get-SeriesSum 'SecurityEvent' $L) 1100
-Save-DemoJson 'securityevent-top-hosts.json' @(foreach ($h in @(@('WIN-dc-0101.corp.sentinel-blog.example', 0.11), @('WIN-dc-0102.corp.sentinel-blog.example', 0.1), @('WIN-dc-0103.corp.sentinel-blog.example', 0.08), @('WIN-file-0204.corp.sentinel-blog.example', 0.05), @('WIN-rds-0311.corp.sentinel-blog.example', 0.04))) { [ordered]@{ Computer = $h[0]; LogCount = [long]($secRows * $h[1]); SizeMB = [math]::Round($secRows * $h[1] * 1100 / 1MB, 1) } })
+Save-DemoJson 'securityevent-top-hosts.json' @(
+    foreach ($h in @(
+            @(
+                'WIN-dc-0101.corp.sentinel-blog.example', 0.11
+            ), @(
+                'WIN-dc-0102.corp.sentinel-blog.example', 0.1
+            ), @(
+                'WIN-dc-0103.corp.sentinel-blog.example', 0.08
+            ), @('WIN-file-0204.corp.sentinel-blog.example', 0.05), @('WIN-rds-0311.corp.sentinel-blog.example', 0.04)
+        )) {
+        [ordered]@{ Computer = $h[0]; LogCount = [long]($secRows * $h[1]); SizeMB = [math]::Round($secRows * $h[1] * 1100 / 1MB, 1) }
+    }
+)
 $secGb = Get-SeriesSum 'SecurityEvent' $L
-Save-DemoJson 'top-event-ids.json' @(foreach ($e in @(@(4624, 'An account was successfully logged on', 0.24), @(4688, 'A new process has been created', 0.19), @(4663, 'An attempt was made to access an object', 0.12), @(4634, 'An account was logged off', 0.09), @(5145, 'A network share object was checked to see whether client can be granted desired access', 0.08), @(4672, 'Special privileges assigned to new logon', 0.06), @(4625, 'An account failed to log on', 0.04), @(4769, 'A Kerberos service ticket was requested', 0.04), @(4776, 'The computer attempted to validate the credentials for an account', 0.03), @(4662, 'An operation was performed on an object', 0.03))) {
-        [ordered]@{ TableName = 'SecurityEvent'; EventID = $e[0]; EventDescription = $e[1]; BilledSizeGB = [math]::Round($secGb * $e[2] * 1.07374, 3); LogCount = [long]($secRows * $e[2]) }
+Save-DemoJson 'top-event-ids.json' @(foreach ($e in @(
+            @(
+                4624, 'An account was successfully logged on', 0.24
+            ), @(
+                4688, 'A new process has been created', 0.19
+            ), @(
+                4663, 'An attempt was made to access an object', 0.12
+            ), @(
+                4634, 'An account was logged off', 0.09
+            ), @(
+                5145, 'A network share object was checked to see whether client can be granted desired access', 0.08
+            ), @(
+                4672, 'Special privileges assigned to new logon', 0.06
+            ), @(
+                4625, 'An account failed to log on', 0.04
+            ), @(
+                4769, 'A Kerberos service ticket was requested', 0.04
+            ), @(4776, 'The computer attempted to validate the credentials for an account', 0.03), @(4662, 'An operation was performed on an object', 0.03)
+        )) {
+        [ordered]@{
+            TableName        = 'SecurityEvent'
+            EventID          = $e[0]
+            EventDescription = $e[1]
+            BilledSizeGB     = [math]::Round($secGb * $e[2] * 1.07374, 3)
+            LogCount         = [long]($secRows * $e[2])
+        }
     })
-Save-DemoJson 'security-event-duplicates.json' @([ordered]@{ Computer = 'WIN-file-0204.corp.sentinel-blog.example'; DuplicateRecords = 412; LogCount = 9120; DuplicateEventIds = @(4663, 5145) })
-Save-DemoJson 'azure-activity-coverage.json' @(foreach ($i in 1..14) { $sid = '00000000-0000-0000-0000-{0:x12}' -f (0xc0de00 + $i); [ordered]@{ SubscriptionId = $sid; LogCount = [long](Get-DemoBetween 20000 900000) } })
-Save-DemoJson 'azure-diagnostics-providers.json' @(foreach ($p in @(@('MICROSOFT.KEYVAULT', 0.31), @('MICROSOFT.NETWORK', 0.27), @('MICROSOFT.SQL', 0.22), @('MICROSOFT.WEB', 0.12), @('MICROSOFT.CONTAINERSERVICE', 0.08))) { [ordered]@{ ResourceProvider = $p[0]; LogCount = [long]((& $gbToRows (Get-SeriesSum 'AzureDiagnostics' $L) 1500) * $p[1]) } })
-Save-DemoJson 'azure-diagnostics-categories.json' @(foreach ($p in @(@('MICROSOFT.KEYVAULT', 'AuditEvent', 0.31), @('MICROSOFT.NETWORK', 'ApplicationGatewayFirewallLog', 0.18), @('MICROSOFT.NETWORK', 'ApplicationGatewayAccessLog', 0.09), @('MICROSOFT.SQL', 'SQLSecurityAuditEvents', 0.22), @('MICROSOFT.WEB', 'AppServiceHTTPLogs', 0.12), @('MICROSOFT.CONTAINERSERVICE', 'kube-audit-admin', 0.08))) { [ordered]@{ ResourceProvider = $p[0]; Category = $p[1]; LogCount = [long]((& $gbToRows (Get-SeriesSum 'AzureDiagnostics' $L) 1500) * $p[2]) } })
-Save-DemoJson 'azure-firewall-categories.json' @(foreach ($c in @(@('AZFWNetworkRule', 'AZFWNetworkRule'), @('AZFWApplicationRule', 'AZFWApplicationRule'), @('AZFWDnsQuery', 'AZFWDnsQuery'), @('AZFWThreatIntel', 'AZFWThreatIntel'))) { [ordered]@{ Category = $c[0]; LogCount = (& $gbToRows (Get-SeriesSum $c[1] $L) 600) } })
-Save-DemoJson 'xdr-table-presence.json' @(foreach ($t in @($tableSpec | Where-Object { $_.T -match '^(Device|Email|Identity|UrlClick|CloudApp)' })) { [ordered]@{ Type = $t.T; RecordCount = (& $gbToRows (Get-SeriesSum $t.T $recentDays) 900) } })
+Save-DemoJson 'security-event-duplicates.json' @(
+    [ordered]@{ Computer = 'WIN-file-0204.corp.sentinel-blog.example'; DuplicateRecords = 412; LogCount = 9120; DuplicateEventIds = @(4663, 5145) }
+)
+Save-DemoJson 'azure-activity-coverage.json' @(
+    foreach ($i in 1..14) {
+        $sid = '00000000-0000-0000-0000-{0:x12}' -f (0xc0de00 + $i)
+        [ordered]@{ SubscriptionId = $sid; LogCount = [long](Get-DemoBetween 20000 900000) }
+    }
+)
+Save-DemoJson 'azure-diagnostics-providers.json' @(
+    foreach ($p in @(
+            @('MICROSOFT.KEYVAULT', 0.31), @('MICROSOFT.NETWORK', 0.27), @('MICROSOFT.SQL', 0.22), @('MICROSOFT.WEB', 0.12), @('MICROSOFT.CONTAINERSERVICE', 0.08)
+        )) {
+        [ordered]@{ ResourceProvider = $p[0]; LogCount = [long]((& $gbToRows (Get-SeriesSum 'AzureDiagnostics' $L) 1500) * $p[1]) }
+    }
+)
+Save-DemoJson 'azure-diagnostics-categories.json' @(
+    foreach ($p in @(
+            @(
+                'MICROSOFT.KEYVAULT', 'AuditEvent', 0.31
+            ), @(
+                'MICROSOFT.NETWORK', 'ApplicationGatewayFirewallLog', 0.18
+            ), @(
+                'MICROSOFT.NETWORK', 'ApplicationGatewayAccessLog', 0.09
+            ), @(
+                'MICROSOFT.SQL', 'SQLSecurityAuditEvents', 0.22
+            ), @('MICROSOFT.WEB', 'AppServiceHTTPLogs', 0.12), @('MICROSOFT.CONTAINERSERVICE', 'kube-audit-admin', 0.08)
+        )) {
+        [ordered]@{ ResourceProvider = $p[0]; Category = $p[1]; LogCount = [long]((& $gbToRows (Get-SeriesSum 'AzureDiagnostics' $L) 1500) * $p[2]) }
+    }
+)
+Save-DemoJson 'azure-firewall-categories.json' @(
+    foreach ($c in @(
+            @(
+                'AZFWNetworkRule', 'AZFWNetworkRule'
+            ), @('AZFWApplicationRule', 'AZFWApplicationRule'), @('AZFWDnsQuery', 'AZFWDnsQuery'), @('AZFWThreatIntel', 'AZFWThreatIntel')
+        )) {
+        [ordered]@{ Category = $c[0]; LogCount = (& $gbToRows (Get-SeriesSum $c[1] $L) 600) }
+    }
+)
+Save-DemoJson 'xdr-table-presence.json' @(
+    foreach ($t in @($tableSpec | Where-Object { $_.T -match '^(Device|Email|Identity|UrlClick|CloudApp)' })) {
+        [ordered]@{ Type = $t.T; RecordCount = (& $gbToRows (Get-SeriesSum $t.T $recentDays) 900) }
+    }
+)
 Save-DemoJson 'la-query-logs.json' @([ordered]@{ QueryCount = [long](Get-DemoBetween 380000 460000) })
-Save-DemoJson 'ingestion-latency.json' @([ordered]@{ OperationKey = "Data collection rule 'dcr-pfsense-logstash' transformation failed for 3 records: column 'src_port' type mismatch."; Resource = 'Ingestion'; Failures = 214; Last = (Format-DemoTime $asOfUtc.AddDays(-3)) })
-Save-DemoJson 'table-query-usage.json' @(foreach ($t in @(@('SigninLogs', 1820, 31), @('AuditLogs', 640, 14), @('SecurityEvent', 2210, 22), @('CommonSecurityLog', 1180, 17), @('AzureActivity', 210, 9), @('ZscalerWebLogs_CL', 46, 5), @('NetFlowRaw_CL', 12, 3))) { [ordered]@{ Table = $t[0]; Queries = "$($t[1])"; Users = "$($t[2])"; LastQuery = (Format-DemoTime $asOfUtc.AddHours(-(Get-DemoBetween 1 70))) } })
+Save-DemoJson 'ingestion-latency.json' @(
+    [ordered]@{
+        OperationKey = "Data collection rule 'dcr-pfsense-logstash' transformation failed for 3 records: column 'src_port' type mismatch."
+        Resource     = 'Ingestion'
+        Failures     = 214
+        Last         = (Format-DemoTime $asOfUtc.AddDays(-3))
+    }
+)
+Save-DemoJson 'table-query-usage.json' @(
+    foreach ($t in @(
+            @(
+                'SigninLogs', 1820, 31
+            ), @(
+                'AuditLogs', 640, 14
+            ), @('SecurityEvent', 2210, 22), @('CommonSecurityLog', 1180, 17), @('AzureActivity', 210, 9), @('ZscalerWebLogs_CL', 46, 5), @('NetFlowRaw_CL', 12, 3)
+        )) {
+        [ordered]@{ Table = $t[0]; Queries = "$($t[1])"; Users = "$($t[2])"; LastQuery = (Format-DemoTime $asOfUtc.AddHours( - (Get-DemoBetween 1 70))) }
+    }
+)
 
 # Hunting activity: hunts and bookmarks drawn from the hunting queries.
 $huntNames = @(@($hunting) | Select-Object -First 6 | ForEach-Object { $_.properties.displayName })
 Save-DemoJson 'hunts.json' @(for ($i = 0; $i -lt $huntNames.Count; $i++) {
-        $hid = New-DemoGuid "hunt-mission|$i"; $who = Get-DemoPerson; $created = $asOfUtc.AddDays(-(Get-DemoBetween 3 80))
+        $hid = New-DemoGuid "hunt-mission|$i"; $who = Get-DemoPerson; $created = $asOfUtc.AddDays( - (Get-DemoBetween 3 80))
         [ordered]@{ id = "$siId/hunts/$hid"; name = $hid; etag = '"' + (New-DemoGuid "etag|$hid") + '"'; type = 'Microsoft.SecurityInsights/hunts'
-            systemData = [ordered]@{ createdAt = (Format-DemoTime $created); createdBy = $who; createdByType = 'User'; lastModifiedAt = (Format-DemoTime $created.AddDays(2)); lastModifiedBy = $who; lastModifiedByType = 'User' }
-            properties = [ordered]@{ displayName = "Hunt: $($huntNames[$i])"; description = "Hypothesis-led hunt built on the '$($huntNames[$i])' query."; owner = [ordered]@{ objectId = (New-DemoGuid "user|$who"); email = $who; assignedTo = $who; userPrincipalName = $who; ownerType = 'User' }
-                status = @('New', 'Active', 'Closed', 'Active', 'Closed', 'Backlog')[$i]; hypothesisStatus = @('Unknown', 'Unknown', 'Validated', 'Unknown', 'Invalidated', 'Unknown')[$i] } }
+            systemData = [ordered]@{
+                createdAt          = (Format-DemoTime $created)
+                createdBy          = $who
+                createdByType      = 'User'
+                lastModifiedAt     = (Format-DemoTime $created.AddDays(2))
+                lastModifiedBy     = $who
+                lastModifiedByType = 'User'
+            }
+            properties = [ordered]@{ displayName = "Hunt: $($huntNames[$i])"
+                description                      = "Hypothesis-led hunt built on the '$($huntNames[$i])' query."
+                owner                            = [ordered]@{ objectId = (New-DemoGuid "user|$who"); email = $who; assignedTo = $who; userPrincipalName = $who; ownerType = 'User' }
+                status                           = @('New', 'Active', 'Closed', 'Active', 'Closed', 'Backlog')[$i]
+                hypothesisStatus                 = @('Unknown', 'Unknown', 'Validated', 'Unknown', 'Invalidated', 'Unknown')[$i]
+            }
+        }
     })
 Save-DemoJson 'bookmarks.json' @(for ($i = 0; $i -lt 9; $i++) {
         $bid = New-DemoGuid "bookmark|$i"; $who = New-DemoActor (Get-DemoPerson)
         [ordered]@{ id = "$siId/bookmarks/$bid"; name = $bid; etag = '"' + (New-DemoGuid "etag|$bid") + '"'; type = 'Microsoft.SecurityInsights/Bookmarks'
-            properties = [ordered]@{ displayName = "Suspicious result $($i + 1) from $($huntNames[$i % [math]::Max(1, $huntNames.Count)])"; created = (Format-DemoTime $asOfUtc.AddDays(-(Get-DemoBetween 1 60))); createdBy = $who; updated = (Format-DemoTime $asOfUtc.AddDays(-(Get-DemoBetween 0.1 1))); updatedBy = $who; query = 'SigninLogs | take 10'; labels = @('hunt'); notes = '' } }
+            properties = [ordered]@{
+                displayName = "Suspicious result $($i + 1) from $($huntNames[$i % [math]::Max(1, $huntNames.Count)])"
+                created     = (Format-DemoTime $asOfUtc.AddDays( - (Get-DemoBetween 1 60)))
+                createdBy   = $who
+                updated     = (Format-DemoTime $asOfUtc.AddDays( - (Get-DemoBetween 0.1 1)))
+                updatedBy   = $who
+                query       = 'SigninLogs | take 10'
+                labels      = @('hunt')
+                notes       = ''
+            }
+        }
     })
 
 # ---------------------------------------------------------------------------
@@ -1106,31 +2213,121 @@ Save-DemoJson 'bookmarks.json' @(for ($i = 0; $i -lt 9; $i++) {
 $created = $asOfUtc.AddYears(-3).AddDays(-41)
 Save-DemoJson 'workspace.json' ([ordered]@{
         properties = [ordered]@{
-            customerId = (New-DemoGuid 'workspace'); provisioningState = 'Succeeded'; sku = $(if ($commitmentGb) { [ordered]@{ name = 'CapacityReservation'; capacityReservationLevel = $commitmentGb; lastSkuUpdate = (Format-DemoTime $asOfUtc.AddDays(-200)) } } else { [ordered]@{ name = 'PerGB2018'; lastSkuUpdate = (Format-DemoTime $created) } }); retentionInDays = 90
-            features = [ordered]@{ legacy = 0; searchVersion = 1; enableLogAccessUsingOnlyResourcePermissions = $true; unifiedSentinelBillingOnly = $true; disableLocalAuth = $true; enableDataExport = $true; immediatePurgeDataOn30Days = $false; clusterResourceId = $null }
-            workspaceCapping = [ordered]@{ dailyQuotaGb = -1.0; quotaNextResetTime = (Format-DemoTime $asOfUtc.Date.AddDays(1).AddHours(9)); dataIngestionStatus = 'RespectQuota' }
-            publicNetworkAccessForIngestion = 'Enabled'; publicNetworkAccessForQuery = 'Enabled'; createdDate = (Format-DemoTime $created); modifiedDate = (Format-DemoTime $asOfUtc.AddDays(-12))
+            customerId                          = (New-DemoGuid 'workspace')
+            provisioningState                   = 'Succeeded'
+            sku                                 = $(
+                if ($commitmentGb) {
+                    [ordered]@{
+                        name                     = 'CapacityReservation'
+                        capacityReservationLevel = $commitmentGb
+                        lastSkuUpdate            = (Format-DemoTime $asOfUtc.AddDays(-200))
+                    }
+                } else { [ordered]@{ name = 'PerGB2018'; lastSkuUpdate = (Format-DemoTime $created) } }
+            )
+            retentionInDays                     = 90
+            features                            = [ordered]@{
+                legacy                                      = 0
+                searchVersion                               = 1
+                enableLogAccessUsingOnlyResourcePermissions = $true
+                unifiedSentinelBillingOnly                  = $true
+                disableLocalAuth                            = $true
+                enableDataExport                            = $true
+                immediatePurgeDataOn30Days                  = $false
+                clusterResourceId                           = $null
+            }
+            workspaceCapping                    = [ordered]@{
+                dailyQuotaGb        = -1.0
+                quotaNextResetTime  = (Format-DemoTime $asOfUtc.Date.AddDays(1).AddHours(9))
+                dataIngestionStatus = 'RespectQuota'
+            }
+            publicNetworkAccessForIngestion     = 'Enabled'
+            publicNetworkAccessForQuery         = 'Enabled'
+            createdDate                         = (Format-DemoTime $created)
+            modifiedDate                        = (Format-DemoTime $asOfUtc.AddDays(-12))
             defaultDataCollectionRuleResourceId = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Insights/dataCollectionRules/dcr-workspace-transform"
-            replication = [ordered]@{ enabled = $true; location = 'ukwest' }
+            replication                         = [ordered]@{ enabled = $true; location = 'ukwest' }
         }
-        location = $region; tags = [ordered]@{ Environment = 'Production'; Owner = 'secops@sentinel-blog.example'; CostCentre = 'SEC-001' }; id = $wsId; name = $WorkspaceName; type = 'Microsoft.OperationalInsights/workspaces'; etag = '"' + (New-DemoGuid 'etag|workspace') + '"'
+        location   = $region
+        tags       = [ordered]@{ Environment = 'Production'; Owner = 'secops@sentinel-blog.example'; CostCentre = 'SEC-001' }
+        id         = $wsId
+        name       = $WorkspaceName
+        type       = 'Microsoft.OperationalInsights/workspaces'
+        etag       = '"' + (New-DemoGuid 'etag|workspace') + '"'
     })
-Save-DemoJson 'subscription.json' ([ordered]@{ Id = $subscriptionId; Name = 'Sentinel Blog Security Production'; TenantId = $tenantId; State = 'Enabled'; HomeTenantId = $tenantId })
-Save-DemoJson 'resource-providers.json' @(foreach ($p in 'Microsoft.OperationalInsights', 'Microsoft.SecurityInsights', 'Microsoft.OperationsManagement', 'Microsoft.Insights', 'Microsoft.Logic', 'Microsoft.SentinelPlatformServices') { [ordered]@{ ProviderNamespace = $p; RegistrationState = 'Registered' } })
+Save-DemoJson 'subscription.json' ([ordered]@{
+        Id           = $subscriptionId
+        Name         = 'Sentinel Blog Security Production'
+        TenantId     = $tenantId
+        State        = 'Enabled'
+        HomeTenantId = $tenantId
+    })
+Save-DemoJson 'resource-providers.json' @(
+    foreach ($p in 'Microsoft.OperationalInsights', 'Microsoft.SecurityInsights', 'Microsoft.OperationsManagement', 'Microsoft.Insights', 'Microsoft.Logic',
+        'Microsoft.SentinelPlatformServices') {
+        [ordered]@{ ProviderNamespace = $p; RegistrationState = 'Registered' }
+    }
+)
 $roleSpec = @(
-    @('SOC Analysts Tier 1', 'Group', 'Microsoft Sentinel Responder'), @('SOC Analysts Tier 2', 'Group', 'Microsoft Sentinel Responder'), @('SOC Engineering', 'Group', 'Microsoft Sentinel Contributor'),
-    @('SOC Engineering', 'Group', 'Logic App Contributor'), @('Security Leadership', 'Group', 'Microsoft Sentinel Reader'), @('Threat Hunters', 'Group', 'Microsoft Sentinel Contributor'),
-    @('Platform Operations', 'Group', 'Log Analytics Reader'), @('sp-sentinel-as-code-deploy', 'ServicePrincipal', 'Microsoft Sentinel Contributor'), @('sp-sentinel-as-code-deploy', 'ServicePrincipal', 'Log Analytics Contributor'),
-    @('sp-blueprint-reader', 'ServicePrincipal', 'Microsoft Sentinel Reader'), @('sp-legacy-siem-export', 'ServicePrincipal', 'Contributor'), @('Break Glass Admins', 'Group', 'Owner'))
-$asRole = { param($scope, $r) [ordered]@{ RoleAssignmentName = (New-DemoGuid "ra|$scope|$($r[0])|$($r[2])"); RoleAssignmentId = "$scope/providers/Microsoft.Authorization/roleAssignments/$(New-DemoGuid "ra|$scope|$($r[0])|$($r[2])")"; Scope = $scope; DisplayName = $r[0]; SignInName = $null; RoleDefinitionName = $r[2]; RoleDefinitionId = "/providers/Microsoft.Authorization/roleDefinitions/$(New-DemoGuid "rd|$($r[2])")"; ObjectId = (New-DemoGuid "obj|$($r[0])"); ObjectType = $r[1]; CanDelegate = $false; Description = $null; ConditionVersion = $null; Condition = $null } }
+    @(
+        'SOC Analysts Tier 1', 'Group', 'Microsoft Sentinel Responder'
+    ), @('SOC Analysts Tier 2', 'Group', 'Microsoft Sentinel Responder'), @('SOC Engineering', 'Group', 'Microsoft Sentinel Contributor'),
+    @(
+        'SOC Engineering', 'Group', 'Logic App Contributor'
+    ), @('Security Leadership', 'Group', 'Microsoft Sentinel Reader'), @('Threat Hunters', 'Group', 'Microsoft Sentinel Contributor'),
+    @(
+        'Platform Operations', 'Group', 'Log Analytics Reader'
+    ), @(
+        'sp-sentinel-as-code-deploy', 'ServicePrincipal', 'Microsoft Sentinel Contributor'
+    ), @('sp-sentinel-as-code-deploy', 'ServicePrincipal', 'Log Analytics Contributor'),
+    @(
+        'sp-blueprint-reader', 'ServicePrincipal', 'Microsoft Sentinel Reader'
+    ), @('sp-legacy-siem-export', 'ServicePrincipal', 'Contributor'), @('Break Glass Admins', 'Group', 'Owner'))
+$asRole = {
+    param($scope, $r) [ordered]@{
+        RoleAssignmentName = (New-DemoGuid "ra|$scope|$($r[0])|$($r[2])")
+        RoleAssignmentId   = "$scope/providers/Microsoft.Authorization/roleAssignments/$(New-DemoGuid "ra|$scope|$($r[0])|$($r[2])")"
+        Scope              = $scope
+        DisplayName        = $r[0]
+        SignInName         = $null
+        RoleDefinitionName = $r[2]
+        RoleDefinitionId   = "/providers/Microsoft.Authorization/roleDefinitions/$(New-DemoGuid "rd|$($r[2])")"
+        ObjectId           = (New-DemoGuid "obj|$($r[0])")
+        ObjectType         = $r[1]
+        CanDelegate        = $false
+        Description        = $null
+        ConditionVersion   = $null
+        Condition          = $null
+    }
+}
 Save-DemoJson 'rbac-workspace.json' @(foreach ($r in $roleSpec) { & $asRole $wsId $r })
-Save-DemoJson 'rbac-resourcegroup.json' @(foreach ($r in @($roleSpec | Where-Object { $_[2] -in @('Owner', 'Contributor', 'Logic App Contributor') })) { & $asRole "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup" $r })
-Save-DemoJson 'sentinel-data-lake.json' @([ordered]@{ id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.SentinelPlatformServices/sentinelPlatformServices/default"; name = 'default'; location = $region; resourceGroup = $resourceGroup; subscriptionId = $subscriptionId
-        properties = [ordered]@{ provisioningState = 'Succeeded' }; identity = [ordered]@{ principalId = (New-DemoGuid 'lake-mi'); tenantId = $tenantId; type = 'SystemAssigned' }
-        systemData = [ordered]@{ lastModifiedByType = 'User'; lastModifiedAt = (Format-DemoTime $asOfUtc.AddDays(-160)); lastModifiedBy = 'secops@sentinel-blog.example'; createdByType = 'User'; createdAt = (Format-DemoTime $asOfUtc.AddDays(-160)); createdBy = 'secops@sentinel-blog.example' } })
+Save-DemoJson 'rbac-resourcegroup.json' @(
+    foreach ($r in @($roleSpec | Where-Object { $_[2] -in @('Owner', 'Contributor', 'Logic App Contributor') })) {
+        & $asRole "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup" $r
+    }
+)
+Save-DemoJson 'sentinel-data-lake.json' @([ordered]@{ id = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.SentinelPlatformServices/sentinelPlatformServices/default"
+        name                                             = 'default'
+        location                                         = $region
+        resourceGroup                                    = $resourceGroup
+        subscriptionId                                   = $subscriptionId
+        properties                                       = [ordered]@{ provisioningState = 'Succeeded' }
+        identity                                         = [ordered]@{ principalId = (New-DemoGuid 'lake-mi'); tenantId = $tenantId; type = 'SystemAssigned' }
+        systemData                                       = [ordered]@{
+            lastModifiedByType = 'User'
+            lastModifiedAt     = (Format-DemoTime $asOfUtc.AddDays(-160))
+            lastModifiedBy     = 'secops@sentinel-blog.example'
+            createdByType      = 'User'
+            createdAt          = (Format-DemoTime $asOfUtc.AddDays(-160))
+            createdBy          = 'secops@sentinel-blog.example'
+        }
+    })
 Save-DemoJson 'available-service-tiers.json' @(
     [ordered]@{ serviceTier = 'PerGB2018'; enabled = (-not $commitmentGb) }
-    [ordered]@{ serviceTier = 'CapacityReservation'; capacityReservationLevel = $(if ($commitmentGb) { $commitmentGb } else { 100 }); enabled = [bool]$commitmentGb }
+    [ordered]@{
+        serviceTier              = 'CapacityReservation'
+        capacityReservationLevel = $(if ($commitmentGb) { $commitmentGb } else { 100 })
+        enabled                  = [bool]$commitmentGb
+    }
     [ordered]@{ serviceTier = 'Free'; enabled = $false }
 )
 # UK South public list prices in GBP, as the Retail Prices API published
@@ -1141,39 +2338,115 @@ $listPrices = @(
     @('Sentinel', 'Pay-as-you-go Analysis', '1 GB', 4.0605), @('Sentinel', 'Basic Logs Analysis', '1 GB', 0.8529)
     @('Sentinel', 'Classic Auxiliary Logs Analysis', '1 GB', 0.0472), @('Sentinel', 'Data lake ingestion Data Processed', '1 GB', 0.0472)
     @('Sentinel', 'Data processing Data Processed', '1 GB', 0.0943), @('Sentinel', 'Data lake storage Data Stored', '1 GB/Month', 0.0181)
-    ,@('Sentinel', 'Data lake query Data Analyzed', '1 GB', 0.0047)
+    , @('Sentinel', 'Data lake query Data Analyzed', '1 GB', 0.0047)
     @('Log Analytics', 'Analytics Logs Data Ingestion', '1 GB', 2.1737), @('Log Analytics', 'Analytics Logs Data Analyzed', '1 GB', 1.7359)
-    ,@('Log Analytics', 'Analytics Logs Data Retention', '1 GB/Month', 0.0981)
+    , @('Log Analytics', 'Analytics Logs Data Retention', '1 GB/Month', 0.0981)
 )
-$tierList = [ordered]@{ 50 = 152.1284; 100 = 279.2558; 200 = 517.0006; 300 = 754.7455; 400 = 978.6483; 500 = 1193.4413; 1000 = 2339.7109; 2000 = 4528.4728; 5000 = 10896.6376; 10000 = 20981.9238; 25000 = 50426.4312; 50000 = 96796.1055 }
-$priceRow = { param($Service, $Meter, $Unit, $Price) [ordered]@{ currencyCode = 'GBP'; tierMinimumUnits = 0.0; retailPrice = $Price; unitPrice = $Price; armRegionName = $region; location = 'UK South'; meterName = $Meter; productName = $Service; serviceName = $Service; unitOfMeasure = $Unit; type = 'Consumption' } }
-Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1)); Region = $region; Currency = 'GBP'; CurrencySource = 'Region'; Services = @('Sentinel', 'Log Analytics')
-        Prices = @(@(foreach ($p in $listPrices) { & $priceRow $p[0] $p[1] $p[2] $p[3] }) + @(foreach ($kv in $tierList.GetEnumerator()) { & $priceRow 'Sentinel' "$($kv.Key) GB Commitment Tier Capacity Reservation" '1/Day' $kv.Value })) })
+$tierList = [ordered]@{
+    50    = 152.1284
+    100   = 279.2558
+    200   = 517.0006
+    300   = 754.7455
+    400   = 978.6483
+    500   = 1193.4413
+    1000  = 2339.7109
+    2000  = 4528.4728
+    5000  = 10896.6376
+    10000 = 20981.9238
+    25000 = 50426.4312
+    50000 = 96796.1055
+}
+$priceRow = {
+    param($Service, $Meter, $Unit, $Price) [ordered]@{
+        currencyCode     = 'GBP'
+        tierMinimumUnits = 0.0
+        retailPrice      = $Price
+        unitPrice        = $Price
+        armRegionName    = $region
+        location         = 'UK South'
+        meterName        = $Meter
+        productName      = $Service
+        serviceName      = $Service
+        unitOfMeasure    = $Unit
+        type             = 'Consumption'
+    }
+}
+Save-DemoJson 'retail-prices.json' ([ordered]@{ FetchedAtUtc = (Format-DemoTime $asOfUtc.AddMinutes(-1))
+        Region                                               = $region
+        Currency                                             = 'GBP'
+        CurrencySource                                       = 'Region'
+        Services                                             = @('Sentinel', 'Log Analytics')
+        Prices                                               = @(
+            @(
+                foreach ($p in $listPrices) { & $priceRow $p[0] $p[1] $p[2] $p[3] }
+            ) + @(foreach ($kv in $tierList.GetEnumerator()) { & $priceRow 'Sentinel' "$($kv.Key) GB Commitment Tier Capacity Reservation" '1/Day' $kv.Value })
+        )
+    })
 
 # What's new: the demo's own items, dated in the months before the demo's
 # day (the fixture's are marked as fixture items and dated for its own run).
 $monthAgo = { param([int] $m) $asOfUtc.AddMonths(-$m).ToString('yyyy-MM') }
 $sentinelNews = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new'
 $xdrNews = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new'
-$newsItem = { param($Product, $Month, $Title, $Status, $Summary, $Link, $Deadline) [ordered]@{ Product = $Product; Month = $Month; Title = $Title; Status = $Status; Summary = $Summary; Details = @(); Link = $Link; LearnMore = $null; Deadline = $Deadline } }
+$newsItem = {
+    param($Product, $Month, $Title, $Status, $Summary, $Link, $Deadline) [ordered]@{
+        Product   = $Product
+        Month     = $Month
+        Title     = $Title
+        Status    = $Status
+        Summary   = $Summary
+        Details   = @()
+        Link      = $Link
+        LearnMore = $null
+        Deadline  = $Deadline
+    }
+}
 $newsItems = @(
-    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 1) 'Call to action: move playbooks to the new incident trigger before 31 Mar 2027' 'Action needed' 'Playbooks on the old incident trigger stop running after the date. Move them to the new trigger and test each one.' "$sentinelNews#call-to-action" '2027-03')
-    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 1) 'UEBA behaviour layer is now generally available' 'Generally available' 'UEBA behaviours summarise raw logs into entity activity that hunting and detections can query.' "$sentinelNews#ueba" $null)
-    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 2) 'Query the data lake tier from advanced hunting (Preview)' 'Preview' 'Interactive queries over the data lake tier, beside the analytics tier, from the same hunting page.' "$sentinelNews#data-lake" $null)
-    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 4) 'Microsoft Sentinel in the Azure portal to be retired' 'Retiring' 'Microsoft Sentinel moves to the Defender portal. Plan the move of workbooks, automation and access before the date.' "$sentinelNews#portal" '2027-03')
-    (& $newsItem 'Microsoft Defender XDR' (& $monthAgo 1) 'Custom detection rules support near real-time frequency' 'Preview' 'Custom detections can run continuously instead of on a schedule.' "$xdrNews#custom-detections" $null)
-    (& $newsItem 'Microsoft Defender XDR' (& $monthAgo 3) 'Incident queue filters for sensitivity labels' 'Update' 'Filter the incident queue by the sensitivity labels of the data involved.' "$xdrNews#incident-queue" $null)
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 1) 'Call to action: move playbooks to the new incident trigger before 31 Mar 2027' 'Action needed' `
+        'Playbooks on the old incident trigger stop running after the date. Move them to the new trigger and test each one.' "$sentinelNews#call-to-action" '2027-03')
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 1) 'UEBA behaviour layer is now generally available' 'Generally available' `
+        'UEBA behaviours summarise raw logs into entity activity that hunting and detections can query.' "$sentinelNews#ueba" $null)
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 2) 'Query the data lake tier from advanced hunting (Preview)' 'Preview' `
+        'Interactive queries over the data lake tier, beside the analytics tier, from the same hunting page.' "$sentinelNews#data-lake" $null)
+    (& $newsItem 'Microsoft Sentinel' (& $monthAgo 4) 'Microsoft Sentinel in the Azure portal to be retired' 'Retiring' `
+        'Microsoft Sentinel moves to the Defender portal. Plan the move of workbooks, automation and access before the date.' "$sentinelNews#portal" '2027-03')
+    (& $newsItem 'Microsoft Defender XDR' (& $monthAgo 1) 'Custom detection rules support near real-time frequency' 'Preview' `
+        'Custom detections can run continuously instead of on a schedule.' "$xdrNews#custom-detections" $null)
+    (& $newsItem 'Microsoft Defender XDR' (& $monthAgo 3) 'Incident queue filters for sensitivity labels' 'Update' `
+        'Filter the incident queue by the sensitivity labels of the data involved.' "$xdrNews#incident-queue" $null)
 )
 Save-DemoJson 'whats-new.json' ([ordered]@{ FetchedUtc = (Format-DemoTime $asOfUtc.AddMinutes(-2)); Months = 12
-        Sources = @([ordered]@{ Product = 'Microsoft Sentinel'; Url = $sentinelNews; Ok = $true; Error = $null; Items = 4 }, [ordered]@{ Product = 'Microsoft Defender XDR'; Url = $xdrNews; Ok = $true; Error = $null; Items = 2 })
-        Items = $newsItems })
+        Sources = @(
+            [ordered]@{
+                Product = 'Microsoft Sentinel'
+                Url     = $sentinelNews
+                Ok      = $true
+                Error   = $null
+                Items   = 4
+            }, [ordered]@{ Product = 'Microsoft Defender XDR'; Url = $xdrNews; Ok = $true; Error = $null; Items = 2 }
+        )
+        Items   = $newsItems
+    })
 
 # The rest from the fixture, under the demo's names.
-$rename = [ordered]@{ 'law-sentinel-test' = $WorkspaceName; 'rg-sentinel-test' = $resourceGroup; '/resourceGroups/rg-test/' = "/resourceGroups/$resourceGroup/"; '00000000-0000-0000-0000-000000000001' = $subscriptionId; '00000000-0000-0000-0000-000000000000' = $subscriptionId; 'example.test' = 'sentinel-blog.example'; 'Sentinel Test' = 'Sentinel Blog Security Production' }
+$rename = [ordered]@{
+    'law-sentinel-test'                    = $WorkspaceName
+    'rg-sentinel-test'                     = $resourceGroup
+    '/resourceGroups/rg-test/'             = "/resourceGroups/$resourceGroup/"
+    '00000000-0000-0000-0000-000000000001' = $subscriptionId
+    '00000000-0000-0000-0000-000000000000' = $subscriptionId
+    'example.test'                         = 'sentinel-blog.example'
+    'Sentinel Test'                        = 'Sentinel Blog Security Production'
+}
 foreach ($f in @(Get-ChildItem -LiteralPath $fixtureRaw -Filter '*.json')) {
     $dest = Join-Path $raw $f.Name
     if (Test-Path -LiteralPath $dest) { continue }
-    if ($f.Name -in @('gap-analysis.json', 'gap-checks.json', 'maturity.json', 'cost-estimate.json', 'run-context.json', 'rule-table-references.json', 'template-table-references.json', 'custom-detection-table-references.json')) { continue }
+    if ($f.Name -in @(
+            'gap-analysis.json', 'gap-checks.json', 'maturity.json', 'cost-estimate.json', 'run-context.json', 'rule-table-references.json',
+            'template-table-references.json', 'custom-detection-table-references.json'
+        )) {
+        continue
+    }
     $text = Get-Content -LiteralPath $f.FullName -Raw
     foreach ($k in $rename.Keys) { $text = $text.Replace($k, $rename[$k]) }
     Set-Content -LiteralPath $dest -Value $text -Encoding utf8NoBOM
@@ -1184,7 +2457,8 @@ $solPath = Join-Path $raw 'solutions-installed.json'
 if (Test-Path -LiteralPath $solPath) {
     $sols = @(Get-Content -LiteralPath $solPath -Raw | ConvertFrom-Json -Depth 32)
     foreach ($sol in $sols) {
-        if ($sol -and $sol.PSObject.Properties['plan'] -and [string]$sol.plan.product -eq 'OMSGallery/SecurityInsights' -and $sol.PSObject.Properties['properties']) {
+        if ($sol -and $sol.PSObject.Properties['plan'] -and [string]$sol.plan.product -eq 'OMSGallery/SecurityInsights' -and
+            $sol.PSObject.Properties['properties']) {
             $sol.properties | Add-Member -NotePropertyName sku -NotePropertyValue ([pscustomobject]@{ name = 'Unified' }) -Force
         }
     }
@@ -1193,9 +2467,18 @@ if (Test-Path -LiteralPath $solPath) {
 
 # The run's context.
 $started = $asOfUtc
-Save-DemoJson 'run-context.json' ([ordered]@{ SubscriptionId = $subscriptionId; TenantId = $tenantId; Account = 'sp-blueprint-reader'; AccountType = 'ServicePrincipal'; ResourceGroup = $resourceGroup; WorkspaceName = $WorkspaceName; WorkspaceResourceId = $wsId
-        StartedAtUtc = (Format-DemoTime $started); CompletedAtUtc = (Format-DemoTime $started.AddMinutes(14)); BlueprintVersion = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $RepoPath 'Modules/iSOCBlueprint/iSOCBlueprint.psd1')).ModuleVersion
-        AzPSVersion = '5.1.0'; IncludePreview = $true; LookbackDays = $L; RecentDays = $recentDays; DailyDays = $L; Demo = $true })
+Save-DemoJson 'run-context.json' ([ordered]@{ SubscriptionId = $subscriptionId
+        TenantId                                             = $tenantId
+        Account                                              = 'sp-blueprint-reader'
+        AccountType                                          = 'ServicePrincipal'
+        ResourceGroup                                        = $resourceGroup
+        WorkspaceName                                        = $WorkspaceName
+        WorkspaceResourceId                                  = $wsId
+        StartedAtUtc                                         = (Format-DemoTime $started)
+        CompletedAtUtc                                       = (Format-DemoTime $started.AddMinutes(14))
+        BlueprintVersion                                     = [string](Import-PowerShellDataFile -LiteralPath (Join-Path $RepoPath 'Modules/iSOCBlueprint/iSOCBlueprint.psd1')).ModuleVersion
+        AzPSVersion = '5.1.0'; IncludePreview = $true; LookbackDays = $L; RecentDays = $recentDays; DailyDays = $L; Demo = $true
+    })
 
 # ---------------------------------------------------------------------------
 # The engine's own steps over the demo inventory
@@ -1203,30 +2486,39 @@ Save-DemoJson 'run-context.json' ([ordered]@{ SubscriptionId = $subscriptionId; 
 $rulesForRefs = @(Get-Content -LiteralPath (Join-Path $raw 'alert-rules.json') -Raw | ConvertFrom-Json -Depth 64)
 $templatesForRefs = @(Get-Content -LiteralPath (Join-Path $raw 'alert-rule-templates.json') -Raw | ConvertFrom-Json -Depth 64)
 $detectionsForRefs = @(Get-Content -LiteralPath (Join-Path $raw 'defender-custom-detections.json') -Raw | ConvertFrom-Json -Depth 64)
-Save-DemoJson 'rule-table-references.json' @(Get-RuleTableReferences -AlertRules $rulesForRefs)
-Save-DemoJson 'template-table-references.json' @(Get-TemplateTableReferences -Templates $templatesForRefs -AlertRules $rulesForRefs)
-Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTableReferences -Detections $detectionsForRefs)
+Save-DemoJson 'rule-table-references.json' @(Get-RuleTableReference -AlertRules $rulesForRefs)
+Save-DemoJson 'template-table-references.json' @(Get-TemplateTableReference -Templates $templatesForRefs -AlertRules $rulesForRefs)
+Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTableReference -Detections $detectionsForRefs)
 
-. (Join-Path $engine 'Private/Get-SentinelCostEstimate.ps1')
+# The cost estimate, gap checks and maturity assessment (the module's own
+# Private folders), defined in this scope.
+foreach ($area in 'Lookup', 'Format', 'Cost', 'GapAnalysis', 'Gap', 'Maturity') {
+    $areaFolder = Join-Path -Path $moduleRoot -ChildPath 'Private' -AdditionalChildPath $area
+    foreach ($areaFile in Get-ChildItem -LiteralPath $areaFolder -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
+        . $areaFile.FullName
+    }
+}
 Save-DemoJson 'cost-estimate.json' (Get-SentinelCostEstimate -InputRoot $raw -ResourcesRoot $resources)
-. (Join-Path $engine 'Private/Get-SentinelGap.ps1')
 $outcomes = [System.Collections.Generic.List[object]]::new()
-$findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources -RulesPath (Join-Path $resources 'best-practices.json') -GapChecksPath (Join-Path $engine 'Private/GapChecks.ps1') -OutcomeCollector $outcomes
+$findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources -RulesPath (Join-Path $resources 'best-practices.json') -OutcomeCollector $outcomes
 Save-DemoJson 'gap-analysis.json' @($findings)
 Save-DemoJson 'gap-checks.json' $outcomes.ToArray()
-. (Join-Path $engine 'Private/Get-SentinelMaturity.ps1')
-Save-DemoJson 'maturity.json' (Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $resources -CriteriaPath (Join-Path $resources 'maturity-criteria.json') -GapOutcomes $outcomes.ToArray() -TargetLevel 3)
+Save-DemoJson 'maturity.json' (Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $resources -CriteriaPath (Join-Path $resources 'maturity-criteria.json') `
+        -GapOutcomes $outcomes.ToArray() -TargetLevel 3)
 
 # ---------------------------------------------------------------------------
 # Optionally the report and the dashboard
 # ---------------------------------------------------------------------------
 $bundle = $null
 if ($Build) {
-    # The renderer and the build are not written for strict mode, which a
-    # child script inherits from this one.
+    # The module's own commands render the section model and build the
+    # bundle, as a real run does. Strict mode stays off from here on, as it
+    # has been since the renderer and the build ran as child scripts.
     Set-StrictMode -Off
-    & (Join-Path $engine 'Convert-SentinelInventoryToMarkdown.ps1') -WorkspaceName $WorkspaceName -InputRoot $OutputPath -OutputRoot $OutputPath -ResourcesRoot $resources -InformationAction SilentlyContinue *> $null
-    $bundle = & (Join-Path $engine 'SharePoint/Build-SentinelDocsSite.ps1') -Source $OutputPath -SkipWhatsNew 6> $null
+    Import-Module (Join-Path $RepoPath 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
+    ConvertTo-iSOCBlueprint -WorkspaceName $WorkspaceName -Path $OutputPath -OutputPath $OutputPath -ResourcesPath $resources `
+        -InformationAction SilentlyContinue *> $null
+    $bundle = (New-iSOCBlueprintSite -Path $OutputPath -SkipWhatsNew 6> $null).Path
     # The maturity trend reads the history the publisher keeps on the site,
     # which a local bundle lacks; the demo carries a quarter's climb to
     # today's score so the panel shows: twelve runs about a week apart, the
@@ -1241,15 +2533,28 @@ if ($Build) {
         $runAgo = { param([int] $w) [int][math]::Round(7.5 * $w, [System.MidpointRounding]::AwayFromZero) }
         $entries = for ($w = 12; $w -ge 0; $w--) {
             $lift = 0.55 * $w / 12.0
-            $when = Format-DemoTime $asOfUtc.AddDays(-(& $runAgo $w))
+            $when = Format-DemoTime $asOfUtc.AddDays( - (& $runAgo $w))
             [ordered]@{ publishedUtc = $when; bundleBuiltUtc = $when; targetLevel = [int]$maturity.targetLevel
-                overall = [ordered]@{ score = [math]::Round([math]::Max(1.0, $now - $lift + $(if ($w -gt 0) { Get-DemoBetween -0.04 0.04 } else { 0 })), 2); level = [int]$maturity.overall.level }
-                areas = @($i = 0; foreach ($a in @($maturity.areas)) {
+                overall = [ordered]@{
+                    score = [math]::Round([math]::Max(1.0, $now - $lift + $(if ($w -gt 0) { Get-DemoBetween -0.04 0.04 } else { 0 })), 2)
+                    level = [int]$maturity.overall.level
+                }
+                areas   = @($i = 0; foreach ($a in @($maturity.areas)) {
                         $pace = $areaPace[$i++ % $areaPace.Count]
-                        [ordered]@{ id = [string]$a.id; score = $(if ($null -ne $a.score) { [math]::Round([math]::Min(5.0, [math]::Max(1.0, [double]$a.score - $lift * $pace)), 2) } else { $null }) }
-                    }) }
+                        [ordered]@{
+                            id    = [string]$a.id
+                            score = $(
+                                if ($null -ne $a.score) {
+                                    [math]::Round([math]::Min(5.0, [math]::Max(1.0, [double]$a.score - $lift * $pace)), 2)
+                                } else { $null }
+                            )
+                        }
+                    })
+            }
         }
-        Set-Content -LiteralPath (Join-Path $bundle 'maturity-history.json') -Value (ConvertTo-Json -InputObject ([ordered]@{ entries = @($entries) }) -Depth 16) -Encoding utf8NoBOM
+        Set-Content -LiteralPath (Join-Path $bundle 'maturity-history.json') -Value (ConvertTo-Json -InputObject ([ordered]@{
+                    entries = @($entries)
+                }) -Depth 16) -Encoding utf8NoBOM
     }
     # The Progress tab compares runs; the demo carries the same quarter of
     # runs, each a step behind today's on the same climb: findings
@@ -1259,12 +2564,12 @@ if ($Build) {
     # met until last week is a gap now.
     $progressPath = if ($bundle) { Join-Path $bundle 'progress.json' } else { $null }
     if ($progressPath -and (Test-Path -LiteralPath $progressPath)) {
-        . (Join-Path $engine 'SharePoint/Private/Get-SacProgress.ps1')
+        foreach ($helper in @(Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private/SiteShared') -Filter '*.ps1' -File -Recurse | Sort-Object FullName)) { . $helper.FullName }
         $now = Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json -Depth 32
         $firing = @($now.sets.findings | ForEach-Object { [string]$_.id })
         $fixed = @((Get-Content -LiteralPath (Join-Path $resources 'best-practices.json') -Raw | ConvertFrom-Json -Depth 16).rules |
-            Where-Object { $firing -notcontains [string]$_.id -and $_.severity -in 'Critical', 'Warning' } | Select-Object -First 8 |
-            ForEach-Object { [ordered]@{ id = [string]$_.id; severity = [string]$_.severity; title = [string]$_.title } })
+                Where-Object { $firing -notcontains [string]$_.id -and $_.severity -in 'Critical', 'Warning' } | Select-Object -First 8 |
+                ForEach-Object { [ordered]@{ id = [string]$_.id; severity = [string]$_.severity; title = [string]$_.title } })
         $nowRules = @($now.sets.rules); $nowTech = @($now.sets.techniques); $nowTables = @($now.sets.tables); $nowUncovered = @($now.sets.uncovered)
         $coveredNow = @($nowTables | Where-Object { $nowUncovered -notcontains $_ })
         $metNow = @($now.sets.criteria | Where-Object { $_.status -eq 'M' } | ForEach-Object { [string]$_.id })
@@ -1274,9 +2579,20 @@ if ($Build) {
             $f = $w / 12.0
             $rules = @($nowRules | Select-Object -First ($nowRules.Count - [int][math]::Round($nowRules.Count * 0.3 * $f)))
             $tech = @($nowTech | Select-Object -First ($nowTech.Count - [int][math]::Round($nowTech.Count * 0.25 * $f)))
-            $findings = @($now.sets.findings | Where-Object { [string]$_.id -ne $newId }) + @($fixed | Select-Object -First ([int][math]::Round($fixed.Count * $f)))
+            $findings = @(
+                $now.sets.findings | Where-Object { [string]$_.id -ne $newId }
+            ) + @($fixed | Select-Object -First ([int][math]::Round($fixed.Count * $f)))
             $wasGap = @($metNow | Select-Object -First ([int][math]::Round($metNow.Count * 0.3 * $f)))
-            $criteria = @($now.sets.criteria | ForEach-Object { [ordered]@{ id = [string]$_.id; name = [string]$_.name; status = $(if ([string]$_.id -eq $slipped) { 'M' } elseif ($wasGap -contains [string]$_.id) { 'G' } else { [string]$_.status }) } })
+            $criteria = @(
+                $now.sets.criteria |
+                    ForEach-Object {
+                        [ordered]@{
+                            id     = [string]$_.id
+                            name   = [string]$_.name
+                            status = $(if ([string]$_.id -eq $slipped) { 'M' } elseif ($wasGap -contains [string]$_.id) { 'G' } else { [string]$_.status })
+                        }
+                    }
+            )
             $uncovered = @($nowUncovered) + @($coveredNow | Select-Object -Last ([int][math]::Round($coveredNow.Count * 0.2 * $f)))
             $bySev = { param($s) @($findings | Where-Object { $_.severity -eq $s }).Count }
             $m = $now.metrics
@@ -1284,8 +2600,8 @@ if ($Build) {
             foreach ($a in @($entries[12 - $w].areas)) { $areas[[string]$a.id] = $a.score }
             [ordered]@{
                 schemaVersion = 1
-                date          = $asOfUtc.AddDays(-(& $runAgo $w)).ToString('yyyy-MM-dd')
-                generatedUtc  = $asOfUtc.AddDays(-(& $runAgo $w)).ToString('yyyy-MM-dd HH:mm') + ' UTC'
+                date          = $asOfUtc.AddDays( - (& $runAgo $w)).ToString('yyyy-MM-dd')
+                generatedUtc  = $asOfUtc.AddDays( - (& $runAgo $w)).ToString('yyyy-MM-dd HH:mm') + ' UTC'
                 windowDays    = $now.windowDays
                 currency      = $now.currency
                 metrics       = [ordered]@{
@@ -1314,11 +2630,19 @@ if ($Build) {
                     mttrMinutes       = [math]::Round([double]$m.mttrMinutes * (1 + 0.4 * $f), 1)
                 }
                 areas         = $areas
-                sets          = [ordered]@{ findings = $findings; criteria = $criteria; rules = $rules; techniques = $tech; tables = $nowTables; uncovered = $uncovered }
+                sets          = [ordered]@{
+                    findings   = $findings
+                    criteria   = $criteria
+                    rules      = $rules
+                    techniques = $tech
+                    tables     = $nowTables
+                    uncovered  = $uncovered
+                }
             }
         }
         $history = Merge-SacProgressHistory -History $null -Records (@($records) + , $now) -Days 90
-        Set-Content -LiteralPath (Join-Path $bundle 'progress-history.json') -Value (ConvertTo-Json -InputObject $history -Depth 32 -Compress) -Encoding utf8NoBOM
+        Set-Content -LiteralPath (Join-Path $bundle 'progress-history.json') -Value (ConvertTo-Json -InputObject $history -Depth 32 -Compress) `
+            -Encoding utf8NoBOM
     }
 }
 
@@ -1328,20 +2652,20 @@ $avgDay = [math]::Round((($dayTotal[0..($window30 - 1)]) | Measure-Object -Avera
     Raw     = $raw
     Bundle  = $bundle
     Summary = [pscustomobject]@{
-        AverageGbPerDay = $avgDay
+        AverageGbPerDay  = $avgDay
         CommitmentTierGb = $commitmentGb
-        Tables          = $tableSpec.Count
-        Rules           = $alertRules.Count
-        EnabledRules    = @($alertRules | Where-Object { $_.properties.enabled }).Count
-        Templates       = $templates.Count
-        HuntingQueries  = @($hunting).Count
+        Tables           = $tableSpec.Count
+        Rules            = $alertRules.Count
+        EnabledRules     = @($alertRules | Where-Object { $_.properties.enabled }).Count
+        Templates        = $templates.Count
+        HuntingQueries   = @($hunting).Count
         CustomDetections = $detections.Count
-        Playbooks       = $playbooks.Count
-        Workbooks       = @($workbooks).Count
-        Watchlists      = @($watchlists).Count
-        AutomationRules = $automation.Count
-        Alerts          = [long](@($volumes | ForEach-Object { $_.Alerts }) | Measure-Object -Sum).Sum
-        Incidents       = $incidents.Count
-        Findings        = @($findings).Count
+        Playbooks        = $playbooks.Count
+        Workbooks        = @($workbooks).Count
+        Watchlists       = @($watchlists).Count
+        AutomationRules  = $automation.Count
+        Alerts           = [long](@($volumes | ForEach-Object { $_.Alerts }) | Measure-Object -Sum).Sum
+        Incidents        = $incidents.Count
+        Findings         = @($findings).Count
     }
 }

@@ -4,6 +4,358 @@ Customer-facing changes to Sentinel-As-Code, newest first. Releases use CalVer
 (`YY.0M`) — see [Versioning](Versioning.md). "Wave N" was the previous release
 label (now retired); the wave → CalVer mapping is in [Versioning](Versioning.md).
 
+## Unreleased
+
+- **iSOCDeployments module started (in development)** - the module that
+  will replace the deploy, export, drift and change scripts under
+  `Deploy/` and `Tools/` in 26.11.0 is being built beside them in
+  `Modules/iSOCDeployments`. It has its core (logging, one REST client
+  over `Invoke-AzRestMethod`, a read-only workspace context from
+  `Connect-iSOCWorkspace`, the YAML and KQL helpers, comparers) and a
+  content type registry, `Deploy-iSOCContent` for every content type
+  `Deploy-CustomContent.ps1` deploys: parsers, watchlists, analytics rules,
+  hunting queries, playbooks, workbooks, automation rules and summary rules
+  (sending the same requests and running the same playbook deployments as
+  the script, with smart deployment, dependency checks and a `-WhatIf` that
+  writes nothing and, unlike the script's, really validates playbook
+  templates), and the Defender XDR custom detections
+  `Deploy-DefenderDetections.ps1` deploys (the same Graph requests, with
+  the same controls as the rest of the content, and a `-WhatIf` that reads
+  the tenant's rules to say which it would update and which create), the
+  Content Hub commands `Get-iSOCContentHubSolution` and
+  `Install-iSOCContentHubSolution`, which replace
+  `Deploy-SentinelContentHub.ps1` (the same writes, an outcome for every
+  solution and template, and a `-WhatIf` that, unlike the script's, writes
+  no rule metadata), `Compare-iSOCContent`, `Sync-iSOCContent` and
+  `Export-iSOCDriftReport`, which replace `Tools/Test-SentinelRuleDrift.ps1`
+  (the same buckets, absorbed files and report names; a query edited in
+  the portal is absorbed with its line breaks rather than collapsed onto
+  one line, a source left out is skipped rather than exported again as
+  orphans, and the report no longer carries the subscription id),
+  `Get-iSOCTableMigrationImpact` and `Export-iSOCTableMigrationReport`,
+  which replace `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` (the
+  same dependents, chains and reports; the review is returned as an
+  object, and the report's copyable commands are the module's),
+  `Invoke-iSOCClassicTableMigration`, which replaces
+  `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` (the same
+  migrations, rule templates, deployments and grants, through the REST
+  client, with a run result and exit code),
+  `New-iSOCClassicTableFixture`, `Remove-iSOCClassicTableFixture` and
+  `Test-iSOCDcrIngestion`, which replace the classic table fixture and the
+  ingestion test under `Tools/ClassicToDcr/Rehearsal/` (the same signed
+  posts, token requests and ingestion; a `.env` file's settings are no
+  longer left in the session's environment), `New-iSOCDependencyFixture`
+  and `Remove-iSOCDependencyFixture`, which replace
+  `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` (the same
+  objects, markers and guards, so either removes the other's fixture),
+  `New-iSOCDcrFromSchema`, which replaces
+  `Tools/DcrFromSchema/New-DcrFromSchema.ps1` (the same checks, repairs,
+  templates, deployments and grants, without the prompts: the workspace
+  comes from `Connect-iSOCWorkspace` and every other value from a
+  parameter, the schema file or the default),
+  `Deploy-iSOCWorkspace`, which runs the deploy pipelines' later stages
+  in order as one command (workspace settings, Content Hub solutions,
+  custom content behind the dependency manifest check, and Defender
+  detections, each held back when the stage gating it failed, the same on
+  both platforms), `Get-iSOCWorkspaceOnboarding` and the workspace setting type, which
+  replace the inline PowerShell of the deploy pipelines' first stages (the
+  GitHub workflow's onboarding check, which Azure DevOps lacked, for both;
+  the UEBA, Entity Analytics, anomalies and EyesOn settings as files under
+  `Content/WorkspaceSettings/`, deployed first by `Deploy-iSOCContent`, and
+  skipped with a warning when the deployment may not change them),
+  `Initialize-iSOCServicePrincipal`, which replaces
+  `Deploy/setup/Setup-ServicePrincipal.ps1` (the same grants; one Graph
+  sign-in with every scope it needs, which the script's second Graph step
+  could lack, and no Graph modules installed),
+  `Grant-iSOCPlaybookPermission`, `Grant-iSOCRunbookPermission` and
+  `Revoke-iSOCRunbookPermission`, which replace the scripts under
+  `Deploy/permissions/` (the same role assignments, through the REST
+  client rather than Az.Resources and the az CLI, with `-WhatIf` and a
+  confirmation prompt), `Import-iSOCCommunityRule`, which replaces
+  `Tools/Import-CommunityRules.ps1`
+  (the same rules and ids, from a source definition rather than settings
+  fixed in the script; a `-WhatIf` that tells new rules from updated ones,
+  and a repeat import that changes no file), `Export-iSOCContent`, which
+  replaces `Tools/Export-SentinelWorkbooks.ps1`
+  and brings in the playbook exporter that was never merged (the same
+  files; an item the repository has is found by its id wherever its file
+  is and written over only with `-Force`, so an export no longer writes a
+  second folder for a workbook whose name makes another folder name, and
+  a re-export no longer changes files that have not changed), and the
+  dependency manifest commands
+  (`Test-iSOCDependencyManifest`, `Update-iSOCDependencyManifest`,
+  `Get-iSOCContentDependency`), which write `dependencies.json` as
+  `Tools/Build-DependencyManifest.ps1` did, naming the module in its
+  description. Its logger breaks up
+  any text that Azure DevOps or GitHub Actions would read as a pipeline
+  command, so a rule or workbook name set in the portal cannot set
+  pipeline variables. The Azure DevOps deploy, drift, dependency manifest
+  update and PR gate pipelines run it, with no scripts left beside it. Its
+  steps may not set pipeline variables or change PATH, and the bot commit
+  steps take their branch names through env from read-only variables. The
+  deploy pipeline gives Bicep `deploySentinel` from the onboarding check,
+  and deploys the workspace settings on every run in a stage of their own.
+  The scripts it replaced (`Deploy/content/`, `Deploy/permissions/`,
+  `Deploy/setup/Setup-ServicePrincipal.ps1`, the dependency manifest,
+  drift, workbook export and community import scripts under `Tools/`, and
+  the classic table and schema kits under `Tools/ClassicToDcr` and
+  `Tools/DcrFromSchema`) are removed with their suites, and so is
+  `Modules/Sentinel.Common`. `sentinel-deployment.config` moves to the
+  repository root, the schema examples and the rehearsal `.env.example`
+  move into the module's `Resources/`, and the solution mapping updater
+  (`Tools/update-solution-mapping.mjs`) writes the module's copy. The
+  GitHub workflows still call the removed scripts and move to the module
+  next. See
+  [iSOCDeployments](../Modules/iSOCDeployments/README.md) and its
+  [migration map](../../Modules/iSOCDeployments/MIGRATION.md).
+- **iSOC Blueprint is functions, not scripts** - the eight engine scripts under
+  `Modules/iSOCBlueprint/Engine` (`Export-SentinelInventory.ps1`,
+  `Convert-SentinelInventoryToMarkdown.ps1`, `Convert-MarkdownToWord.ps1`,
+  `Build-SentinelDocsSite.ps1`, `Publish-SentinelDocsSite.ps1`,
+  `Initialize-SentinelDocsSite.ps1`, `Convert-MermaidToImage.ps1` and
+  `Update-ConnectorCatalogue.ps1`) and their loaders are gone. Each public
+  command calls a private function directly, and the commands, their
+  parameters and what they write are unchanged. The module is one function to
+  a file under `Private/`, and the static files it reads (rules and
+  catalogues, the section schemas, the Word reference document, the dashboard
+  templates) moved from `Engine/` to `Modules/iSOCBlueprint/Resources`. Anything
+  that ran an Engine script by path calls the command instead
+  (`Export-iSOCBlueprintInventory`, `ConvertTo-iSOCBlueprint`,
+  `Export-iSOCBlueprintWord`, `New-iSOCBlueprintSite`,
+  `Publish-iSOCBlueprintSite`, `Initialize-iSOCBlueprintSite`,
+  `ConvertTo-iSOCBlueprintChartImage` or
+  `Update-iSOCBlueprintConnectorCatalogue`), and `Tools/Migrate-ForkLayout.ps1`
+  moves a fork's customised rules, schemas, templates and reference document to
+  `Resources` from either earlier layout. Four behaviours change with it. The
+  Word conversion stops with an error when pandoc, the source folder or the
+  reference document is missing, or when pandoc fails; it used to return
+  quietly, and `New-iSOCBlueprint` went on without a report. A command that
+  needs a missing module says "This command needs: ..." in place of
+  PowerShell's script-requirements error. The navigation preview of
+  `Publish-iSOCBlueprintSite -WhatIf` now lists the pages the run would
+  create, which it left out. And the references page (page 99 of a report)
+  names `Invoke-CaptureAttempt` and `Resources/Data` where it named
+  `Try-Capture` and `Private/Resources`. The SharePoint web part is 1.15.1 (its
+  "dashboard not found" message names `Publish-iSOCBlueprintSite`); upload the
+  new package to the app catalogue to take it.
+- **Playbooks are Bicep** - the 90 playbooks under `Content/Playbooks/`
+  are Bicep files now, converted by the new `Convert-iSOCPlaybook`, which
+  compiled each and proved it deploys exactly what its ARM template did
+  before removing the JSON. `Template/Template.bicep` replaces the old
+  JSON skeleton, with the repository's own conventions (`PlaybookName`, the
+  `Source: Sentinel-As-Code` tag, roles from `Grant-iSOCPlaybookPermission`
+  rather than a nested role assignment). `Export-iSOCContent` writes new
+  playbooks as Bicep through the module's own writer (`-Format Json` for
+  JSON), `Deploy-iSOCContent` reads and deploys `.bicep` and `.json`
+  playbooks, and `Content/Playbooks/bicepconfig.json` keeps them building
+  without warnings. The deploy and PR-validation pipelines put the Bicep
+  CLI on the PATH, and the PR checks build every playbook (failing on a
+  warning) and validate it against a resource group. **For forks:** your
+  JSON playbooks keep deploying; to move to Bicep, copy
+  `Content/Playbooks/bicepconfig.json` into yours and run
+  `Convert-iSOCPlaybook -WhatIf`, then `Convert-iSOCPlaybook`. Deploying a
+  Bicep playbook needs the Bicep CLI on the PATH (`az bicep install` puts
+  it in `~/.azure/bin`). The Bicep follows Bicep's own conventions: every
+  parameter is described, a `location` parameter holds the region, names
+  are in camel case with each API connection named after its API
+  (`microsoftSentinelConnection`), managed API ids use
+  `subscriptionResourceId()`, and the Logic Apps are at api-version
+  `2019-05-01`, which Bicep has types for. See
+  [Playbooks](../Content/Playbooks.md).
+- **PowerShell 7.6 or later** - both modules, every script and every test
+  now declare PowerShell 7.6, the LTS release supported until 14 November
+  2028. They declared 7.2, which went out of support in November 2024
+  (the SharePoint publisher declared 7.4); 7.4 and 7.5 go out of support
+  on 10 November 2026. `Test-iSOCDeploymentPrerequisite` and
+  `Test-iSOCBlueprintPrerequisite` check for 7.6, and `iSOCBlueprint` is
+  26.11.0. The Microsoft-hosted agents on Azure DevOps and GitHub have run
+  PowerShell 7.6 since June 2026, so the pipelines run as they are, and
+  Azure Cloud Shell has shipped 7.6 since March 2026. A new suite,
+  `Tests/Test-PowerShellVersion.Tests.ps1`, fails the PR gate for any
+  script, manifest, pipeline step, Automation runtime environment or
+  document that names an older version. The DCR watchlist runbook moves
+  from Azure Automation's PowerShell 7.2 runtime, retired on 30 September
+  2026, to a PowerShell 7.6 runtime environment, `PowerShell-76`, whose Az
+  15.1.0 package replaces the pinned Az.Accounts 3.0.5. **For forks:** run the modules and tools in
+  PowerShell 7.6 or later, and on a self-hosted agent install 7.6 before
+  running the pipelines. If the DCR inventory pipeline's infrastructure
+  stage then fails with `Update runbook with definition of different
+  runbook kind`, delete the `Invoke-DCRWatchlistSync` runbook once and
+  run it again (see [DCR Watchlist](../Tools/DCR-Watchlist.md)); the old
+  Az.Accounts module stays in the account, unused.
+- **Six Defender XDR custom detections deploy again** - the conversion to
+  the current Graph rule shape put each rule's techniques under its one old
+  category, and in six rules a technique sat under a tactic it does not
+  belong to in MITRE ATT&CK (Proxy under Initial Access, for example).
+  Those six failed to deploy. Each keeps its tactic, now with a technique
+  that belongs to it, and gains an entry for each tactic its other
+  techniques belong to: Sign-in from known TOR exit node IP, Mass file
+  download from SharePoint or OneDrive, Mailbox delegation or permission
+  added via Exchange, Lateral movement via PsExec or remote service
+  creation, Living-off-the-land binary execution chain detected, and
+  Suspicious WMI remote process execution. The iSOCDeployments validator
+  now checks every technique against its tactic in MITRE ATT&CK 18.1, the
+  last release whose tactics are the ones Graph accepts, and the content
+  suite fails a rule that does not. **For forks:** check any rule
+  you converted from `category` and `mitreTechniques`; see
+  [Tactics and techniques](../Content/Defender-Custom-Detections.md#tactics-and-techniques).
+- **A classic table fixture stream ends when its posts fail** -
+  `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1 -Stream
+  -BatchCount` counted only the batches that were accepted, so a stream
+  whose posts all failed (a wrong key, a network fault) never reached its
+  limit and ran until stopped. 1.0.2 counts every batch. Its help,
+  `New-DependencyFixture.ps1` (1.0.2), the kit README and the toolkit page
+  also said the HTTP Data Collector API stops
+  working on 2026-09-14; Microsoft ended support on that date but still
+  accepts data from TLS 1.2 clients, and the wording now says so.
+- **Classic table migration templates are the same file each time** -
+  `Tools/ClassicToDcr/Invoke-ClassicTableMigration.ps1` built each data
+  collection rule template's top level as a hashtable, whose key order
+  changes from one PowerShell process to the next, so a template written
+  again for the same table differed from the one committed. 2.0.2 writes
+  the keys in a fixed order, and so does
+  `Tools/DcrFromSchema/New-DcrFromSchema.ps1` 0.1.1, whose table and rule
+  templates had the same fault.
+- **The table migration review finds workbooks again** -
+  `Tools/ClassicToDcr/Invoke-TableMigrationReview.ps1` listed the
+  workspace's Sentinel workbooks without `canFetchContent`, and without it
+  Azure returns each workbook's summary only, with no content, so no
+  workbook ever showed as depending on a classic table. 0.2.2 lists them
+  with their content and reads on its own any workbook the list still
+  returns without it. **For forks:** a review run before this release
+  under-reported workbooks; run it again before migrating a table.
+- **Playbook permissions grant only what each playbook needs** -
+  `Deploy/permissions/Set-PlaybookPermissions.ps1` looked for a PUT
+  request with the pattern `method.*put`, which matches any method
+  followed anywhere by "inputs" or "outputs", so it gave Microsoft
+  Sentinel Contributor to 44 of the 90 playbooks in this repository that
+  otherwise needed Responder or nothing from Sentinel. It now matches a
+  `"method": "put"` pair. Its check for an assignment the identity already
+  has compared the role's full resource id with the bare GUID
+  `Get-AzRoleAssignment` returns, so it never matched (a run relied on
+  Azure refusing the duplicate, and `-WhatIf` listed every role as one it
+  would assign); it now compares the GUID and counts an assignment
+  inherited from above. It also read workflow properties a playbook may not
+  have, which the strict mode it runs under refuses. **For forks:**
+  assignments the earlier script made stay until someone removes them;
+  review Microsoft Sentinel Contributor on the playbooks' identities.
+- **The community importer imports rules again, and keeps rule ids
+  stable** - `Tools/Import-CommunityRules.ps1` imported nothing. It
+  skipped every YAML source rule with "could not parse YAML as a
+  hashtable": `ConvertFrom-Yaml -Ordered` returns an ordered dictionary,
+  which its check rejected. And under the `Set-StrictMode -Version Latest`
+  it runs with, its required-field check read `.Count` of a result that
+  was empty or a single field name, which throws, so every rule missing
+  no more than one field was skipped, YAML and ARM alike; an ARM rule
+  without one of the optional properties (custom details, alert details
+  override, entity mappings, incident configuration) also failed where it
+  read that property. It now reads either
+  kind of mapping in the source's key order, checks the fields safely, and
+  reads only the ARM properties a rule has; `Tests/Test-ImportCommunityRules.Tests.ps1`
+  now runs those functions under strict mode, as the script does. It also settles ids
+  before it writes: a rule keeps the id its file already has in the
+  repository, and a rule whose upstream id another rule file uses gets a
+  stable version 5 GUID from the source repository and its path, so the
+  upstream's reused ids can no longer make one rule overwrite another. The
+  next import rewrites the Dalonso rules into the importer's normalised
+  form (`enabled: false`, full trigger operator names, merged tags), which
+  the files in the repository predate.
+- **Twelve Community rules get ids of their own** - twelve CommonSecurityLog
+  rules under `Content/AnalyticalRules/Community/Dalonso/` shared their ids
+  with twelve SigninLogs rules, because the upstream reuses ids across its
+  categories. The deployer names a rule by its id, so with community rules
+  deployed (both deploy pipelines skip them by default) each deploy
+  overwrote one rule of every pair and only twelve of the twenty-four
+  existed. The CommonSecurityLog rules now have new ids, and the id
+  uniqueness check in `Tests/Test-AnalyticalRuleYaml.Tests.ps1`, which used
+  to skip `Community/`, covers the whole tree. **For forks that deploy
+  community rules:** the next deploy creates the twelve CommonSecurityLog
+  rules under their new ids, and the old ids hold the SigninLogs rules.
+- **Defender XDR custom detections move to the current Graph rule shape** -
+  Microsoft removed the original custom detection fields from the Graph
+  beta API on 1 October 2026: `isEnabled`, `schedule.period`,
+  `alertTemplate.category` and `mitreTechniques`, `impactedAssets` and
+  `responseActions`. They are replaced by `status`, an ISO 8601
+  `schedule.frequency`, `alertTemplate.tactics`, `entityMappings` and
+  `automatedActions`, which name query result columns where the old fields
+  named identifier tokens, and Graph now needs a client-provided `id` to
+  create a rule. All 33 rules under `Content/DefenderCustomDetections/` are
+  converted (each mapped column checked against the columns its query
+  returns), `Deploy-DefenderDetections.ps1` sends the current shape, and CI
+  rejects the old names. **For forks:** a rule you wrote in the old shape
+  still deploys, translated with a warning, but CI fails on it; convert it
+  with the field table in
+  [Defender Custom Detections](../Content/Defender-Custom-Detections.md#moving-a-rule-from-the-old-shape)
+  and give it an `id` before it can be created in a new tenant. The Sentinel
+  as Code Toolkit's schema still describes the old fields until it is
+  updated.
+- **Analytics rule sub-techniques reach the workspace again** - every GA
+  version of the alert rules API (2024-09-01 to 2025-09-01) leaves out
+  `subTechniques` and `sentinelEntitiesMappings`: a PUT on GA succeeds and
+  silently drops them. When `Deploy-CustomContent.ps1` moved from
+  `2025-07-01-preview` to GA `2025-09-01`, a rule's sub-techniques (the
+  `T####.###` entries in `relevantTechniques`) stopped being deployed, and
+  Content Hub rules lost the sub-techniques their templates carry. Every
+  `alertRules` call in `Deploy-CustomContent.ps1`,
+  `Deploy-SentinelContentHub.ps1` and `Test-SentinelRuleDrift.ps1` now uses
+  `$script:AlertRuleApiVersion` (`2025-07-01-preview`); everything else
+  stays on GA. The drift detector also writes a rule's sub-techniques into
+  the YAML it creates when it absorbs a Content Hub or orphan rule. Rules
+  deployed while the deployer was on GA are only re-sent when they change,
+  so to backfill their sub-techniques run the deploy pipeline once with
+  **Smart Deployment** off (custom rules) and **Force Content
+  Redeployment** on (Content Hub rules; a rule customised in the portal is
+  still skipped, as before).
+- **Drift stops flagging duration spelling, and its reports stop carrying
+  host and tenant detail** - ISO 8601 writes one duration several ways and
+  the API returns its own spelling, so drift detection reported every rule
+  written as `PT24H` as edited when the API read back `P1D`, and the drift
+  bot rewrote its YAML. `Test-SentinelRuleDrift.ps1` now compares
+  `queryFrequency` and `queryPeriod` by the length they describe, and
+  `Test-RuleIsCustomised` in `Deploy-SentinelContentHub.ps1` does the same,
+  so a Content Hub rule is no longer marked customised (and skipped by
+  **Protect Customised Rules**) over spelling alone. The committed drift
+  reports now give file paths relative to the repository, not the build
+  agent's absolute path, and no longer include the subscription id.
+- **Protect Customised Rules can be turned off, and GitHub keeps
+  deployment state** - the deploy pipelines only passed
+  `-ProtectCustomisedRules` when the toggle was on, and the script's
+  parameter defaults to on, so turning the toggle off changed nothing:
+  customised Content Hub rules were always skipped. Both pipelines now pass
+  the toggle's value either way. On GitHub, the deploy workflow cached
+  `.deployment-state.json`, a file the deployer never writes (it writes
+  `deployment-state.json`), so smart deployment always started without
+  state and could not retry failed items; the cache now holds the right
+  file.
+- **Pipelines pinned and ready for a release branch** - the Azure DevOps
+  deploy, drift and PR-validation pipelines install Pester 5.7.1 and
+  powershell-yaml 0.4.12 exactly, as the GitHub workflows already did. The
+  PR gates on both platforms also run for `release/*` branches (ADO also
+  gates changes that touch only pipeline or workflow files), and the drift,
+  dependency-update and solution-mapping bots only commit and open pull
+  requests from `main`. Add the ADO build-validation policy for `release/*`
+  and include `release/**` in the GitHub ruleset to make the gate required.
+- **The PR gate fails when a test suite cannot load** -
+  `Tools/Invoke-PRValidation.ps1`, which both PR pipelines run, decided
+  its exit code from Pester's failed-test count alone. Pester counts a
+  suite whose `BeforeDiscovery` or top-level code throws, or that does not
+  parse, as a failed container: none of its tests is discovered, so the
+  count stays at zero, the suite was skipped and the check passed. A
+  failed `AfterAll`, whose tests still pass, was missed the same way. The
+  gate now fails on a failed test, a failed `BeforeAll` or `AfterAll`
+  block, or a suite that cannot be loaded, counts each in its summary, and
+  names every failed suite and block with its error. A new suite,
+  `Tests/Test-InvokePRValidation.Tests.ps1`, runs the gate against
+  throwaway repositories with each kind of failure.
+
+- **The site publisher stops when its access token runs out** - the
+  publisher has always documented that a run using `-AccessToken` stops with
+  a clear error once the token has been in use for `-TokenLifetimeMinutes`
+  (50 by default), because an access token cannot be refreshed. The check
+  never fired, so a long run went on until the token expired. It now stops before the next stage and says how long the
+  token had been in use. An interactive sign-in is not checked, as it
+  refreshes itself.
+
 ## 26.10.0
 
 The iSOC Blueprint release. The Documenter becomes `iSOCBlueprint`, a
@@ -946,7 +1298,7 @@ from the synthetic demo workspace. The four changes merged to `main` since
   `Pipelines/Sentinel-Blueprint.yml` drops its mermaid-cli install and
   pre-render step (and the `mermaidCliVersion` variable). The section
   pages reuse the PNGs when the Document stage already made them
-  (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegments` leaves
+  (**Charts** ticked); otherwise `ConvertTo-SharePointPageSegment` leaves
   each Mermaid block out with no placeholder and no warning, and
   `Build-SentinelDocsSite.ps1` logs how many it left out. The GitHub
   SharePoint workflow still pre-renders.

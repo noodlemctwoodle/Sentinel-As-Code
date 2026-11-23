@@ -1,0 +1,12 @@
+id: fixture-invalid-frequency
+displayName: "Fixture: invalid frequency"
+queryCondition:
+  queryText: EmailEvents | project Timestamp, ReportId
+schedule:
+  frequency: PT2H
+detectionAction:
+  alertTemplate:
+    title: "Fixture: invalid frequency"
+    severity: low
+    tactics:
+      - tactic: Exploit

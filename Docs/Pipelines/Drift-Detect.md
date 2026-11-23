@@ -69,6 +69,12 @@ On GitHub they are `workflow_dispatch` inputs; on ADO they are pipeline
 | `skipCustom` | `false` | `-SkipCustom` | Skip the Custom (repo YAML) drift bucket |
 | `skipOrphans` | `false` | `-SkipOrphans` | Skip the Orphan (ungoverned) drift bucket |
 
+On Azure DevOps the drift step is `Compare-iSOCContent`, `Sync-iSOCContent`
+and `Export-iSOCDriftReport` from the iSOCDeployments module: the toggles
+become `-ExcludeSource`, leaving out `Sync-iSOCContent`, and the exit. The
+GitHub workflow still runs the script until it moves to the module too. See
+[the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md).
+
 Solution-name filtering is deliberately **not** exposed as a pipeline
 input. ADO `values:` lists are evaluated at compile time and cannot be
 populated from the live workspace catalogue, and hardcoding solution names
@@ -209,7 +215,9 @@ Two distinct identities are in play:
    `-FailOnDrift` flags from the inputs) and invokes
    `Tools/Test-SentinelRuleDrift.ps1`.
 5. **Commit, push, and open / refresh PR** - `shell: bash`,
-   `GH_TOKEN: GITHUB_TOKEN`, guarded by `if: ${{ inputs.reportOnly != true }}`.
+   `GH_TOKEN: GITHUB_TOKEN`, guarded by
+   `if: ${{ inputs.reportOnly != true && github.ref == 'refs/heads/main' }}`,
+   so a run dispatched on any other ref never opens a sync PR.
    See [Commit / push / PR step](#commit--push--pr-step) below.
 6. **Upload drift report artefact** (`actions/upload-artifact@v6`,
    `if: always()`) - uploads `reports/` as
@@ -222,10 +230,10 @@ Two distinct identities are in play:
 
 1. **`checkout: self`** with `persistCredentials: true` so
    `System.AccessToken` is available to git.
-2. **Install powershell-yaml Module** (`PowerShell@2`, inline) - a plain
-   `Install-Module -Name powershell-yaml -Force -Scope CurrentUser
-   -AllowClobber`. Note this installs the **latest** version, not a pinned
-   one (see the [mapping](#github---ado-mapping)).
+2. **Install powershell-yaml Module** (`PowerShell@2`, inline) - installs
+   `powershell-yaml` at exactly the `yamlVersion` pipeline variable
+   (`0.4.12`, the same pin as GitHub's `YAML_VERSION`) when that version is
+   not already present.
 3. **Detect Sentinel Rule Drift** (`AzurePowerShell@5`) -
    `azureSubscription: $(serviceConnection)`, `ScriptType: InlineScript`,
    `azurePowerShellVersion: LatestVersion`, `errorActionPreference:
@@ -233,8 +241,9 @@ Two distinct identities are in play:
    group values plus the compile-time flag strings, then invokes
    `Test-SentinelRuleDrift.ps1`.
 4. **Commit, Push, and Open PR (when drift detected)** (`bash`) - guarded
-   by `condition: and(succeeded(), ${{ ne(parameters.reportOnly, true) }})`
-   and `env: AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)`. See below.
+   by `condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))`
+   (a run queued on any branch other than `main` never commits or opens a
+   sync PR) and `env: AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)`. See below.
 
 ### Commit / push / PR step
 
@@ -253,7 +262,8 @@ them:
    avoids "Added in both" merge conflicts when a previous drift PR has
    already merged.
 4. Regenerate the dependency manifest with
-   `Tools/Build-DependencyManifest.ps1 -Mode Generate`. Absorbed rules change
+   `Update-iSOCDependencyManifest` (on GitHub, until it switches,
+   `Tools/Build-DependencyManifest.ps1 -Mode Generate`). Absorbed rules change
    the dependency graph, and the deploy and PR gates fail on a stale
    `dependencies.json`.
 5. `git add Content/AnalyticalRules reports dependencies.json` - only the
@@ -268,6 +278,12 @@ them:
    and would exceed the PR-description limits.
 8. Look for an existing open PR from the sync branch into `main`; **edit**
    its description if found, otherwise **create** a new PR.
+
+On ADO the step prints the report, which holds rule names set in the
+portal, so it runs with `target: { commands: restricted, settableVariables:
+none }`; it reads `syncBranch` and `targetBranch` through `env:`, and both
+variables are `readonly`, so no earlier step can point the push at another
+branch. The step that runs the script cannot set variables either.
 
 ## Artefacts and outputs
 
@@ -294,9 +310,9 @@ The asymmetries to be aware of:
 | Structure | Single job, six steps | One stage, one job, four steps |
 | Azure auth | OIDC via `azure-login-oidc` composite action | `sc-sentinel-as-code` service connection |
 | Git / PR auth | `GITHUB_TOKEN` (job `permissions` block) | `System.AccessToken` via `persistCredentials`, plus build-service repo grants |
-| Module install | `setup-pwsh-modules` composite, `powershell-yaml` **pinned** to `0.4.12` | Inline `Install-Module`, **latest** (unpinned) |
+| Module install | `setup-pwsh-modules` composite, `powershell-yaml` pinned to `0.4.12` | Inline `Install-Module`, pinned to `0.4.12` by the `yamlVersion` variable |
 | PR CLI | `gh pr list` / `create` / `edit`, body via `--body-file` | `az repos pr list` / `create` / `update`, body via `--description` |
-| ReportOnly guard | `if: inputs.reportOnly != true` on the commit/PR step | `condition: and(succeeded(), ne(parameters.reportOnly, true))` on the commit/PR step |
+| ReportOnly and branch guard | `if: inputs.reportOnly != true && github.ref == 'refs/heads/main'` on the commit/PR step | `condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))` on the commit/PR step |
 | Report artefact | Uploaded as a run artefact (`actions/upload-artifact@v6`) | Not uploaded; committed to the sync branch only |
 
 The **`-ReportOnly` guard now applies on both CI systems**: a report-only

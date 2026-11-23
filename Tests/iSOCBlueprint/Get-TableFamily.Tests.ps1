@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -17,28 +17,29 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.3
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Lookup)
 }
 
 Describe 'Get-TableFamily' {
     It 'maps <Table> to <Expected>' -ForEach @(
-        @{ Table = 'SigninLogs';            Expected = 'Entra ID / Identity' }
-        @{ Table = 'AuditLogs';             Expected = 'Entra ID / Identity' }
-        @{ Table = 'DeviceEvents';          Expected = 'Defender XDR' }
-        @{ Table = 'CloudAppEvents';        Expected = 'Defender XDR' }
-        @{ Table = 'Syslog';                Expected = 'Azure / Syslog' }
-        @{ Table = 'AzureActivity';         Expected = 'Azure / Syslog' }
+        @{ Table = 'SigninLogs'; Expected = 'Entra ID / Identity' }
+        @{ Table = 'AuditLogs'; Expected = 'Entra ID / Identity' }
+        @{ Table = 'DeviceEvents'; Expected = 'Defender XDR' }
+        @{ Table = 'CloudAppEvents'; Expected = 'Defender XDR' }
+        @{ Table = 'Syslog'; Expected = 'Azure / Syslog' }
+        @{ Table = 'AzureActivity'; Expected = 'Azure / Syslog' }
         @{ Table = 'ThreatIntelligenceIndicator'; Expected = 'Threat Intelligence' }
-        @{ Table = 'Firewall_CL';           Expected = 'Custom logs' }
-        @{ Table = 'Usage';                 Expected = 'Other' }
-        @{ Table = '';                      Expected = 'Other' }
+        @{ Table = 'Firewall_CL'; Expected = 'Custom logs' }
+        @{ Table = 'Usage'; Expected = 'Other' }
+        @{ Table = ''; Expected = 'Other' }
     ) {
         Get-TableFamily -Table $Table | Should -Be $Expected
     }
@@ -47,15 +48,15 @@ Describe 'Get-TableFamily' {
 Describe 'Get-ProductFamily' {
     It 'maps <Product> to <Expected>' -ForEach @(
         @{ Product = 'Azure Active Directory Identity Protection'; Expected = 'Entra ID / Identity' }
-        @{ Product = 'Microsoft Defender for Identity';            Expected = 'Entra ID / Identity' }
-        @{ Product = 'Microsoft 365 Defender';                     Expected = 'Defender XDR' }
-        @{ Product = 'Microsoft Defender for Endpoint';            Expected = 'Defender XDR' }
-        @{ Product = 'Office 365 Advanced Threat Protection';      Expected = 'Defender XDR' }
-        @{ Product = 'Microsoft Defender for Cloud';               Expected = 'Azure / Syslog' }
-        @{ Product = 'Azure Security Center for IoT';              Expected = 'Azure / Syslog' }
-        @{ Product = 'Azure Sentinel';                             Expected = 'Other' }
-        @{ Product = 'Contoso SOAR';                               Expected = 'Other' }
-        @{ Product = $null;                                        Expected = 'Other' }
+        @{ Product = 'Microsoft Defender for Identity'; Expected = 'Entra ID / Identity' }
+        @{ Product = 'Microsoft 365 Defender'; Expected = 'Defender XDR' }
+        @{ Product = 'Microsoft Defender for Endpoint'; Expected = 'Defender XDR' }
+        @{ Product = 'Office 365 Advanced Threat Protection'; Expected = 'Defender XDR' }
+        @{ Product = 'Microsoft Defender for Cloud'; Expected = 'Azure / Syslog' }
+        @{ Product = 'Azure Security Center for IoT'; Expected = 'Azure / Syslog' }
+        @{ Product = 'Azure Sentinel'; Expected = 'Other' }
+        @{ Product = 'Contoso SOAR'; Expected = 'Other' }
+        @{ Product = $null; Expected = 'Other' }
     ) {
         Get-ProductFamily -Product $Product | Should -Be $Expected
     }

@@ -114,5 +114,5 @@ won't catch column-existence errors (no schema), so:
 ## Cross-references
 
 - Discovery model: [`Docs/Tools/Dependency-Manifest.md`](../../Docs/Tools/Dependency-Manifest.md)
-- Discovery helpers: [`Modules/Sentinel.Common/Sentinel.Common.psm1`](../../Modules/Sentinel.Common/Sentinel.Common.psm1) (see `Get-KqlBareIdentifiers`)
-- Discovery tests: [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1)
+- Discovery helpers: [`Modules/iSOCDeployments/Private/Kql/`](../../Modules/iSOCDeployments/Private/Kql) (see `Get-iSOCKqlBareIdentifier`)
+- Discovery tests: [`Tests/iSOCDeployments/Kql.Tests.ps1`](../../Tests/iSOCDeployments/Kql.Tests.ps1)

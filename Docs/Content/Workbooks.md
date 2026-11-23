@@ -25,11 +25,11 @@ Content/Workbooks/
 
 ## Accepted workbook.json formats
 
-[`Deploy-CustomWorkbooks`](../../Deploy/content/Deploy-CustomContent.ps1) and the [`Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) Pester suite both accept two `workbook.json` shapes. The format is detected from the top-level keys: a top-level `resources` array selects the ARM branch; a top-level `items` array (with no `resources`) selects the gallery branch.
+`Deploy-iSOCContent` and the [`Test-WorkbookJson.Tests.ps1`](../../Tests/Test-WorkbookJson.Tests.ps1) Pester suite both accept two `workbook.json` shapes. The format is detected from the top-level keys: a top-level `resources` array selects the ARM branch; a top-level `items` array (with no `resources`) selects the gallery branch.
 
 ### Gallery notebook (top-level `version` + `items`)
 
-The raw template JSON exported from the Sentinel workbook editor (**Advanced Editor > Gallery Template**). The whole file is the notebook payload. `Deploy-CustomWorkbooks` sends it verbatim as the workbook's `serializedData`. Most in-repo workbooks (for example `MicrosoftSentinelCostGbp`, `Perimeter81`, `PfSense`, `Safeguard`, `SentinelDataLake`) use this shape. Minimal example:
+The raw template JSON exported from the Sentinel workbook editor (**Advanced Editor > Gallery Template**). The whole file is the notebook payload. `Deploy-iSOCContent` sends it verbatim as the workbook's `serializedData`. Most in-repo workbooks (for example `MicrosoftSentinelCostGbp`, `Perimeter81`, `PfSense`, `Safeguard`, `SentinelDataLake`) use this shape. Minimal example:
 
 ```json
 {
@@ -49,7 +49,7 @@ The raw template JSON exported from the Sentinel workbook editor (**Advanced Edi
 
 ### ARM deployment template (top-level `resources`)
 
-An ARM template whose `$schema` matches `.../deploymentTemplate.json#` and whose `resources` array contains at least one `Microsoft.Insights/workbooks` resource of `kind: shared`. The workbook resource carries `properties.displayName`, `properties.serializedData` (the notebook, JSON-encoded as a string), and `properties.sourceId`. [`UnifiNetworkOverview`](../../Content/Workbooks/UnifiNetworkOverview/workbook.json) is stored in this shape. When it detects the ARM `$schema`, `Deploy-CustomWorkbooks` extracts the inner workbook resource's `serializedData` before the PUT, so the notebook payload (not the ARM wrapper) is what lands in Azure. Abridged example:
+An ARM template whose `$schema` matches `.../deploymentTemplate.json#` and whose `resources` array contains at least one `Microsoft.Insights/workbooks` resource of `kind: shared`. The workbook resource carries `properties.displayName`, `properties.serializedData` (the notebook, JSON-encoded as a string), and `properties.sourceId`. [`UnifiNetworkOverview`](../../Content/Workbooks/UnifiNetworkOverview/workbook.json) is stored in this shape. When it detects the ARM `$schema`, `Deploy-iSOCContent` extracts the inner workbook resource's `serializedData` before the PUT, so the notebook payload (not the ARM wrapper) is what lands in Azure. Abridged example:
 
 ```json
 {
@@ -78,44 +78,54 @@ The ARM workbook resource `name` must be a GUID (Sentinel uses it as the workboo
 
 Two ways to author a `workbook.json`.
 
-### Option 1: bulk export via `Export-SentinelWorkbooks.ps1` (recommended)
+### Option 1: bulk export with `Export-iSOCContent` (recommended)
+
+`Export-iSOCContent -ContentType Workbook`, in the iSOCDeployments module,
+replaces `Tools/Export-SentinelWorkbooks.ps1`, which was removed in release
+26.11.0. [Export](../Modules/iSOCDeployments/Export.md) describes what a run
+does and maps each old parameter to the command.
 
 For exporting many workbooks at once, or for a one-off bootstrap of a workspace into the repo:
 
 ```powershell
-./Tools/Export-SentinelWorkbooks.ps1 `
-    -ResourceGroup 'rg-sentinel-prod' `
-    -Workspace     'law-sentinel-prod' `
-    -Region        'uksouth'
+Import-Module ./Modules/iSOCDeployments
+Connect-AzAccount
+Connect-iSOCWorkspace -ResourceGroup 'rg-sentinel-prod' -WorkspaceName 'law-sentinel-prod'
+
+# What it would write, writing nothing.
+Export-iSOCContent -ContentType Workbook -WhatIf
+
+# The workbooks the repository does not have yet.
+Export-iSOCContent -ContentType Workbook
 ```
 
 This:
 
-- Lists every workbook in the workspace via the `Microsoft.Insights/workbooks` API (with `canFetchContent=true` so the `serializedData` comes back), filtered to the target workspace.
-- Skips Content Hub-managed workbooks by default (override with `-IncludeContentHub`). Content Hub workbooks are identified by cross-referencing `Microsoft.SecurityInsights/metadata` records where `source.kind == 'Solution'` and collecting their `parentId` (the owning workbook resource ID). Large metadata responses are paged via `nextLink`. These workbooks belong to their solution, so bringing them under repo governance would conflict with Content Hub's own update flow.
-- For each remaining (Custom) workbook, writes `Content/Workbooks/<FolderName>/workbook.json` (the gallery notebook payload) and `Content/Workbooks/<FolderName>/metadata.json` (display name, description, category, source ID, **and the workbook resource GUID**).
-- Rewrites the live workspace ARM resource ID out of the exported JSON, substituting the `/subscriptions/00000000-.../resourcegroups/your-resource-group/.../workspaces/your-workspace` placeholder (`Remove-WorkspaceArmId`, case-insensitive). This is what makes an exported `workbook.json` portable across environments.
-- **Folder name = PascalCase compaction of `displayName`** (with the workspace-name suffix stripped by `Remove-WorkspaceSuffix`, which removes the trailing ` - <workspace-name>` that Sentinel appends to instantiated template display names). Non-alphanumeric runs become word boundaries; all-upper acronyms TitleCase to match the repo convention (`GBP` → `Gbp`); user-curated camelCase (e.g. `pfSense`) is preserved.
+- Reads every workbook in the workspace through the `Microsoft.Insights/workbooks` API and classes each by its source, the same way `Compare-iSOCContent` does.
+- Skips Content Hub-managed workbooks by default (add `-IncludeContentHub`). These workbooks belong to their solution, so bringing them under repo governance would conflict with Content Hub's own update flow.
+- Skips workbooks the repository already has, found by `workbookId`, unless `-Force` is given. `-Force` writes over them in place.
+- For each remaining workbook, writes `Content/Workbooks/<FolderName>/workbook.json` (the gallery notebook payload) and `Content/Workbooks/<FolderName>/metadata.json` (display name, description, category, source ID, **and the workbook resource GUID**).
+- Replaces the live workspace ARM resource ID in the exported JSON with the `/subscriptions/00000000-.../resourcegroups/your-resource-group/.../workspaces/your-workspace` placeholder. This is what makes an exported `workbook.json` portable across environments.
+- **Folder name = PascalCase compaction of `displayName`**, with the trailing ` - <workspace-name>` that Sentinel appends to instantiated template display names removed. Non-alphanumeric runs become word boundaries; all-upper acronyms TitleCase to match the repo convention (`GBP` becomes `Gbp`); user-curated camelCase (for example `pfSense`) is preserved.
 
-Useful flags and parameters:
+Useful parameters:
 
-| Flag / parameter | Purpose |
+| Parameter | Purpose |
 | --- | --- |
-| `-SubscriptionId` | Optional. Target subscription; defaults to the current `Az` context's subscription when omitted |
-| `-BasePath` | Optional. Repo root that output is written under (`<BasePath>/Content/Workbooks/`); defaults to the repository root (parent of `Tools/`) |
-| `-Filter '^Identity'` | Regex applied to `displayName` (default `.`, i.e. everything); only matching workbooks export |
-| `-OnlyMissing` | Skip workbooks that already have a folder under `Content/Workbooks/`. Useful for incremental import without overwriting in-repo customisations |
+| `-Name` | Wildcard applied to the display name; only matching workbooks export |
+| `-Force` | Write over workbooks the repository already has (by default only missing ones are written) |
 | `-IncludeContentHub` | Also export Content Hub-managed workbooks (advanced; off by default) |
+| `-RepoPath` | Repo root that output is written under; defaults to the repository root |
+| `-Path` | Write the files under another folder at their repository-relative paths |
 | `-WhatIf` | Read everything, write nothing |
-| `-IsGov` | Target Azure Government cloud |
 
-`ResourceGroup`, `Workspace` and `Region` are mandatory.
+The subscription, resource group, workspace and cloud come from `Connect-iSOCWorkspace` and the Az sign-in, so there is nothing to pass for them.
 
-Symmetry contract: the output shape exactly matches what [`Deploy-CustomWorkbooks`](../../Deploy/content/Deploy-CustomContent.ps1) reads back, including the workbook resource GUID, so the next deploy run updates the same Azure resource rather than spawning a duplicate.
+Symmetry contract: the output shape exactly matches what `Deploy-iSOCContent` reads back, including the workbook resource GUID, so the next deploy run updates the same Azure resource rather than spawning a duplicate.
 
 ### Curation-preserving metadata merge
 
-When a `metadata.json` already exists, the export does not blindly overwrite it (`Merge-WorkbookMetadata`). The REST API returns sparse metadata (most workbooks come back with `description = ''` and `category = 'sentinel'`), so curated repo values are protected:
+When a `metadata.json` already exists, the export does not blindly overwrite it. The REST API returns sparse metadata (most workbooks come back with `description = ''` and `category = 'sentinel'`), so curated repo values are protected:
 
 - `displayName`: the API value wins, but existing capitalisation is preserved when the two match case-insensitively (author-curated casing survives).
 - `description`: an existing non-empty value wins over an empty API value.
@@ -132,7 +142,7 @@ For exporting a single workbook ad hoc:
 3. Select the **Gallery Template** tab
 4. Copy the full JSON content
 5. Save as `workbook.json` in a new subfolder (see [Accepted workbook.json formats](#accepted-workbookjson-formats) for the gallery-notebook and ARM-template shapes)
-6. Optionally hand-author the matching `metadata.json` (if you skip it, `Deploy-CustomWorkbooks` derives a deterministic GUID by hashing `<WorkspaceResourceId>-<FolderName>` with SHA256, so the same folder deployed to two different workspaces gets two different stable GUIDs; hand-authoring a `workbookId` keeps the binding stable across workspaces, so prefer including it)
+6. Optionally hand-author the matching `metadata.json` (if you skip it, `Deploy-iSOCContent` derives a deterministic GUID by hashing `<WorkspaceResourceId>-<FolderName>` with SHA256, so the same folder deployed to two different workspaces gets two different stable GUIDs; hand-authoring a `workbookId` keeps the binding stable across workspaces, so prefer including it)
 
 ## Metadata File (metadata.json, optional)
 
@@ -147,7 +157,7 @@ Provides a stable GUID, display name, and `category`. If omitted, the display na
 }
 ```
 
-`Deploy-CustomWorkbooks` reads `displayName`, `workbookId` and `category` from this file. `category` defaults to `sentinel` only when the file omits it; when present it is sent verbatim (existing repo metadata uses values like `Network` for `PfSense` and `Sentinel` for `MicrosoftSentinelCostGbp`).
+`Deploy-iSOCContent` reads `displayName`, `workbookId` and `category` from this file. `category` defaults to `sentinel` only when the file omits it; when present it is sent verbatim (existing repo metadata uses values like `Network` for `PfSense` and `Sentinel` for `MicrosoftSentinelCostGbp`).
 
 ### Why use a stable GUID?
 
@@ -175,4 +185,4 @@ See [GitHub Copilot setup](../GitHub/GitHub-Copilot.md) for the full layout.
 - The `sourceId` in the deploy body (workspace resource ID) is set automatically by the deployment script
 - Workbooks appear in the **My Workbooks** section of the Sentinel Workbooks blade
 - Re-deploying with the same GUID updates the existing workbook in place
-- Deployment is handled by [`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1), see [Scripts.md](../Deploy/Scripts.md#deploy-customcontentps1)
+- Deployment is handled by `Deploy-iSOCContent` in the iSOCDeployments module, see [Deploy](../Modules/iSOCDeployments/Deploy.md)

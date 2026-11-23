@@ -8,8 +8,8 @@ is built from it, and you can build on it too, without parsing Markdown.
 
 | File | What it is | Schema |
 | --- | --- | --- |
-| `sections/index.json` | The run's sections in reading order, with the run's facts | [`section-index.schema.json`](../../../Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json) |
-| `sections/<id>.json` | One section, for example `20-analytics-rules.json` | [`section.schema.json`](../../../Modules/iSOCBlueprint/Engine/Schemas/section.schema.json) |
+| `sections/index.json` | The run's sections in reading order, with the run's facts | [`section-index.schema.json`](../../../Modules/iSOCBlueprint/Resources/Schemas/section-index.schema.json) |
+| `sections/<id>.json` | One section, for example `20-analytics-rules.json` | [`section.schema.json`](../../../Modules/iSOCBlueprint/Resources/Schemas/section.schema.json) |
 
 The Markdown pack (`NN-name.md`) carries the same sections as Markdown, for the
 docs pull request and the Word report. The renderer writes both by default;
@@ -155,12 +155,13 @@ list of sections.
 ## How it is made
 
 The renderer
-([`Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1))
+([`Invoke-iSOCBlueprintRender`](../../../Modules/iSOCBlueprint/Private/Render/Invoke-iSOCBlueprintRender.ps1))
 composes each section, then
-[`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertTo-BlueprintSection.ps1)
-parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
+[`ConvertTo-BlueprintSection`](../../../Modules/iSOCBlueprint/Private/Section/ConvertTo-BlueprintSection.ps1)
+(with its helpers under
+`Modules/iSOCBlueprint/Private/Section`) parses it with Markdig (the parser behind `ConvertFrom-Markdown`) into blocks
 and runs, and
-[`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Engine/Private/ConvertFrom-BlueprintMermaid.ps1)
+[`ConvertFrom-BlueprintMermaid`](../../../Modules/iSOCBlueprint/Private/Mermaid/ConvertFrom-BlueprintMermaid.ps1)
 turns each Mermaid chart into data. Consumers only ever see the model, so a
 section can later build its blocks directly without changing this contract.
 

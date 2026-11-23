@@ -10,10 +10,12 @@
 # Wiring this as a hard merge gate:
 #
 #   Project Settings -> Repos -> Repositories -> <repo> -> Policies
-#     Branch policies for: main
+#     Branch policies for: main, and for release/* (a long-lived release
+#     branch gets the same gate before it merges to main)
 #       Build validation -> + Add build policy
 #         Build pipeline:        Sentinel-PR-Validation
-#         Path filter:           Content/AnalyticalRules/*;Content/HuntingQueries/*;Deploy/*;Tools/*;Tests/*
+#         Path filter:           Content/AnalyticalRules/*;Content/HuntingQueries/*;Content/Playbooks/*;Content/Parsers/*;Content/Watchlists/*;Content/AutomationRules/*;Content/SummaryRules/*;Content/WorkspaceSettings/*;Content/DefenderCustomDetections/*;Infra/*;sentinel-deployment.config;Content/Workbooks/*;Content/CodelessConnectors/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*
+#                                (or leave it empty: the GitHub workflow has no filter, so every PR is gated)
 #         Trigger:               Automatic
 #         Policy requirement:    Required
 #         Build expiration:      Immediately when {repo} is updated
@@ -35,10 +37,22 @@ pr:
   branches:
     include:
       - main
+      - release/*
   paths:
     include:
       - Content/AnalyticalRules
       - Content/HuntingQueries
+      - Content/Playbooks
+      # Every other deployable input: each has a Pester suite under Tests/
+      # that validates it, and Infra/ holds the Bicep the bicep gate builds.
+      - Content/Parsers
+      - Content/Watchlists
+      - Content/AutomationRules
+      - Content/SummaryRules
+      - Content/WorkspaceSettings
+      - Content/DefenderCustomDetections
+      - Infra
+      - sentinel-deployment.config
       # PowerShell outside Modules/Deploy/Tools/Tests lives here; the
       # PSScriptAnalyzer lint (Tests/Test-PSScriptAnalyzer.Tests.ps1) must
       # see changes to it.
@@ -49,7 +63,8 @@ pr:
       - Tools
       - Tests
       - dependencies.json
-      - Pipelines/Sentinel-PR-Validation.yml
+      - Pipelines
+      - .github/workflows
 
 # CI on push to main ensures we have a green baseline; if main ever goes red
 # the most recent run is the place to start the post-mortem.
@@ -57,10 +72,22 @@ trigger:
   branches:
     include:
       - main
+      - release/*
   paths:
     include:
       - Content/AnalyticalRules
       - Content/HuntingQueries
+      - Content/Playbooks
+      # Every other deployable input: each has a Pester suite under Tests/
+      # that validates it, and Infra/ holds the Bicep the bicep gate builds.
+      - Content/Parsers
+      - Content/Watchlists
+      - Content/AutomationRules
+      - Content/SummaryRules
+      - Content/WorkspaceSettings
+      - Content/DefenderCustomDetections
+      - Infra
+      - sentinel-deployment.config
       # PowerShell outside Modules/Deploy/Tools/Tests lives here; the
       # PSScriptAnalyzer lint (Tests/Test-PSScriptAnalyzer.Tests.ps1) must
       # see changes to it.
@@ -71,9 +98,17 @@ trigger:
       - Tools
       - Tests
       - dependencies.json
-      - Pipelines/Sentinel-PR-Validation.yml
+      - Pipelines
+      - .github/workflows
 
 variables:
+  # Pinned module versions. Keep in step with PESTER_VERSION and
+  # YAML_VERSION in .github/workflows/pr-validation.yml and with
+  # Sentinel-Blueprint.yml, so the two gates agree on what passes.
+  - name: pesterVersion
+    value: "5.7.1"
+  - name: yamlVersion
+    value: "0.4.12"
   - name: testResultsFile
     value: "$(Build.SourcesDirectory)/test-results/pester-results.xml"
 
@@ -97,12 +132,12 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                $needsPester = -not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -ge [version]'5.0.0' })
-                if ($needsPester) {
-                    Install-Module -Name Pester -MinimumVersion '5.0.0' -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
+                $ErrorActionPreference = 'Stop'
+                if (-not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -eq [version]'$(pesterVersion)' })) {
+                    Install-Module -Name Pester -RequiredVersion '$(pesterVersion)' -Force -SkipPublisherCheck -Scope CurrentUser -AllowClobber
                 }
-                if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
-                    Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
+                if (-not (Get-Module -ListAvailable -Name powershell-yaml | Where-Object { $_.Version -eq [version]'$(yamlVersion)' })) {
+                    Install-Module -Name powershell-yaml -RequiredVersion '$(yamlVersion)' -Force -Scope CurrentUser -AllowClobber
                 }
                 # PnP.PowerShell for Tests/iSOCBlueprint/SharePoint-PnPCalls.Tests.ps1,
                 # which checks every PnP call in the SharePoint scripts against the
@@ -126,6 +161,19 @@ stages:
                 }
                 Get-Module -ListAvailable Pester, powershell-yaml, PnP.PowerShell, PSScriptAnalyzer | Format-Table Name, Version
 
+          # Bicep playbooks are compiled with the standalone Bicep CLI, which
+          # the iSOCDeployments module and its Pester suites need on the PATH.
+          - bash: |
+              set -euo pipefail
+              if command -v bicep > /dev/null 2>&1; then
+                  bicep --version
+              else
+                  az bicep install
+                  echo "##vso[task.prependpath]$HOME/.azure/bin"
+                  "$HOME/.azure/bin/bicep" --version
+              fi
+            displayName: "Put the Bicep CLI on the PATH"
+
           - task: PowerShell@2
             displayName: "Run PR validation"
             inputs:
@@ -141,19 +189,24 @@ stages:
           # as the GH Actions dependency-manifest job — fails the PR if the
           # on-disk dependencies.json doesn't match what discovery produces
           # from the current content. Author fix: run
-          # `./Tools/Build-DependencyManifest.ps1 -Mode Generate` locally
+          # Update-iSOCDependencyManifest (Modules/iSOCDeployments) locally
           # and commit the result, or wait for the daily auto-PR workflow
-          # to open one.
+          # to open one. The step may not set variables or change PATH: it
+          # logs text read from the PR's content files.
           - task: PowerShell@2
             displayName: "Verify dependency manifest"
+            target:
+              commands: restricted
+              settableVariables: none
             inputs:
               targetType: "inline"
               pwsh: true
               script: |
-                & "$(Build.SourcesDirectory)/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "$(Build.SourcesDirectory)"
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Host "##vso[task.logissue type=error]dependencies.json is out of sync with content."
-                    Write-Host "##vso[task.logissue type=error]Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate locally and commit the result."
+                Import-Module (Join-Path $env:BUILD_SOURCESDIRECTORY 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                $result = Test-iSOCDependencyManifest -RepoPath $env:BUILD_SOURCESDIRECTORY
+                if (-not $result.Exists -or $result.HasDrift) {
+                    Write-Host '##vso[task.logissue type=error]dependencies.json is out of sync with content.'
+                    Write-Host '##vso[task.logissue type=error]Fix: run Update-iSOCDependencyManifest locally and commit the result.'
                     exit 1
                 }
 

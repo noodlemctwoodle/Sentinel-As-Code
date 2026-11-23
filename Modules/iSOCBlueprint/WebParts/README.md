@@ -10,7 +10,7 @@ site. One package, two web parts:
 
 You do not normally build or deploy this by hand. The SharePoint publish
 pipelines build the `.sppkg` on every run and
-`Publish-SentinelDocsSite.ps1` deploys it to the site's own app catalog
+`Publish-iSOCBlueprintSite` deploys it to the site's own app catalog
 whenever its version changes. See
 [iSOC Blueprint SharePoint Site](../../../Docs/Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md).
 
@@ -122,7 +122,7 @@ on a phone. A kind the web part does not draw shows its Mermaid source.
 The SharePoint dashboard's Report tab draws its diagrams with these same
 modules. `Build-DashboardCharts.ps1` compiles them (CommonJS, with the
 TypeScript in `node_modules`) and bundles them into
-`../Engine/SharePoint/templates/dashboard-charts.js`, which exposes
+`../Resources/SharePoint/templates/dashboard-charts.js`, which exposes
 `window.SacCharts`; the site build puts that file into the dashboard page.
 After changing anything under `charts/`, regenerate the bundle:
 

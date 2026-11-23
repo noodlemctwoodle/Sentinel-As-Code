@@ -1,5 +1,6 @@
+id: suspicious-application-consent
 displayName: Suspicious OAuth application consent granted
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     AuditLogs
@@ -18,9 +19,8 @@ queryCondition:
     | project TimeGenerated, AccountUpn, AccountObjectId,
               AppDisplayName, AppId, ConsentedPermissions,
               CorrelationId
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Suspicious OAuth application consent granted"
@@ -30,9 +30,10 @@ detectionAction:
       grants are a common technique where attackers trick users into granting
       a malicious application access to organisational data.
     severity: high
-    category: CredentialAccess
-    mitreTechniques:
-      - T1528
+    tactics:
+      - tactic: CredentialAccess
+        techniques:
+          - technique: T1528
     recommendedActions: |
       1. Review the application and its publisher for legitimacy.
       2. Check the permissions granted against business need.
@@ -40,6 +41,6 @@ detectionAction:
       4. Review the user account for phishing indicators around the consent time.
       5. Check admin consent settings to restrict user self-service consent.
       6. Block the application ID in Entra ID enterprise applications.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId

@@ -139,7 +139,9 @@ splat onto the script call.
 Run `Deploy/setup/Setup-ServicePrincipal.ps1` once to grant these; after
 that the pipeline is autonomous. See
 [Scripts.md](../Deploy/Scripts.md#setup-serviceprincipalps1) for the exact
-parameters and grant semantics.
+parameters and grant semantics. The iSOCDeployments module's
+`Initialize-iSOCServicePrincipal` replaces the script at the 26.11.0
+cut-over ([Permissions](../Modules/iSOCDeployments/Permissions.md#the-deployment-service-principal)).
 
 ## Inputs / parameters
 
@@ -242,6 +244,7 @@ dry-run flag. Rules are read from `Content/DefenderCustomDetections/`.
 | GitHub input | ADO parameter | Type | Default | Description |
 | --- | --- | --- | --- | --- |
 | `what_if` | `whatIf` | boolean | `false` | Dry run: preview changes without applying (passed to every script as `-WhatIf`) |
+| *(not yet)* | `engine` | `scripts`, `module` or `compare` | `scripts` | Which engine deploys: the scripts, the iSOCDeployments module (`Get-iSOCWorkspaceOnboarding`, a workspace settings stage of its own, and `Deploy-iSOCWorkspace -Stage` for each content stage), or the scripts with the module checking beside them. See [the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md) |
 
 ## Stages and steps, in order
 
@@ -313,8 +316,10 @@ minutes.
 Steps: checkout, Azure login, then invoke
 `Deploy/content/Deploy-SentinelContentHub.ps1` with a splatted parameter
 hashtable. `SubscriptionId`, `ResourceGroup`, `Workspace`, `Region`,
-`Solutions`, and `SeveritiesToInclude` are always passed; the boolean
-toggles (`DisableRules`, `ProtectCustomisedRules`, the `Skip*` switches,
+`Solutions`, and `SeveritiesToInclude` are always passed. `ProtectCustomisedRules`
+is a `[bool]` that defaults to `$true`, so it is always passed with the
+parameter's value (leaving it out would keep protection on even when the
+parameter is off). The other toggles (`DisableRules`, the `Skip*` switches,
 `ForceSolutionUpdate`, `ForceContentDeployment`, `WhatIf`) are added only
 when their input/parameter is set. See [Scripts.md](../Deploy/Scripts.md) for
 what the script does.
@@ -333,25 +338,31 @@ or was skipped. Timeout: 60 minutes. Steps, in order:
 3. **Set up PowerShell modules** - installs `powershell-yaml` only
    (GitHub uses the [`setup-pwsh-modules`](../../.github/actions/setup-pwsh-modules/action.yml)
    composite with `install-pester: 'false'` and the pinned
-   `YAML_VERSION`; ADO installs it inline).
-4. **Verify dependency manifest is current** - runs
+   `YAML_VERSION`; ADO installs the same version inline, pinned by its
+   `yamlVersion` variable).
+4. **Put the Bicep CLI on the PATH** (ADO) - playbooks are Bicep, and
+   the module compiles them with the standalone Bicep CLI (as Az.Resources
+   does when it deploys them). Uses the CLI on the agent, or runs
+   `az bicep install` and prepends `~/.azure/bin` to the PATH. A step of
+   its own, so the deploy step's command restrictions stay as they are.
+5. **Verify dependency manifest is current** - runs
    `Tools/Build-DependencyManifest.ps1 -Mode Verify` and fails the stage
    if `dependencies.json` is out of sync with current content. This is the
    same drift gate the PR-validation workflow enforces on every PR to main,
    repeated here so a scheduled deploy from `main` cannot race a
    non-deploy commit that bypassed the PR gate. See
    [Dependency Manifest](../Tools/Dependency-Manifest.md).
-5. **Azure login (OIDC)**.
-6. **Deploy custom content** - invokes
+6. **Azure login (OIDC)**.
+7. **Deploy custom content** - invokes
    `Deploy/content/Deploy-CustomContent.ps1` with the base parameters
    plus the resolved `-Skip*`, `-SmartDeployment`, and `-WhatIf` switches
    (GitHub derives the skips by parsing `skip_custom_content_types`; ADO
    reads its compile-time `flag*` variables). The optional playbook RG is
    passed as `-PlaybookResourceGroup` when set.
-7. **Save deployment state** - always runs (`if: always()` /
+8. **Save deployment state** - always runs (`if: always()` /
    `condition: always()`, both `continue-on-error`). GitHub caches
-   `.deployment-state.json`; ADO publishes `deployment-state.json` as a
-   pipeline artefact named `deployment-state`.
+   `deployment-state.json`; ADO publishes the same file as a pipeline
+   artefact named `deployment-state`.
 
 `Deploy-CustomContent.ps1` deploys eight content types in a fixed order:
 parsers -> watchlists -> detections -> hunting queries -> playbooks ->
@@ -360,10 +371,10 @@ pre-flight gate and the smart-deployment skip apply to every content type
 (missing dependencies deploy detections disabled and skip other types).
 See [Scripts.md](../Deploy/Scripts.md) for the full ordering and gate behaviour.
 
-> **Deployment-state filename divergence**: GitHub caches the state file
-> as `.deployment-state.json` (leading dot); ADO publishes it as
-> `deployment-state.json` (no dot). Neither is canonical - they simply
-> differ per CI system.
+> **Deployment-state filename**: `Deploy-CustomContent.ps1` writes
+> `deployment-state.json` (no leading dot) and both CI systems carry that
+> file between runs. GitHub used to cache `.deployment-state.json`, a name
+> nothing writes, so its cache never restored any state.
 
 ### Stage 5 - Deploy Defender XDR custom detections
 
@@ -384,8 +395,8 @@ Graph application permission with admin consent. See
   consumed by the Stage 2 `if:` gate and the `deploySentinel` Bicep
   parameter. ADO's equivalent is the single `RESOURCES_EXIST` output
   variable.
-- **Deployment state**: `.deployment-state.json` (GitHub Actions cache) /
-  `deployment-state.json` (ADO pipeline artefact `deployment-state`),
+- **Deployment state**: `deployment-state.json`, in the GitHub Actions
+  cache and the ADO pipeline artefact `deployment-state`,
   carried between runs so smart deployment can retry previously failed
   items.
 - There are no other published build artefacts; the pipeline's real output

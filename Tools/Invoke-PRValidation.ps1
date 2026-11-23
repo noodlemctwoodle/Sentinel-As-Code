@@ -1,10 +1,11 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
     PR-validation entry-point. Runs every Pester suite under Tests/ against the
     repository, emits a JUnit XML test report, and exits non-zero if any test
-    fails. Called by both the GitHub Actions PR workflow and the Azure DevOps
+    fails, any BeforeAll or AfterAll block fails, or any suite cannot be
+    loaded. Called by both the GitHub Actions PR workflow and the Azure DevOps
     PR pipeline so the gating logic stays in one place.
 
 .DESCRIPTION
@@ -30,8 +31,16 @@
 
     Exit codes:
         0  every test passed
-        1  one or more tests failed (the calling pipeline must fail the
-           PR check on a non-zero exit)
+        1  one or more tests failed, a BeforeAll or AfterAll block failed,
+           or a suite could not be loaded (the calling pipeline must fail
+           the PR check on a non-zero exit)
+
+    Pester counts the three apart. A suite whose BeforeDiscovery or
+    top-level code throws, or that does not parse, is a failed container:
+    none of its tests is discovered, so it adds nothing to FailedCount. A
+    failed AfterAll is a failed block, and its tests still pass. Before
+    1.1.0 the script read FailedCount alone, so such a suite was skipped
+    and the gate passed.
 
 .PARAMETER RepoPath
     Repository root. Defaults to the parent of the Tools/ folder this
@@ -71,11 +80,12 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-04-29
-    Version:        1.0.2
-    Last Updated:   2026-11-16
-    Requires:       PowerShell 7.2+, Pester 5+, powershell-yaml and PSScriptAnalyzer (all auto-installed if missing)
+    Version:        1.1.3
+    Last Updated:   2026-11-23
+    Requires:       PowerShell 7.6+, Pester 5+, powershell-yaml and PSScriptAnalyzer (all auto-installed if missing)
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The ##[section] and ##[error] lines are Azure DevOps and GitHub Actions log commands, which only work on stdout.')]
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
@@ -148,13 +158,13 @@ if (-not (Test-Path $testsRoot)) {
 }
 
 $config = New-PesterConfiguration
-$config.Run.Path        = $testsRoot
-$config.Run.PassThru    = $true
-$config.Run.Exit        = $false   # we handle exit code ourselves
+$config.Run.Path = $testsRoot
+$config.Run.PassThru = $true
+$config.Run.Exit = $false   # we handle exit code ourselves
 $config.Output.Verbosity = 'Detailed'
-$config.TestResult.Enabled       = $true
-$config.TestResult.OutputFormat  = 'NUnitXml'
-$config.TestResult.OutputPath    = $TestResultsPath
+$config.TestResult.Enabled = $true
+$config.TestResult.OutputFormat = 'NUnitXml'
+$config.TestResult.OutputPath = $TestResultsPath
 
 if ($TestNameFilter) {
     $config.Filter.FullName = $TestNameFilter
@@ -171,11 +181,47 @@ $result = Invoke-Pester -Configuration $config
 # ---------------------------------------------------------------------------
 Write-Host ''
 Write-Host '##[section]Test summary'
-Write-Host ("  Passed:       {0}" -f $result.PassedCount)
-Write-Host ("  Failed:       {0}" -f $result.FailedCount)
-Write-Host ("  Skipped:      {0}" -f $result.SkippedCount)
-Write-Host ("  Inconclusive: {0}" -f $result.InconclusiveCount)
-Write-Host ("  Duration:     {0}" -f $result.Duration)
+Write-Host ('  Passed:       {0}' -f $result.PassedCount)
+Write-Host ('  Failed:       {0}' -f $result.FailedCount)
+Write-Host ('  Skipped:      {0}' -f $result.SkippedCount)
+Write-Host ('  Inconclusive: {0}' -f $result.InconclusiveCount)
+Write-Host ('  Failed setup or teardown blocks: {0}' -f $result.FailedBlocksCount)
+Write-Host ('  Suites that could not be loaded: {0}' -f $result.FailedContainersCount)
+Write-Host ('  Duration:     {0}' -f $result.Duration)
+
+# Every line of an error, each marked so the pipeline annotates it.
+function Write-PRValidationError {
+    <#
+    .SYNOPSIS
+        Write every line of each error record as a pipeline error annotation.
+
+    .PARAMETER ErrorRecord
+        The error records to write; empty entries are skipped.
+    #>
+    param([object[]] $ErrorRecord)
+    foreach ($record in @($ErrorRecord | Where-Object { $_ })) {
+        $text = if ($record.PSObject.Properties['DisplayErrorMessage'] -and $record.DisplayErrorMessage) {
+            $record.DisplayErrorMessage
+        } else { $record.Exception.Message }
+        foreach ($line in ([string]$text -split '\r?\n')) { Write-Host ('##[error]    {0}' -f $line) }
+    }
+}
+
+if ($result.FailedContainersCount -gt 0) {
+    Write-Host '##[error]One or more Pester suites could not be loaded, so none of their tests ran.'
+    foreach ($container in $result.FailedContainers) {
+        Write-Host ('##[error]  {0}' -f $container.Item)
+        Write-PRValidationError -ErrorRecord $container.ErrorRecord
+    }
+}
+
+if ($result.FailedBlocksCount -gt 0) {
+    Write-Host '##[error]One or more BeforeAll or AfterAll blocks failed.'
+    foreach ($block in $result.FailedBlocks) {
+        Write-Host ('##[error]  {0} ({1})' -f $block.ExpandedPath, $block.BlockContainer.Item)
+        Write-PRValidationError -ErrorRecord $block.ErrorRecord
+    }
+}
 
 if ($result.FailedCount -gt 0) {
     Write-Host '##[error]One or more Pester tests failed. PR cannot merge until they pass.'
@@ -185,6 +231,9 @@ if ($result.FailedCount -gt 0) {
             Write-Host ('##[error]    {0}' -f $failedTest.ErrorRecord.DisplayErrorMessage)
         }
     }
+}
+
+if (($result.FailedCount + $result.FailedBlocksCount + $result.FailedContainersCount) -gt 0) {
     exit 1
 }
 

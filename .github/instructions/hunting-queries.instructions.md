@@ -65,7 +65,7 @@ hunting query, not an analytical rule.
 
 1. Re-run the dep manifest:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 2. Run schema tests: `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1`
    (the same suite covers hunting queries).

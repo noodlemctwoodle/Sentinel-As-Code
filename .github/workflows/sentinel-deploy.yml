@@ -3,6 +3,12 @@
 # ---------------------------------------------------------------------------
 # Equivalent of Pipelines/Sentinel-Deploy.yml for GitHub-hosted repos.
 #
+# Every job runs the iSOCDeployments module (Modules/iSOCDeployments):
+# Get-iSOCWorkspaceOnboarding for the check, and Deploy-iSOCWorkspace -Stage
+# for the workspace settings, Content Hub, custom content and Defender XDR
+# stages. Registering providers, Bicep, the waits and the deployment state
+# stay workflow steps.
+#
 # Prerequisites:
 #   - Azure Service Principal with Contributor + Microsoft Sentinel Contributor
 #   - Federated credentials (OIDC) configured for this repo
@@ -106,9 +112,9 @@ on:
       # Pipelines/Sentinel-Deploy.yml exposes nine separate skipCustom*
       # boolean parameters here; we collapse them into one comma-separated
       # string so the GH workflow stays under the cap while preserving
-      # identical downstream behaviour (Deploy-CustomContent.ps1 still
-      # receives the individual -Skip* script parameters via the parsing
-      # block in the deploy-custom-content job below).
+      # identical downstream behaviour (Deploy-iSOCWorkspace receives them
+      # as -ExcludeContentType and -Exclude, from the parsing block in
+      # the deploy-custom-content job below).
       skip_custom_content_types:
         description: "Custom: Skip Content Types (comma-separated subset of: parsers, detections, community-detections, watchlists, playbooks, workbooks, hunting-queries, automation-rules, summary-rules)"
         type: string
@@ -169,145 +175,41 @@ jobs:
 
       - name: Check for Existing Resources
         id: check
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            # Per-component probe. The output drives two decisions in
-            # Stage 2:
-            #
-            #   bicep_needed    — gate on whether to run Bicep at all
-            #                     (true if ANY component is missing).
-            #   deploy_sentinel — whether the Sentinel module should
-            #                     run inside Bicep (false if Sentinel
-            #                     is already onboarded). False allows
-            #                     main.bicep to provision only the
-            #                     missing optional playbook RG without
-            #                     re-creating the non-idempotent
-            #                     SecurityInsights/onboardingStates
-            #                     resource, which returns Conflict on
-            #                     re-deploy.
-            Write-Host "Checking for existing Sentinel infrastructure..."
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID:   ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          PLAYBOOK_RESOURCE_GROUP: ${{ vars.PLAYBOOK_RESOURCE_GROUP }}
+        run: |
+          # Get-iSOCWorkspaceOnboarding probes the resource group, the
+          # workspace, both Sentinel onboarding resources and the optional
+          # playbook resource group, and decides two things for Stage 2:
+          #
+          #   bicep_needed    - gate on whether to run Bicep at all
+          #                     (true if ANY component is missing).
+          #   deploy_sentinel - whether the Sentinel module should run
+          #                     inside Bicep (false if Sentinel is already
+          #                     onboarded), so main.bicep can provision
+          #                     only a missing playbook RG without
+          #                     re-creating the non-idempotent
+          #                     onboardingStates resource, which returns
+          #                     Conflict on re-deploy.
+          #
+          # The one state Bicep cannot repair (onboarding state present,
+          # SecurityInsights solution gone) is logged as errors and returned
+          # as ExitCode 1, which fails this job before Bicep runs.
+          $ErrorActionPreference = 'Stop'
+          Import-Module (Join-Path $env:GITHUB_WORKSPACE 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          # Trim accidental whitespace in the repo variable.
+          $playbookGroup = "$env:PLAYBOOK_RESOURCE_GROUP".Trim()
+          $onboarding = Get-iSOCWorkspaceOnboarding `
+              -SubscriptionId        $env:AZURE_SUBSCRIPTION_ID `
+              -ResourceGroup         $env:RESOURCE_GROUP `
+              -WorkspaceName         $env:WORKSPACE_NAME `
+              -PlaybookResourceGroup $playbookGroup
 
-            $sentinelReady    = $true
-            $playbookRgReady  = $true
-
-            # ── Sentinel RG + workspace + onboarding state ──────────
-            $rg = Get-AzResourceGroup -Name "${{ env.RESOURCE_GROUP }}" -ErrorAction SilentlyContinue
-            if (-not $rg) {
-                Write-Host "  Sentinel RG '${{ env.RESOURCE_GROUP }}' missing."
-                $sentinelReady = $false
-            } else {
-                Write-Host "  Sentinel RG '${{ env.RESOURCE_GROUP }}' exists."
-
-                $law = Get-AzOperationalInsightsWorkspace `
-                    -ResourceGroupName "${{ env.RESOURCE_GROUP }}" `
-                    -Name "${{ env.WORKSPACE_NAME }}" `
-                    -ErrorAction SilentlyContinue
-                if (-not $law) {
-                    Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' missing."
-                    $sentinelReady = $false
-                } else {
-                    Write-Host "  Workspace '${{ env.WORKSPACE_NAME }}' exists."
-
-                    # Sentinel uses a dual onboarding pattern (see
-                    # Docs/Infra/Bicep.md "Why two onboarding
-                    # mechanisms?"): the legacy
-                    # Microsoft.OperationsManagement/solutions
-                    # SecurityInsights(<workspace>) resource AND the
-                    # modern Microsoft.SecurityInsights/onboardingStates
-                    # /default resource. Infra/sentinel/sentinel.bicep deploys
-                    # both. Both must exist for the workspace to be
-                    # considered fully onboarded. Probe both
-                    # independently so a partially-deleted onboarding
-                    # state (one survives, the other is gone) is
-                    # surfaced explicitly rather than silently skipped.
-                    $subId = (Get-AzContext).Subscription.Id
-
-                    $omsSolutionId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }})"
-                    $omsSolution = Get-AzResource -ResourceId $omsSolutionId -ApiVersion "2015-11-01-preview" -ErrorAction SilentlyContinue
-
-                    $onboardingId = "/subscriptions/$subId/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}/providers/Microsoft.SecurityInsights/onboardingStates/default"
-                    $onboarding = Get-AzResource -ResourceId $onboardingId -ApiVersion "2024-09-01" -ErrorAction SilentlyContinue
-
-                    # Three-case truth table over the two onboarding
-                    # resources. The asymmetric handling of the two
-                    # "exactly one missing" cases reflects which
-                    # resource is non-idempotent:
-                    #
-                    #   - The OMS solution is idempotent on re-deploy
-                    #     (the Bicep template comment calls this out
-                    #     explicitly). Deploying it when it already
-                    #     exists is a no-op.
-                    #   - The onboardingStates resource is NOT
-                    #     idempotent. Deploying it when it already
-                    #     exists returns Conflict.
-                    #
-                    # Therefore: an "OMS missing, state survives"
-                    # state cannot be auto-repaired by re-running
-                    # Bicep (state would Conflict). An "OMS survives,
-                    # state missing" state CAN be auto-repaired
-                    # (state gets created fresh; OMS re-deploy is a
-                    # no-op).
-                    if ($omsSolution -and $onboarding) {
-                        Write-Host "  Sentinel fully onboarded (OMS solution + onboarding state)."
-                    } elseif (-not $omsSolution -and -not $onboarding) {
-                        Write-Host "  Sentinel not onboarded (neither OMS solution nor onboarding state)."
-                        $sentinelReady = $false
-                    } elseif ($omsSolution -and -not $onboarding) {
-                        # Auto-repairable: state is the non-idempotent
-                        # resource, and it's the one that's missing.
-                        # Re-running the sentinel module will create
-                        # it without Conflict; the surviving OMS
-                        # solution re-deploys idempotently.
-                        Write-Host "  Partial onboarding detected: OMS solution present, onboarding state missing."
-                        Write-Host "  Auto-repairing by re-running the Sentinel module (state is the non-idempotent resource and is the one missing)."
-                        $sentinelReady = $false
-                    } else {
-                        # Unrecoverable: the surviving onboardingStates
-                        # resource is non-idempotent. Deploying with
-                        # deploySentinel=true would Conflict on it.
-                        # Deploying with deploySentinel=false would
-                        # leave the OMS solution unrepaired. An
-                        # operator must intervene before proceeding.
-                        Write-Host "::error::Unrecoverable partial Sentinel onboarding state on workspace '${{ env.WORKSPACE_NAME }}':"
-                        Write-Host "::error::  - Present: Sentinel onboarding state (Microsoft.SecurityInsights/onboardingStates/default)"
-                        Write-Host "::error::  - Missing: OMS Sentinel solution (Microsoft.OperationsManagement/solutions/SecurityInsights(${{ env.WORKSPACE_NAME }}))"
-                        Write-Host "::error::The non-idempotent onboardingStates resource survived but the OMS solution was deleted out of band. The deploy pipeline cannot reconcile this state automatically: re-running with deploySentinel=true would return Conflict on the surviving onboardingStates resource, and deploySentinel=false would leave the OMS solution unrepaired."
-                        Write-Host "::error::Resolution options:"
-                        Write-Host "::error::  1. Delete the surviving onboardingStates/default resource via the Azure portal and re-run this workflow (Bicep will then create both fresh)."
-                        Write-Host "::error::  2. Manually create the missing OMS solution via portal or an ad-hoc Bicep deploy targeting only that resource."
-                        Write-Host "::error::Background: Docs/Infra/Bicep.md 'Why two onboarding mechanisms?'."
-                        throw "Unrecoverable partial Sentinel onboarding state - aborting deploy."
-                    }
-                }
-            }
-
-            # ── Optional playbook RG ────────────────────────────────
-            # Trim defensively to survive accidental whitespace in
-            # the GitHub repo variable.
-            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
-            if ($playbookRG -and $playbookRG -ne "${{ env.RESOURCE_GROUP }}") {
-                $pbRg = Get-AzResourceGroup -Name $playbookRG -ErrorAction SilentlyContinue
-                if (-not $pbRg) {
-                    Write-Host "  Playbook RG '$playbookRG' missing."
-                    $playbookRgReady = $false
-                } else {
-                    Write-Host "  Playbook RG '$playbookRG' exists."
-                }
-            }
-
-            # ── Decision matrix ─────────────────────────────────────
-            $bicepNeeded    = (-not $sentinelReady) -or (-not $playbookRgReady)
-            $deploySentinel = -not $sentinelReady
-
-            Write-Host ""
-            Write-Host "Stage 2 decision:"
-            Write-Host ("  bicep_needed    = " + $bicepNeeded.ToString().ToLower())
-            Write-Host ("  deploy_sentinel = " + $deploySentinel.ToString().ToLower())
-
-            "bicep_needed=$($bicepNeeded.ToString().ToLower())"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            "deploy_sentinel=$($deploySentinel.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "bicep_needed=$($onboarding.InfrastructureNeeded.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "deploy_sentinel=$($onboarding.DeploySentinel.ToString().ToLower())"    | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          exit $onboarding.ExitCode
 
   # ===========================================================================
   # Stage 2: Deploy Infrastructure (Bicep)
@@ -385,69 +287,58 @@ jobs:
           Start-Sleep -Seconds 60
           Write-Host "Done."
 
-      - name: Configure Sentinel Settings
-        uses: Azure/powershell@v3
+  # ===========================================================================
+  # Workspace settings
+  # The settings in Content/WorkspaceSettings/ deploy in a job of their own,
+  # after the infrastructure and before the Content Hub solutions, on every
+  # run. No job's condition reads this one, so a failed setting holds back
+  # nothing.
+  # ===========================================================================
+  deploy-workspace-settings:
+    name: "Deploy Workspace Settings"
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure, deploy-infrastructure]
+    if: |
+      always() &&
+      (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Azure Login (OIDC)
+        uses: ./.github/actions/azure-login-oidc
         with:
-          azPSVersion: "latest"
-          inlineScript: |
-            $token = (Get-AzAccessToken -ResourceUrl "https://management.azure.com" -WarningAction SilentlyContinue)
-            if ($token.Token -is [System.Security.SecureString]) {
-                $accessToken = $token.Token | ConvertFrom-SecureString -AsPlainText
-            } else {
-                $accessToken = $token.Token
-            }
-            $headers = @{
-                Authorization  = "Bearer $accessToken"
-                'Content-Type' = 'application/json'
-            }
-            $baseUri = "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.OperationalInsights/workspaces/${{ env.WORKSPACE_NAME }}"
-            $api = "api-version=2024-01-01-preview"
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-            $settings = @(
-                @{ name = 'Anomalies';       body = @{ kind = 'Anomalies';       etag = $null; properties = @{} } }
-                @{ name = 'EyesOn';          body = @{ kind = 'EyesOn';          etag = $null; properties = @{} } }
-                @{ name = 'EntityAnalytics'; body = @{ kind = 'EntityAnalytics'; etag = $null; properties = @{ entityProviders = @('AzureActiveDirectory') } } }
-                @{ name = 'Ueba';            body = @{ kind = 'Ueba';            etag = $null; properties = @{ dataSources = @('AuditLogs','AzureActivity','SigninLogs','SecurityEvent') } } }
-            )
+      - name: Set up PowerShell modules (powershell-yaml only)
+        uses: ./.github/actions/setup-pwsh-modules
+        with:
+          yaml-version:   ${{ env.YAML_VERSION }}
+          install-pester: 'false'
 
-            foreach ($s in $settings) {
-                $uri = "$baseUri/providers/Microsoft.SecurityInsights/settings/$($s.name)?$api"
-                # GET current setting to retrieve etag
-                try {
-                    $getHeaders = @{ Authorization = "Bearer $accessToken" }
-                    $current = Invoke-RestMethod -Uri $uri -Method Get -Headers $getHeaders
-                    if ($current.etag) { $s.body['etag'] = $current.etag }
-                } catch {}
-
-                $json = $s.body | ConvertTo-Json -Depth 5
-
-                $putHeaders = @{
-                    Authorization  = "Bearer $accessToken"
-                    'Content-Type' = 'application/json'
-                    'If-Match'     = if ($s.body.etag) { $s.body.etag } else { '*' }
-                }
-
-                try {
-                    Invoke-RestMethod -Uri $uri -Method Put -Headers $putHeaders -Body $json | Out-Null
-                    Write-Host "Configured: $($s.name)"
-                }
-                catch {
-                    $errorBody = $null
-                    if ($_.Exception.Response) {
-                        try {
-                            $stream = $_.Exception.Response.GetResponseStream()
-                            $reader = [System.IO.StreamReader]::new($stream)
-                            $errorBody = $reader.ReadToEnd()
-                            $reader.Close()
-                        } catch {}
-                    }
-                    if ($errorBody) {
-                        Write-Warning "Failed to configure $($s.name): $($_.Exception.Message) — $errorBody"
-                    } else {
-                        Write-Warning "Failed to configure $($s.name): $($_.Exception.Message)"
-                    }
-                }
-            }
+      - name: Deploy Workspace Settings
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID:   ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          PLAYBOOK_RESOURCE_GROUP: ${{ vars.PLAYBOOK_RESOURCE_GROUP }}
+          WHAT_IF:                 ${{ inputs.what_if }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          # Trim accidental whitespace in the repo variable; Azure treats
+          # 'rg-name ' as a distinct (non-existent) resource group.
+          $playbookGroup = "$env:PLAYBOOK_RESOURCE_GROUP".Trim()
+          $connect = @{ SubscriptionId = $env:AZURE_SUBSCRIPTION_ID; ResourceGroup = $env:RESOURCE_GROUP; WorkspaceName = $env:WORKSPACE_NAME }
+          if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+          $null = Connect-iSOCWorkspace @connect
+          $stage = @{ Stage = 'WorkspaceSettings'; RepoPath = $repo }
+          if ($env:WHAT_IF -eq 'true') { $stage['WhatIf'] = $true }
+          $run = Deploy-iSOCWorkspace @stage
+          exit $run.ExitCode
 
   # ===========================================================================
   # Stage 3: Deploy Content Hub
@@ -455,7 +346,7 @@ jobs:
   deploy-content-hub:
     name: "Deploy Sentinel Content Hub"
     runs-on: ubuntu-latest
-    needs: [check-infrastructure, deploy-infrastructure]
+    needs: [check-infrastructure, deploy-infrastructure, deploy-workspace-settings]
     if: |
       always() &&
       (inputs.deploy_content_hub != false) &&
@@ -473,33 +364,52 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Content Hub Solutions
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            $solutionList = "${{ inputs.solutions || 'Analytics Health & Audit,Azure Activity,Azure DevOps Auditing,Azure Key Vault,Azure Logic Apps,Azure Network Security Groups,Azure Resource Graph,Azure Storage,Common Event Format,Data Collection Rule Toolkit,Microsoft 365,Microsoft Defender for Cloud,Microsoft Defender for Cloud Apps,Microsoft Defender for Endpoint,Microsoft Defender for Identity,Microsoft Defender Threat Intelligence,Microsoft Defender XDR,Microsoft Entra ID,Microsoft Sentinel Optimization Workbook,SOC Handbook,Summary Rules Workbook,Syslog,Threat Intelligence (NEW),Windows Security Events,Windows Server DNS,Workspace Usage Report' }}" -split ',' | ForEach-Object { $_.Trim() }
-            $severityList = "${{ inputs.severities_to_include || 'High,Medium,Low,Informational' }}" -split ',' | ForEach-Object { $_.Trim() }
-
-            $scriptParams = @{
-                SubscriptionId      = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-                ResourceGroup       = "${{ env.RESOURCE_GROUP }}"
-                Workspace           = "${{ env.WORKSPACE_NAME }}"
-                Region              = "${{ env.REGION }}"
-                Solutions           = $solutionList
-                SeveritiesToInclude = $severityList
-            }
-
-            if ("${{ inputs.disable_rules }}" -ne "false")             { $scriptParams['DisableRules']             = $true }
-            if ("${{ inputs.protect_customised_rules }}" -ne "false")  { $scriptParams['ProtectCustomisedRules']   = $true }
-            if ("${{ inputs.skip_analytics_rules }}" -eq "true")       { $scriptParams['SkipAnalyticsRules']       = $true }
-            if ("${{ inputs.skip_workbooks }}" -eq "true")             { $scriptParams['SkipWorkbooks']            = $true }
-            if ("${{ inputs.skip_automation_rules }}" -eq "true")      { $scriptParams['SkipAutomationRules']      = $true }
-            if ("${{ inputs.skip_hunting_queries }}" -eq "true")       { $scriptParams['SkipHuntingQueries']       = $true }
-            if ("${{ inputs.force_solution_update }}" -eq "true")      { $scriptParams['ForceSolutionUpdate']      = $true }
-            if ("${{ inputs.force_content_deployment }}" -eq "true")   { $scriptParams['ForceContentDeployment']   = $true }
-            if ("${{ inputs.what_if }}" -eq "true")                    { $scriptParams['WhatIf']                   = $true }
-
-            & "${{ github.workspace }}/Deploy/content/Deploy-SentinelContentHub.ps1" @scriptParams
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID:    ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          PLAYBOOK_RESOURCE_GROUP:  ${{ vars.PLAYBOOK_RESOURCE_GROUP }}
+          CONTENT_HUB_SOLUTIONS:    "${{ inputs.solutions || 'Analytics Health & Audit,Azure Activity,Azure DevOps Auditing,Azure Key Vault,Azure Logic Apps,Azure Network Security Groups,Azure Resource Graph,Azure Storage,Common Event Format,Data Collection Rule Toolkit,Microsoft 365,Microsoft Defender for Cloud,Microsoft Defender for Cloud Apps,Microsoft Defender for Endpoint,Microsoft Defender for Identity,Microsoft Defender Threat Intelligence,Microsoft Defender XDR,Microsoft Entra ID,Microsoft Sentinel Optimization Workbook,SOC Handbook,Summary Rules Workbook,Syslog,Threat Intelligence (NEW),Windows Security Events,Windows Server DNS,Workspace Usage Report' }}"
+          CONTENT_HUB_SEVERITIES:   ${{ inputs.severities_to_include || 'High,Medium,Low,Informational' }}
+          DISABLE_RULES:            ${{ inputs.disable_rules }}
+          PROTECT_CUSTOMISED_RULES: ${{ inputs.protect_customised_rules }}
+          SKIP_ANALYTICS_RULES:     ${{ inputs.skip_analytics_rules }}
+          SKIP_WORKBOOKS:           ${{ inputs.skip_workbooks }}
+          SKIP_AUTOMATION_RULES:    ${{ inputs.skip_automation_rules }}
+          SKIP_HUNTING_QUERIES:     ${{ inputs.skip_hunting_queries }}
+          FORCE_SOLUTION_UPDATE:    ${{ inputs.force_solution_update }}
+          FORCE_CONTENT_DEPLOYMENT: ${{ inputs.force_content_deployment }}
+          WHAT_IF:                  ${{ inputs.what_if }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          # Trim accidental whitespace in the repo variable; Azure treats
+          # 'rg-name ' as a distinct (non-existent) resource group.
+          $playbookGroup = "$env:PLAYBOOK_RESOURCE_GROUP".Trim()
+          $connect = @{ SubscriptionId = $env:AZURE_SUBSCRIPTION_ID; ResourceGroup = $env:RESOURCE_GROUP; WorkspaceName = $env:WORKSPACE_NAME }
+          if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+          $null = Connect-iSOCWorkspace @connect
+          $stage = @{
+              Stage    = 'ContentHub'
+              RepoPath = $repo
+              Solution = @($env:CONTENT_HUB_SOLUTIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+              Severity = @($env:CONTENT_HUB_SEVERITIES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+          }
+          # A scheduled run has no inputs: rules deploy disabled and customised
+          # rules stay protected, the workflow_dispatch defaults.
+          if ($env:DISABLE_RULES -ne 'false') { $stage['DisableRules'] = $true }
+          if ($env:PROTECT_CUSTOMISED_RULES -eq 'false') { $stage['OverwriteCustomisedRules'] = $true }
+          $leftOut = @()
+          if ($env:SKIP_ANALYTICS_RULES -eq 'true') { $leftOut += 'AnalyticsRule' }
+          if ($env:SKIP_WORKBOOKS -eq 'true') { $leftOut += 'Workbook' }
+          if ($env:SKIP_AUTOMATION_RULES -eq 'true') { $leftOut += 'AutomationRule' }
+          if ($env:SKIP_HUNTING_QUERIES -eq 'true') { $leftOut += 'HuntingQuery' }
+          if ($leftOut) { $stage['ExcludeSolutionContentType'] = $leftOut }
+          if ($env:FORCE_SOLUTION_UPDATE -eq 'true') { $stage['ForceSolutionUpdate'] = $true }
+          if ($env:FORCE_CONTENT_DEPLOYMENT -eq 'true') { $stage['ForceContentDeployment'] = $true }
+          if ($env:WHAT_IF -eq 'true') { $stage['WhatIf'] = $true }
+          $run = Deploy-iSOCWorkspace @stage
+          exit $run.ExitCode
 
   # ===========================================================================
   # Stage 4: Deploy Custom Content
@@ -523,7 +433,7 @@ jobs:
         uses: actions/cache/restore@v5
         continue-on-error: true
         with:
-          path: ${{ github.workspace }}/.deployment-state.json
+          path: ${{ github.workspace }}/deployment-state.json
           key: deployment-state-${{ env.WORKSPACE_NAME }}-
           restore-keys: |
             deployment-state-${{ env.WORKSPACE_NAME }}-
@@ -534,20 +444,38 @@ jobs:
           yaml-version:   ${{ env.YAML_VERSION }}
           install-pester: 'false'
 
+      # Bicep playbooks are compiled with the standalone Bicep CLI, which
+      # the iSOCDeployments module (and Az.Resources, deploying them)
+      # needs on the PATH. Use the one already on the runner; when there
+      # is none, install it with the Azure CLI and put it on the PATH.
+      - name: Put the Bicep CLI on the PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
+
       # Pre-deploy guard: dependencies.json must match what discovery
       # produces from current content. The PR-validation gate already
       # checks this on every PR to main, but a scheduled deploy from main
       # could still race if a non-deploy commit (e.g. a doc-only change
       # that bumps an analytical rule's query inline) bypassed the gate.
       # Failing fast here is cheap and prevents the deployer from running
-      # against a stale dependency graph.
+      # against a stale dependency graph. Deploy-iSOCWorkspace repeats the
+      # check before the custom content stage deploys.
       - name: Verify dependency manifest is current
         shell: pwsh
         run: |
-          & "${{ github.workspace }}/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
-          if ($LASTEXITCODE -ne 0) {
+          Import-Module (Join-Path $env:GITHUB_WORKSPACE 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          $result = Test-iSOCDependencyManifest -RepoPath $env:GITHUB_WORKSPACE
+          if (-not $result.Exists -or $result.HasDrift) {
               Write-Host "::error::dependencies.json is out of sync. Refusing to deploy with a stale dependency graph."
-              Write-Host "::error::Fix: run ./Tools/Build-DependencyManifest.ps1 -Mode Generate, commit, then re-run this workflow."
+              Write-Host "::error::Fix: run Update-iSOCDependencyManifest, commit, then re-run this workflow."
               exit 1
           }
 
@@ -559,56 +487,58 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Custom Content
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            $scriptParams = @{
-                SubscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-                ResourceGroup  = "${{ env.RESOURCE_GROUP }}"
-                Workspace      = "${{ env.WORKSPACE_NAME }}"
-                Region         = "${{ env.REGION }}"
-                BasePath       = "${{ github.workspace }}"
-            }
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          PLAYBOOK_RESOURCE_GROUP:   ${{ vars.PLAYBOOK_RESOURCE_GROUP }}
+          SKIP_CUSTOM_CONTENT_TYPES: ${{ inputs.skip_custom_content_types || 'community-detections' }}
+          SMART_DEPLOYMENT:          ${{ inputs.smart_deployment }}
+          WHAT_IF:                   ${{ inputs.what_if }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          # Trim accidental whitespace in the repo variable; Azure treats
+          # 'rg-name ' as a distinct (non-existent) resource group.
+          $playbookGroup = "$env:PLAYBOOK_RESOURCE_GROUP".Trim()
+          $connect = @{ SubscriptionId = $env:AZURE_SUBSCRIPTION_ID; ResourceGroup = $env:RESOURCE_GROUP; WorkspaceName = $env:WORKSPACE_NAME }
+          if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+          $null = Connect-iSOCWorkspace @connect
 
-            # Trim accidental whitespace in the repo variable; Azure
-            # treats 'rg-name ' as a distinct (non-existent) RG and
-            # Deploy-CustomContent.ps1 will error out before any work.
-            $playbookRG = "${{ vars.PLAYBOOK_RESOURCE_GROUP }}".Trim()
-            if ($playbookRG) { $scriptParams['PlaybookResourceGroup'] = $playbookRG }
+          # The command checks dependencies.json first and refuses a stale one.
+          $stage = @{ Stage = 'CustomContent'; RepoPath = $repo }
 
-            # Parse the consolidated skip_custom_content_types string
-            # into individual -Skip* script parameters. The cron trigger
-            # has no inputs.*, so the `|| 'community-detections'` fallback
-            # matches the workflow_dispatch default for parity. ADO's
-            # equivalent block (Pipelines/Sentinel-Deploy.yml) sets the
-            # same -Skip* parameters from its nine individual boolean
-            # parameters — net effect on Deploy-CustomContent.ps1 is
-            # identical across both platforms.
-            $skipList = "${{ inputs.skip_custom_content_types || 'community-detections' }}" -split ',' |
-                ForEach-Object { $_.Trim().ToLower() } |
-                Where-Object { $_ }
-
-            if ($skipList -contains 'parsers')              { $scriptParams['SkipParsers']              = $true }
-            if ($skipList -contains 'detections')           { $scriptParams['SkipDetections']           = $true }
-            if ($skipList -contains 'community-detections') { $scriptParams['SkipCommunityDetections'] = $true }
-            if ($skipList -contains 'watchlists')           { $scriptParams['SkipWatchlists']           = $true }
-            if ($skipList -contains 'playbooks')            { $scriptParams['SkipPlaybooks']            = $true }
-            if ($skipList -contains 'workbooks')            { $scriptParams['SkipWorkbooks']            = $true }
-            if ($skipList -contains 'hunting-queries')      { $scriptParams['SkipHuntingQueries']       = $true }
-            if ($skipList -contains 'automation-rules')     { $scriptParams['SkipAutomationRules']      = $true }
-            if ($skipList -contains 'summary-rules')        { $scriptParams['SkipSummaryRules']         = $true }
-            if ("${{ inputs.smart_deployment }}" -ne "false")            { $scriptParams['SmartDeployment']    = $true }
-            if ("${{ inputs.what_if }}" -eq "true")                      { $scriptParams['WhatIf']             = $true }
-
-            & "${{ github.workspace }}/Deploy/content/Deploy-CustomContent.ps1" @scriptParams
+          # Turn the consolidated skip_custom_content_types string into the
+          # command's -ExcludeContentType and -Exclude. The cron trigger has
+          # no inputs.*, so the `|| 'community-detections'` fallback matches
+          # the workflow_dispatch default for parity. ADO's equivalent block
+          # (Pipelines/Sentinel-Deploy.yml) sets the same parameters from its
+          # nine individual boolean parameters.
+          $skipList = @($env:SKIP_CUSTOM_CONTENT_TYPES -split ',' | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ })
+          $contentTypes = [ordered]@{
+              'parsers'          = 'Parser'
+              'detections'       = 'AnalyticsRule'
+              'watchlists'       = 'Watchlist'
+              'playbooks'        = 'Playbook'
+              'workbooks'        = 'Workbook'
+              'hunting-queries'  = 'HuntingQuery'
+              'automation-rules' = 'AutomationRule'
+              'summary-rules'    = 'SummaryRule'
+          }
+          $leftOut = @($contentTypes.Keys | Where-Object { $skipList -contains $_ } | ForEach-Object { $contentTypes[$_] })
+          if ($leftOut) { $stage['ExcludeContentType'] = $leftOut }
+          if ($skipList -contains 'community-detections') { $stage['Exclude'] = 'Content/AnalyticalRules/Community/*' }
+          if ($env:SMART_DEPLOYMENT -ne 'false') { $stage['SmartDeployment'] = $true }
+          if ($env:WHAT_IF -eq 'true') { $stage['WhatIf'] = $true }
+          $run = Deploy-iSOCWorkspace @stage
+          exit $run.ExitCode
 
       - name: Save Deployment State
         if: always()
         continue-on-error: true
         uses: actions/cache/save@v5
         with:
-          path: ${{ github.workspace }}/.deployment-state.json
+          path: ${{ github.workspace }}/deployment-state.json
           key: deployment-state-${{ env.WORKSPACE_NAME }}-${{ github.run_id }}
 
   # ===========================================================================
@@ -641,14 +571,22 @@ jobs:
           install-pester: 'false'
 
       - name: Deploy Defender Custom Detections
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            $scriptParams = @{
-                BasePath = "${{ github.workspace }}"
-            }
-
-            if ("${{ inputs.what_if }}" -eq "true") { $scriptParams['WhatIf'] = $true }
-
-            & "${{ github.workspace }}/Deploy/content/Deploy-DefenderDetections.ps1" @scriptParams
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID:   ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          PLAYBOOK_RESOURCE_GROUP: ${{ vars.PLAYBOOK_RESOURCE_GROUP }}
+          WHAT_IF:                 ${{ inputs.what_if }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          # Trim accidental whitespace in the repo variable; Azure treats
+          # 'rg-name ' as a distinct (non-existent) resource group.
+          $playbookGroup = "$env:PLAYBOOK_RESOURCE_GROUP".Trim()
+          $connect = @{ SubscriptionId = $env:AZURE_SUBSCRIPTION_ID; ResourceGroup = $env:RESOURCE_GROUP; WorkspaceName = $env:WORKSPACE_NAME }
+          if ($playbookGroup) { $connect['PlaybookResourceGroup'] = $playbookGroup }
+          $null = Connect-iSOCWorkspace @connect
+          $stage = @{ Stage = 'DefenderDetections'; RepoPath = $repo }
+          if ($env:WHAT_IF -eq 'true') { $stage['WhatIf'] = $true }
+          $run = Deploy-iSOCWorkspace @stage
+          exit $run.ExitCode

@@ -44,8 +44,8 @@ itself.
 | `ConvertTo-iSOCBlueprintChartImage` | Replaces the Markdown's Mermaid charts with PNG or SVG images | mmdc |
 | `Export-iSOCBlueprintWord` | Combines the Markdown report into one `.docx` | pandoc; LibreOffice for page numbers |
 | `New-iSOCBlueprintSite` | Builds the SharePoint bundle (dashboard, pages, findings) offline | Nothing extra |
-| `Publish-iSOCBlueprintSite` | Makes a SharePoint site match a bundle | PowerShell 7.4, PnP.PowerShell 3.4.1 |
-| `Initialize-iSOCBlueprintSite` | One-time set-up of the SharePoint site, by an administrator | PowerShell 7.4, PnP.PowerShell 3.4.1 |
+| `Publish-iSOCBlueprintSite` | Makes a SharePoint site match a bundle | PnP.PowerShell 3.4.1 |
+| `Initialize-iSOCBlueprintSite` | One-time set-up of the SharePoint site, by an administrator | PnP.PowerShell 3.4.1 |
 | `Get-iSOCBlueprintFinding` | The gap-analysis findings for an inventory, as objects | Nothing extra |
 | `Get-iSOCBlueprintMaturity` | The maturity assessment for an inventory, as an object | Nothing extra |
 | `Get-iSOCBlueprintWhatsNew` | What is new, in preview and retiring in Sentinel and Defender XDR, from Microsoft Learn; `-Path` saves it into an inventory for the report | Network (learn.microsoft.com) |
@@ -94,32 +94,94 @@ The guides for what the Blueprint produces and how it works are in
 
 ```
 iSOCBlueprint.psd1   manifest; ModuleVersion follows the repository release
-iSOCBlueprint.psm1   loads Private/ then Public/
+iSOCBlueprint.psm1   loads Private/ (every folder) then Public/
 Public/              one file per command
-Private/             the engine runner, path defaults, prerequisite checks
-Engine/              the Blueprint itself, as scripts
-  Export-SentinelInventory.ps1            collector
-  Convert-SentinelInventoryToMarkdown.ps1 renderer
-  Convert-MermaidToImage.ps1              chart images
-  Update-ConnectorCatalogue.ps1           catalogue refresh
-  Private/                                gap analysis, maturity, helpers
-  Private/Resources/                      rules, criteria, catalogues, page 99
-  Private/Vendor/                         KQL helpers copied from Sentinel.Common
-  Report/                                 Word conversion
-  SharePoint/                             site bundle, publisher, set-up
+Private/             the Blueprint as functions, one folder per concern; path defaults, prerequisite checks
+  Render/            the renderer as functions, one file each, none over 300 lines (ConvertTo-iSOCBlueprint calls it)
+    Invoke-iSOCBlueprintRender.ps1   entry point and ordered step list
+    Inventory/                       reads _raw/ into the render context
+    Helpers/                         generic helpers (formatting, dates, output)
+    Sections/                        one folder per report page
+    Data/                            lookup tables
+  Collector/         the collector, one function per file (Export-iSOCBlueprintInventory calls it)
+  Path/              the folder defaults and path resolving every command shares, one function per file
+    Invoke-iSOCBlueprintCollect.ps1  entry point
+    Captures/<Area>/                 one Invoke-*Capture function per capture
+    Setup/  Helpers/  Data/          run set-up and wrap-up, Save-Json and Invoke-CaptureAttempt, capture order
+  CaptureSummary/    the collector's capture notes and end-of-run summary, one function per file (loaded with the module)
+    Write-CaptureSummary.ps1         entry point
+    Issues/  Helpers/                sorting a failed capture and its notes, then wrapping and file counts
+  Word/              the Word report conversion, one function per file (Export-iSOCBlueprintWord calls it)
+    Steps/  Helpers/                 five steps, then the markdown, logging and LibreOffice helpers
+  Mermaid/           the Mermaid chart parser, one function per file
+  Cost/              the cost estimate, one function per file (loaded with the module)
+    Get-SentinelCostEstimate.ps1   entry point
+    Steps/  Helpers/                 one step per part of the estimate, then JSON reading and the price lookups
+  Section/           the Markdown-to-section-model converter, one function per file
+    ConvertTo-BlueprintSection.ps1   entry point
+    Parsing/  Inline/  Data/         the token walk and table chunking, text runs and links, shared values
+    Parsers/  Helpers/
+  Publish/           the site publish, one function per file (Publish-iSOCBlueprintSite calls it)
+    Steps/  Helpers/                 load, connect, the eight stages, then the state record
+  PageSegments/      a section as SharePoint page segments, one function per file
+    Names/  Html/  Tables/  Charts/  Data/
+  SharePoint/        the site publisher's PnP functions, one per file
+    Site/  Apps/  Files/  State/  Snapshots/  Pages/  Findings/  Navigation/  Data/
+  Lookup/            shared lookups the renderer, gap checks, maturity and site build read: connectors, tables, templates, ATT&CK, hunting, finding-to-criterion links
+  Azure/             REST calls (Invoke-SentinelRest), retail prices and the Defender custom detections reader
+  Kql/               KQL table references, and Vendor/ with the two Sentinel.Common helpers it needs
+  SiteShared/        what the site build and the publisher share: section families and the progress record
+  ChartImage/        the chart image step, Invoke-iSOCBlueprintChartImage, and the hash that names an image (loaded with the module)
+  ConnectorCatalogue/ the catalogue refresh, Invoke-iSOCBlueprintConnectorCatalogueUpdate (loaded with the module)
+  SiteSetup/         the one-time site set-up, Invoke-iSOCBlueprintSiteInitialize (loaded with the module)
+  Run/               the steps of New-iSOCBlueprint, one function per file, sharing a run context
+    Test-iSOCBlueprintRunRequest.ps1  Resolve-iSOCBlueprintRunFolder.ps1   check the request and the machine, then work out the folders
+    Assert-iSOCBlueprintPrerequisite.ps1   stop with the list of missing modules and tools for the steps named
+    Invoke-iSOCBlueprintRun{Collect,Render,Word,Site}.ps1  Complete-iSOCBlueprintRun.ps1   the steps in order, then the summary and the result
+  WhatsNew/          the What's new reader, one function per file (loaded with the module)
+    Get-WhatsNew.ps1                 entry point
+    Parsing/  Helpers/  Data/        one page's Markdown to items, then slugs, links, status and deadlines, and the two pages read
+  Format/            the text formatters for counts, GB, money, dates, plurals and names, one function per file
+    Numbers/  Text/  Names/  Data/       number and amount formats, dates and words, region and SKU names, then the values they share
+  SyncPlan/          the publisher's planning functions, one per file
+    Pages/  Findings/  Navigation/  Assets/   what to create, update, resolve, retire or prune
+  Site/              the SharePoint site build (joins the dashboard template's parts from Resources/SharePoint/templates/dashboard), one function per file (New-iSOCBlueprintSite calls it)
+    Invoke-iSOCBlueprintSiteBuild.ps1  entry point
+    Steps/  Helpers/  Data/            one step per part of the model, then the bundle writer
+  Maturity/          the maturity assessment, one function per file (loaded with the module)
+    Get-SentinelMaturity.ps1         entry point
+    Metrics/  Criteria/  Reporting/  Helpers/  Data/
+  Gap/               the gap checks, one function per file (loaded with the module)
+  GapAnalysis/       the gap engine, Get-SentinelGap, which runs the checks over an inventory against the rule set
+    Checks/<Area>/                   one Test-* check per rule, by rule-id prefix
+    Helpers/                         finding shape, property reads, window, converters
+    Data/                            values the checks share
+Resources/           the static files the functions read
+  Data/                                   rules, criteria, catalogues, page 99
   Schemas/                                section model JSON schemas
+  Report/                                 the Word reference document and the page-number helper
+  SharePoint/templates/                   the dashboard templates
+  Blueprint.psd1                          reference record of the module and API versions
 WebParts/            SPFx solution for the dashboard and chart web parts
 MIGRATION.md         where each file came from
 ```
 
-The public commands are thin: each maps its parameters onto one engine
-script, runs it and returns an object describing what it wrote. The engine
-scripts keep the layout and behaviour they had before the module.
+The public commands are thin: each maps its parameters onto one private
+function (the collector, the renderer, the Word conversion, the site build and
+publish, the chart image step, the catalogue refresh, the site set-up), runs it
+and returns an object describing what it wrote. Every function sets its own
+strict mode: the collector runs strict, and the others run with it off, as the
+scripts they replaced did. A step that cannot go on throws; no function calls
+`exit`, which would end the caller's session. `-WhatIf` and `-Confirm` reach
+the functions through the preference variables.
+
+`Resources/` holds no code: it is the static files the functions read (the data,
+the schemas, the dashboard templates, the Word reference document).
 
 The SharePoint web parts, the dashboard and the chart, are an SPFx solution
 (TypeScript, built with npm) in [`WebParts/`](WebParts/README.md). They sit
 with the module because the dashboard they host is the engine's
-`SharePoint/templates/sharepoint-dashboard.html` and the module's
+`SharePoint/templates/dashboard/` (the dashboard template, in parts) and the module's
 `Publish-iSOCBlueprintSite -AppPackagePath` deploys their package; the module
 itself loads nothing from the folder. The pipelines build the package with
 `npm ci` and `npm run package` in `WebParts/` and pass
@@ -128,8 +190,8 @@ itself loads nothing from the folder. The pipelines build the package with
 ## Where it came from
 
 Before release 26.10 the Blueprint was a set of scripts, in `Tools/Documenter`
-and then, briefly, `Tools/Blueprint`. The engine is those scripts, copied file by
-file; [`MIGRATION.md`](MIGRATION.md) records where each file went and the few
+and then, briefly, `Tools/Blueprint`. The module is those scripts, copied file by
+file and since turned into functions; [`MIGRATION.md`](MIGRATION.md) records where each file went and the few
 edits the copy carries: the engine loads its own copy of two Sentinel.Common
 KQL helpers, defaults its folders to `./SecurityDocs` under the current
 directory, records the module version as the Blueprint version, reads page 99
@@ -138,16 +200,16 @@ repository. Before the old folder was removed, the module's output was
 compared with the old scripts' over the test fixture and a full pipeline run
 on the module passed.
 
-| Old script | Command |
+| Old script | Command (each is now a private function the command calls) |
 | --- | --- |
-| `Export-SentinelInventory.ps1` | `Export-iSOCBlueprintInventory` (`-OutputRoot` is `-OutputPath`) |
-| `Convert-SentinelInventoryToMarkdown.ps1` | `ConvertTo-iSOCBlueprint` (`-InputRoot` is `-Path`, `-OutputFormat` is `-Format`) |
-| `Convert-MermaidToImage.ps1` | `ConvertTo-iSOCBlueprintChartImage` (`-Root` is `-Path`) |
-| `Report/Convert-MarkdownToWord.ps1` | `Export-iSOCBlueprintWord` (`-Source` is `-Path`) |
-| `SharePoint/Build-SentinelDocsSite.ps1` | `New-iSOCBlueprintSite` (`-Source` is `-Path`, `-OutputRoot` is `-OutputPath`) |
-| `SharePoint/Publish-SentinelDocsSite.ps1` | `Publish-iSOCBlueprintSite` (`-Bundle` is `-Path`) |
-| `SharePoint/Initialize-SentinelDocsSite.ps1` | `Initialize-iSOCBlueprintSite` |
-| `Update-ConnectorCatalogue.ps1` | `Update-iSOCBlueprintConnectorCatalogue` |
+| `Export-SentinelInventory.ps1` | `Export-iSOCBlueprintInventory` (`-OutputRoot` is `-OutputPath`), now `Invoke-iSOCBlueprintCollect` |
+| `Convert-SentinelInventoryToMarkdown.ps1` | `ConvertTo-iSOCBlueprint` (`-InputRoot` is `-Path`, `-OutputFormat` is `-Format`), now `Invoke-iSOCBlueprintRender` |
+| `Convert-MermaidToImage.ps1` | `ConvertTo-iSOCBlueprintChartImage` (`-Root` is `-Path`), now `Invoke-iSOCBlueprintChartImage` |
+| `Report/Convert-MarkdownToWord.ps1` | `Export-iSOCBlueprintWord` (`-Source` is `-Path`), now `Invoke-iSOCBlueprintWordConversion` |
+| `SharePoint/Build-SentinelDocsSite.ps1` | `New-iSOCBlueprintSite` (`-Source` is `-Path`, `-OutputRoot` is `-OutputPath`), now `Invoke-iSOCBlueprintSiteBuild` |
+| `SharePoint/Publish-SentinelDocsSite.ps1` | `Publish-iSOCBlueprintSite` (`-Bundle` is `-Path`), now `Invoke-iSOCBlueprintSitePublish` |
+| `SharePoint/Initialize-SentinelDocsSite.ps1` | `Initialize-iSOCBlueprintSite`, now `Invoke-iSOCBlueprintSiteInitialize` |
+| `Update-ConnectorCatalogue.ps1` | `Update-iSOCBlueprintConnectorCatalogue`, now `Invoke-iSOCBlueprintConnectorCatalogueUpdate` |
 | `Report/Convert-FolderToWordReport.ps1` | Retired: a generic folder-to-Word dump that nothing called |
 
 ## Tests
@@ -160,10 +222,10 @@ Invoke-Pester -Path Tests/iSOCBlueprint
 | --- | --- |
 | `Migration-Map.Tests.ps1` | The move recorded in `MIGRATION.md` stays complete: no old path comes back, no destination goes missing |
 | `Vendored.Tests.ps1` | The two Sentinel.Common KQL helpers and page 99 match their originals |
-| `Module.Tests.ps1` | Manifest, help, file headers, prerequisites against the engine's `#Requires`, and each command's parameter mapping |
+| `Module.Tests.ps1` | Manifest, help, file headers, the prerequisite list, the commands that check it, and each command's parameter mapping |
 | `Module-Standalone.Tests.ps1` | The module copied outside the repository renders the fixture, builds the site and runs the assessments |
 | `Pipelines.Tests.ps1` | Every call the Blueprint pipelines make to the module binds, after an import, and every repository path they name exists |
 
 The engine's own suites (the renderer, the gap and maturity engines, the
 section model, the SharePoint site and its PnP calls, the Word rewrites and
-the helpers) sit in the same folder and test the scripts under `Engine/`.
+the helpers) sit in the same folder and test the functions under `Private/`.

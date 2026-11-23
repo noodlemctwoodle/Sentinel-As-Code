@@ -1,5 +1,6 @@
+id: azure-resource-deletion-spike
 displayName: Spike in Azure resource deletions
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     AzureActivity
@@ -16,9 +17,8 @@ queryCondition:
     | where DeletionCount > 10
     | project TimeGenerated, AccountUpn, SubscriptionId,
               DeletionCount, ResourceTypes, ResourceGroups
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Spike in Azure resource deletions"
@@ -27,9 +27,10 @@ detectionAction:
       Mass resource deletion can indicate a compromised account performing
       destructive actions or an insider threat destroying cloud infrastructure.
     severity: high
-    category: Impact
-    mitreTechniques:
-      - T1485
+    tactics:
+      - tactic: Impact
+        techniques:
+          - technique: T1485
     recommendedActions: |
       1. Verify with the account owner whether the deletions were planned.
       2. Check if the deletions align with a decommissioning or migration project.
@@ -37,6 +38,6 @@ detectionAction:
       4. If unauthorised, lock the account and revoke Azure RBAC permissions.
       5. Assess recovery options via Azure resource locks and soft-delete retention.
       6. Review Activity Log for the subscription around the deletion timeframe.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountUpn
+    entityMappings:
+      accounts:
+        - upnColumn: AccountUpn

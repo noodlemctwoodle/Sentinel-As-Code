@@ -3,15 +3,15 @@
 A durable record of the API versions, services, modules and KQL queries the Blueprint
 depends on. When something in Microsoft's surface area changes, this page is
 the first thing to update; the change then ripples through `Blueprint.psd1`, the inline
-api-version table in `Export-SentinelInventory.ps1`, `Private/Invoke-SentinelRest.ps1`,
+api-version table in `Get-CollectorApiVersion` (`Private/Collector/Setup`), `Private/Azure/Invoke-SentinelRest.ps1`,
 and the gap-rule resources.
 
 <!-- bp:tone warning -->
 
 > **Where the api-versions actually live** The `ApiVersions` block in `Blueprint.psd1`
-> is a reference copy only, it is **not** read at runtime. `Export-SentinelInventory.ps1`
-> hardcodes its own copy of the same five versions in the `$apiVersions` hashtable near
-> the top of the script. Reading the manifest at script start was failing silently on the
+> is a reference copy only, it is **not** read at runtime. `Get-CollectorApiVersion`
+> (`Private/Collector/Setup/Get-CollectorApiVersion.ps1`) hardcodes its own copy of the
+> same five versions in the hashtable it returns. Reading the manifest at script start was failing silently on the
 > ADO Linux agent (the collector's child scopes received an empty `$apiVersions`, so every
 > REST call fired without an api-version and Azure returned `400 MissingApiVersionParameter`).
 > The two copies must be kept in sync by hand; updating only `Blueprint.psd1` has no effect
@@ -44,7 +44,7 @@ literal string.
 
 Beyond the five keyed versions above, the collector hardcodes several literal api-versions
 inline where a resource provider is published on its own cadence. These are **not** in the
-`$apiVersions` table, so grep `Export-SentinelInventory.ps1` for the literal string when one
+`$apiVersions` table, so grep `Private/Collector` for the literal string when one
 needs bumping.
 
 | Surface | Version | Capture |
@@ -89,14 +89,14 @@ api-version from the tables above.
 | `Az.Monitor` | `5.2.1` | Pinned, not called: data collection and diagnostic settings are read over REST |
 | `Az.LogicApp` | `1.7.0` | Pinned, not called: playbooks are read over REST (see REST-only gaps) |
 | `powershell-yaml` | `0.4.12` | Reading YAML content when rendering |
-| `PnP.PowerShell` | `3.4.1` | The SharePoint commands, on PowerShell 7.4 |
+| `PnP.PowerShell` | `3.4.1` | The SharePoint commands |
 | `Microsoft.Graph.Authentication` | Any | The Defender custom detection capture, when a Graph session is open |
 
-The first seven are pinned in the `Modules` block of `Engine/Blueprint.psd1`.
+The first seven are pinned in the `Modules` block of `Resources/Blueprint.psd1`.
 `Test-iSOCBlueprintPrerequisite` reports what a machine has.
 
 The collector is **REST-first end to end**: every Sentinel and Log Analytics artefact is
-read through `Invoke-SentinelRest` (`Private/Invoke-SentinelRest.ps1`, a thin wrapper over
+read through `Invoke-SentinelRest` (`Private/Azure/Invoke-SentinelRest.ps1`, a thin wrapper over
 `Invoke-AzRestMethod`), and no `Az.SecurityInsights`, `Az.OperationalInsights` or
 `Az.Monitor` inventory cmdlet is called. These are the cmdlets it does call:
 
@@ -110,7 +110,7 @@ read through `Invoke-SentinelRest` (`Private/Invoke-SentinelRest.ps1`, a thin wr
 | `Get-AzRoleAssignment` | `Az.Resources` | Role assignments on the workspace and resource group, and for playbook identities |
 | `Invoke-AzOperationalInsightsQuery` | `Az.OperationalInsights` | The 43 KQL captures, never inventory |
 | `Invoke-MgGraphRequest` | `Microsoft.Graph.Authentication` | Defender custom detections, when a Graph session is open |
-| `Get-AzureRetailPrice` | Repository helper | The Azure Retail Prices API (`Private/Get-AzureRetailPrice.ps1`) |
+| `Get-AzureRetailPrice` | Repository helper | The Azure Retail Prices API (`Private/Azure/Get-AzureRetailPrice.ps1`) |
 
 ## Authentication pattern
 
@@ -147,11 +147,11 @@ Nearly everything is read over REST by convention. These are the surfaces where 
 ## Recurring KQL queries
 
 The collector runs **43 KQL queries** through `Invoke-AzOperationalInsightsQuery`, each in
-its own `Try-Capture` block that writes one `_raw/<name>.json`, and a 44th only when the
+its own `Invoke-CaptureAttempt` block that writes one `_raw/<name>.json`, and a 44th only when the
 bookmarks API refuses its list (below). About half read raw
 operational and security tables, not only billing metadata, so they cost query time on a
 busy workspace, and more the longer the lookback. To list them, grep the collector for
-`Try-Capture` blocks that set `$kql`.
+`Invoke-CaptureAttempt` blocks that set `$kql`.
 
 Every query reads **one lookback**: `-LookbackDays` (1 to 730, default 30, the
 `lookbackDays` pipeline parameter). `Add-BpWindow` declares `let lookback = <n>d;`,
@@ -287,7 +287,7 @@ run (with `lookback` and `recent` declared ahead of them):
 
 ## Azure Retail Prices API
 
-Anonymous, with no authentication. Read by `Private/Get-AzureRetailPrice.ps1`.
+Anonymous, with no authentication. Read by `Private/Azure/Get-AzureRetailPrice.ps1`.
 
 | | |
 |---|---|
@@ -299,7 +299,7 @@ Anonymous, with no authentication. Read by `Private/Get-AzureRetailPrice.ps1`.
 ## Data connector catalogue
 
 Which data connector writes which table, and the Content Hub solution that
-ships it, comes from `Private/Resources/connector-catalogue.json`: about 630
+ships it, comes from `Resources/Data/connector-catalogue.json`: about 630
 connectors and their tables, copied from the Sentinel as Code Toolkit's
 `data/connectors.json`. The Toolkit builds that file from Microsoft's
 Solutions Analyzer CSVs in the Azure-Sentinel repository
@@ -317,7 +317,7 @@ pay-as-you-go, Basic, Auxiliary and data lake meters, and every commitment
 tier's price a day as `<n> GB Commitment Tier Capacity Reservation`) and
 `Log Analytics` (the classic ingestion meters, the fallback for an older
 capture). The meter names it reads are in
-`Private/Resources/cost-meters.json`. Prices come in the currency the run
+`Resources/Data/cost-meters.json`. Prices come in the currency the run
 asks for (`-Currency`); `Auto`, the default, takes it from the workspace's
 region (`Resolve-AzureRetailCurrency`), since the billing account that
 really sets it is not readable with the collector's permissions.
@@ -329,7 +329,7 @@ Defender for Servers Plan 2 allowance (500 MB per server a day, SecurityEvent
 and the other security tables collected through Defender for Cloud). The
 Blueprint cannot read licence or server counts, so it prices those tables at
 list and reports the eligible volume beside the total as the most each grant
-could save. The lists are in `Private/Resources/sentinel-benefit-tables.json`,
+could save. The lists are in `Resources/Data/sentinel-benefit-tables.json`,
 reviewed against
 <https://azure.microsoft.com/offers/sentinel-microsoft-365-offer/> and
 <https://learn.microsoft.com/azure/defender-for-cloud/data-ingestion-benefit>

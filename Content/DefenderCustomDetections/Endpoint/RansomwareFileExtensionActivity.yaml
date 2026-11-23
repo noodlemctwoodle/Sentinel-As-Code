@@ -1,5 +1,6 @@
+id: ransomware-file-extension-activity
 displayName: Ransomware file extension activity detected
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
 
@@ -19,9 +20,8 @@ queryCondition:
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
               InitiatingProcessFileName, InitiatingProcessCommandLine,
               InitiatingProcessSHA1, FileCount, FileList
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Ransomware file extension activity detected"
@@ -30,9 +30,10 @@ detectionAction:
       on an endpoint. This pattern is consistent with active ransomware encryption.
       Immediate containment is critical to prevent lateral spread.
     severity: high
-    category: Impact
-    mitreTechniques:
-      - T1486
+    tactics:
+      - tactic: Impact
+        techniques:
+          - technique: T1486
     recommendedActions: |
       1. Verify the device is isolated and confirm no lateral movement occurred.
       2. Identify the initiating process and check if it is a known ransomware binary.
@@ -40,16 +41,16 @@ detectionAction:
       4. Check for ransom notes in affected directories.
       5. Assess backup availability for encrypted files.
       6. Escalate to incident response if confirmed ransomware.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction"
-      identifier: deviceId
-      isolationType: full
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.initiateInvestigationResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    isolateDevices:
+      - deviceIdColumn: DeviceId
+        isolationType: full
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    runAntivirusScans:
+      - deviceIdColumn: DeviceId
+    initiateInvestigations:
+      - deviceIdColumn: DeviceId

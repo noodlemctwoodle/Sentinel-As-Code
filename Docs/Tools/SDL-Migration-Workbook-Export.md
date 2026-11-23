@@ -319,7 +319,7 @@ Sources: [Plan costs and understand Microsoft Sentinel pricing and billing](http
 
 ## Prerequisites
 
-- **PowerShell 7.2 or later** (the manifest declares it).
+- **PowerShell 7.6 or later** (the manifest declares it).
 - **Az modules:** `Az.Accounts` and `Az.OperationalInsights`.
 - **ImportExcel:** required to write the `.xlsx`. Install with
   `Install-Module ImportExcel -Scope CurrentUser`. The three modules are listed

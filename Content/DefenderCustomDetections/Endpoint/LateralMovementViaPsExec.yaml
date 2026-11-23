@@ -1,5 +1,6 @@
+id: lateral-movement-via-ps-exec
 displayName: Lateral movement via PsExec or remote service creation
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceProcessEvents
@@ -10,9 +11,8 @@ queryCondition:
             and ProcessCommandLine has_any ("cmd", "powershell", "pwsh"))
     | where InitiatingProcessFileName !in~ ("svchost.exe", "msiexec.exe")
     | project Timestamp, DeviceId, DeviceName, ReportId, AccountUpn, AccountName, AccountDomain, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
-  lastModifiedDateTime: "2026-03-20T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Lateral movement via PsExec or remote service creation"
@@ -21,23 +21,30 @@ detectionAction:
       an endpoint. These tools are commonly abused for lateral movement after
       initial compromise, allowing attackers to execute commands on remote systems.
     severity: high
-    category: LateralMovement
-    mitreTechniques:
-      - T1021.002
-      - T1569.002
+    tactics:
+      - tactic: LateralMovement
+        techniques:
+          - technique: T1021
+            subTechniques:
+              - T1021.002
+      - tactic: Execution
+        techniques:
+          - technique: T1569
+            subTechniques:
+              - T1569.002
     recommendedActions: |
       1. Verify if the activity was performed by an authorised administrator.
       2. Check the source device and account for signs of compromise.
       3. Review the executed command for malicious intent.
       4. Investigate other devices contacted by the same account.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction"
-      identifier: deviceId
-      isolationType: full
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.initiateInvestigationResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    isolateDevices:
+      - deviceIdColumn: DeviceId
+        isolationType: full
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    initiateInvestigations:
+      - deviceIdColumn: DeviceId

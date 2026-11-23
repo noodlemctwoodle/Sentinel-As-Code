@@ -29,7 +29,10 @@ and the same runbook-update logic:
   `rg-dcr-watchlist-sync`)
 - Automation Account (default `aa-dcr-watchlist-sync`) with a
   system-assigned managed identity
-- The `Invoke-DCRWatchlistSync` PowerShell 7.2 runbook, imported from
+- A PowerShell 7.6 runtime environment, `PowerShell-76`, with the Az
+  15.1.0 package (which carries the `Az.Accounts` the runbook needs)
+- The `Invoke-DCRWatchlistSync` runbook, linked to that runtime
+  environment and imported from
   [`Tools/Invoke-DCRWatchlistSync.ps1`](../../Tools/Invoke-DCRWatchlistSync.ps1)
 - A recurring Automation schedule (daily by default, 03:00 UTC start) and
   the job schedule that links the runbook to it with its runtime
@@ -127,7 +130,13 @@ followed by a runbook-update stage that depends on it.
      `AzurePowerShell@5` on ADO):
      - `Import-AzAutomationRunbook` imports
        `Tools/Invoke-DCRWatchlistSync.ps1` into the existing runbook as
-       PowerShell 7.2 (`-Force`).
+       PowerShell (`-Force`).
+     - The cmdlet cannot name a runtime environment, so the step links
+       the runbook to `PowerShell-76` again with a `PATCH` of the runbook
+       (`Invoke-AzRestMethod`, api-version `2024-10-23`) and reads it
+       back. It fails, before publishing, when the runbook is on any
+       other runtime environment, which is the case when the
+       infrastructure stage has not created `PowerShell-76`.
      - `Publish-AzAutomationRunbook` publishes the imported draft.
      - The job schedule is linked idempotently: `Get-AzAutomationScheduledRunbook`
        checks for an existing link to schedule `dcr-watchlist-sync-schedule`;
@@ -194,6 +203,13 @@ system-assigned identity (helper:
   associations).
 - **Microsoft Sentinel Contributor** on the subscription (to upsert the
   watchlist).
+
+The iSOCDeployments module grants the same identity the narrower pair,
+Monitoring Reader on the subscription and Microsoft Sentinel Contributor on
+the Sentinel resource group, with `Grant-iSOCRunbookPermission
+-AutomationAccountName <name> -AutomationResourceGroup <rg>` after
+`Connect-iSOCWorkspace` ([Permissions](../Modules/iSOCDeployments/Permissions.md)).
+The pipelines run no script the module replaced.
 
 Once granted, the runbook runs autonomously on its Automation schedule.
 

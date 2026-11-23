@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -11,8 +11,8 @@
     Website:      https://sentinel.blog
     Created:      2026-05-18
     Version:      0.2.0
-    Last Updated: 2026-11-16
-    Requires:     PowerShell 7.2+, Az.Accounts, Az.OperationalInsights, ImportExcel
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Az.Accounts, Az.OperationalInsights, ImportExcel
 
     Was a standalone script before 0.2.0; now the module's only exported
     function. To be replaced by the iSOCDeployments module.

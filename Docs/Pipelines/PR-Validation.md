@@ -30,8 +30,8 @@ job is in [PR Validation Gate Setup](../Deploy/PR-Validation-Setup.md).
 
 | Event | Detail |
 | --- | --- |
-| `pull_request` | Target branch `main`; activity types `opened`, `synchronize`, `reopened`, `ready_for_review` |
-| `push` | Branch `main` (CI baseline; catches admin-override, force-push and squash-merge edge cases where a direct push reaches `main`) |
+| `pull_request` | Target branches `main` and `release/**`; activity types `opened`, `synchronize`, `reopened`, `ready_for_review` |
+| `push` | Branches `main` and `release/**` (CI baseline; catches admin-override, force-push and squash-merge edge cases where a direct push reaches `main`) |
 | `workflow_dispatch` | Manual run against any branch |
 
 There is **no `paths` / `paths-ignore` filter**. Every job runs on every
@@ -128,7 +128,8 @@ status check that the branch-protection ruleset can require independently.
   1. Checkout.
   2. [`./.github/actions/azure-login-oidc`](../../.github/actions/azure-login-oidc)
      with the three OIDC secrets.
-  3. For every `Content/Playbooks/**/*.json` template, call
+  3. For every playbook under `Content/Playbooks/` (`.bicep`, compiled to
+     read its parameters, or `.json`), call
      `Test-AzResourceGroupDeployment` against the resource group named in the
      `PR_VALIDATION_RESOURCE_GROUP` repository variable, passing a set of stub
      parameter values (only the parameters each template actually declares are
@@ -217,14 +218,24 @@ reports success against the PR's latest commit.
 
 ### Triggers
 
-Both a `pr` trigger and a CI `trigger`, each scoped to `main` with the same
-path filter:
+Both a `pr` trigger and a CI `trigger`, each scoped to `main` and
+`release/*` with the same path filter (pipeline and workflow files are
+included, so a change that touches only CI definitions is still gated):
 
 ```yaml
 paths:
   include:
     - Content/AnalyticalRules
     - Content/HuntingQueries
+    - Content/Playbooks
+    - Content/Parsers
+    - Content/Watchlists
+    - Content/AutomationRules
+    - Content/SummaryRules
+    - Content/WorkspaceSettings
+    - Content/DefenderCustomDetections
+    - Infra
+    - sentinel-deployment.config
     - Content/Workbooks
     - Content/CodelessConnectors
     - Modules
@@ -232,7 +243,8 @@ paths:
     - Tools
     - Tests
     - dependencies.json
-    - Pipelines/Sentinel-PR-Validation.yml
+    - Pipelines
+    - .github/workflows
 ```
 
 - `pr` runs the pipeline automatically against PR commits (even before the
@@ -241,14 +253,16 @@ paths:
 
 Unlike the GitHub workflow, the ADO pipeline **does** filter by path: it only
 runs when one of the listed paths changes. Every folder that holds PowerShell
-must be listed, so the PSScriptAnalyzer lint sees changes to it, and the
-branch policy's path filter (see [ADO OIDC setup](../Deploy/ADO-OIDC-Setup.md))
+or a deployable input must be listed, so the PSScriptAnalyzer lint and the
+content suites see changes to it, and the branch policy's path filter (see [ADO OIDC setup](../Deploy/ADO-OIDC-Setup.md))
 must match these lists.
 
 ### Variables
 
 | Variable | Value |
 | --- | --- |
+| `pesterVersion` | `5.7.1` (same pin as GitHub's `PESTER_VERSION`) |
+| `yamlVersion` | `0.4.12` (same pin as GitHub's `YAML_VERSION`) |
 | `testResultsFile` | `$(Build.SourcesDirectory)/test-results/pester-results.xml` |
 
 ### Stage and job
@@ -261,24 +275,29 @@ Steps, in order:
 
 1. **Checkout** `self` with `fetchDepth: 1`.
 2. **Install Pester, powershell-yaml and PnP.PowerShell** (inline `pwsh`):
-   installs Pester (minimum `5.0.0`) if a suitable version is not already
-   present, plus powershell-yaml if missing. Note this is a
-   **minimum-version** install, not the exact pin the GitHub composite
-   action enforces. PnP.PowerShell is the exception: it is installed at
-   exactly the `pnpVersion` read from `Pipelines/Sentinel-Blueprint.yml`,
-   for the SharePoint PnP call check.
-3. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
+   installs Pester at exactly `pesterVersion` and powershell-yaml at
+   exactly `yamlVersion` when those versions are not already present, the
+   same pins the GitHub composite action enforces. PnP.PowerShell is
+   installed at exactly the `pnpVersion` read from
+   `Pipelines/Sentinel-Blueprint.yml`, for the SharePoint PnP call check.
+3. **Put the Bicep CLI on the PATH**: playbooks are Bicep, and the
+   module and its suites compile them with the standalone Bicep CLI. Uses
+   the CLI on the agent, or runs `az bicep install` and prepends
+   `~/.azure/bin` to the PATH.
+4. **Run PR validation**: calls `Tools/Invoke-PRValidation.ps1` with
    `-RepoPath`, `-TestResultsPath "$(testResultsFile)"` and
    `-InstallModules:$false` - the same entrypoint the GitHub `validate` job
    uses.
-4. **Verify dependency manifest**: `Tools/Build-DependencyManifest.ps1
-   -Mode Verify`; logs an error and exits non-zero on drift. This is the ADO
-   equivalent of the GitHub `dependency-manifest` job.
-5. **Publish Pester results** (`condition: always()`): `PublishTestResults@2`
+5. **Verify dependency manifest**: `Test-iSOCDependencyManifest` from the
+   iSOCDeployments module; logs two errors naming the fix and exits
+   non-zero on drift. This is the ADO equivalent of the GitHub
+   `dependency-manifest` job; see
+   [the pipeline switch](../Modules/iSOCDeployments/Pipeline-Switch.md).
+6. **Publish Pester results** (`condition: always()`): `PublishTestResults@2`
    with `testResultsFormat: NUnit` against `$(testResultsFile)`.
    `failTaskOnFailedTests: false` because the Pester step has already exited
    non-zero on failure.
-6. **Upload Pester report** (`condition: always()`): `PublishPipelineArtifact@1`
+7. **Upload Pester report** (`condition: always()`): `PublishPipelineArtifact@1`
    uploads `test-results/` as `pester-results-$(Build.BuildId)`.
 
 ### Wiring as a required gate
@@ -300,8 +319,8 @@ the latest commit.
 | Bicep / ARM / KQL checks | Yes (`bicep-build`, `arm-validate`, `kql-validate`) | **Not present** |
 | Azure auth | `arm-validate` uses OIDC; rest offline | None (all gates offline) |
 | Path filter | None (runs on every PR / push to `main`) | Path-filtered on both `pr` and `trigger` |
-| PR trigger scope | `opened`, `synchronize`, `reopened`, `ready_for_review` | `pr` branches `main` |
-| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Blueprint's `pnpVersion`) | Inline; Pester minimum `5.0.0`, powershell-yaml latest, PnP.PowerShell at the Blueprint's `pnpVersion` |
+| PR trigger scope | `opened`, `synchronize`, `reopened`, `ready_for_review` on `main` and `release/**` | `pr` branches `main` and `release/*` |
+| Module install | Exact pins via `setup-pwsh-modules` (Pester `5.7.1`, powershell-yaml `0.4.12`, PnP.PowerShell at the Blueprint's `pnpVersion`) | Inline, exact pins from the `pesterVersion` and `yamlVersion` variables (same versions), PnP.PowerShell at the Blueprint's `pnpVersion` |
 | Test report | NUnit 2.5 XML (published to check UI + artefact) | NUnit 2.5 XML (published via `PublishTestResults@2` + artefact) |
 | Concurrency | Cancels superseded PR runs | Handled by ADO's own PR-run behaviour |
 

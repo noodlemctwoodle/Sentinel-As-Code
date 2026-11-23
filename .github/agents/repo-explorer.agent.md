@@ -26,7 +26,7 @@ explain, and direct.
 3. **Use the deploy flow as a mental model.** Most "how does X
    work?" questions trace a path through:
    - Authoring (`Content/AnalyticalRules/`, `Content/HuntingQueries/`, etc.)
-   - Discovery (`Modules/Sentinel.Common/` + `Tools/Build-DependencyManifest.ps1`)
+   - Discovery (`Modules/iSOCDeployments/Private/Kql/` + `Update-iSOCDependencyManifest`)
    - PR-validation gate (`.github/workflows/pr-validation.yml`)
    - Deploy (`Deploy/content/Deploy-CustomContent.ps1`,
      `Deploy/content/Deploy-SentinelContentHub.ps1`,

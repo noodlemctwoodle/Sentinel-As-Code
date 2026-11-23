@@ -1,5 +1,6 @@
+id: privileged-role-assignment
 displayName: Privileged Entra ID role assigned to user
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     AuditLogs
@@ -17,9 +18,8 @@ queryCondition:
     | project TimeGenerated, AccountUpn, AccountObjectId,
               TargetUpn, TargetObjectId, RoleName,
               OperationName, CorrelationId
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Privileged Entra ID role assigned to user"
@@ -29,9 +29,12 @@ detectionAction:
       the tenant, including the ability to modify security settings and
       access all organisational data.
     severity: high
-    category: PrivilegeEscalation
-    mitreTechniques:
-      - T1098.003
+    tactics:
+      - tactic: PrivilegeEscalation
+        techniques:
+          - technique: T1098
+            subTechniques:
+              - T1098.003
     recommendedActions: |
       1. Verify the role assignment was approved through the proper access governance process.
       2. Check if the initiating account is authorised to assign privileged roles.
@@ -39,6 +42,6 @@ detectionAction:
       4. If unauthorised, remove the role assignment immediately.
       5. Check PIM (Privileged Identity Management) for policy bypass.
       6. Audit all role assignments made by the initiating account.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId

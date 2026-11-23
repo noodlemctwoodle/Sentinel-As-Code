@@ -1,5 +1,6 @@
+id: mfa-fatigue-attack-pattern
 displayName: MFA fatigue attack with repeated push notifications
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     SigninLogs
@@ -14,9 +15,8 @@ queryCondition:
     | where MfaDeniedCount > 5
     | project TimeGenerated, AccountObjectId, AccountUpn,
               MfaDeniedCount, IPAddresses
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "MFA fatigue attack with repeated push notifications"
@@ -26,9 +26,10 @@ detectionAction:
       attacker with valid credentials repeatedly triggers MFA prompts hoping
       the user will approve one to stop the notifications.
     severity: high
-    category: CredentialAccess
-    mitreTechniques:
-      - T1621
+    tactics:
+      - tactic: CredentialAccess
+        techniques:
+          - technique: T1621
     recommendedActions: |
       1. Contact the user to verify if they received unexpected MFA prompts.
       2. If the user approved any prompt, revoke all sessions immediately.
@@ -36,9 +37,9 @@ detectionAction:
       4. Review sign-in logs for any successful authentication from unusual locations.
       5. Enable number matching MFA to mitigate fatigue attacks.
       6. Block the source IPs at Conditional Access if identified as malicious.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction"
-      identifier: accountObjectId
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId
+  automatedActions:
+    markUsersAsCompromised:
+      - accountObjectIdColumn: AccountObjectId

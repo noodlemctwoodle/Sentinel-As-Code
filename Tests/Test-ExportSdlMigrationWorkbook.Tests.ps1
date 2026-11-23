@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -39,8 +39,8 @@
     Website:      https://sentinel.blog
     Created:      2026-11-16
     Version:      0.1.0
-    Last Updated: 2026-11-16
-    Requires:     PowerShell 7.2+, Pester 5+
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {

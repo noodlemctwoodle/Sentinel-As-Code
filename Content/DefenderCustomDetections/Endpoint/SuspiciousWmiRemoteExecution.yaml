@@ -1,5 +1,6 @@
+id: suspicious-wmi-remote-execution
 displayName: Suspicious WMI remote process execution
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceProcessEvents
@@ -12,9 +13,8 @@ queryCondition:
               InitiatingProcessFileName, InitiatingProcessCommandLine,
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
               InitiatingProcessSHA1
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Suspicious WMI remote process execution"
@@ -23,21 +23,28 @@ detectionAction:
       This pattern is consistent with remote code execution via WMI, commonly
       used for lateral movement after obtaining valid credentials.
     severity: high
-    category: LateralMovement
-    mitreTechniques:
-      - T1047
+    tactics:
+      - tactic: LateralMovement
+        techniques:
+          - technique: T1021
+            subTechniques:
+              - T1021.003
+              - T1021.006
+      - tactic: Execution
+        techniques:
+          - technique: T1047
     recommendedActions: |
       1. Identify the source machine that initiated the WMI call.
       2. Review the spawned process command line for malicious payloads.
       3. Check the account used for WMI execution for signs of compromise.
       4. Review logon events on the device for the timeframe.
       5. If unauthorised, isolate both source and destination devices.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction"
-      identifier: deviceId
-      isolationType: selective
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    isolateDevices:
+      - deviceIdColumn: DeviceId
+        isolationType: selective
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId

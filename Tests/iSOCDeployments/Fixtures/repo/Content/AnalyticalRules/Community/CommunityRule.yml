@@ -1,0 +1,11 @@
+id: 11111111-2222-4333-8444-555555555555
+name: Fixture community rule
+severity: Low
+queryFrequency: P1D
+queryPeriod: P1D
+triggerOperator: GreaterThan
+triggerThreshold: 5
+query: |
+  SecurityEvent
+  | where EventID == 4625
+kind: Scheduled

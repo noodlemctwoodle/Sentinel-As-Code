@@ -21,7 +21,7 @@ each ARM call and KQL query.
 
 ## Requirements
 
-- PowerShell 7.2 or later.
+- PowerShell 7.6 or later.
 - `Az.Accounts`, `Az.OperationalInsights` and `ImportExcel`. They are checked
   when the command runs rather than in `RequiredModules`, so the module imports
   (and its tests run) where they are not installed.

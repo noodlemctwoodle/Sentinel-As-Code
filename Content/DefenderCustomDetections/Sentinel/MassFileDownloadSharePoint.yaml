@@ -1,5 +1,6 @@
+id: mass-file-download-share-point
 displayName: Mass file download from SharePoint or OneDrive
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     OfficeActivity
@@ -16,9 +17,8 @@ queryCondition:
     | where DistinctFiles > 30
     | project TimeGenerated, AccountUpn, ClientIP,
               DownloadCount, DistinctFiles, DistinctSites
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Mass file download from SharePoint or OneDrive"
@@ -28,9 +28,13 @@ detectionAction:
       downloads may indicate data exfiltration or a compromised account
       harvesting organisational documents.
     severity: medium
-    category: Exfiltration
-    mitreTechniques:
-      - T1530
+    tactics:
+      - tactic: Exfiltration
+        techniques:
+          - technique: T1020
+      - tactic: Collection
+        techniques:
+          - technique: T1530
     recommendedActions: |
       1. Verify with the user whether the downloads were business-related.
       2. Review the types of files downloaded for sensitivity classification.
@@ -38,6 +42,6 @@ detectionAction:
       4. If unauthorised, revoke sessions and force password reset.
       5. Review DLP policies for SharePoint and OneDrive coverage gaps.
       6. Check for external sharing or forwarding activity from the same account.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountUpn
+    entityMappings:
+      accounts:
+        - upnColumn: AccountUpn

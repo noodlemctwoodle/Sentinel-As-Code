@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -6,7 +6,9 @@
 
 .DESCRIPTION
     Chains the other commands: collect, render, then the Word report and
-    the SharePoint site as asked.
+    the SharePoint site as asked. The steps live one per file under
+    Modules/iSOCBlueprint/Private/Run and share a run context; this file
+    holds the command's parameters and help and calls them in order.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/New-iSOCBlueprint.ps1
@@ -14,9 +16,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.1
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+
+    Version:      0.4.0
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.
@@ -229,102 +231,23 @@ function New-iSOCBlueprint {
         [int] $HistoryDays = 90
     )
 
-    $Format = @($Format | Select-Object -Unique)
-    $wantMarkdown = ($Format -contains 'Markdown') -or ($Format -contains 'Word')
-    $wantJson = ($Format -contains 'Json') -or ($Format -contains 'SharePoint')
-
-    if ($SiteUrl) {
-        if ($Format -notcontains 'SharePoint') { throw '-SiteUrl publishes the SharePoint format; add SharePoint to -Format.' }
-        if (-not $AccessToken -and -not ($Interactive -and $ClientId -and $Tenant)) {
-            throw '-SiteUrl needs -AccessToken, or -Interactive with -ClientId and -Tenant.'
-        }
-    }
-    if ($ChartImages -and -not $wantMarkdown) { throw '-ChartImages draws the Markdown charts; add Markdown or Word to -Format.' }
-
-    $steps = [System.Collections.Generic.List[string]]::new()
-    if (-not $SkipCollection) { $steps.Add('Collect') }
-    $steps.Add('Render')
-    if ($ChartImages) { $steps.Add('ChartImage') }
-    if ($Format -contains 'Word') { $steps.Add('Word') }
-    if ($Format -contains 'SharePoint') { $steps.Add('Site') }
-    if ($SiteUrl) { $steps.Add('Publish') }
-
-    $missing = @(Test-iSOCBlueprintPrerequisite -Step $steps | Where-Object { $_.Required -and -not $_.Found })
-    if ($missing.Count -gt 0) {
-        $lines = $missing | ForEach-Object { "  - $($_.Name) ($($_.Step -join ', ')): $($_.Detail)" }
-        throw "This run needs:`n$($lines -join "`n")"
+    $run = @{
+        BoundParameters = $PSBoundParameters; WorkspaceName = $WorkspaceName; ResourceGroup = $ResourceGroup
+        TargetMaturityLevel = $TargetMaturityLevel; LookbackDays = $LookbackDays; Currency = $Currency
+        IncludePreview = [bool]$IncludePreview; SkipCollection = [bool]$SkipCollection; Format = $Format
+        OutputPath = $OutputPath; NoDateFolder = [bool]$NoDateFolder; ChartImages = [bool]$ChartImages
+        SiteUrl = $SiteUrl; AccessToken = $AccessToken; Interactive = [bool]$Interactive; ClientId = $ClientId
+        Tenant = $Tenant; AppPackagePath = $AppPackagePath; HistoryDays = $HistoryDays
     }
 
-    $root = Resolve-iSOCBlueprintPath -Path $OutputPath -Default 'SecurityDocs'
-    $workspaceRoot = Join-Path $root $WorkspaceName
-    # The run's folder: today's under the workspace's folder, or, with
-    # -SkipCollection, the newest day already there; the workspace's folder
-    # itself with -NoDateFolder.
-    $workspace = if ($NoDateFolder) { $workspaceRoot }
-        elseif ($SkipCollection) { Resolve-iSOCBlueprintRunPath -Path $workspaceRoot }
-        else { Join-Path $workspaceRoot (Get-iSOCBlueprintRunFolderName) }
-    if (-not $PSCmdlet.ShouldProcess($workspace, "Create a Blueprint ($($Format -join ', '))")) { return }
-    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    Test-iSOCBlueprintRunRequest -Run $run
+    Resolve-iSOCBlueprintRunFolder -Run $run
+    if (-not $PSCmdlet.ShouldProcess($run.Workspace, "Create a Blueprint ($($run.Format -join ', '))")) { return }
+    $run.Timer = [System.Diagnostics.Stopwatch]::StartNew()
 
-    if (-not $SkipCollection) {
-        $collect = @{ ResourceGroup = $ResourceGroup; WorkspaceName = $WorkspaceName; OutputPath = $root; TargetMaturityLevel = $TargetMaturityLevel; LookbackDays = $LookbackDays; Currency = $Currency }
-        Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $collect -Name 'SubscriptionId', 'PlaybookResourceGroup'
-        if ($IncludePreview) { $collect.IncludePreview = $true }
-        if ($NoDateFolder) { $collect.NoDateFolder = $true }
-        $inventory = Export-iSOCBlueprintInventory @collect
-        if ($inventory -and $inventory.Path) { $workspace = $inventory.Path }
-    }
-    elseif (-not (Test-Path -LiteralPath (Join-Path $workspace '_raw') -PathType Container)) {
-        throw "-SkipCollection needs an inventory at $(Join-Path $workspace '_raw')."
-    }
-
-    $render = @()
-    if ($wantMarkdown) { $render += 'Markdown' }
-    if ($wantJson) { $render += 'Json' }
-    $null = ConvertTo-iSOCBlueprint -WorkspaceName $WorkspaceName -Path $workspace -Format $render
-
-    # Chart images look one level down: the workspaces under the root, or
-    # the days under the workspace's folder.
-    if ($ChartImages) { $null = ConvertTo-iSOCBlueprintChartImage -Path $(if ($NoDateFolder) { $root } else { $workspaceRoot }) }
-    elseif ($Format -contains 'Word') {
-        Write-Warning 'The Word report will have no charts: pandoc drops Mermaid charts. Add -ChartImages to draw them as images.'
-    }
-
-    $document = $null
-    if ($Format -contains 'Word') {
-        $docPath = if ($NoDateFolder) { Join-Path $root "$WorkspaceName.docx" } else { Join-Path $workspace "$WorkspaceName.docx" }
-        $document = Export-iSOCBlueprintWord -Path $workspace -OutputPath $docPath -Title "$WorkspaceName - iSOC Blueprint"
-    }
-
-    $bundle = $null
-    $published = $null
-    if ($Format -contains 'SharePoint') {
-        $bundle = (New-iSOCBlueprintSite -Path $workspace -HistoryDays $HistoryDays).Path
-        if ($SiteUrl) {
-            $publish = @{ SiteUrl = $SiteUrl; Path = $bundle }
-            if ($AccessToken) { $publish.AccessToken = $AccessToken }
-            else {
-                $publish.Interactive = $true
-                $publish.ClientId = $ClientId
-                $publish.Tenant = $Tenant
-            }
-            if ($AppPackagePath) { $publish.AppPackagePath = $AppPackagePath }
-            $publish.HistoryDays = $HistoryDays
-            $published = Publish-iSOCBlueprintSite @publish
-        }
-    }
-
-    Write-iSOCBlueprintRunSummary -Path $workspace -Elapsed $timer.Elapsed -Collected (-not $SkipCollection) -WordDocument $document -SiteBundle $bundle -SiteUrl $published
-
-    [pscustomobject]@{
-        PSTypeName    = 'iSOCBlueprint.Blueprint'
-        WorkspaceName = $WorkspaceName
-        Path          = $workspace
-        Format        = $Format
-        SectionsPath  = if ($wantJson) { Join-Path $workspace 'sections' } else { $null }
-        MarkdownPath  = if ($wantMarkdown) { $workspace } else { $null }
-        WordDocument  = $document
-        SiteBundle    = $bundle
-        SiteUrl       = $published
-    }
+    Invoke-iSOCBlueprintRunCollect -Run $run
+    Invoke-iSOCBlueprintRunRender -Run $run
+    Invoke-iSOCBlueprintRunWord -Run $run
+    Invoke-iSOCBlueprintRunSite -Run $run
+    Complete-iSOCBlueprintRun -Run $run
 }

@@ -128,7 +128,7 @@ If you see `dynamic([...])` with values an analyst would tune
 2. Replace the `dynamic([...])` with `_GetWatchlist('<alias>')`.
 3. Re-run dep manifest:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 
 Don't promote when the list is part of the detection logic
@@ -178,7 +178,7 @@ discoverable function reference.
 2. **Always re-run the dep manifest** after edits that change the
    set of tables, watchlists, or functions referenced:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 3. **Always run `kql-validate` mentally before pushing.** The PR
    gate parses every query via Microsoft.Azure.Kusto.Language;

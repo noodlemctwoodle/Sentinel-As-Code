@@ -1,5 +1,6 @@
+id: usb-executable-content
 displayName: Executable file run from USB removable media
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceProcessEvents
@@ -21,9 +22,8 @@ queryCondition:
               SHA1, SHA256,
               InitiatingProcessFileName, InitiatingProcessCommandLine,
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Executable file run from USB removable media"
@@ -32,20 +32,21 @@ detectionAction:
       USB-based attacks remain a common initial access vector, particularly
       in air-gapped or restricted environments.
     severity: medium
-    category: InitialAccess
-    mitreTechniques:
-      - T1091
+    tactics:
+      - tactic: InitialAccess
+        techniques:
+          - technique: T1091
     recommendedActions: |
       1. Identify the USB device and the user who connected it.
       2. Review the executable hash against threat intelligence.
       3. Check device control policies for USB enforcement gaps.
       4. Scan the device for additional indicators of compromise.
       5. If suspicious, quarantine the device and image the USB media.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    runAntivirusScans:
+      - deviceIdColumn: DeviceId

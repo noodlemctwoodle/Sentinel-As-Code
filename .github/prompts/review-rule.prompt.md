@@ -50,14 +50,16 @@ user can act on.
 
 ### Schema (Defender XDR detections)
 
-- [ ] `isEnabled: true|false` (Defender uses `isEnabled`)
+- [ ] Has a lowercase kebab-case `id` and `status: enabled|disabled`
+      (no `isEnabled`, `schedule.period`, `category`,
+      `mitreTechniques`, `impactedAssets` or `responseActions`)
 - [ ] `severity` is **lowercase** (`high`, `medium`, `low`,
       `informational`)
-- [ ] `schedule.period` is `"0"` (NRT) or ISO 8601 duration
+- [ ] `schedule.frequency` is `PT1H`, `PT3H`, `PT12H` or `P1D`
 - [ ] Tables come from the Defender XDR Advanced Hunting schema —
       not Sentinel tables
-- [ ] `impactedAssets[].identifier` matches a column the query
-      `project`s
+- [ ] Every `*Column` in `entityMappings` and `automatedActions` is a
+      column the query `project`s
 
 ### KQL
 

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -18,14 +18,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.3
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Format-BlueprintText.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Format)
 }
 
 Describe 'Counts and numbers' {
@@ -99,12 +100,12 @@ Describe 'Plurals' {
 
 Describe 'API names in words' {
     It 'writes CamelCase values as words, keeping acronyms' {
-        ConvertTo-BlueprintWords 'CredentialAccess' | Should -Be 'Credential access'
-        ConvertTo-BlueprintWords 'BenignPositive' | Should -Be 'Benign positive'
-        ConvertTo-BlueprintWords 'CommandAndControl' | Should -Be 'Command and control'
-        ConvertTo-BlueprintWords 'IPAddress' | Should -Be 'IP address'
-        ConvertTo-BlueprintWords 'Undetermined' | Should -Be 'Undetermined'
-        ConvertTo-BlueprintWords 'Already words' | Should -Be 'Already words'
+        ConvertTo-BlueprintWord 'CredentialAccess' | Should -Be 'Credential access'
+        ConvertTo-BlueprintWord 'BenignPositive' | Should -Be 'Benign positive'
+        ConvertTo-BlueprintWord 'CommandAndControl' | Should -Be 'Command and control'
+        ConvertTo-BlueprintWord 'IPAddress' | Should -Be 'IP address'
+        ConvertTo-BlueprintWord 'Undetermined' | Should -Be 'Undetermined'
+        ConvertTo-BlueprintWord 'Already words' | Should -Be 'Already words'
     }
 
     It 'names regions and workspace SKUs as the portal and the dashboard do' {
@@ -117,7 +118,8 @@ Describe 'API names in words' {
     }
 
     It 'matches the dashboard''s region and SKU names' {
-        $html = Get-Content (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html') -Raw
+        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard')
         foreach ($k in 'uksouth', 'westeurope', 'eastus2', 'australiacentral2') {
             $html.Contains("${k}:'$(Get-BlueprintRegionName $k)'") | Should -BeTrue -Because $k
         }

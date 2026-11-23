@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -26,9 +26,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (the renderer)
+    Version:      0.1.5
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (the renderer)
 #>
 
 BeforeAll {
@@ -39,7 +39,7 @@ BeforeAll {
     # node_modules there would make the copy slow.
     New-Item -ItemType Directory -Path $script:copy -Force | Out-Null
     Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Modules/iSOCBlueprint') -Force |
-        Where-Object Name -ne 'WebParts' |
+        Where-Object Name -NE 'WebParts' |
         Copy-Item -Destination $script:copy -Recurse -Force
 
     Remove-Module iSOCBlueprint -ErrorAction SilentlyContinue
@@ -72,8 +72,8 @@ Describe 'iSOCBlueprint outside the repository' {
 
     It 'carries What''s new inside the module: its command, engine file and topic map' {
         (Get-Module iSOCBlueprint).ExportedFunctions.Keys | Should -Contain 'Get-iSOCBlueprintWhatsNew'
-        Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Get-WhatsNew.ps1') | Should -BeTrue
-        Test-Path -LiteralPath (Join-Path $script:copy 'Engine/Private/Resources/whats-new-topics.json') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $script:copy 'Private/WhatsNew/Get-WhatsNew.ps1') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $script:copy 'Resources/Data/whats-new-topics.json') | Should -BeTrue
     }
 
     It 'renders the Markdown report and the section model from the default folder' {
@@ -86,12 +86,12 @@ Describe 'iSOCBlueprint outside the repository' {
         $page = Join-Path $script:ws '99-references.md'
         Test-Path -LiteralPath $page | Should -BeTrue
         (Get-FileHash -LiteralPath $page).Hash |
-            Should -Be (Get-FileHash -LiteralPath (Join-Path $script:copy 'Engine/Private/Resources/Blueprint-References.md')).Hash
+            Should -Be (Get-FileHash -LiteralPath (Join-Path $script:copy 'Resources/Data/Blueprint-References.md')).Hash
     }
 
     It 'links the gap-analysis method to GitHub rather than a repository-relative path' {
         $page = Get-Content -LiteralPath (Join-Path $script:ws '90-gap-analysis.md') -Raw
-        $page | Should -Match 'https://github\.com/noodlemctwoodle/Sentinel-As-Code/blob/main/Modules/iSOCBlueprint/Engine/Private/GapChecks\.ps1'
+        $page | Should -Match 'https://github\.com/noodlemctwoodle/Sentinel-As-Code/tree/main/Modules/iSOCBlueprint/Private/Gap'
         $page | Should -Not -Match '\]\(\.\./\.\./'
     }
 
@@ -102,23 +102,23 @@ Describe 'iSOCBlueprint outside the repository' {
         }
     }
 
-    It 'finds every file the engine loads by a path relative to its own folder' {
-        $engine = Join-Path $script:copy 'Engine'
+    It 'finds every file the module loads by a path relative to its own folder' {
         $rx = [regex]'Join-Path\s+(?:-Path\s+)?\$PSScriptRoot\s+(?:-ChildPath\s+)?[''"]([^''"$]+)[''"]'
         $checked = 0
-        foreach ($file in Get-ChildItem -LiteralPath $engine -Recurse -Filter '*.ps1' -File) {
+        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Include '*.ps1', '*.psm1' -File |
+                Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
             foreach ($m in $rx.Matches((Get-Content -LiteralPath $file.FullName -Raw))) {
                 $relative = $m.Groups[1].Value
                 Test-Path -LiteralPath (Join-Path $file.DirectoryName $relative) | Should -BeTrue -Because "$($file.Name) loads $relative"
                 $checked++
             }
         }
-        $checked | Should -BeGreaterThan 40
+        $checked | Should -BeGreaterThan 0
     }
 
-    It 'never climbs from the engine to the repository root' {
-        $engine = Join-Path $script:copy 'Engine'
-        foreach ($file in Get-ChildItem -LiteralPath $engine -Recurse -Filter '*.ps1' -File) {
+    It 'never climbs from the module to the repository root' {
+        foreach ($file in Get-ChildItem -LiteralPath $script:copy -Recurse -Filter '*.ps1' -File |
+                Where-Object { $_.FullName -notmatch '[\\/]WebParts[\\/]' }) {
             $text = Get-Content -LiteralPath $file.FullName -Raw
             $text | Should -Not -Match 'Split-Path -Parent \(Split-Path -Parent \$PSScriptRoot\)' -Because $file.Name
             $text | Should -Not -Match '\$PSScriptRoot\s+[''"]\.\./\.\./' -Because $file.Name

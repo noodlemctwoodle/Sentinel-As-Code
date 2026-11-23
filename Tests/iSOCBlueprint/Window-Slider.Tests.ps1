@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -21,37 +21,65 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.4
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
+    Import-Module (Join-Path $repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
+    $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
-    $script:html = Get-Content (Join-Path $script:engine 'SharePoint/templates/sharepoint-dashboard.html') -Raw
-    $script:buildScript = Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1'
-    $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-slider-" + [guid]::NewGuid())
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
+    . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+    $script:html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
+    $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-slider-' + [guid]::NewGuid())
 
     # The fixture's _raw in a workspace folder, changed by $Edit, built.
     function Build-Fixture([string]$Name, [scriptblock]$Edit) {
+        <#
+        .SYNOPSIS
+            Builds a site from the fixture capture, after an optional edit, and returns its model.
+        .PARAMETER Name
+            The workspace folder name.
+        .PARAMETER Edit
+            Script block run against the raw folder before the build.
+        #>
         $ws = Join-Path $script:outDir $Name
         New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
         Copy-Item -Path (Join-Path $script:fixtureRaw '*.json') -Destination (Join-Path $ws '_raw')
         if ($Edit) { & $Edit (Join-Path $ws '_raw') }
-        $bundle = & $script:buildScript -Source $ws -SkipWhatsNew 6> $null 3> $null
+        $bundle = (New-iSOCBlueprintSite -Path $ws -SkipWhatsNew 6> $null 3> $null).Path
         return Get-Content (Join-Path $bundle 'model.json') -Raw | ConvertFrom-Json
     }
     # A day entry's value at index $I, summed over the whole series.
     function Get-SeriesSum($Series, [int]$I) {
+        <#
+        .SYNOPSIS
+            Sums one position across every data series.
+        .PARAMETER Series
+            The chart series.
+        .PARAMETER I
+            The position to sum.
+        #>
         $s = 0.0
         foreach ($x in @($Series)) { foreach ($e in @($x.d)) { $s += [double]$e[$I] } }
         return $s
     }
     # A function from a script, by name, for a test to call.
     function Get-ScriptFunction([string]$Path, [string]$Name) {
+        <#
+        .SYNOPSIS
+            Returns the source text of one function from a script.
+        .PARAMETER Path
+            The script to parse.
+        .PARAMETER Name
+            The function name.
+        #>
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
         return $ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq $Name }, $true).Extent.Text
     }
@@ -70,7 +98,7 @@ Describe 'The collector counts the daily series' {
     }
 
     It 'declares daily with lookback and recent, falling back to the lookback capped at 90' {
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Export-SentinelInventory.ps1') 'Add-BpWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
         $script:LookbackDays = 120; $script:RecentDays = 7; $script:DailyDays = 0
         Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 120d;`nlet recent = 7d;`nlet daily = 90d;`nUsage | take 1"
         $script:DailyDays = 14
@@ -79,17 +107,20 @@ Describe 'The collector counts the daily series' {
 
     It 'reads each of the five series over the daily window, per day ago' {
         foreach ($name in 'daily-table-usage', 'daily-alerts', 'daily-incidents', 'daily-rule-incidents', 'daily-health') {
-            $m = [regex]::Match($script:collector, "Try-Capture '$name' \{(.*?)\n\}\n", 'Singleline')
+            $captureFunction = 'Invoke-' + (($name -split '-' | ForEach-Object { $_.Substring(0, 1).ToUpper() + $_.Substring(1) }) -join '') + 'Capture'
+            $m = [regex]::Match($script:collector, "function $captureFunction \{(.*?)\n\}\n", 'Singleline')
             $m.Success | Should -BeTrue -Because $name
             $m.Groups[1].Value | Should -Match 'ago\(daily\)' -Because $name
             $m.Groups[1].Value | Should -Match 'DaysAgo = toint\(\(now\(\) - TimeGenerated\) / 1d\)' -Because $name
             $m.Groups[1].Value | Should -Not -Match 'ago\(lookback\)|ago\(\d+d\)' -Because $name
-            $m.Groups[1].Value | Should -Match "Skip-Capture -FileName '$name\.json' -ErrorRecord \`$_" -Because "$name writes an empty file, and says why, when the query fails"
+            $m.Groups[1].Value |
+                Should -Match "Skip-Capture -FileName '$name\.json' -ErrorRecord \`$_" -Because "$name writes an empty file, and says why, when the query fails"
         }
     }
 
     It 'counts each alert once, on the day it was first seen' {
-        $script:collector | Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName, AlertRuleId\) by SystemAlertId'
+        $script:collector |
+            Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName, AlertRuleId\) by SystemAlertId'
     }
 
     It 'counts playbook runs per day ago within the daily span' {
@@ -132,19 +163,19 @@ Describe 'The build carries the daily series' {
     }
 
     It 'describes each table, alert, incident group and rule as the cards need' {
-        $t = @($script:model.daily.tables | Where-Object t -eq 'SigninLogs')[0]
+        $t = @($script:model.daily.tables | Where-Object t -EQ 'SigninLogs')[0]
         $t.f | Should -Be 'Entra ID / Identity'
         $t.plan | Should -Be 'Analytics'
         $t.pl | Should -Not -BeNullOrEmpty
         $t.cov | Should -BeTrue
-        $a = @($script:model.daily.alerts | Where-Object n -eq 'Anonymous IP address')[0]
+        $a = @($script:model.daily.alerts | Where-Object n -EQ 'Anonymous IP address')[0]
         $a.pf | Should -Be 'Entra ID / Identity'
         $a.pv | Should -Be 'IPC'
-        $s = @($script:model.daily.alerts | Where-Object n -eq 'Suspicious sign-in from rare country')[0]
+        $s = @($script:model.daily.alerts | Where-Object n -EQ 'Suspicious sign-in from rare country')[0]
         $s.r | Should -Be 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
         $s.pf | Should -Be ''
-        @($script:model.daily.incidents | Where-Object st -eq 'Closed' | Where-Object by -eq 'AutomationRule').Count | Should -BeGreaterThan 0
-        $r = @($script:model.daily.rules | Where-Object id -eq 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')[0]
+        @($script:model.daily.incidents | Where-Object st -EQ 'Closed' | Where-Object by -EQ 'AutomationRule').Count | Should -BeGreaterThan 0
+        $r = @($script:model.daily.rules | Where-Object id -EQ 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')[0]
         $r.src | Should -Be 'Analytics rule'
         $r.n | Should -Be 'Suspicious sign-in from rare country'
     }
@@ -154,7 +185,7 @@ Describe 'The build carries the daily series' {
         [math]::Round((Get-SeriesSum $d.tables 1), 1) | Should -Be ([math]::Round([double]$m.estate.totalGb, 1))
         Get-SeriesSum $d.alerts 1 | Should -Be $m.estate.alerts
         Get-SeriesSum $d.incidents 1 | Should -Be $m.estate.incidents
-        Get-SeriesSum @($d.incidents | Where-Object st -eq 'Closed') 1 | Should -Be $m.estate.incidentsClosed
+        Get-SeriesSum @($d.incidents | Where-Object st -EQ 'Closed') 1 | Should -Be $m.estate.incidentsClosed
         Get-SeriesSum $d.health 1 | Should -Be $m.health.totalEvents
         Get-SeriesSum @($d.playbooks | Where-Object { -not $_.unavailable }) 1 | Should -Be $m.playbookHealth.runs7d
         Get-SeriesSum @($d.playbooks | Where-Object { -not $_.unavailable }) 2 | Should -Be $m.playbookHealth.failed7d
@@ -163,8 +194,8 @@ Describe 'The build carries the daily series' {
     }
 
     It 'names the rule id behind each detection outcome' {
-        @($script:model.detectionOutcomes | Where-Object source -eq 'Sentinel' | Where-Object { -not $_.key }).Count | Should -Be 0
-        @($script:model.detectionOutcomes | Where-Object source -eq 'Defender XDR' | Where-Object { $_.key }).Count | Should -Be 0
+        @($script:model.detectionOutcomes | Where-Object source -EQ 'Sentinel' | Where-Object { -not $_.key }).Count | Should -Be 0
+        @($script:model.detectionOutcomes | Where-Object source -EQ 'Defender XDR' | Where-Object { $_.key }).Count | Should -Be 0
     }
 
     It 'prices each table from the estimate when it carries every table' {
@@ -178,8 +209,8 @@ Describe 'The build carries the daily series' {
             $c | ConvertTo-Json -Depth 10 | Set-Content $p
         }
         $m.daily.costed | Should -BeTrue
-        (@($m.daily.tables | Where-Object t -eq 'FirewallLogs_CL')[0]).u | Should -Be 2.3
-        (@($m.daily.tables | Where-Object t -eq 'SecurityEvent')[0]).u | Should -Be 0
+        (@($m.daily.tables | Where-Object t -EQ 'FirewallLogs_CL')[0]).u | Should -Be 2.3
+        (@($m.daily.tables | Where-Object t -EQ 'SecurityEvent')[0]).u | Should -Be 0
     }
 
     It 'carries no series for a run collected before them' {
@@ -198,13 +229,16 @@ Describe 'The build carries the daily series' {
             param($raw)
             $p = Join-Path $raw 'alert-rules.json'
             $rules = @(Get-Content $p -Raw | ConvertFrom-Json)
-            (@($rules | Where-Object name -eq 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')[0]).properties.enabled = $false
+            (@($rules | Where-Object name -EQ 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')[0]).properties.enabled = $false
             ConvertTo-Json -InputObject $rules -Depth 20 | Set-Content $p
         }
         $m.estate.rulesFired | Should -Be 1
         $m.estate.rings.alerts.max | Should -Be 1
         $m.estate.rings.alerts.pct | Should -Be 100
-        $renderer = Get-Content (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') -Raw
+        $renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+        "`n"
         $renderer | Should -Match 'RulesFired\s+= \$firedEnabled'
     }
 }
@@ -227,17 +261,21 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
         # Nothing on the calendar but the days; a quick choice lights up
         # only while it is what is chosen.
         $script:html | Should -Not -Match 'caldot|calkey|RUN_DAYS'
-        $script:html.Contains("const on=!pending && b===maxT && nDays(a,b)===+q.dataset.calLast;") | Should -BeTrue
+        $script:html.Contains('const on=!pending && b===maxT && nDays(a,b)===+q.dataset.calLast;') | Should -BeTrue
     }
 
     It 'rebuilds the model before anything renders, for any days within the span' {
         $script:html | Should -Match 'function applyWindow\(M, D, N, R, S\)'
-        $script:html.Contains('const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ const k=+e[0]-S; if(k>=0 && k<n) s+=(+e[i]||0); }); return s; };') | Should -BeTrue
-        $script:html.Contains('if(want>=1 && (n!==WIN.collected || ago>0)){ WIN.days=n; WIN.ago=ago; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago); }') | Should -BeTrue
+        $script:html.Contains('const sum=(d,i,n)=>{ let s=0; (d||[]).forEach(e=>{ const k=+e[0]-S; if(k>=0 && k<n) s+=(+e[i]||0); }); return s; };') |
+            Should -BeTrue
+        $script:html.Contains('if(want>=1 && (n!==WIN.collected || ago>0)){ WIN.days=n; WIN.ago=ago; WIN.recent=Math.min(WIN.recent, n); applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago); }') |
+            Should -BeTrue
         $script:html.IndexOf('applyWindow(M, DAILY, WIN.days, WIN.recent, WIN.ago)') | Should -BeLessThan $script:html.IndexOf('// ---- glance stat tiles ----')
         # Cost and the flow only when the estimate priced every table.
         $script:html | Should -Match 'if\(M\.cost && D\.costed\)\{'
-        foreach ($field in 'M\.flow=\{nodes, links\}', 'M\.flowTables=', 'E\.sources=', 'E\.productAlerts=', 'M\.topRules=', 'M\.health=\{', 'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=', 'L\.mttrMinutes=', 'M\.usageDaily=') {
+        foreach ($field in 'M\.flow=\{nodes, links\}', 'M\.flowTables=', 'E\.sources=', 'E\.productAlerts=', 'M\.topRules=', 'M\.health=\{',
+            'M\.effectiveness=', 'M\.detectionOutcomes=', 'M\.detectionOpportunities=', 'M\.playbookHealth=\{', 'M\.incidentsByClassification=',
+            'L\.mttrMinutes=', 'M\.usageDaily=') {
             $script:html | Should -Match $field
         }
         # Sentences name the window: the last N days, or the N days to a date.
@@ -247,12 +285,12 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
 
     It 'keeps the window in window.name, checks it before use and reloads to apply it' {
         $script:html | Should -Match "const m=/\^sacDash:\(\.\*\)\$/\.exec\(window\.name\|\|''\)"
-        $script:html | Should -Match "saveWindow\(\{days:n, ago:ago, back:1, view:curView, doc:curDoc\(\)\}\);"
+        $script:html | Should -Match 'saveWindow\(\{days:n, ago:ago, back:1, view:curView, doc:curDoc\(\)\}\);'
         $script:html | Should -Match 'const ago=Math\.min\(Math\.max\(Math\.round\(\+SAVED\.ago\|\|0\),0\), span-n\);'
         $script:html | Should -Match 'location\.reload\(\);'
         # The saved view must name a view on the page; it is never put in a selector.
         $script:html | Should -Match "if\(\[\.\.\.document\.querySelectorAll\('\[data-view\]'\)\]\.some\(el=>el\.dataset\.view===view\)\) activateTab\(view\);"
-        $script:html | Should -Match "\(M\.sections\|\|\[\]\)\.some\(x=>x\.num===doc\)"
+        $script:html | Should -Match '\(M\.sections\|\|\[\]\)\.some\(x=>x\.num===doc\)'
         $script:html | Should -Not -Match "querySelector\('\[data-view=""'\+SAVED"
     }
 
@@ -263,7 +301,7 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
         $script:html | Should -Match 'const smooth=n>21;'
         $script:html | Should -Match 'stroke="''\+l\.col\+''"'
         $script:html | Should -Match '<svg class="lc-sev" viewBox'
-        $script:html | Should -Match "<small>a day</small>"
+        $script:html | Should -Match '<small>a day</small>'
         $script:html | Should -Match "\+num\(open\)\+' still open</div>"
         $script:html | Should -Match '<div class="k">Open incidents</div><div class="v">''\+num\(open\)\+''</div>''\+chips'
     }
@@ -271,6 +309,6 @@ Describe 'The dashboard re-scopes its cards to the chosen dates' {
     It 'labels what keeps the collected window' {
         $script:html | Should -Match "Threat intelligence by source \('\+WIN\.cd\(\)\+'\)"
         $script:html | Should -Match "configuration and '\+WIN\.cw\(\)\+' of activity"
-        $script:html | Should -Not -Match "Sentinel alerts in 30 days"
+        $script:html | Should -Not -Match 'Sentinel alerts in 30 days'
     }
 }

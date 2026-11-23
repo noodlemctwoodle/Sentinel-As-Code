@@ -92,6 +92,33 @@ it. Its docs live in `Docs/Modules/iSOCBlueprint/`.
 | [Word Report](Modules/iSOCBlueprint/Sentinel-Word-Report.md) | The Report toolchain (pandoc for the document, LibreOffice/UNO for the real table of contents) behind the ADO Word-Report pipeline |
 | [SharePoint Site](Modules/iSOCBlueprint/Sentinel-SharePoint-Site.md) | The generated iSOC Blueprint SharePoint site: section pages, navigation, findings list with history, dashboard home page, bootstrap and privacy |
 
+### iSOC Deployments - `Modules/iSOCDeployments/`
+
+The module that will deploy, export, compare and sync every content type,
+replacing the scripts under `Deploy/` and `Tools/` in release 26.11.0. It
+is in development beside those scripts, which still run the pipelines. Its
+docs live in `Docs/Modules/iSOCDeployments/`.
+
+| Doc | What it covers |
+| --- | --- |
+| [iSOCDeployments docs guide](Modules/iSOCDeployments/README.md) | What the module is, its status, and which page covers what |
+| [Module README](../Modules/iSOCDeployments/README.md) | Quick start, the commands so far, what each step needs, the layout |
+| [Architecture](Modules/iSOCDeployments/Architecture.md) | The context, the REST client, content type definitions and handlers, comparers, API versions, and how to add a content type |
+| [Content types](Modules/iSOCDeployments/Content-Types.md) | Each content type and what the module can do with it so far |
+| [Deploying content](Modules/iSOCDeployments/Deploy.md) | `Deploy-iSOCContent` and how it maps to `Deploy/content/Deploy-CustomContent.ps1` and `Deploy/content/Deploy-DefenderDetections.ps1` |
+| [Content Hub solutions](Modules/iSOCDeployments/Content-Hub.md) | `Get-iSOCContentHubSolution`, `Install-iSOCContentHubSolution` and how they map to `Deploy/content/Deploy-SentinelContentHub.ps1` |
+| [Export](Modules/iSOCDeployments/Export.md) | `Export-iSOCContent` and how it maps to `Tools/Export-SentinelWorkbooks.ps1` and the unmerged playbook exporter |
+| [Drift](Modules/iSOCDeployments/Drift.md) | `Compare-iSOCContent`, `Sync-iSOCContent`, `Export-iSOCDriftReport` and how they map to `Tools/Test-SentinelRuleDrift.ps1` |
+| [Classic table migration](Modules/iSOCDeployments/Table-Migration.md) | The classic table migration, its review, reports and rehearsal aids, and how they map to `Tools/ClassicToDcr/` |
+| [Deploying a workspace](Modules/iSOCDeployments/Deploy-Workspace.md) | `Deploy-iSOCWorkspace` and how it maps to the stage sequence of `Pipelines/Sentinel-Deploy.yml` and `.github/workflows/sentinel-deploy.yml` |
+| [Workspace settings and onboarding](Modules/iSOCDeployments/Workspace-Settings.md) | `Get-iSOCWorkspaceOnboarding`, the workspace setting type, and how they map to the inline steps of `Pipelines/Sentinel-Deploy.yml` and `.github/workflows/sentinel-deploy.yml` |
+| [Custom tables from a schema](Modules/iSOCDeployments/Dcr-From-Schema.md) | `New-iSOCDcrFromSchema` and how it maps to `Tools/DcrFromSchema/New-DcrFromSchema.ps1` |
+| [The pipeline switch](Modules/iSOCDeployments/Pipeline-Switch.md) | What the Azure DevOps pipelines run in the module |
+| [Permissions](Modules/iSOCDeployments/Permissions.md) | The service principal setup and the playbook and runbook permission commands, and how they map to `Deploy/setup/` and `Deploy/permissions/` |
+| [Community rule import](Modules/iSOCDeployments/Community-Import.md) | `Import-iSOCCommunityRule` and how it maps to `Tools/Import-CommunityRules.ps1` |
+| [Dependency manifest](Modules/iSOCDeployments/Dependency-Manifest.md) | The module's manifest commands and how they map to `Tools/Build-DependencyManifest.ps1` |
+| [Migration map](../Modules/iSOCDeployments/MIGRATION.md) | Where each script and function goes, and every change made on the way |
+
 ## Pipelines - `Pipelines/` (and `.github/workflows/`)
 
 Eight Azure DevOps pipelines, seven of them mirrored by GitHub Actions workflows. Start at

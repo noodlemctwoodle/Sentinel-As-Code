@@ -13,9 +13,9 @@
 #
 #     - A deploy-time API contract change (Microsoft alters a Sentinel
 #       endpoint shape between merge and Monday's deploy)
-#     - A regression in deploy-script branching that only fires on a
-#       real deploy (e.g. Initialize-SmartDeployment's git-diff logic
-#       against a real workspace state file)
+#     - A regression in deploy-time branching that only fires on a
+#       real deploy (e.g. the smart deployment git-diff logic against
+#       a real workspace state file)
 #     - Permission drift on the deploy SP (a previously-required role
 #       got removed by an Azure Policy update)
 #     - Cumulative effects of multiple changes that pass each
@@ -23,6 +23,11 @@
 #
 #   A nightly run against the existing test workspace catches all of
 #   the above six days before the production deploy would notice.
+#
+# Every deploy stage runs the iSOCDeployments module (Modules/iSOCDeployments):
+# Deploy-iSOCWorkspace -Stage for the Content Hub, custom content and
+# Defender XDR stages, and Test-iSOCDependencyManifest for the manifest
+# check. Bicep and the resource-group probe stay workflow steps.
 #
 # What runs:
 #   1. check-infrastructure        Read-only resource-group probe
@@ -187,16 +192,16 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy single Content Hub solution
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            & "${{ github.workspace }}/Deploy/content/Deploy-SentinelContentHub.ps1" `
-                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
-                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
-                -Workspace      "${{ env.WORKSPACE_NAME }}" `
-                -Region         "${{ env.REGION }}" `
-                -Solutions      "${{ env.TEST_SOLUTION }}"
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          $null = Connect-iSOCWorkspace -SubscriptionId $env:AZURE_SUBSCRIPTION_ID -ResourceGroup $env:RESOURCE_GROUP -WorkspaceName $env:WORKSPACE_NAME
+          $run = Deploy-iSOCWorkspace -Stage ContentHub -RepoPath $repo -Solution $env:TEST_SOLUTION
+          exit $run.ExitCode
 
   # ===========================================================================
   # Stage 4: Custom content (-WhatIf)
@@ -220,12 +225,29 @@ jobs:
           yaml-version:   ${{ env.YAML_VERSION }}
           install-pester: 'false'
 
+      # Bicep playbooks are compiled with the standalone Bicep CLI, which
+      # the iSOCDeployments module (and Az.Resources) need on the PATH.
+      # Use the one already on the runner; when there is none, install it
+      # with the Azure CLI and put it on the PATH.
+      - name: Put the Bicep CLI on the PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v bicep > /dev/null 2>&1; then
+              bicep --version
+          else
+              az bicep install
+              echo "$HOME/.azure/bin" >> "$GITHUB_PATH"
+              "$HOME/.azure/bin/bicep" --version
+          fi
+
       - name: Verify dependency manifest is current
         shell: pwsh
         run: |
-          & "${{ github.workspace }}/Tools/Build-DependencyManifest.ps1" -Mode Verify -RepoPath "${{ github.workspace }}"
-          if ($LASTEXITCODE -ne 0) {
-              Write-Host "##[error]dependencies.json is out of sync. Refusing to run E2E with a stale manifest."
+          Import-Module (Join-Path $env:GITHUB_WORKSPACE 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          $result = Test-iSOCDependencyManifest -RepoPath $env:GITHUB_WORKSPACE
+          if (-not $result.Exists -or $result.HasDrift) {
+              Write-Host "::error::dependencies.json is out of sync. Refusing to run E2E with a stale manifest."
               exit 1
           }
 
@@ -237,17 +259,17 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Custom Content (-WhatIf)
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            & "${{ github.workspace }}/Deploy/content/Deploy-CustomContent.ps1" `
-                -SubscriptionId "${{ secrets.AZURE_SUBSCRIPTION_ID }}" `
-                -ResourceGroup  "${{ env.RESOURCE_GROUP }}" `
-                -Workspace      "${{ env.WORKSPACE_NAME }}" `
-                -Region         "${{ env.REGION }}" `
-                -BasePath       "${{ github.workspace }}" `
-                -WhatIf
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          $null = Connect-iSOCWorkspace -SubscriptionId $env:AZURE_SUBSCRIPTION_ID -ResourceGroup $env:RESOURCE_GROUP -WorkspaceName $env:WORKSPACE_NAME
+          # The command checks dependencies.json first and refuses a stale one.
+          $run = Deploy-iSOCWorkspace -Stage CustomContent -RepoPath $repo -WhatIf
+          exit $run.ExitCode
 
   # ===========================================================================
   # Stage 5: Defender detections (-WhatIf)
@@ -277,13 +299,16 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Defender Detections (-WhatIf)
-        uses: Azure/powershell@v3
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            & "${{ github.workspace }}/Deploy/content/Deploy-DefenderDetections.ps1" `
-                -BasePath       "${{ github.workspace }}" `
-                -WhatIf
+        shell: pwsh
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_WORKSPACE
+          Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+          $null = Connect-iSOCWorkspace -SubscriptionId $env:AZURE_SUBSCRIPTION_ID -ResourceGroup $env:RESOURCE_GROUP -WorkspaceName $env:WORKSPACE_NAME
+          $run = Deploy-iSOCWorkspace -Stage DefenderDetections -RepoPath $repo -WhatIf
+          exit $run.ExitCode
 
   # ===========================================================================
   # Stage 6: Failure reporting

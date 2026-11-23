@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -8,8 +8,8 @@
 
 .DESCRIPTION
     Dot-sources the module's copy of Sentinel.Common's KQL helpers (for
-    Get-KqlBareIdentifiers) and
-    Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1, then runs the builder
+    Get-KqlBareIdentifier) and
+    Modules/iSOCBlueprint/Private/Kql/Get-KqlTableReferences.ps1, then runs the builder
     over the fixture rules and templates. The expected output is the pair of
     hand-authored reference files in the fixture, so a change in either the
     extractor or the fixture shows up as a diff here rather than as a wrong
@@ -26,83 +26,92 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.1.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.4
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1')
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-KqlTableReferences.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Kql)
 
     $raw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:rules     = Get-Content (Join-Path $raw 'alert-rules.json') -Raw | ConvertFrom-Json
+    $script:rules = Get-Content (Join-Path $raw 'alert-rules.json') -Raw | ConvertFrom-Json
     $script:templates = Get-Content (Join-Path $raw 'alert-rule-templates.json') -Raw | ConvertFrom-Json
-    $script:expectedRuleRefs     = Get-Content (Join-Path $raw 'rule-table-references.json') -Raw | ConvertFrom-Json
+    $script:expectedRuleRefs = Get-Content (Join-Path $raw 'rule-table-references.json') -Raw | ConvertFrom-Json
     $script:expectedTemplateRefs = Get-Content (Join-Path $raw 'template-table-references.json') -Raw | ConvertFrom-Json
 
-    $script:ruleRefs     = Get-RuleTableReferences -AlertRules $script:rules
-    $script:templateRefs = Get-TemplateTableReferences -Templates $script:templates -AlertRules $script:rules
+    $script:ruleRefs = Get-RuleTableReference -AlertRules $script:rules
+    $script:templateRefs = Get-TemplateTableReference -Templates $script:templates -AlertRules $script:rules
 
-    function Canonical($rows) { @($rows) | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 5 } }
+    function Canonical($rows) {
+        <#
+        .SYNOPSIS
+            Serialises rows to compact JSON lines so they compare as text.
+        .PARAMETER rows
+            The rows to serialise.
+        #>
+        @($rows) | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 5 }
+    }
 }
 
-Describe 'Resolve-KqlTableNames' {
+Describe 'Resolve-KqlTableName' {
     It 'keeps tables and drops ASIM parser names' {
         $q = "let recent = SigninLogs | where ResultType == 0;`nrecent | join kind=inner (AuditLogs | project UserPrincipalName) on UserPrincipalName | union imAuthentication"
-        Resolve-KqlTableNames -Query $q | Should -Be @('AuditLogs', 'SigninLogs')
+        Resolve-KqlTableName -Query $q | Should -Be @('AuditLogs', 'SigninLogs')
     }
 
     It 'drops _ASim and _Im_ functions' {
-        Resolve-KqlTableNames -Query 'union _ASim_Dns, _Im_Dns, DnsEvents' | Should -Be @('DnsEvents')
+        Resolve-KqlTableName -Query 'union _ASim_Dns, _Im_Dns, DnsEvents' | Should -Be @('DnsEvents')
     }
 
     It 'takes every operand of a comma-separated union' {
-        Resolve-KqlTableNames -Query "union withsource=T SecurityEvent, WindowsEvent, Event`n| where EventID == 4688" | Should -Be @('Event', 'SecurityEvent', 'WindowsEvent')
+        Resolve-KqlTableName -Query "union withsource=T SecurityEvent, WindowsEvent, Event`n| where EventID == 4688" |
+            Should -Be @('Event', 'SecurityEvent', 'WindowsEvent')
     }
 
     It 'adds the first token of each connector data type' {
-        Resolve-KqlTableNames -Query '' -DataTypes @('OfficeActivity (SharePoint)', 'SigninLogs') | Should -Be @('OfficeActivity', 'SigninLogs')
+        Resolve-KqlTableName -Query '' -DataTypes @('OfficeActivity (SharePoint)', 'SigninLogs') | Should -Be @('OfficeActivity', 'SigninLogs')
     }
 
     It 'returns an empty array for an empty query' {
-        @(Resolve-KqlTableNames -Query '').Count | Should -Be 0
-        @(Resolve-KqlTableNames -Query $null).Count | Should -Be 0
+        @(Resolve-KqlTableName -Query '').Count | Should -Be 0
+        @(Resolve-KqlTableName -Query $null).Count | Should -Be 0
     }
 }
 
-Describe 'Get-RuleTableReferences' {
+Describe 'Get-RuleTableReference' {
     It 'matches the hand-authored fixture reference file' {
         Canonical $ruleRefs | Should -Be (Canonical $expectedRuleRefs)
     }
 
     It 'gives a rule without a query an empty table list' {
-        ($ruleRefs | Where-Object RuleId -like 'bbbbbbbb-*').Tables.Count | Should -Be 0
+        ($ruleRefs | Where-Object RuleId -Like 'bbbbbbbb-*').Tables.Count | Should -Be 0
     }
 
     It 'returns an empty array for no rules' {
-        @(Get-RuleTableReferences -AlertRules @()).Count | Should -Be 0
-        @(Get-RuleTableReferences -AlertRules $null).Count | Should -Be 0
+        @(Get-RuleTableReference -AlertRules @()).Count | Should -Be 0
+        @(Get-RuleTableReference -AlertRules $null).Count | Should -Be 0
     }
 }
 
-Describe 'Get-TemplateTableReferences' {
+Describe 'Get-TemplateTableReference' {
     It 'matches the hand-authored fixture reference file' {
         Canonical $templateRefs | Should -Be (Canonical $expectedTemplateRefs)
     }
 
     It 'marks a template as deployed when a rule references it' {
-        ($templateRefs | Where-Object TemplateId -eq 'tmpl-suspicious-signin').AlreadyDeployed | Should -BeTrue
-        ($templateRefs | Where-Object TemplateId -eq 'tmpl-data-exfiltration').AlreadyDeployed | Should -BeFalse
+        ($templateRefs | Where-Object TemplateId -EQ 'tmpl-suspicious-signin').AlreadyDeployed | Should -BeTrue
+        ($templateRefs | Where-Object TemplateId -EQ 'tmpl-data-exfiltration').AlreadyDeployed | Should -BeFalse
     }
 
     It 'flags deprecated templates by display name' {
-        ($templateRefs | Where-Object TemplateId -eq 'tmpl-deprecated-firewall').Deprecated | Should -BeTrue
+        ($templateRefs | Where-Object TemplateId -EQ 'tmpl-deprecated-firewall').Deprecated | Should -BeTrue
         @($templateRefs | Where-Object { $_.Deprecated }).Count | Should -Be 1
     }
 
     It 'includes tables declared only through connector data types' {
-        ($templateRefs | Where-Object TemplateId -eq 'tmpl-data-exfiltration').Tables | Should -Contain 'OfficeActivity'
+        ($templateRefs | Where-Object TemplateId -EQ 'tmpl-data-exfiltration').Tables | Should -Contain 'OfficeActivity'
     }
 }

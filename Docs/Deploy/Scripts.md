@@ -35,7 +35,7 @@ either. There is no separate `#`-comment banner; the path, author and
 dates live in `.NOTES`.
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
 <#
@@ -78,7 +78,7 @@ declaration order), `.OUTPUTS`, `.EXAMPLE`, `.NOTES`, `.LINK`.
     Created:      2026-03-20
     Version:      2.1.1
     Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Az.Accounts
+    Requires:     PowerShell 7.6+, Az.Accounts
 
     API versions:
       - Sentinel  : 2025-09-01 (GA)
@@ -110,6 +110,11 @@ Pester suites, are in
 [`.github/instructions/powershell-scripts.instructions.md`](../../.github/instructions/powershell-scripts.instructions.md).
 
 ## Setup-ServicePrincipal.ps1
+
+The iSOCDeployments module has `Initialize-iSOCServicePrincipal`, which
+replaces this script at the 26.11.0 cut-over and makes the same grants; see
+[Permissions](../Modules/iSOCDeployments/Permissions.md#the-deployment-service-principal).
+Until then use the script described here.
 
 One-time bootstrap script that grants the service principal all required Azure, Entra ID, and Microsoft Graph permissions needed for the pipeline to operate autonomously.
 
@@ -318,7 +323,12 @@ what-if** ticked. See
 
 ## Deploy-SentinelContentHub.ps1
 
-Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions and their packaged content via the Azure REST API (API version `2025-09-01`).
+The iSOCDeployments module has `Get-iSOCContentHubSolution` and
+`Install-iSOCContentHubSolution`, which replace this script at the 26.11.0
+cut-over; see [Content Hub solutions](../Modules/iSOCDeployments/Content-Hub.md).
+Until then the pipelines run the script described here.
+
+Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions and their packaged content via the Azure REST API (API version `2025-09-01`; analytics rules use `2025-07-01-preview`, because every GA version of the alert rules API drops the `subTechniques` and `sentinelEntitiesMappings` that solution rule templates carry).
 
 ### Key Features
 
@@ -354,7 +364,7 @@ Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions 
 | `SkipHuntingQueries` | switch | No | `$false` | Skip hunting query deployment |
 | `ForceSolutionUpdate` | switch | No | `$false` | Force update even if version matches |
 | `ForceContentDeployment` | switch | No | `$false` | Force redeployment of all content |
-| `ProtectCustomisedRules` | switch | No | `$true` | Skip updating locally modified rules |
+| `ProtectCustomisedRules` | bool | No | `$true` | Skip updating locally modified rules. A `[bool]`, not a switch: pass `-ProtectCustomisedRules:$false` to turn it off |
 | `IsGov` | switch | No | `$false` | Target Azure Government cloud |
 | `WhatIf` | switch | No | `$false` | Dry run (no changes applied) |
 
@@ -438,10 +448,16 @@ Automates the end-to-end deployment of Microsoft Sentinel Content Hub solutions 
 - Analytics rules referencing tables/columns not present in your environment will be skipped
 - Deprecated rules are skipped by design to prevent deploying outdated content
 - Some workbooks may have dependencies on specific data sources being configured
+- Each solution installs as one ARM deployment, and ARM rejects a request over 4 MB with HTTP 413. The package is sent as compact JSON (Microsoft Defender XDR 3.2.2 is 3.44 MB that way, against 5.34 MB indented), and a solution still over the limit is skipped with an error giving its size instead of being sent
 
 ---
 
 ## Deploy-CustomContent.ps1
+
+The iSOCDeployments module has `Deploy-iSOCContent`, which replaces this
+script at the 26.11.0 cut-over and deploys every content type it does; see
+[Deploying content](../Modules/iSOCDeployments/Deploy.md). Until then the
+pipelines run the script described here.
 
 Deploys custom content from the repository to a Microsoft Sentinel workspace: KQL parsers (YAML), analytics rules (YAML), watchlists (JSON+CSV), playbooks (ARM templates), workbooks (gallery JSON), hunting queries (YAML), automation rules (JSON), and summary rules (JSON).
 
@@ -582,6 +598,12 @@ Schema details for each content type:
 
 ## Deploy-DefenderDetections.ps1
 
+The iSOCDeployments module deploys Defender detections with
+`Deploy-iSOCContent -ContentType DefenderDetection`, which replaces this
+script at the 26.11.0 cut-over; see
+[Deploying content](../Modules/iSOCDeployments/Deploy.md). Until then the
+pipelines run the script described here.
+
 Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph Security API (beta). Rules are authored as YAML files in the `Content/DefenderCustomDetections/` folder and use the Advanced Hunting KQL schema.
 
 ### Key Features
@@ -630,13 +652,13 @@ Deploys custom detection rules to Microsoft Defender XDR via the Microsoft Graph
 
 1. **Authentication**: Acquires a Microsoft Graph token via `Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com"` using the existing Azure context
 2. **Fetch Existing Rules**: Queries the Graph API to list all current custom detection rules for upsert matching by `displayName`
-3. **YAML Processing**: Scans `Content/DefenderCustomDetections/` for YAML files, validates required fields (`displayName`, `queryCondition.queryText`, `schedule.period`, `detectionAction.alertTemplate`)
-4. **Upsert**: If a rule with the same `displayName` exists, updates it via `PATCH`; otherwise creates via `POST`
+3. **YAML Processing**: Scans `Content/DefenderCustomDetections/` for YAML files, translates any that still use the Graph fields removed on 2026-10-01 (with a warning), and validates each with `Test-DetectionRule` (`displayName`, `queryCondition.queryText`, `schedule.frequency`, `detectionAction.alertTemplate` with `title`, `severity` and `tactics`, plus the entity mapping and automated action shapes)
+4. **Upsert**: If a rule with the same `displayName` exists, updates it via `PATCH`; otherwise creates it via `POST` with the file's client-provided `id` (a file with no `id` cannot be created and counts as failed)
 5. **Status Reporting**: Prints a summary with created/updated/skipped/failed counts
 
 ### Content Folder Structure
 
-See [Defender-Custom-Detections.md](../Content/Defender-Custom-Detections.md) for the full YAML schema, response action types, and impacted asset identifiers.
+See [Defender-Custom-Detections.md](../Content/Defender-Custom-Detections.md) for the full YAML schema, entity mappings, automated actions and the old-to-new field table.
 
 ---
 
@@ -651,6 +673,7 @@ Imports community analytical rules from external repositories into the local cod
 - **Format Conversion**: Optionally converts KQL+ARM hybrid rules to YAML format for consistency
 - **Attribution Tracking**: Automatically adds source attribution and creation metadata to imported rules
 - **Disabled by Default**: All imported rules deploy with `enabled: false` for review before activation
+- **Stable Rule Ids**: A rule keeps the id its file already has in the repository, and a rule whose upstream id another rule file uses gets a stable id of its own (RFC 4122 version 5, from the source repository and the rule's path), since the deployer names each rule in the workspace by its id. See [Community Rules](../Content/Community-Rules.md#rule-ids)
 - **Manifest Generation**: Creates `import-manifest.json` (next to the rules) with content hashes for upstream-drift detection
 - **Auto-Generated Summary**: Writes a Markdown summary to `Docs/Content/Community/{ContributorName}.md` with rule counts and per-category listings
 - **Change Detection**: Uses SHA-256 checksums to track which rules have changed between runs; only updates modified content
@@ -991,7 +1014,7 @@ adjust an inline query), the daily workflow opens a chore PR within
 
 ### Prerequisites
 
-- PowerShell 7.2+
+- PowerShell 7.6+
 - `powershell-yaml` module (auto-installed by the script if missing)
 - `Modules/Sentinel.Common` (auto-imported from the script — provides
   `Get-ContentDependencies` and the KQL extractors)
@@ -1016,7 +1039,7 @@ Copilot tooling for scripts and modules:
   failures. Knows the module-manifest discipline (version bump +
   ReleaseNotes + Pester tests in lockstep).
 - Agent `Sentinel-As-Code: Dependencies Engineer` — when a change
-  touches the discovery extractors (`Get-KqlBareIdentifiers`,
+  touches the discovery extractors (`Get-KqlBareIdentifier`,
   `Get-ContentDependencies`, etc.).
 - Agent `Sentinel-As-Code: Security Reviewer` — for review of
   secret-handling, log-leak surface, RBAC-impacting scripts.
@@ -1209,7 +1232,7 @@ resource rather than spawning duplicates.
 
 ### Prerequisites
 
-- PowerShell 7.2+
+- PowerShell 7.6+
 - `Az.Accounts` (auto-imported by `Sentinel.Common`)
 - Authenticated Azure context (`Connect-AzAccount` or service-principal context)
 - The deploy SP needs at least **Microsoft Sentinel Reader** on the workspace to list workbooks. The standard `Setup-ServicePrincipal.ps1` Contributor grant covers this.
@@ -1316,6 +1339,11 @@ previews every move without touching the tree.
 ---
 
 ## Invoke-ClassicTableMigration.ps1
+
+The iSOCDeployments module has `Invoke-iSOCClassicTableMigration`, which
+replaces this script at the 26.11.0 cut-over; see
+[Classic table migration](../Modules/iSOCDeployments/Table-Migration.md#the-migration).
+Until then use the script described here.
 
 Discovers classic custom log tables, migrates them to DCR-based tables,
 and exports a Data Collection Rule for each.

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -65,11 +65,12 @@
     Author:         noodlemctwoodle
     Website:        https://sentinel.blog
     Created:        2026-07-08
-    Version:        1.0.1
-    Last Updated:   2026-09-01
-    Requires:       PowerShell 7.2+, Sentinel.Common (logging only)
+    Version:        1.1.1
+    Last Updated:   2026-11-23
+    Requires:       PowerShell 7.6+
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The ::error:: lines are GitHub Actions log commands, which only work on stdout.')]
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
@@ -82,12 +83,52 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Logging only. Importing Sentinel.Common keeps the ADO / GitHub / local
-# output branching in one place (Write-PipelineMessage) rather than
-# reimplementing it here, per the repo's PowerShell hard rules. The
-# module's Az.Accounts requirement is satisfied by the runner image (the
-# dependency-manifest gate imports the same module the same way).
-Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Common.psd1') -Force -ErrorAction Stop
+# ---------------------------------------------------------------------------
+# Write-TemplateMessage
+# ---------------------------------------------------------------------------
+# The script's own logger: Azure DevOps logging commands under ADO, plain or
+# coloured text elsewhere. It was Write-PipelineMessage from
+# Modules/Sentinel.Common, which retired when the iSOCDeployments module
+# replaced it; this script is not part of that module, so it keeps the
+# three levels it uses, unchanged.
+function Write-TemplateMessage {
+    <#
+    .SYNOPSIS
+        Write a message as an Azure DevOps log command or as plain or coloured text.
+
+    .PARAMETER Message
+        The text to write.
+
+    .PARAMETER Level
+        Error, Section or Success; defaults to Success.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Pipeline logging commands must reach the host stream.')]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string] $Message,
+
+        [ValidateSet('Error', 'Section', 'Success')]
+        [string] $Level = 'Success'
+    )
+
+    $isAdo = $null -ne $env:BUILD_BUILDID
+    switch ($Level) {
+        'Error' {
+            if ($isAdo) { Write-Host "##[error]$Message" }
+            else { Write-Error $Message -ErrorAction Continue }
+        }
+        'Section' {
+            if ($isAdo) { Write-Host "##[section]$Message" }
+            else { Write-Host "`n$Message" -ForegroundColor Cyan }
+        }
+        'Success' {
+            if ($isAdo) { Write-Host $Message }
+            else { Write-Host $Message -ForegroundColor Green }
+        }
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Remove-MarkdownComment
@@ -97,6 +138,15 @@ Import-Module (Join-Path $PSScriptRoot '../Modules/Sentinel.Common/Sentinel.Comm
 # us tell "author wrote a real description" from "author left the template
 # untouched".
 function Remove-MarkdownComment {
+    <#
+    .SYNOPSIS
+        Strip HTML comment blocks from a chunk of Markdown.
+
+    .PARAMETER Text
+        The Markdown to strip.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a string in memory; nothing outside the call changes.')]
+    [OutputType([string])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -116,6 +166,14 @@ function Remove-MarkdownComment {
 # deeper headings (### and beyond) stay part of the current section's
 # content, so an author's sub-headings never accidentally split a section.
 function Get-PullRequestSection {
+    <#
+    .SYNOPSIS
+        Split a pull-request body into its level-2 sections.
+
+    .PARAMETER Body
+        The raw pull-request description.
+    #>
+    [OutputType([System.Collections.Generic.List[object]])]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -124,8 +182,8 @@ function Get-PullRequestSection {
     )
 
     $sections = [System.Collections.Generic.List[object]]::new()
-    $heading  = $null
-    $buffer   = [System.Collections.Generic.List[string]]::new()
+    $heading = $null
+    $buffer = [System.Collections.Generic.List[string]]::new()
 
     foreach ($line in ($Body -split '\r?\n')) {
         # Exactly two hashes followed by whitespace: '## Heading' (optionally
@@ -133,23 +191,22 @@ function Get-PullRequestSection {
         if ($line -match '^\s{0,3}#{2}\s+(.+?)\s*#*\s*$') {
             if ($null -ne $heading) {
                 $sections.Add([pscustomobject]@{
-                    Heading = $heading
-                    Content = ($buffer.ToArray() -join "`n")
-                })
+                        Heading = $heading
+                        Content = ($buffer.ToArray() -join "`n")
+                    })
             }
             $heading = $Matches[1].Trim()
-            $buffer  = [System.Collections.Generic.List[string]]::new()
-        }
-        elseif ($null -ne $heading) {
+            $buffer = [System.Collections.Generic.List[string]]::new()
+        } elseif ($null -ne $heading) {
             $buffer.Add($line)
         }
     }
 
     if ($null -ne $heading) {
         $sections.Add([pscustomobject]@{
-            Heading = $heading
-            Content = ($buffer.ToArray() -join "`n")
-        })
+                Heading = $heading
+                Content = ($buffer.ToArray() -join "`n")
+            })
     }
 
     return $sections
@@ -162,6 +219,13 @@ function Get-PullRequestSection {
 # { IsValid; Errors }. No console output and no exit - the entry-point
 # below renders the result. This shape is what the Pester suite asserts on.
 function Test-PullRequestTemplateBody {
+    <#
+    .SYNOPSIS
+        Check a pull-request body against the template and return the result and its errors.
+
+    .PARAMETER Body
+        The raw pull-request description.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -181,7 +245,7 @@ function Test-PullRequestTemplateBody {
         'Testing'
     )
     # Section that must carry at least one ticked checkbox.
-    $requiredChoice  = 'Type of change'
+    $requiredChoice = 'Type of change'
     $minContentChars = 10
 
     if ([string]::IsNullOrWhiteSpace($Body)) {
@@ -198,7 +262,7 @@ function Test-PullRequestTemplateBody {
             continue
         }
 
-        $content  = Remove-MarkdownComment -Text $section.Content
+        $content = Remove-MarkdownComment -Text $section.Content
         $stripped = ($content -replace '\s', '')
         if ($stripped.Length -lt $minContentChars) {
             $errors.Add("Section '## $required' is empty. Replace the placeholder guidance with a real description.")
@@ -208,8 +272,7 @@ function Test-PullRequestTemplateBody {
     $choice = $sections | Where-Object { $_.Heading -ieq $requiredChoice } | Select-Object -First 1
     if (-not $choice) {
         $errors.Add("Required section '## $requiredChoice' is missing. Do not delete it from the template.")
-    }
-    elseif ($choice.Content -notmatch '(?im)^\s*[-*]\s*\[x\]') {
+    } elseif ($choice.Content -notmatch '(?im)^\s*[-*]\s*\[x\]') {
         $errors.Add("No '## $requiredChoice' box is ticked. Mark at least one option with [x].")
     }
 
@@ -229,17 +292,14 @@ function Test-PullRequestTemplateBody {
 # the parameter help. Fall back to -BodyPath only when -Body was not supplied.
 if ($PSBoundParameters.ContainsKey('Body')) {
     $resolvedBody = $Body
-}
-elseif ($BodyPath) {
+} elseif ($BodyPath) {
     if (Test-Path -LiteralPath $BodyPath) {
         $resolvedBody = Get-Content -LiteralPath $BodyPath -Raw
-    }
-    else {
-        Write-PipelineMessage -Level Error -Message "BodyPath not found: $BodyPath"
+    } else {
+        Write-TemplateMessage -Level Error -Message "BodyPath not found: $BodyPath"
         exit 1
     }
-}
-else {
+} else {
     $resolvedBody = ''
 }
 if ($null -eq $resolvedBody) { $resolvedBody = '' }
@@ -247,22 +307,19 @@ if ($null -eq $resolvedBody) { $resolvedBody = '' }
 $result = Test-PullRequestTemplateBody -Body $resolvedBody
 
 if ($result.IsValid) {
-    Write-PipelineMessage -Level Success -Message 'PR template validation passed.'
+    Write-TemplateMessage -Level Success -Message 'PR template validation passed.'
     exit 0
 }
 
-Write-PipelineMessage -Level Section -Message 'PR template validation failed. Fix the description and the check re-runs when you save it.'
+Write-TemplateMessage -Level Section -Message 'PR template validation failed. Fix the description and the check re-runs when you save it.'
 
 # Emit each failure as a GitHub workflow annotation when running in Actions
-# (Write-PipelineMessage only knows ADO / local), otherwise a plain bullet.
-# This keeps the annotation support the shared helper lacks without
-# duplicating its ADO / local branching.
+# (Write-TemplateMessage only knows ADO / local), otherwise a plain bullet.
 $inGitHub = $env:GITHUB_ACTIONS -eq 'true'
 foreach ($failure in $result.Errors) {
     if ($inGitHub) {
         Write-Host "::error::$failure"
-    }
-    else {
+    } else {
         Write-Host "  - $failure"
     }
 }

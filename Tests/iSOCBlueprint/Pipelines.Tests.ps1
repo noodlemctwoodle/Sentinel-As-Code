@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }, powershell-yaml
 
 <#
@@ -29,9 +29,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml
+    Version:      0.2.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml
 #>
 
 BeforeDiscovery {
@@ -49,11 +49,9 @@ BeforeDiscovery {
                 $value = $Node[$key]
                 if ($key -in $scriptKeys -and $value -is [string] -and $value -match '\n') {
                     @{ Pipeline = $Pipeline; Step = $Step; Script = $value }
-                }
-                else { & $collect $value $Pipeline $Step }
+                } else { & $collect $value $Pipeline $Step }
             }
-        }
-        elseif ($Node -is [System.Collections.IList]) { foreach ($item in $Node) { & $collect $item $Pipeline $Step } }
+        } elseif ($Node -is [System.Collections.IList]) { foreach ($item in $Node) { & $collect $item $Pipeline $Step } }
     }
 
     $steps = foreach ($p in $pipelines) {
@@ -79,6 +77,12 @@ BeforeAll {
     $script:exported = @((Get-Module iSOCBlueprint).ExportedFunctions.Keys)
 
     function ConvertTo-ParsableScript {
+        <#
+        .SYNOPSIS
+            Replaces pipeline macros with plain text so the script parses.
+        .PARAMETER Text
+            The script text from a pipeline file.
+        #>
         # Stand in for the pipeline macros: $(Name) in Azure DevOps (a
         # -WhatIf style flag becomes nothing) and ${{ expr }} in both.
         param([string] $Text)
@@ -88,6 +92,14 @@ BeforeAll {
     }
 
     function Get-SplatKey {
+        <#
+        .SYNOPSIS
+            Returns the keys a script puts in the table it splats.
+        .PARAMETER Ast
+            The parsed script.
+        .PARAMETER Name
+            The splat variable name.
+        #>
         # Keys a script puts in the table it splats: the literal's keys and
         # any $t['Key'] = / $t.Key = assignments.
         param($Ast, [string] $Name)
@@ -98,11 +110,9 @@ BeforeAll {
                 foreach ($h in $a.Right.FindAll({ param($n) $n -is [System.Management.Automation.Language.HashtableAst] }, $true) | Select-Object -First 1) {
                     foreach ($pair in $h.KeyValuePairs) { $keys.Add($pair.Item1.SafeGetValue()) }
                 }
-            }
-            elseif ($left -is [System.Management.Automation.Language.IndexExpressionAst] -and $left.Target.VariablePath.UserPath -eq $Name) {
+            } elseif ($left -is [System.Management.Automation.Language.IndexExpressionAst] -and $left.Target.VariablePath.UserPath -eq $Name) {
                 $keys.Add($left.Index.SafeGetValue())
-            }
-            elseif ($left -is [System.Management.Automation.Language.MemberExpressionAst] -and $left.Expression.VariablePath.UserPath -eq $Name) {
+            } elseif ($left -is [System.Management.Automation.Language.MemberExpressionAst] -and $left.Expression.VariablePath.UserPath -eq $Name) {
                 $keys.Add($left.Member.Value)
             }
         }

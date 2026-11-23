@@ -1,0 +1,7 @@
+{
+  "watchlistAlias": "vipUsers",
+  "displayName": "Fixture VIP users",
+  "description": "A watchlist used by the iSOCDeployments tests.",
+  "provider": "Fixture",
+  "itemsSearchKey": "UserPrincipalName"
+}

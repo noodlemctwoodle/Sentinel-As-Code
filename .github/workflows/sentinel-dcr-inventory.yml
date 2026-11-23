@@ -17,6 +17,11 @@
 #   After the first deployment, run manually:
 #     az role assignment create --assignee <principalId> --role "Monitoring Reader" --scope /subscriptions/<subId>
 #     az role assignment create --assignee <principalId> --role "Microsoft Sentinel Contributor" --scope /subscriptions/<subId>
+#   or, with the iSOCDeployments module (Monitoring Reader on the
+#   subscription, Microsoft Sentinel Contributor on the Sentinel resource
+#   group, nothing broader):
+#     Connect-iSOCWorkspace -ResourceGroup <sentinelRg> -WorkspaceName <workspace>
+#     Grant-iSOCRunbookPermission -AutomationAccountName <name> -AutomationResourceGroup <rg>
 #
 # Required secrets:
 #   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
@@ -33,7 +38,6 @@ on:
     paths:
       - 'Infra/dcr-watchlist/**'
       - 'Tools/Invoke-DCRWatchlistSync.ps1'
-      - 'Deploy/permissions/Set-RunbookPermissions.ps1'
       - '.github/workflows/sentinel-dcr-inventory.yml'
 
   workflow_dispatch:
@@ -217,8 +221,27 @@ jobs:
                 -AutomationAccountName $env:AUTOMATION_ACCOUNT_NAME `
                 -Name "Invoke-DCRWatchlistSync" `
                 -Path $scriptPath `
-                -Type PowerShell72 `
+                -Type PowerShell `
                 -Force
+
+            # Keep the runbook on its PowerShell 7.6 runtime environment. The
+            # import cmdlet cannot name one, so link it again with the documented
+            # PATCH and check it took before publishing.
+            $runtimeEnvironment = "PowerShell-76"
+            $subscriptionId = (Get-AzContext).Subscription.Id
+            $runbookPath = "/subscriptions/$subscriptionId/resourceGroups/$env:AUTOMATION_RESOURCE_GROUP/providers/Microsoft.Automation/automationAccounts/$env:AUTOMATION_ACCOUNT_NAME/runbooks/Invoke-DCRWatchlistSync?api-version=2024-10-23"
+            $link = @{ properties = @{ type = "PowerShell"; runtimeEnvironment = $runtimeEnvironment } } | ConvertTo-Json -Depth 5
+            $response = Invoke-AzRestMethod -Method PATCH -Path $runbookPath -Payload $link
+            if ($response.StatusCode -ge 300) {
+                Write-Error "Linking the runbook to $runtimeEnvironment failed (HTTP $($response.StatusCode)): $($response.Content)"
+                exit 1
+            }
+            $linked = ((Invoke-AzRestMethod -Method GET -Path $runbookPath).Content | ConvertFrom-Json).properties.runtimeEnvironment
+            if ($linked -ne $runtimeEnvironment) {
+                Write-Error "The runbook is on runtime environment '$linked', not $runtimeEnvironment. Run with deployInfrastructure so $runtimeEnvironment exists."
+                exit 1
+            }
+            Write-Host "  Runtime environment: $linked"
 
             # Publish the updated runbook
             Publish-AzAutomationRunbook `

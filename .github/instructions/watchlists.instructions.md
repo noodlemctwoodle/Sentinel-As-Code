@@ -66,9 +66,9 @@ Cross-validation below).
 ## Cross-validation by the dependency manifest
 
 When a rule's KQL contains `_GetWatchlist('Foo')`,
-`Build-DependencyManifest.ps1` checks that
+`Update-iSOCDependencyManifest` checks that
 `Content/Watchlists/Foo/watchlist.json` exists with `watchlistAlias: Foo`.
-If not, the build script logs a warning. The Pester test
+If not, it logs a warning. The Pester test
 ([`Tests/Test-DependencyManifest.Tests.ps1`](../../Tests/Test-DependencyManifest.Tests.ps1))
 turns that warning into a hard fail.
 
@@ -77,7 +77,7 @@ To add a new watchlist that's referenced by a rule:
 1. Create the `Content/Watchlists/<alias>/` folder with both files.
 2. Re-run the dep manifest:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 3. Run schema tests:
    ```powershell

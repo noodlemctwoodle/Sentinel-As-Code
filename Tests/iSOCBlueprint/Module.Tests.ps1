@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -7,14 +7,15 @@
     commands.
 
 .DESCRIPTION
-    The public commands are thin wrappers over the engine scripts, so most
+    The public commands are thin wrappers over the worker functions, so most
     of what can go wrong is in how they map their parameters. These tests
-    stand in for the engine (Invoke-iSOCBlueprintEngine is mocked) and
-    check each command passes the right script the right parameters, that
-    New-iSOCBlueprint runs the steps each format needs and refuses
-    contradictory requests, and that the prerequisite list agrees with the
-    engine scripts' own #Requires. They also hold the manifest, the help
-    and the file headers to the repository's conventions.
+    stand in for the workers (Invoke-iSOCBlueprintCollect, Render and the
+    rest are mocked) and check each command passes the right function the
+    right parameters, that New-iSOCBlueprint runs the steps each format
+    needs and refuses contradictory requests, and that the commands that
+    need a module check the prerequisite list first. They also hold the
+    manifest, the help and the file headers to the repository's
+    conventions.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Module.Tests.ps1
@@ -32,9 +33,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.3.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.4.3
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
@@ -44,7 +45,7 @@ BeforeDiscovery {
     $commands = @($manifest.FunctionsToExport | ForEach-Object { @{ Name = $_ } })
     $ownFiles = @(
         Get-Item -LiteralPath (Join-Path $moduleRoot 'iSOCBlueprint.psm1')
-        Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private'), (Join-Path $moduleRoot 'Engine/Private/Vendor') -Filter '*.ps1' -File
+        Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private') -Filter '*.ps1' -File -Recurse
     ) | ForEach-Object { @{ Path = [System.IO.Path]::GetRelativePath($repoRoot, $_.FullName).Replace('\', '/') } }
     # Every script the module ships, engine included: one that does not
     # parse fails only when a run reaches it.
@@ -55,7 +56,6 @@ BeforeDiscovery {
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:moduleRoot = Join-Path $script:repoRoot 'Modules/iSOCBlueprint'
-    $script:engineRoot = Join-Path $script:moduleRoot 'Engine'
     Import-Module (Join-Path $script:moduleRoot 'iSOCBlueprint.psd1') -Force
     $script:manifest = Import-PowerShellDataFile -LiteralPath (Join-Path $script:moduleRoot 'iSOCBlueprint.psd1')
 }
@@ -108,7 +108,7 @@ Describe 'Help for <Name>' -ForEach $commands {
     It 'documents every parameter' {
         $common = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
         foreach ($p in $script:command.Parameters.Keys | Where-Object { $_ -notin $common }) {
-            $entry = @($script:help.Parameters.Parameter | Where-Object Name -eq $p)
+            $entry = @($script:help.Parameters.Parameter | Where-Object Name -EQ $p)
             ($entry.Description | Out-String).Trim() | Should -Not -BeNullOrEmpty -Because "-$p needs a description"
         }
     }
@@ -122,8 +122,8 @@ Describe 'Help for <Name>' -ForEach $commands {
 Describe 'File header of <Path>' -ForEach $ownFiles {
     It 'opens with the PowerShell floor and names its own path' {
         $text = Get-Content -LiteralPath (Join-Path $script:repoRoot $Path) -Raw
-        $text | Should -Match '^#Requires -Version 7\.2\r?\n'
-        $text | Should -Match ("(?m)^\s*File:\s+" + [regex]::Escape($Path) + '\s*$')
+        $text | Should -Match '^#Requires -Version 7\.6\r?\n'
+        $text | Should -Match ('(?m)^\s*File:\s+' + [regex]::Escape($Path) + '\s*$')
     }
 }
 
@@ -138,33 +138,70 @@ Describe 'Script <Path>' -ForEach $allScripts {
 Describe 'Prerequisites' {
     BeforeAll {
         $script:requirements = & (Get-Module iSOCBlueprint) { Get-iSOCBlueprintRequirement }
-        function Get-ScriptRequirement {
-            param([string] $Relative)
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $script:engineRoot $Relative), [ref]$null, [ref]$null)
-            $ast.ScriptRequirements
-        }
     }
 
-    It 'lists the modules the collector requires, for Collect' {
-        $engine = @((Get-ScriptRequirement 'Export-SentinelInventory.ps1').RequiredModules.Name | Sort-Object)
-        $listed = @($script:requirements | Where-Object { $_.Kind -eq 'Module' -and $_.Required -and $_.Step -contains 'Collect' } | ForEach-Object Name | Sort-Object)
-        $listed | Should -Be $engine
+    It 'lists the Az modules the collector needs, for Collect' {
+        $listed = @(
+            $script:requirements | Where-Object { $_.Kind -eq 'Module' -and $_.Required -and $_.Step -contains 'Collect' } | ForEach-Object Name | Sort-Object
+        )
+        $listed | Should -Be @('Az.Accounts', 'Az.LogicApp', 'Az.Monitor', 'Az.OperationalInsights', 'Az.Resources', 'Az.SecurityInsights')
     }
 
-    It 'lists the modules the renderer requires, for Render' {
-        $engine = @((Get-ScriptRequirement 'Convert-SentinelInventoryToMarkdown.ps1').RequiredModules.Name | Sort-Object)
+    It 'lists the YAML module the renderer needs, for Render' {
         $listed = @($script:requirements | Where-Object { $_.Kind -eq 'Module' -and $_.Step -contains 'Render' } | ForEach-Object Name | Sort-Object)
-        $listed | Should -Be $engine
+        $listed | Should -Be @('powershell-yaml')
     }
 
-    It 'matches the publisher and set-up scripts on PowerShell and PnP versions, for Publish' {
-        foreach ($relative in 'SharePoint/Publish-SentinelDocsSite.ps1', 'SharePoint/Initialize-SentinelDocsSite.ps1') {
-            $r = Get-ScriptRequirement $relative
-            $pnp = $r.RequiredModules | Where-Object Name -eq 'PnP.PowerShell'
-            ($script:requirements | Where-Object Name -eq 'PnP.PowerShell').MinimumVersion | Should -Be ([string]$pnp.Version)
-            $ps = $script:requirements | Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } | Sort-Object { [version]$_.MinimumVersion } | Select-Object -Last 1
-            [version]$ps.MinimumVersion | Should -Be ([version]('{0}.{1}' -f $r.RequiredPSVersion.Major, $r.RequiredPSVersion.Minor))
+    It 'pins PowerShell 7.6 and PnP.PowerShell 3.4.1, for Publish' {
+        ($script:requirements | Where-Object Name -EQ 'PnP.PowerShell').MinimumVersion | Should -Be '3.4.1'
+        $ps = $script:requirements |
+            Where-Object { $_.Kind -eq 'PowerShell' -and $_.Step -contains 'Publish' } |
+            Sort-Object { [version]$_.MinimumVersion } |
+            Select-Object -Last 1
+        $ps.MinimumVersion | Should -Be '7.6'
+    }
+
+    It '<Command> checks the <Needs> prerequisites first' -ForEach @(
+        @{
+            Command = 'Export-iSOCBlueprintInventory'
+            Needs   = 'Collect'
+            Splat   = @{ ResourceGroup = 'rg'; WorkspaceName = 'ws' }
+            Worker  = 'Invoke-iSOCBlueprintCollect'
         }
+        @{ Command = 'ConvertTo-iSOCBlueprint'; Needs = 'Render'; Splat = @{ WorkspaceName = 'ws' }; Worker = 'Invoke-iSOCBlueprintRender' }
+        @{
+            Command = 'Publish-iSOCBlueprintSite'
+            Needs   = 'Publish'
+            Splat   = @{ SiteUrl = 'https://x/sites/y'; Path = 'b'; AccessToken = 't' }
+            Worker  = 'Invoke-iSOCBlueprintSitePublish'
+        }
+    ) {
+        Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
+            [pscustomobject]@{ Name = 'Missing.Module'; Step = @($Step); Required = $true; Found = $false; Detail = 'Install-Module Missing.Module' }
+        }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintRender { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSitePublish { }
+        $splat = $Splat
+        { & $Command @splat } | Should -Throw "This command needs:*Missing.Module ($Needs)*"
+        Should -Invoke -ModuleName iSOCBlueprint $Worker -Times 0 -Exactly
+        Should -Invoke -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite -Times 1 -Exactly -ParameterFilter { $Step -contains $Needs }
+    }
+
+    It 'stops a command that needs a missing module with the list of what is missing' {
+        Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
+            [pscustomobject]@{ Name = 'PnP.PowerShell'; Step = @('Publish'); Required = $true; Found = $false; Detail = 'Install-Module PnP.PowerShell' }
+        }
+        { & (Get-Module iSOCBlueprint) { Assert-iSOCBlueprintPrerequisite -Step Publish } } | Should -Throw '*This command needs:*PnP.PowerShell (Publish)*'
+        { & (Get-Module iSOCBlueprint) { Assert-iSOCBlueprintPrerequisite -Step Publish -For run } } | Should -Throw 'This run needs:*'
+    }
+
+    It 'lets a command through when everything it needs is found' {
+        Mock -ModuleName iSOCBlueprint Test-iSOCBlueprintPrerequisite {
+            [pscustomobject]@{ Name = 'x'; Step = @('Publish'); Required = $true; Found = $true; Detail = '' }
+            [pscustomobject]@{ Name = 'y'; Step = @('Publish'); Required = $false; Found = $false; Detail = '' }
+        }
+        { & (Get-Module iSOCBlueprint) { Assert-iSOCBlueprintPrerequisite -Step Publish } } | Should -Not -Throw
     }
 
     It 'returns one result per requirement with the documented properties' {
@@ -175,8 +212,8 @@ Describe 'Prerequisites' {
 
     It 'limits the list to the steps asked for' {
         $word = @(Test-iSOCBlueprintPrerequisite -Step Word)
-        @($word | Where-Object Name -eq 'pandoc').Count | Should -Be 1
-        @($word | Where-Object Name -like 'Az.*').Count | Should -Be 0
+        @($word | Where-Object Name -EQ 'pandoc').Count | Should -Be 1
+        @($word | Where-Object Name -Like 'Az.*').Count | Should -Be 0
         foreach ($r in $word) { $r.Step | Should -Be @('Word') }
     }
 
@@ -188,8 +225,7 @@ Describe 'Prerequisites' {
 
 Describe 'Collector API versions' {
     It 'reads alert rules with the preview API, which carries subTechniques, and falls back to GA' {
-        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
-        $block = [regex]::Match($collector, "(?s)Try-Capture 'alert-rules' \{.*?\n\}").Value
+        $block = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/Collector/Captures/Sentinel/Invoke-AlertRulesCapture.ps1') -Raw
         $block | Should -Match '/alertRules" -ApiVersion \$apiVersions\.SentinelPreview'
         $block | Should -Match '(?s)catch \{.*/alertRules" -ApiVersion \$apiVersions\.Sentinel\s'
     }
@@ -197,8 +233,7 @@ Describe 'Collector API versions' {
 
 Describe 'Alert volume capture' {
     It 'counts each alert once, not each record a status change writes' {
-        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
-        $block = [regex]::Match($collector, "(?s)Try-Capture 'analytics-rule-volumes' \{.*?\n\}").Value
+        $block = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/Collector/Captures/Detection/Invoke-AnalyticsRuleVolumesCapture.ps1') -Raw
         $block | Should -Match 'summarize arg_min\(TimeGenerated, AlertName, ProductName, AlertSeverity, ProviderName\) by SystemAlertId'
         $block | Should -Match 'by AlertName, ProductName, AlertSeverity'
     }
@@ -206,8 +241,7 @@ Describe 'Alert volume capture' {
 
 Describe 'Incident closure capture' {
     It 'counts closed incidents by who closed them, exporting the category and never the name' {
-        $collector = Get-Content -LiteralPath (Join-Path $script:engineRoot 'Export-SentinelInventory.ps1') -Raw
-        $block = [regex]::Match($collector, "(?s)Try-Capture 'incidents-summary' \{.*?\n\}").Value
+        $block = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/Collector/Captures/Incidents/Invoke-IncidentsSummaryCapture.ps1') -Raw
         $block | Should -Match 'ModifiedBy contains "Automation", "AutomationRule"'
         $block | Should -Match '"DefenderXdr"'
         $block | Should -Match '"Analyst"'
@@ -221,7 +255,7 @@ Describe 'Incident closure capture' {
 Describe 'SharePoint publisher name' {
     It 'defaults to the iSOC Blueprint name and renames an app found under an earlier one' {
         $setup = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Deploy/setup/Setup-SharePointPublisher.ps1') -Raw
-        $init = Get-Content -LiteralPath (Join-Path $script:engineRoot 'SharePoint/Initialize-SentinelDocsSite.ps1') -Raw
+        $init = Get-Content -LiteralPath (Join-Path $script:moduleRoot 'Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1') -Raw
         foreach ($s in $setup, $init) { $s | Should -Match "\`$PublisherAppName = 'iSOC Blueprint SharePoint publisher'" }
         $setup | Should -Match "foreach \(\`$legacyName in 'Sentinel Blueprint SharePoint publisher', 'Sentinel Documenter SharePoint publisher'\)"
     }
@@ -289,57 +323,17 @@ Describe 'Blueprint output stays off GitHub' {
     }
 }
 
-Describe 'Invoke-iSOCBlueprintEngine' {
+Describe 'Public commands map their parameters onto the workers' {
     BeforeAll {
-        $script:fakeEngine = Join-Path $TestDrive 'engine'
-        New-Item -ItemType Directory -Path $script:fakeEngine -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $script:fakeEngine 'Echo.ps1') -Value @'
-[CmdletBinding(SupportsShouldProcess)]
-param([string] $Name, [string] $Other)
-$undefinedProperty = ([pscustomobject]@{ a = 1 }).b
-[pscustomobject]@{ Bound = @($PSBoundParameters.Keys | Sort-Object); WhatIf = [bool]$WhatIfPreference; Strict = ($null -eq $undefinedProperty) }
-'@
-        Set-Content -LiteralPath (Join-Path $script:fakeEngine 'Plain.ps1') -Value @'
-[CmdletBinding()]
-param([string] $Name)
-[pscustomobject]@{ Bound = @($PSBoundParameters.Keys | Sort-Object) }
-'@
-        $script:module = Get-Module iSOCBlueprint
-        $script:savedRoot = & $script:module { $script:iSOCBlueprintEngineRoot }
-        & $script:module { param($r) $script:iSOCBlueprintEngineRoot = $r } $script:fakeEngine
-    }
-
-    AfterAll {
-        & $script:module { param($r) $script:iSOCBlueprintEngineRoot = $r } $script:savedRoot
-    }
-
-    It 'leaves out parameters whose value is null, so the script default applies' {
-        $r = & $script:module { Invoke-iSOCBlueprintEngine -Script 'Echo.ps1' -Parameters @{ Name = 'x'; Other = $null } }
-        $r.Bound | Should -Be @('Name')
-    }
-
-    It 'passes common parameters the script accepts and drops the ones it does not' {
-        $r = & $script:module { Invoke-iSOCBlueprintEngine -Script 'Echo.ps1' -Parameters @{ Name = 'x' } -BoundParameters @{ WhatIf = [switch]$true; Verbose = [switch]$true } }
-        $r.Bound | Should -Contain 'WhatIf'
-        $r.Bound | Should -Contain 'Verbose'
-        $r.WhatIf | Should -BeTrue
-        $p = & $script:module { Invoke-iSOCBlueprintEngine -Script 'Plain.ps1' -Parameters @{ Name = 'x' } -BoundParameters @{ WhatIf = [switch]$true } }
-        $p.Bound | Should -Be @('Name')
-    }
-
-    It 'runs the script without the module''s strict mode' {
-        $r = & $script:module { Invoke-iSOCBlueprintEngine -Script 'Echo.ps1' -Parameters @{ Name = 'x' } }
-        $r.Strict | Should -BeTrue
-    }
-
-    It 'fails clearly when the script is missing' {
-        { & $script:module { Invoke-iSOCBlueprintEngine -Script 'Nope.ps1' -Parameters @{} } } | Should -Throw '*engine script not found*'
-    }
-}
-
-Describe 'Public commands map their parameters onto the engine' {
-    BeforeAll {
-        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine { }
+        Mock -ModuleName iSOCBlueprint Assert-iSOCBlueprintPrerequisite { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintRender { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintWordConversion { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSiteBuild { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSitePublish { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintChartImage { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSiteInitialize { }
+        Mock -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate { }
         Push-Location $TestDrive
         $script:cwd = (Get-Location).ProviderPath
     }
@@ -348,68 +342,68 @@ Describe 'Public commands map their parameters onto the engine' {
 
     It 'Export-iSOCBlueprintInventory defaults the output to ./SecurityDocs and passes only what was given' {
         $r = Export-iSOCBlueprintInventory -ResourceGroup rg -WorkspaceName ws -IncludePreview
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'Export-SentinelInventory.ps1' -and
-            $Parameters.OutputRoot -eq (Join-Path $script:cwd 'SecurityDocs') -and
-            $Parameters.ResourceGroup -eq 'rg' -and $Parameters.WorkspaceName -eq 'ws' -and
-            $Parameters.TargetMaturityLevel -eq 3 -and $Parameters.IncludePreview -eq $true -and
-            -not $Parameters.ContainsKey('SubscriptionId') -and -not $Parameters.ContainsKey('PlaybookResourceGroup')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect -Times 1 -Exactly -ParameterFilter {
+            $OutputRoot -eq (Join-Path $script:cwd 'SecurityDocs') -and
+            $ResourceGroup -eq 'rg' -and $WorkspaceName -eq 'ws' -and
+            $TargetMaturityLevel -eq 3 -and [bool]$IncludePreview -and
+            -not $PesterBoundParameters.ContainsKey('SubscriptionId') -and -not $PesterBoundParameters.ContainsKey('PlaybookResourceGroup') -and
+            -not $PesterBoundParameters.ContainsKey('ResourcesFolder')
         }
         # One folder a day, so a run does not overwrite the last.
         $day = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter { $Parameters.RunFolder -eq $day }
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect -Times 1 -Exactly -ParameterFilter { $RunFolder -eq $day }
         $r.Path | Should -Be (Join-Path $script:cwd "SecurityDocs/ws/$day")
         $r.RawPath | Should -Be (Join-Path $script:cwd "SecurityDocs/ws/$day/_raw")
     }
 
     It 'Export-iSOCBlueprintInventory writes to the workspace folder itself with -NoDateFolder' {
         $r = Export-iSOCBlueprintInventory -ResourceGroup rg -WorkspaceName ws -NoDateFolder
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter { -not $Parameters.ContainsKey('RunFolder') }
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintCollect -Times 1 -Exactly -ParameterFilter {
+            -not $PesterBoundParameters.ContainsKey('RunFolder')
+        }
         $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws')
     }
 
     It 'ConvertTo-iSOCBlueprint reads and writes the workspace folder by default' {
         $r = ConvertTo-iSOCBlueprint -WorkspaceName ws -Format Json
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'Convert-SentinelInventoryToMarkdown.ps1' -and
-            $Parameters.InputRoot -eq (Join-Path $script:cwd 'SecurityDocs/ws') -and
-            $Parameters.OutputRoot -eq $Parameters.InputRoot -and
-            "$($Parameters.OutputFormat)" -eq 'Json' -and -not $Parameters.ContainsKey('ResourcesRoot')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintRender -Times 1 -Exactly -ParameterFilter {
+            $InputRoot -eq (Join-Path $script:cwd 'SecurityDocs/ws') -and
+            $OutputRoot -eq $InputRoot -and
+            "$OutputFormat" -eq 'Json' -and -not $PesterBoundParameters.ContainsKey('ResourcesRoot')
         }
         $r.SectionsPath | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws/sections')
     }
 
     It 'ConvertTo-iSOCBlueprint takes the inventory from the pipeline' {
         [pscustomobject]@{ WorkspaceName = 'piped'; Path = (Join-Path $script:cwd 'elsewhere/piped') } | ConvertTo-iSOCBlueprint -Format Markdown | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Parameters.WorkspaceName -eq 'piped' -and $Parameters.InputRoot -eq (Join-Path $script:cwd 'elsewhere/piped')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintRender -Times 1 -Exactly -ParameterFilter {
+            $WorkspaceName -eq 'piped' -and $InputRoot -eq (Join-Path $script:cwd 'elsewhere/piped')
         }
     }
 
     It 'ConvertTo-iSOCBlueprintChartImage renames AssetsDirectory and leaves unset options to the script' {
         ConvertTo-iSOCBlueprintChartImage -AssetsDirectory img | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'Convert-MermaidToImage.ps1' -and $Parameters.Root -eq (Join-Path $script:cwd 'SecurityDocs') -and
-            $Parameters.AssetsDir -eq 'img' -and $Parameters.Format -eq 'png' -and -not $Parameters.ContainsKey('Width')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter {
+            $Root -eq (Join-Path $script:cwd 'SecurityDocs') -and
+            $AssetsDir -eq 'img' -and $Format -eq 'png' -and -not $PesterBoundParameters.ContainsKey('Width')
         }
     }
 
     It 'Export-iSOCBlueprintWord writes beside the workspace folder and passes an empty strip pattern through' {
         Export-iSOCBlueprintWord -Path SecurityDocs/ws -StripLinePattern '' | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'Report/Convert-MarkdownToWord.ps1' -and
-            $Parameters.Source -eq (Join-Path $script:cwd 'SecurityDocs/ws') -and
-            $Parameters.OutputPath -eq (Join-Path $script:cwd 'SecurityDocs/ws.docx') -and
-            $Parameters.ContainsKey('StripLinePattern') -and $Parameters.StripLinePattern -eq '' -and
-            -not $Parameters.ContainsKey('Title') -and -not $Parameters.ContainsKey('Toc')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintWordConversion -Times 1 -Exactly -ParameterFilter {
+            $Source -eq (Join-Path $script:cwd 'SecurityDocs/ws') -and
+            $OutputPath -eq (Join-Path $script:cwd 'SecurityDocs/ws.docx') -and
+            $PesterBoundParameters.ContainsKey('StripLinePattern') -and $StripLinePattern -eq '' -and
+            -not $PesterBoundParameters.ContainsKey('Title') -and -not $PesterBoundParameters.ContainsKey('Toc')
         }
     }
 
-    It 'New-iSOCBlueprintSite returns the bundle folder and passes -WhatIf on' {
-        $r = New-iSOCBlueprintSite -Path SecurityDocs/ws -SkipWhatsNew -WhatIf
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'SharePoint/Build-SentinelDocsSite.ps1' -and $Parameters.Source -eq (Join-Path $script:cwd 'SecurityDocs/ws') -and
-            $Parameters.SkipWhatsNew -eq $true -and -not $Parameters.ContainsKey('OutputRoot') -and $BoundParameters.WhatIf
+    It 'New-iSOCBlueprintSite returns the bundle folder' {
+        $r = New-iSOCBlueprintSite -Path SecurityDocs/ws -SkipWhatsNew
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSiteBuild -Times 1 -Exactly -ParameterFilter {
+            $Source -eq (Join-Path $script:cwd 'SecurityDocs/ws') -and
+            $SkipWhatsNew -and -not $PesterBoundParameters.ContainsKey('OutputRoot')
         }
         $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/ws/sharepoint')
         $r.WorkspaceName | Should -Be 'ws'
@@ -417,27 +411,35 @@ Describe 'Public commands map their parameters onto the engine' {
 
     It 'Publish-iSOCBlueprintSite sends a token, or an interactive sign-in, never both' {
         Publish-iSOCBlueprintSite -SiteUrl https://x/sites/y -Path b -AccessToken t | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'SharePoint/Publish-SentinelDocsSite.ps1' -and $Parameters.AccessToken -eq 't' -and
-            -not $Parameters.ContainsKey('Interactive') -and $Parameters.Bundle -eq (Join-Path $script:cwd 'b')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSitePublish -Times 1 -Exactly -ParameterFilter {
+            $AccessToken -eq 't' -and
+            -not $PesterBoundParameters.ContainsKey('Interactive') -and $Bundle -eq (Join-Path $script:cwd 'b')
         }
         Publish-iSOCBlueprintSite -SiteUrl https://x/sites/y -Path b -Interactive -ClientId c -Tenant t.onmicrosoft.com | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Parameters.Interactive -eq $true -and $Parameters.ClientId -eq 'c' -and -not $Parameters.ContainsKey('AccessToken')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSitePublish -Times 1 -Exactly -ParameterFilter {
+            $Interactive -and $ClientId -eq 'c' -and -not $PesterBoundParameters.ContainsKey('AccessToken')
         }
     }
 
     It 'Initialize-iSOCBlueprintSite passes the required values and only the optional ones given' {
         Initialize-iSOCBlueprintSite -SiteUrl https://x/sites/y -Owner o@x -PublisherAppId p -ClientId c -Tenant t | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 1 -Exactly -ParameterFilter {
-            $Script -eq 'SharePoint/Initialize-SentinelDocsSite.ps1' -and $Parameters.Owner -eq 'o@x' -and
-            $Parameters.PublisherAppId -eq 'p' -and -not $Parameters.ContainsKey('Title') -and -not $Parameters.ContainsKey('AppPackagePath')
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintSiteInitialize -Times 1 -Exactly -ParameterFilter {
+            $Owner -eq 'o@x' -and $PublisherAppId -eq 'p' -and
+            -not $PesterBoundParameters.ContainsKey('Title') -and -not $PesterBoundParameters.ContainsKey('AppPackagePath')
         }
     }
 
     It 'Update-iSOCBlueprintConnectorCatalogue changes nothing under -WhatIf' {
         Update-iSOCBlueprintConnectorCatalogue -WhatIf | Out-Null
-        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintEngine -Times 0 -Exactly -ParameterFilter { $Script -eq 'Update-ConnectorCatalogue.ps1' }
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate -Times 0 -Exactly
+    }
+
+    It 'Update-iSOCBlueprintConnectorCatalogue resolves a local source and writes to the shipped catalogue by default' {
+        Update-iSOCBlueprintConnectorCatalogue -Source toolkit/connectors.json | Out-Null
+        Should -Invoke -ModuleName iSOCBlueprint Invoke-iSOCBlueprintConnectorCatalogueUpdate -Times 1 -Exactly -ParameterFilter {
+            $Source -eq (Join-Path $script:cwd 'toolkit/connectors.json') -and
+            $OutputPath -eq (Join-Path $script:moduleRoot 'Resources/Data/connector-catalogue.json')
+        }
     }
 }
 
@@ -477,16 +479,22 @@ Describe 'New-iSOCBlueprint' {
     }
 
     It 'renders the newest day with -SkipCollection' {
-        foreach ($d in '2026-10-01', '2026-10-03', '2026-10-02') { New-Item -ItemType Directory -Path (Join-Path $script:cwd "SecurityDocs/wsd/$d/_raw") -Force | Out-Null }
+        foreach ($d in '2026-10-01', '2026-10-03', '2026-10-02') {
+            New-Item -ItemType Directory -Path (Join-Path $script:cwd "SecurityDocs/wsd/$d/_raw") -Force | Out-Null
+        }
         $r = New-iSOCBlueprint -WorkspaceName wsd -SkipCollection -Format Json
         $r.Path | Should -Be (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03')
-        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03') }
+        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter {
+            $Path -eq (Join-Path $script:cwd 'SecurityDocs/wsd/2026-10-03')
+        }
     }
 
     It 'renders Markdown for Word and warns that charts need -ChartImages' {
         New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Word -WarningVariable warned -WarningAction SilentlyContinue | Out-Null
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprint -Times 1 -Exactly -ParameterFilter { "$Format" -eq 'Markdown' }
-        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 1 -Exactly -ParameterFilter { $OutputPath -eq (Join-Path $script:cwd "SecurityDocs/ws/$($script:day)/ws.docx") }
+        Should -Invoke -ModuleName iSOCBlueprint Export-iSOCBlueprintWord -Times 1 -Exactly -ParameterFilter {
+            $OutputPath -eq (Join-Path $script:cwd "SecurityDocs/ws/$($script:day)/ws.docx")
+        }
         Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 0 -Exactly
         "$warned" | Should -Match 'ChartImages'
     }
@@ -494,7 +502,9 @@ Describe 'New-iSOCBlueprint' {
     It 'draws the charts before the Word report with -ChartImages' {
         New-iSOCBlueprint -ResourceGroup rg -WorkspaceName ws -Format Word -ChartImages | Out-Null
         # Chart images look one level down: the days under the workspace's folder.
-        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter { $Path -eq (Join-Path $script:cwd 'SecurityDocs/ws') }
+        Should -Invoke -ModuleName iSOCBlueprint ConvertTo-iSOCBlueprintChartImage -Times 1 -Exactly -ParameterFilter {
+            $Path -eq (Join-Path $script:cwd 'SecurityDocs/ws')
+        }
     }
 
     It 'builds the SharePoint bundle without publishing when no site is given' {

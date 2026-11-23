@@ -144,17 +144,17 @@ means resolved". A snapshot with no gap analysis at all resolves nothing.
 
 The three SharePoint commands of the [iSOCBlueprint module](../../../Modules/iSOCBlueprint/README.md),
 each running a script under
-[`Modules/iSOCBlueprint/Engine/SharePoint/`](../../../Modules/iSOCBlueprint/Engine/SharePoint),
+[`Modules/iSOCBlueprint/Resources/SharePoint/`](../../../Modules/iSOCBlueprint/Resources/SharePoint),
 with the dashboard template and the web part source:
 
-| Command (script) | Job |
+| Command (function) | Job |
 | --- | --- |
-| `New-iSOCBlueprintSite` ([`Build-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Build-SentinelDocsSite.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
-| `Publish-iSOCBlueprintSite` ([`Publish-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Publish-SentinelDocsSite.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
-| `Initialize-iSOCBlueprintSite` ([`Initialize-SentinelDocsSite.ps1`](../../../Modules/iSOCBlueprint/Engine/SharePoint/Initialize-SentinelDocsSite.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
-| [`templates/sharepoint-dashboard.html`](../../../Modules/iSOCBlueprint/Engine/SharePoint/templates/sharepoint-dashboard.html) | The dashboard template the build fills in. |
+| `New-iSOCBlueprintSite` ([`Invoke-iSOCBlueprintSiteBuild.ps1`](../../../Modules/iSOCBlueprint/Private/Site/Invoke-iSOCBlueprintSiteBuild.ps1)) | Offline. Turns a Blueprint run (a day folder, or a workspace folder, whose newest day it uses) into a site bundle in that run's `sharepoint/` folder, with the earlier days' dashboards in `history/`. |
+| `Publish-iSOCBlueprintSite` ([`Invoke-iSOCBlueprintSitePublish.ps1`](../../../Modules/iSOCBlueprint/Private/Publish/Invoke-iSOCBlueprintSitePublish.ps1)) | Makes a site match a bundle. Idempotent; `-WhatIf` reads and plans only. |
+| `Initialize-iSOCBlueprintSite` ([`Invoke-iSOCBlueprintSiteInitialize.ps1`](../../../Modules/iSOCBlueprint/Private/SiteSetup/Invoke-iSOCBlueprintSiteInitialize.ps1)) | One-time admin bootstrap of the site and the publisher's access. |
+| [`templates/dashboard/`](../../../Modules/iSOCBlueprint/Resources/SharePoint/templates/dashboard) | The dashboard template the build fills in, kept as numbered parts (head, style, body, script, end) that `Get-SiteDashboardTemplate` joins; see the folder's README. |
 | [`Modules/iSOCBlueprint/WebParts/`](../../../Modules/iSOCBlueprint/WebParts) | The SPFx solution: the web part that hosts the dashboard on the home page and the chart web part on the section pages. See its [README](../../../Modules/iSOCBlueprint/WebParts/README.md). |
-| `Private/` | Section families, section-to-page conversion, the sync planners and the PnP wrappers. |
+| `Private/` | Section families, section-to-page conversion, the sync planners (loaded from `Private/SyncPlan`, one function per file) and the PnP wrappers. |
 
 ### The bundle
 
@@ -576,7 +576,7 @@ host page (with `scrollIntoView`) rather than its own window.
 Every panel has an empty state: a snapshot without a capture shows "not
 available" or "not assessed" rather than a zero dressed up as a result.
 The source families used by the estate flow come from
-`Modules/iSOCBlueprint/Engine/Private/Get-TableFamily.ps1`, which the Markdown renderer
+`Modules/iSOCBlueprint/Private/Lookup/Get-TableFamily.ps1`, which the Markdown renderer
 also uses, so the Markdown pack and the dashboard agree.
 
 Nothing is pre-rendered for the site. Charts reach it as data in the
@@ -954,7 +954,7 @@ the whole report and dashboard for a synthetic 2 TB a day workspace made
 from this repository's content, safe to show and screenshot; see
 [Blueprint-Demo-Workspace.md](../../Tools/Blueprint-Demo-Workspace.md).
 
-The publisher needs PowerShell 7.4 and PnP.PowerShell 3.4.1. To build the
+The publisher needs PowerShell 7.6 and PnP.PowerShell 3.4.1. To build the
 web part package yourself, see its
 [README](../../../Modules/iSOCBlueprint/WebParts/README.md).
 

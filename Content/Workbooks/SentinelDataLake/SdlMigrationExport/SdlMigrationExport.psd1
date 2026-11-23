@@ -6,7 +6,7 @@
     CompanyName          = 'Sentinel-As-Code'
     Copyright            = '(c) noodlemctwoodle. Released under the Apache License 2.0.'
     Description          = 'DEPRECATED. Exports every dataset behind the Sentinel Data Lake Migration workbook to one multi-sheet Excel file. To be replaced by the iSOCDeployments module.'
-    PowerShellVersion    = '7.2'
+    PowerShellVersion    = '7.6'
     CompatiblePSEditions = @('Core')
 
     # Az.Accounts, Az.OperationalInsights and ImportExcel are needed only at run

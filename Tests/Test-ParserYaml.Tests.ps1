@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -36,9 +36,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (auto-installed if missing)
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (auto-installed if missing)
 #>
 
 BeforeDiscovery {
@@ -53,26 +53,25 @@ BeforeDiscovery {
     $parsersRoot = Join-Path $repoRoot 'Content/Parsers'
     if (Test-Path $parsersRoot) {
         $script:parserCases = @(Get-ChildItem -Path $parsersRoot -Recurse -Filter '*.yaml' -File | ForEach-Object {
-            $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
-            $yaml = $null
-            $parseError = $null
-            try {
-                $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
-                if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
-                $yaml = ConvertFrom-Yaml $raw
-            }
-            catch {
-                $parseError = $_.Exception.Message
-            }
+                $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
+                $yaml = $null
+                $parseError = $null
+                try {
+                    $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                    if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
+                    $yaml = ConvertFrom-Yaml $raw
+                } catch {
+                    $parseError = $_.Exception.Message
+                }
 
-            @{
-                Path         = $_.FullName
-                RelativePath = $rel
-                Yaml         = $yaml
-                ParseError   = $parseError
-                ParseFailed  = ($null -ne $parseError) -or ($null -eq $yaml)
-            }
-        })
+                @{
+                    Path         = $_.FullName
+                    RelativePath = $rel
+                    Yaml         = $yaml
+                    ParseError   = $parseError
+                    ParseFailed  = ($null -ne $parseError) -or ($null -eq $yaml)
+                }
+            })
     }
 }
 
@@ -86,7 +85,7 @@ Describe 'Parser schema: <RelativePath>' -ForEach $script:parserCases {
 
     It 'parses as valid YAML with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
-        $Yaml       | Should -Not -BeNullOrEmpty
+        $Yaml | Should -Not -BeNullOrEmpty
         ($Yaml -is [System.Collections.IDictionary]) | Should -BeTrue
     }
 
@@ -122,9 +121,8 @@ Describe 'Parsers: cross-file invariants' {
                     if (-not $script:functionAliasMap.ContainsKey($alias)) { $script:functionAliasMap[$alias] = @() }
                     $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                     $script:functionAliasMap[$alias] += $rel
-                }
-                catch {
-                    # Per-file test owns parse errors.
+                } catch {
+                    Write-Verbose -Message 'Per-file test owns parse errors.'
                 }
             }
         }
@@ -134,8 +132,8 @@ Describe 'Parsers: cross-file invariants' {
         $duplicates = $script:functionAliasMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {
-                "  alias '$($_.Key)' used by:`n    - $($_.Value -join "`n    - ")"
-            }) -join "`n"
+                    "  alias '$($_.Key)' used by:`n    - $($_.Value -join "`n    - ")"
+                }) -join "`n"
             throw "Duplicate functionAlias values found (Sentinel rejects duplicate workspace function names):`n$report"
         }
     }

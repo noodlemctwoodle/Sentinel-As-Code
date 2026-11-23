@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -18,15 +18,28 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-12
-    Version:      0.1.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.3
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
-    . (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1')
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Lookup)
 
     function New-TierTable {
+        <#
+        .SYNOPSIS
+            Builds a workspace table object with the given plan and retention.
+        .PARAMETER Name
+            The table name.
+        .PARAMETER Plan
+            The table plan.
+        .PARAMETER Retention
+            Interactive retention in days.
+        .PARAMETER Total
+            Total retention in days.
+        #>
         param([string]$Name, [string]$Plan = 'Analytics', [int]$Retention = 30, [int]$Total = 30)
         [pscustomobject]@{
             name       = $Name
@@ -86,9 +99,9 @@ Describe 'Get-TableTierProfile' {
     It 'lists the extended-retention and lake-only tables with their day split' {
         $p = Get-TableTierProfile -Tables $script:tables -LakeEnrolled $true
         @($p.RetentionRows).Count | Should -Be 3
-        ($p.RetentionRows | Where-Object Table -eq 'SigninLogs').LakeOnlyDays | Should -Be 275
-        ($p.RetentionRows | Where-Object Table -eq 'Firewall_CL').Plan | Should -Be 'DataLake'
-        ($p.RetentionRows | Where-Object Table -eq 'Archive_CL').TotalDays | Should -Be 365
+        ($p.RetentionRows | Where-Object Table -EQ 'SigninLogs').LakeOnlyDays | Should -Be 275
+        ($p.RetentionRows | Where-Object Table -EQ 'Firewall_CL').Plan | Should -Be 'DataLake'
+        ($p.RetentionRows | Where-Object Table -EQ 'Archive_CL').TotalDays | Should -Be 365
         $p.LakeOnlyTables | Should -Be @('Firewall_CL')
     }
 

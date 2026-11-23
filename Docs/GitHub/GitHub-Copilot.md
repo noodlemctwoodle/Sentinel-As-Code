@@ -64,7 +64,7 @@ glob in the frontmatter.
 | `hunting-queries.instructions.md` | `Content/HuntingQueries/**/*.yaml` | Hunting-vs-analytical decision, schema |
 | `defender-detections.instructions.md` | `Content/DefenderCustomDetections/**/*.yaml` | Schema, table-set difference, response actions |
 | `watchlists.instructions.md` | `Content/Watchlists/**` | Folder layout, alias-equality rule, cross-validation |
-| `playbooks.instructions.md` | `Content/Playbooks/**/*.json` | ARM template structure, trigger-type folders, MSI tag |
+| `playbooks.instructions.md` | `Content/Playbooks/**/*.bicep`, `Content/Playbooks/**/*.json` | Bicep structure, trigger-type folders, MSI tag |
 | `pester-tests.instructions.md` | `Tests/**/*.ps1` | AST-extraction pattern, mocking conventions |
 | `powershell-scripts.instructions.md` | `Deploy/**/*.ps1, Tools/**/*.ps1`, `Modules/**/*.psm1`, `Modules/**/*.psd1` | Style, Sentinel.Common usage, foot-gun list |
 | `kql-queries.instructions.md` | `Content/AnalyticalRules/**/*.yaml`, `Content/HuntingQueries/**/*.yaml`, `Content/Parsers/**/*.yaml`, `Content/SummaryRules/**/*.json`, `Content/DefenderCustomDetections/**/*.yaml` | KQL conventions, discovery-friendly patterns |

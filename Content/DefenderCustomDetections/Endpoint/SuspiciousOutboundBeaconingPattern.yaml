@@ -1,5 +1,6 @@
+id: suspicious-outbound-beaconing-pattern
 displayName: Suspicious outbound beaconing pattern detected
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceNetworkEvents
@@ -27,9 +28,8 @@ queryCondition:
               InitiatingProcessCommandLine, InitiatingProcessSHA1,
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid,
               ConnectionCount, DistinctUrls, BeaconDurationMinutes
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Suspicious outbound beaconing pattern detected"
@@ -39,23 +39,26 @@ detectionAction:
       command and control beaconing behaviour where malware periodically checks in
       with an attacker-controlled server.
     severity: medium
-    category: CommandAndControl
-    mitreTechniques:
-      - T1071.001
-      - T1573
+    tactics:
+      - tactic: CommandAndControl
+        techniques:
+          - technique: T1071
+            subTechniques:
+              - T1071.001
+          - technique: T1573
     recommendedActions: |
       1. Identify the initiating process and verify if it is legitimate software.
       2. Check the remote IP against threat intelligence and reputation services.
       3. Review the process command line for suspicious arguments.
       4. Examine network traffic patterns for regularity (fixed intervals).
       5. If confirmed malicious, isolate the device and block the remote IP.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.restrictAppExecutionResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    restrictAppExecutions:
+      - deviceIdColumn: DeviceId
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    runAntivirusScans:
+      - deviceIdColumn: DeviceId

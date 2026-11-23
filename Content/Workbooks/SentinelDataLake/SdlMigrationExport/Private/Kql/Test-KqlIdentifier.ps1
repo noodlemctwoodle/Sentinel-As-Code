@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -11,8 +11,8 @@
     Website:      https://sentinel.blog
     Created:      2026-11-16
     Version:      0.2.0
-    Last Updated: 2026-11-16
-    Requires:     PowerShell 7.2+
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+
 
     Defines one function, dot-sourced by Export-SdlMigrationWorkbook.ps1
     (deprecated; to be replaced by the iSOCDeployments module).

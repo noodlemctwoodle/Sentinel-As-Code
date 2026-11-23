@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -14,7 +14,7 @@
 
     This script compiles those files with TypeScript (CommonJS modules),
     wraps each in a small module loader and writes one self-contained
-    script, Engine/SharePoint/templates/dashboard-charts.js, which exposes
+    script, Resources/SharePoint/templates/dashboard-charts.js, which exposes
     window.SacCharts (renderChart, setTextMeasurer, FONT). The site build
     puts it into the dashboard page in place of /*__SAC_CHARTS__*/.
 
@@ -46,20 +46,27 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+, Node.js, TypeScript 5.3
+    Version:      0.1.2
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Node.js, TypeScript 5.3
 #>
 [CmdletBinding()]
 param(
     [string] $TscPath,
-    [string] $OutFile = (Join-Path $PSScriptRoot '../Engine/SharePoint/templates/dashboard-charts.js')
+    [string] $OutFile = (Join-Path $PSScriptRoot '../Resources/SharePoint/templates/dashboard-charts.js')
 )
 
 $ErrorActionPreference = 'Stop'
 $chartsDir = Join-Path $PSScriptRoot 'src/webparts/isocBlueprintChart/charts'
 # Ordinal order, so the hash does not depend on the machine's culture.
 function Get-OrdinalSorted([System.IO.FileInfo[]] $Files) {
+    <#
+    .SYNOPSIS
+        Return the files sorted by name in ordinal order.
+
+    .PARAMETER Files
+        The files to sort.
+    #>
     $names = [string[]]@($Files | ForEach-Object Name)
     [Array]::Sort($names, [StringComparer]::Ordinal)
     foreach ($n in $names) { $Files | Where-Object Name -CEQ $n }
@@ -87,7 +94,7 @@ if (-not $TscPath -or -not (Test-Path -LiteralPath $TscPath)) {
 $work = Join-Path ([System.IO.Path]::GetTempPath()) "sac-charts-$([guid]::NewGuid())"
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 try {
-    & $TscPath --module commonjs --target es2017 --lib es2017,dom --moduleResolution node --skipLibCheck --strict --outDir $work @($sources.FullName)
+    & $TscPath --module commonjs --target es2017 --lib es2017, dom --moduleResolution node --skipLibCheck --strict --outDir $work @($sources.FullName)
     if ($LASTEXITCODE -ne 0) { throw "TypeScript failed (exit $LASTEXITCODE)." }
 
     $modules = @(Get-OrdinalSorted @(Get-ChildItem -LiteralPath $work -Filter '*.js' -File))

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -25,15 +25,19 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-23
-    Version:      0.1.0
-    Last Updated: 2026-10-23
-    Requires:     PowerShell 7.2+, Pester 5+, git
+    Version:      0.1.2
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+, git
 #>
 
 BeforeAll {
     $script:migrate = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/Migrate-ForkLayout.ps1'
 
     function New-ForkRepo {
+        <#
+        .SYNOPSIS
+            Creates a temporary git repository laid out like a fork that still has the old Blueprint folders.
+        #>
         $root = Join-Path ([System.IO.Path]::GetTempPath()) ('fork-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $root | Out-Null
         git -C $root init -q
@@ -96,5 +100,52 @@ Describe 'Migrate-ForkLayout merging a partial migration' {
         Test-Path -LiteralPath (Join-Path $script:repo 'Tools/Blueprint/Deep/Nested/Rule.yaml') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $script:repo 'Tools/Blueprint/Private/Custom.ps1') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $script:repo 'Modules/iSOCBlueprint/Engine/Private/Custom.ps1') | Should -BeFalse
+    }
+}
+
+Describe 'Migrate-ForkLayout moving the static files to Resources' {
+    BeforeEach {
+        $script:repo = Join-Path ([System.IO.Path]::GetTempPath()) ('fork-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $script:repo | Out-Null
+        git -C $script:repo init -q
+        $files = [ordered]@{
+            'Tools/Blueprint/Private/Resources/best-practices.json'    = 'rules'
+            'Tools/Blueprint/Schemas/section.schema.json'              = 'schema'
+            'Tools/Blueprint/Report/templates/reference.docx'          = 'docx'
+            'Tools/Blueprint/Report/Update-WordToc.py'                 = 'py'
+            'Tools/Blueprint/SharePoint/templates/dashboard/01.html'   = 'html'
+            'Tools/Blueprint/Blueprint.psd1'                           = 'psd1'
+            'Tools/Blueprint/Private/Custom.ps1'                       = 'script'
+            'Modules/iSOCBlueprint/Engine/Private/Resources/mine.json' = 'mine'
+        }
+        foreach ($rel in $files.Keys) {
+            $path = Join-Path $script:repo $rel
+            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force | Out-Null
+            Set-Content -LiteralPath $path -Value $files[$rel] -NoNewline
+        }
+    }
+
+    AfterEach {
+        Remove-Item -LiteralPath $script:repo -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It 'puts each static file where the module reads it' {
+        & $script:migrate -RepoPath $script:repo -AllowDirty -WarningAction SilentlyContinue 6>$null
+
+        $resources = Join-Path $script:repo 'Modules/iSOCBlueprint/Resources'
+        Get-Content -LiteralPath (Join-Path $resources 'Data/best-practices.json') -Raw | Should -Be 'rules'
+        Get-Content -LiteralPath (Join-Path $resources 'Data/mine.json') -Raw | Should -Be 'mine'
+        Get-Content -LiteralPath (Join-Path $resources 'Schemas/section.schema.json') -Raw | Should -Be 'schema'
+        Get-Content -LiteralPath (Join-Path $resources 'Report/templates/reference.docx') -Raw | Should -Be 'docx'
+        Get-Content -LiteralPath (Join-Path $resources 'Report/Update-WordToc.py') -Raw | Should -Be 'py'
+        Get-Content -LiteralPath (Join-Path $resources 'SharePoint/templates/dashboard/01.html') -Raw | Should -Be 'html'
+        Get-Content -LiteralPath (Join-Path $resources 'Blueprint.psd1') -Raw | Should -Be 'psd1'
+    }
+
+    It 'leaves a script of the fork''s own in Engine, where the module does not load it' {
+        & $script:migrate -RepoPath $script:repo -AllowDirty -WarningAction SilentlyContinue 6>$null
+
+        Get-Content -LiteralPath (Join-Path $script:repo 'Modules/iSOCBlueprint/Engine/Private/Custom.ps1') -Raw | Should -Be 'script'
+        Test-Path -LiteralPath (Join-Path $script:repo 'Modules/iSOCBlueprint/Engine/Private/Resources') | Should -BeFalse
     }
 }

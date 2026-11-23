@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -7,14 +7,16 @@
     their originals.
 
 .DESCRIPTION
-    The module ships its own copy of two things that live elsewhere in the
-    repository, so it can run on its own: Remove-KqlComments and
-    Get-KqlBareIdentifiers from Modules/Sentinel.Common (the shared module
-    needs Az.Accounts; rendering does not), and Blueprint-References.md
-    from Docs/Modules/iSOCBlueprint (page 99 of every report). A copy that drifts
-    from its original reintroduces the fix-in-one-place bug the shared
-    module exists to prevent, so this suite fails until both sides match.
-    Fix the original first, then copy it across.
+    The module ships its own copy of Blueprint-References.md from
+    Docs/Modules/iSOCBlueprint (page 99 of every report), so it can run on
+    its own. A copy that drifts from its original reintroduces the
+    fix-in-one-place bug, so this suite fails until both sides match: fix
+    the original first, then copy it across.
+
+    The KQL helpers Remove-KqlComment and Get-KqlBareIdentifier were a
+    copy of Modules/Sentinel.Common's until that module retired in release
+    26.11.0; they are the Blueprint's own code now, and the suite holds the
+    vendor file to just those two.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Vendored.Tests.ps1
@@ -27,51 +29,57 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.1
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.3.3
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 
     Version 0.1.0 was Engine-Copy.Tests.ps1, which also held the engine
     byte-identical to Tools/Blueprint until that folder was removed.
 #>
 
-BeforeDiscovery {
-    $vendored = @('Remove-KqlComments', 'Get-KqlBareIdentifiers' | ForEach-Object { @{ Name = $_ } })
-}
-
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:vendorFile = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Vendor/SentinelCommon.Kql.ps1'
-    $script:commonFile = Join-Path $script:repoRoot 'Modules/Sentinel.Common/Sentinel.Common.psm1'
+    $script:vendorFiles = @(Get-ChildItem -LiteralPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Kql/Vendor') -Filter '*.ps1' -File)
 
     function Get-FunctionText {
-        param([string] $Path, [string] $Name)
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
-        $fn = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $Name }, $false)
-        @($fn | ForEach-Object { $_.Extent.Text })
+        <#
+        .SYNOPSIS
+            Returns the source text of a named function from a set of scripts.
+        .PARAMETER File
+            The scripts to search.
+        .PARAMETER Name
+            The function name.
+        #>
+        param([System.IO.FileInfo[]] $File, [string] $Name)
+        foreach ($f in $File) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
+            $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $Name }, $false) |
+                ForEach-Object { $_.Extent.Text }
+        }
     }
 }
 
 Describe 'Vendored KQL helpers' {
-    It '<Name> is identical to the Sentinel.Common original' -ForEach $vendored {
-        $copy = @(Get-FunctionText -Path $script:vendorFile -Name $Name)
-        $original = @(Get-FunctionText -Path $script:commonFile -Name $Name)
-        $copy.Count | Should -Be 1
-        $original.Count | Should -Be 1
-        $copy[0] | Should -BeExactly $original[0]
+    It 'defines <_> once' -ForEach @('Remove-KqlComment', 'Get-KqlBareIdentifier') {
+        @(Get-FunctionText -File $script:vendorFiles -Name $_).Count | Should -Be 1
     }
 
-    It 'the vendor file defines only the two helpers' {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:vendorFile, [ref]$null, [ref]$null)
-        $names = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) | ForEach-Object Name | Sort-Object)
-        $names | Should -Be @('Get-KqlBareIdentifiers', 'Remove-KqlComments')
+    It 'the vendor folder defines only the two helpers, one to a file' {
+        $names = @($script:vendorFiles | ForEach-Object {
+                [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$null).FindAll({
+                        param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
+                    }, $false) |
+                    ForEach-Object { $_.Name }
+                } | Sort-Object)
+        @($script:vendorFiles).Count | Should -Be 2
+        $names | Should -Be @('Get-KqlBareIdentifier', 'Remove-KqlComment')
     }
 }
 
 Describe 'Vendored references page' {
     It 'Blueprint-References.md matches the docs copy' {
         $docs = Join-Path $script:repoRoot 'Docs/Modules/iSOCBlueprint/Blueprint-References.md'
-        $shipped = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/Blueprint-References.md'
+        $shipped = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data/Blueprint-References.md'
         (Get-FileHash -LiteralPath $shipped).Hash | Should -Be (Get-FileHash -LiteralPath $docs).Hash
     }
 }

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -29,24 +29,25 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-09
-    Version:      0.3.0
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.3.4
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
-    $script:repoRoot     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:fixtureRaw   = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $script:fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
+    $script:resourcesDir = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
     $script:criteriaPath = Join-Path $script:resourcesDir 'maturity-criteria.json'
-    $script:rulesPath    = Join-Path $script:resourcesDir 'best-practices.json'
+    $script:rulesPath = Join-Path $script:resourcesDir 'best-practices.json'
 
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1')
-    . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Bundle Gap)
+    . (Get-iSOCBlueprintAreaLoader -Bundle Maturity)
 
     $script:outcomes = [System.Collections.Generic.List[object]]::new()
     $null = Get-SentinelGap -InputRoot $script:fixtureRaw -ResourcesRoot $script:resourcesDir `
-        -RulesPath $script:rulesPath -GapChecksPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1') `
+        -RulesPath $script:rulesPath `
         -OutcomeCollector $script:outcomes
 
     $script:maturity = Get-SentinelMaturity -InputRoot $script:fixtureRaw -ResourcesRoot $script:resourcesDir `
@@ -57,7 +58,15 @@ BeforeAll {
 
     # A criteria document with one area and the CSF reference the engine
     # validates against, for the synthetic cases.
-    function New-SyntheticCriteria {
+    function New-SyntheticCriterion {
+        <#
+        .SYNOPSIS
+            Writes a small criteria file and returns its path.
+        .PARAMETER Criteria
+            The criteria to include.
+        .PARAMETER Path
+            Where to write the file.
+        #>
         param([object[]]$Criteria, [string]$Path)
         $doc = [ordered]@{
             version     = '0.0.1'
@@ -73,20 +82,63 @@ BeforeAll {
         return $Path
     }
     function New-GapCriterion {
+        <#
+        .SYNOPSIS
+            Builds one criterion that is read from a gap rule.
+        .PARAMETER Id
+            The criterion id.
+        .PARAMETER Rule
+            The gap rule that feeds it.
+        .PARAMETER Weight
+            The criterion weight.
+        .PARAMETER Effort
+            The effort rating.
+        .PARAMETER Area
+            The area the criterion belongs to.
+        #>
         param([string]$Id, [string]$Rule, [double]$Weight = 1, [string]$Effort = 'Low', [string]$Area = 'ONE')
-        return @{ id = $Id; area = $Area; kind = 'practice'; name = $Id; weight = $Weight; effort = $Effort; impact = 'i'; guidance = 'g'; csf = @('DE.AE-02'); source = @{ kind = 'gapRule'; rule = $Rule } }
+        return @{
+            id       = $Id
+            area     = $Area
+            kind     = 'practice'
+            name     = $Id
+            weight   = $Weight
+            effort   = $Effort
+            impact   = 'i'
+            guidance = 'g'
+            csf      = @('DE.AE-02')
+            source   = @{ kind = 'gapRule'; rule = $Rule }
+        }
     }
     function New-Outcome {
+        <#
+        .SYNOPSIS
+            Builds one gap outcome record.
+        .PARAMETER Id
+            The rule id.
+        .PARAMETER Outcome
+            The outcome, such as Fired or Passed.
+        #>
         param([string]$Id, [string]$Outcome)
         return [pscustomobject]@{ Id = $Id; Check = 'Test-X'; Outcome = $Outcome; Message = $null }
     }
     function Invoke-Synthetic {
+        <#
+        .SYNOPSIS
+            Scores a set of synthetic criteria and outcomes in a temporary workspace.
+        .PARAMETER Criteria
+            The criteria to score.
+        .PARAMETER Outcomes
+            The gap outcomes to score against.
+        .PARAMETER Target
+            The target maturity level.
+        #>
         param([object[]]$Criteria, [object[]]$Outcomes, [int]$Target = 3)
-        $dir = Join-Path $TestDrive ("synthetic-" + [guid]::NewGuid().ToString('N'))
+        $dir = Join-Path $TestDrive ('synthetic-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $raw = Join-Path $dir '_raw'
         New-Item -ItemType Directory -Path $raw -Force | Out-Null
-        $criteriaFile = New-SyntheticCriteria -Criteria $Criteria -Path (Join-Path $dir 'criteria.json')
+        $criteriaFile = New-SyntheticCriterion -Criteria $Criteria -Path (Join-Path $dir 'criteria.json')
         return Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $script:resourcesDir -CriteriaPath $criteriaFile -GapOutcomes $Outcomes -TargetLevel $Target
     }
 }
@@ -168,7 +220,7 @@ Describe 'Maturity assessment over the sample fixture' {
     }
 
     It 'lists every Low-effort roadmap entry as a quick win, in roadmap order' {
-        $maturity.quickWins.Count | Should -Be @($maturity.roadmap | Where-Object effort -eq 'Low').Count
+        $maturity.quickWins.Count | Should -Be @($maturity.roadmap | Where-Object effort -EQ 'Low').Count
         foreach ($q in $maturity.quickWins) { $q.effort | Should -Be 'Low' }
         $priorities = @($maturity.quickWins | ForEach-Object priority)
         ($priorities | Sort-Object) | Should -Be $priorities
@@ -176,7 +228,7 @@ Describe 'Maturity assessment over the sample fixture' {
 
     It 'rolls up to the six NIST CSF functions and the referenced subcategories' {
         @($maturity.csf.functions | ForEach-Object id) | Should -Be @('GV', 'ID', 'PR', 'DE', 'RS', 'RC')
-        ($maturity.csf.functions | Where-Object id -eq 'DE').criteria | Should -BeGreaterThan 10
+        ($maturity.csf.functions | Where-Object id -EQ 'DE').criteria | Should -BeGreaterThan 10
         $maturity.csf.subcategories.Count | Should -Be 34
         foreach ($s in $maturity.csf.subcategories) { $s.outcome | Should -Not -BeNullOrEmpty }
     }
@@ -185,7 +237,7 @@ Describe 'Maturity assessment over the sample fixture' {
         $expected = Get-Content (Join-Path $fixtureRaw 'maturity.json') -Raw | ConvertFrom-Json -Depth 16
         $expected.overall.score | Should -Be $maturity.overall.score
         foreach ($a in $expected.areas) {
-            $actual = $maturity.areas | Where-Object id -eq $a.id
+            $actual = $maturity.areas | Where-Object id -EQ $a.id
             $actual.score | Should -Be $a.score -Because "area $($a.id)"
             foreach ($c in $a.criteria) {
                 $criterionById[$c.id].status | Should -Be $c.status -Because "criterion $($c.id)"
@@ -209,10 +261,10 @@ Describe 'Maturity assessment over the sample fixture' {
         $dir = Join-Path $TestDrive 'bmcount-raw'
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $dir 'bookmarks-count.json')
-        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).bookmarks | Should -Be 350
+        (New-MaturityMetric -InputRoot $dir -ResourcesRoot $resourcesDir).bookmarks | Should -Be 350
         $bare = Join-Path $TestDrive 'bmcount-none'
         New-Item -ItemType Directory -Path $bare -Force | Out-Null
-        (New-MaturityMetrics -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
+        (New-MaturityMetric -InputRoot $bare -ResourcesRoot $resourcesDir).bookmarks | Should -BeNullOrEmpty
     }
 
     It 'reads search jobs and restores from the table list when a snapshot has neither file' {
@@ -221,16 +273,18 @@ Describe 'Maturity assessment over the sample fixture' {
         Get-ChildItem $fixtureRaw -File | Where-Object Name -NotIn 'search-jobs.json', 'restore-logs.json' | Copy-Item -Destination $dir
         $tables = @(Get-Content (Join-Path $fixtureRaw 'workspace-tables.json') -Raw | ConvertFrom-Json)
         $tables += [pscustomobject]@{ name = 'SigninLogs_1A2B_SRCH'; properties = [pscustomobject]@{
-                schema = [pscustomobject]@{ tableType = 'SearchResults' }
-                searchResults = [pscustomobject]@{ sourceTable = 'SigninLogs'; query = 'SigninLogs | where ResultType != 0' } } }
+                schema        = [pscustomobject]@{ tableType = 'SearchResults' }
+                searchResults = [pscustomobject]@{ sourceTable = 'SigninLogs'; query = 'SigninLogs | where ResultType != 0' }
+            }
+        }
         ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $dir 'workspace-tables.json')
-        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).searchOrRestoreJobs | Should -Be 1
+        (New-MaturityMetric -InputRoot $dir -ResourcesRoot $resourcesDir).searchOrRestoreJobs | Should -Be 1
         $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
-        ($m.areas.criteria | Where-Object id -eq 'SAC-INV-02').status | Should -Be 'Met'
+        ($m.areas.criteria | Where-Object id -EQ 'SAC-INV-02').status | Should -Be 'Met'
         # With neither file nor a search or restore table, it is a Gap, not Unknown.
         ConvertTo-Json -InputObject @($tables | Select-Object -SkipLast 1) -Depth 10 | Set-Content (Join-Path $dir 'workspace-tables.json')
         $m2 = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
-        ($m2.areas.criteria | Where-Object id -eq 'SAC-INV-02').status | Should -Be 'Gap'
+        ($m2.areas.criteria | Where-Object id -EQ 'SAC-INV-02').status | Should -Be 'Gap'
     }
 
     It 'picks search job and restored tables by type, block or name suffix' {
@@ -251,10 +305,11 @@ Describe 'Maturity assessment over the sample fixture' {
         $dir = Join-Path $TestDrive 'nan-mtta-raw'
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         Get-ChildItem $fixtureRaw -File | Copy-Item -Destination $dir
-        '[{ "ClosedCount": "0", "AcknowledgedCount": "0", "MTTAMinutes": "NaN", "MTTRMinutes": "NaN" }]' | Set-Content (Join-Path $dir 'incidents-mttr.json') -Encoding UTF8
-        (New-MaturityMetrics -InputRoot $dir -ResourcesRoot $resourcesDir).mttaMinutes | Should -BeNullOrEmpty
+        '[{ "ClosedCount": "0", "AcknowledgedCount": "0", "MTTAMinutes": "NaN", "MTTRMinutes": "NaN" }]' |
+            Set-Content (Join-Path $dir 'incidents-mttr.json') -Encoding UTF8
+        (New-MaturityMetric -InputRoot $dir -ResourcesRoot $resourcesDir).mttaMinutes | Should -BeNullOrEmpty
         $m = Get-SentinelMaturity -InputRoot $dir -ResourcesRoot $resourcesDir -CriteriaPath $criteriaPath -GapOutcomes $outcomes.ToArray() -TargetLevel 3
-        $c = $m.areas.criteria | Where-Object id -eq 'SAC-INC-03'
+        $c = $m.areas.criteria | Where-Object id -EQ 'SAC-INC-03'
         $c.status | Should -Be 'Unknown'
         $c.evidence | Should -Match 'has no value in this run'
         $c.evidence | Should -Not -Match 'NaN'
@@ -276,9 +331,11 @@ Describe 'Maturity assessment over the sample fixture' {
 Describe 'Maturity scoring with synthetic criteria' {
 
     It 'scores two Met of three equal criteria as 3.33, level 3' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08')) `
+        $m = Invoke-Synthetic -Criteria @(
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08')
+        ) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Passed'), (New-Outcome 'SAC-LOG-08' 'Fired'))
-        $one = $m.areas | Where-Object id -eq 'ONE'
+        $one = $m.areas | Where-Object id -EQ 'ONE'
         $one.score | Should -Be 3.33
         $one.level | Should -Be 3
         $one.levelName | Should -Be 'L3'
@@ -288,13 +345,16 @@ Describe 'Maturity scoring with synthetic criteria' {
     It 'weights a 1.5 criterion more heavily' {
         $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03' -Weight 1.5), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07')) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Fired'), (New-Outcome 'SAC-LOG-07' 'Passed'))
-        ($m.areas | Where-Object id -eq 'ONE').score | Should -Be 2
+        ($m.areas | Where-Object id -EQ 'ONE').score | Should -Be 2
     }
 
     It 'leaves Errored, Undefined and missing outcomes out of the denominator' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08'), (New-GapCriterion 'SAC-ONE-04' 'SAC-COV-07')) `
+        $m = Invoke-Synthetic -Criteria @(
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-ONE-03' 'SAC-LOG-08'),
+            (New-GapCriterion 'SAC-ONE-04' 'SAC-COV-07')
+        ) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Errored'), (New-Outcome 'SAC-LOG-08' 'Undefined'))
-        $one = $m.areas | Where-Object id -eq 'ONE'
+        $one = $m.areas | Where-Object id -EQ 'ONE'
         $one.score | Should -Be 5
         $one.unknown | Should -Be 3
         $one.evaluated | Should -Be 1
@@ -303,7 +363,7 @@ Describe 'Maturity scoring with synthetic criteria' {
 
     It 'gives an all-Unknown area no score and Not assessed' {
         $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03')) -Outcomes @()
-        $one = $m.areas | Where-Object id -eq 'ONE'
+        $one = $m.areas | Where-Object id -EQ 'ONE'
         $one.score | Should -BeNullOrEmpty
         $one.level | Should -BeNullOrEmpty
         $one.levelName | Should -Be 'Not assessed'
@@ -313,15 +373,17 @@ Describe 'Maturity scoring with synthetic criteria' {
     It 'sets confidence Good at six evaluated, Moderate at four, Indicative below' {
         $criteria = @(1..6 | ForEach-Object { New-GapCriterion ('SAC-ONE-0' + $_) ('SAC-TST-0' + $_) })
         $six = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..6 | ForEach-Object { New-Outcome ('SAC-TST-0' + $_) 'Passed' })
-        ($six.areas | Where-Object id -eq 'ONE').confidence | Should -Be 'Good'
+        ($six.areas | Where-Object id -EQ 'ONE').confidence | Should -Be 'Good'
         $four = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..4 | ForEach-Object { New-Outcome ('SAC-TST-0' + $_) 'Passed' })
-        ($four.areas | Where-Object id -eq 'ONE').confidence | Should -Be 'Moderate'
+        ($four.areas | Where-Object id -EQ 'ONE').confidence | Should -Be 'Moderate'
         $three = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..3 | ForEach-Object { New-Outcome ('SAC-TST-0' + $_) 'Passed' })
-        ($three.areas | Where-Object id -eq 'ONE').confidence | Should -Be 'Indicative'
+        ($three.areas | Where-Object id -EQ 'ONE').confidence | Should -Be 'Indicative'
     }
 
     It 'reports the areas below target with the gap to close' {
-        $m = Invoke-Synthetic -Criteria @((New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-TWO-01' 'SAC-LOG-08' -Area 'TWO')) `
+        $m = Invoke-Synthetic -Criteria @(
+            (New-GapCriterion 'SAC-ONE-01' 'SAC-LOG-03'), (New-GapCriterion 'SAC-ONE-02' 'SAC-LOG-07'), (New-GapCriterion 'SAC-TWO-01' 'SAC-LOG-08' -Area 'TWO')
+        ) `
             -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed')) -Target 4
         $m.targetMet | Should -BeFalse
         $m.areasBelowTarget.Count | Should -Be 1
@@ -345,7 +407,9 @@ Describe 'Maturity scoring with synthetic criteria' {
             (New-GapCriterion 'SAC-ONE-05' 'SAC-COV-05')
         )
         $ruleIds = @('SAC-LOG-03', 'SAC-LOG-07', 'SAC-LOG-08', 'SAC-COV-07', 'SAC-COV-05')
-        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(1..5 | ForEach-Object { New-Outcome $ruleIds[$_ - 1] $(if ($_ -eq 5) { 'Passed' } else { 'Fired' }) })
+        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(
+            1..5 | ForEach-Object { New-Outcome $ruleIds[$_ - 1] $(if ($_ -eq 5) { 'Passed' } else { 'Fired' }) }
+        )
         @($m.roadmap | ForEach-Object criterionId) | Should -Be @('SAC-ONE-01', 'SAC-ONE-03', 'SAC-ONE-04', 'SAC-ONE-02')
         $m.roadmap[0].areaLift | Should -Be 1.36
         $m.roadmap[-1].projectedScore | Should -Be 5
@@ -356,7 +420,8 @@ Describe 'Maturity scoring with synthetic criteria' {
         $mk = {
             param($Id, $Kind, $Rules)
             @{ id = $Id; area = 'ONE'; kind = 'practice'; name = $Id; weight = 1; effort = 'Low'; impact = 'i'; guidance = 'g'; csf = @('DE.AE-02')
-               source = @{ kind = $Kind; sources = @($Rules | ForEach-Object { @{ kind = 'gapRule'; rule = $_ } }) } }
+                source = @{ kind = $Kind; sources = @($Rules | ForEach-Object { @{ kind = 'gapRule'; rule = $_ } }) }
+            }
         }
         $criteria = @(
             (& $mk 'SAC-ONE-01' 'allOf' @('SAC-LOG-03', 'SAC-LOG-07')),   # Passed + Fired   -> Gap
@@ -366,9 +431,11 @@ Describe 'Maturity scoring with synthetic criteria' {
             (& $mk 'SAC-ONE-05' 'anyOf' @('SAC-LOG-07', 'SAC-GOV-06')),   # Fired + missing  -> Unknown
             (& $mk 'SAC-ONE-06' 'anyOf' @('SAC-LOG-07', 'SAC-COV-07'))    # Fired + Fired    -> Gap
         )
-        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @((New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed'), (New-Outcome 'SAC-COV-07' 'Fired'))
+        $m = Invoke-Synthetic -Criteria $criteria -Outcomes @(
+            (New-Outcome 'SAC-LOG-03' 'Passed'), (New-Outcome 'SAC-LOG-07' 'Fired'), (New-Outcome 'SAC-LOG-08' 'Passed'), (New-Outcome 'SAC-COV-07' 'Fired')
+        )
         $by = @{}
-        foreach ($c in ($m.areas | Where-Object id -eq 'ONE').criteria) { $by[$c.id] = $c.status }
+        foreach ($c in ($m.areas | Where-Object id -EQ 'ONE').criteria) { $by[$c.id] = $c.status }
         $by['SAC-ONE-01'] | Should -Be 'Gap'
         $by['SAC-ONE-02'] | Should -Be 'Unknown'
         $by['SAC-ONE-03'] | Should -Be 'Met'
@@ -394,9 +461,15 @@ Describe 'maturity-criteria.json schema guards' {
     BeforeAll {
         $script:doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
         $script:ruleIds = @((Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | ForEach-Object id)
-        $script:metricNames = @((New-MaturityMetrics -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
-        function Get-SourceLeaves($Source) {
-            if ($Source.kind -in 'allOf', 'anyOf') { foreach ($s in $Source.sources) { Get-SourceLeaves $s } } else { $Source }
+        $script:metricNames = @((New-MaturityMetric -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
+        function Get-SourceLeaf($Source) {
+            <#
+            .SYNOPSIS
+                Flattens nested allOf and anyOf sources into their leaf sources.
+            .PARAMETER Source
+                The criterion source to flatten.
+            #>
+            if ($Source.kind -in 'allOf', 'anyOf') { foreach ($s in $Source.sources) { Get-SourceLeaf $s } } else { $Source }
         }
     }
 
@@ -411,7 +484,7 @@ Describe 'maturity-criteria.json schema guards' {
 
     It 'references only gap rules that exist in best-practices.json' {
         foreach ($c in $doc.criteria) {
-            foreach ($leaf in @(Get-SourceLeaves $c.source | Where-Object kind -eq 'gapRule')) {
+            foreach ($leaf in @(Get-SourceLeaf $c.source | Where-Object kind -EQ 'gapRule')) {
                 $ruleIds | Should -Contain $leaf.rule -Because "$($c.id) references $($leaf.rule)"
             }
         }
@@ -419,7 +492,7 @@ Describe 'maturity-criteria.json schema guards' {
 
     It 'references only metrics the engine computes' {
         foreach ($c in $doc.criteria) {
-            foreach ($leaf in @(Get-SourceLeaves $c.source | Where-Object kind -eq 'metric')) {
+            foreach ($leaf in @(Get-SourceLeaf $c.source | Where-Object kind -EQ 'metric')) {
                 $metricNames | Should -Contain $leaf.path -Because "$($c.id) references $($leaf.path)"
             }
         }
@@ -467,8 +540,8 @@ Describe 'maturity-criteria.json schema guards' {
 Describe 'Get-FindingMaturityLink' {
     BeforeAll {
         $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-        . (Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Get-FindingMaturityLink.ps1')
-        $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json'
+        . (Get-iSOCBlueprintAreaLoader -Area Lookup)
+        $script:criteriaPath = Join-Path $root 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json'
         $script:fixtureMaturity = Get-Content (Join-Path $root 'Tests/iSOCBlueprint/Fixtures/sample/_raw/maturity.json') -Raw | ConvertFrom-Json -Depth 32
         $script:links = Get-FindingMaturityLink -CriteriaPath $script:criteriaPath -Maturity $script:fixtureMaturity
     }
@@ -476,7 +549,11 @@ Describe 'Get-FindingMaturityLink' {
     It 'maps every gap rule a criterion reads, through allOf and anyOf' {
         $criteria = (Get-Content $script:criteriaPath -Raw | ConvertFrom-Json -Depth 16).criteria
         $expected = [System.Collections.Generic.HashSet[string]]::new()
-        $walk = { param($s) if ($s.kind -eq 'gapRule') { [void]$expected.Add($s.rule) } elseif ($s.kind -in 'allOf', 'anyOf') { foreach ($x in $s.sources) { & $walk $x } } }
+        $walk = {
+            param($s) if ($s.kind -eq 'gapRule') {
+                [void]$expected.Add($s.rule)
+            } elseif ($s.kind -in 'allOf', 'anyOf') { foreach ($x in $s.sources) { & $walk $x } }
+        }
         foreach ($c in $criteria) { & $walk $c.source }
         @($script:links.Keys | Sort-Object) | Should -Be @($expected | Sort-Object)
     }
@@ -549,8 +626,9 @@ Describe 'Maturity evidence text' {
 
     It 'rejects a criteria document whose evidence writes a plural as (s)' {
         $doc = Get-Content $criteriaPath -Raw | ConvertFrom-Json -Depth 16
-        ($doc.criteria | Where-Object id -eq 'SAC-DET-01').evidence.met = '{metric} enabled rule(s).'
-        $metricNames = @((New-MaturityMetrics -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
-        { Test-MaturityCriteriaDocument -Document $doc -MetricNames $metricNames } | Should -Throw -ExpectedMessage '*SAC-DET-01 evidence writes a plural as (s)*'
+        ($doc.criteria | Where-Object id -EQ 'SAC-DET-01').evidence.met = '{metric} enabled rule(s).'
+        $metricNames = @((New-MaturityMetric -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
+        { Test-MaturityCriteriaDocument -Document $doc -MetricNames $metricNames } |
+            Should -Throw -ExpectedMessage '*SAC-DET-01 evidence writes a plural as (s)*'
     }
 }

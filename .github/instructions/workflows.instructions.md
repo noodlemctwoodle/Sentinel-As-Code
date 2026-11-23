@@ -103,11 +103,23 @@ instead of inlining `Azure/login@v2` or `Install-Module` patterns:
 
 ## Path filters (ADO build-validation)
 
-The ADO PR-validation policy currently filters on these paths:
+The ADO PR-validation policy filters on these paths, and is set on
+`main` and on `release/*` branches (a release branch gets the same gate
+before it merges to `main`):
 
 ```
-Content/AnalyticalRules/*;Content/HuntingQueries/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json
+Content/AnalyticalRules/*;Content/HuntingQueries/*;Content/Playbooks/*;Content/Parsers/*;Content/Watchlists/*;Content/AutomationRules/*;Content/SummaryRules/*;Content/WorkspaceSettings/*;Content/DefenderCustomDetections/*;Infra/*;sentinel-deployment.config;Content/Workbooks/*;Content/CodelessConnectors/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*
 ```
+
+The list is every folder that holds PowerShell or a deployable input
+(each content type's folder, `Infra/` and `sentinel-deployment.config`). A
+change to a path not on it does not start the gate, so a required policy does
+not block it. Leave the policy's path filter empty to gate every PR, as the
+GitHub workflow does.
+
+Bot commit steps (drift sync, dependency update, solution mapping) run
+only from `main` on both platforms, so a run queued on a release branch
+never opens an `auto/*` PR against `main`.
 
 If you add a new top-level folder that should trigger PR validation
 (e.g. a future `Connectors/` folder), update this filter in two

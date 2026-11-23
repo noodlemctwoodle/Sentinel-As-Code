@@ -1,0 +1,10 @@
+id: 3c7a1e52-9b1d-4f0e-8a2b-6d5c4e3f2a10
+name: Fixture sign-in parser
+description: |
+  A parser used by the iSOCDeployments tests.
+functionAlias: FixtureSignIns
+functionParameters: "lookback:timespan = 1d"
+query: |
+  SigninLogs
+  | where TimeGenerated > ago(lookback)
+version: 1.0.0

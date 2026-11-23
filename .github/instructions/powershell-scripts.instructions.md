@@ -12,8 +12,8 @@ the existing repo style. Reference doc:
 
 ## Style and structure
 
-- **PowerShell 7.2+** is the minimum (declared in
-  `Sentinel.Common.psd1`). Use `pwsh`-only features freely; don't
+- **PowerShell 7.6+** is the minimum (declared in
+  `iSOCDeployments.psd1`). Use `pwsh`-only features freely; don't
   worry about Windows PowerShell 5.1 compatibility.
 - **`Set-StrictMode -Version Latest`** is set in shared modules.
   Watch for read-of-undefined-property (`$x.PSObject.Properties['Foo']`
@@ -32,7 +32,7 @@ and may not be enforced there.
 Keywords always appear in this order, one blank line between each:
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -64,7 +64,7 @@ Keywords always appear in this order, one blank line between each:
     Created:      YYYY-MM-DD
     Version:      0.1.0
     Last Updated: YYYY-MM-DD
-    Requires:     PowerShell 7.2+, Az.Accounts
+    Requires:     PowerShell 7.6+, Az.Accounts
 
     API versions:
       - Sentinel : 2025-09-01 (GA)
@@ -109,7 +109,7 @@ dependencies as `#Requires` statements, above the help block and with
 nothing else before them:
 
 ```powershell
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules Az.Accounts, Az.OperationalInsights, Az.Resources
 
 <#
@@ -135,9 +135,12 @@ Repeated `#Requires -Modules` lines are legal, and PowerShell unions
 them, but they give the same declaration two places to live and drift
 apart in.
 
-`#Requires -Version 7.2` is not optional and not negotiable down: the
-repo floor is 7.2, matching `Sentinel.Common.psd1`, so every file
+`#Requires -Version 7.6` is not optional and not negotiable down: the
+repo floor is 7.6, matching `iSOCDeployments.psd1`, so every file
 declares it even when it needs no modules at all.
+[`Tests/Test-PowerShellVersion.Tests.ps1`](../../Tests/Test-PowerShellVersion.Tests.ps1)
+fails the PR gate for a file that does not, and for any file that
+states a lower PowerShell version.
 
 Both statements belong at the top of the file and nowhere else. A
 second `#Requires` after the `param()` block is redundant, since the
@@ -148,7 +151,8 @@ Three things must never appear in `#Requires -Modules`. The statement
 resolves against `PSModulePath` and fails the load outright when it
 cannot, so naming any of these breaks the file for everyone:
 
-- **`Sentinel.Common`**, which is imported by path, not installed.
+- **`iSOCDeployments`** and **`iSOCBlueprint`**, which are imported by
+  path, not installed.
 - **CLI tooling** (Azure CLI, git, pandoc, Node) which is not a
   PowerShell module at all.
 - **Anything the file installs itself.** Several scripts and suites
@@ -214,8 +218,7 @@ than no reference, because it implies the contract was checked.
 ### Variants
 
 **Files that define functions rather than run** (`Modules/**/*.psm1`,
-`Modules/iSOCBlueprint/Public/*.ps1`, `Modules/iSOCBlueprint/Private/*.ps1`,
-`Modules/iSOCBlueprint/Engine/Private/*.ps1`): the file-level block
+`Modules/iSOCBlueprint/Public/*.ps1`, `Modules/iSOCBlueprint/Private/**/*.ps1`): the file-level block
 describes the file and carries `.NOTES`. Per-parameter and per-example
 detail lives on each function's own help block, not the file's. Put a
 comment line between the file block and the first `function`: with only
@@ -232,39 +235,37 @@ subset, and detailed output where useful. Prerequisites go in
 comment-based help. Their metadata lives in the manifest keys
 (`Author`, `ModuleVersion`, `Description`) instead.
 
-## Use the Sentinel.Common module
+## Deploy, export, drift and permission code lives in iSOCDeployments
 
-The repo's shared module exports the patterns every deployer uses:
+The deploy, export, drift, dependency, permission, setup and migration
+work is the `iSOCDeployments` module
+([`Modules/iSOCDeployments`](../../Modules/iSOCDeployments/README.md)),
+which replaced the scripts that did it and the shared `Sentinel.Common`
+module. New work of that kind is a command or a private function in the
+module, not a new script. Inside the module:
 
-| Function | Purpose |
+| Concern | Where |
 | --- | --- |
-| `Write-PipelineMessage -Level Section\|Info\|Success\|Warning\|Error -Message ...` | Single source of truth for ADO/GitHub/local logging output |
-| `Invoke-SentinelApi -Uri ... -Method ... -Headers ...` | REST wrapper with retry-on-transient + StreamReader response-body recovery |
-| `Connect-AzureEnvironment -ResourceGroup ... -Workspace ... -Region ... [-IsGov] [-PlaybookResourceGroup ...]` | Az context bootstrap; returns a state hashtable the caller assigns to its own scope |
-| `Get-ContentDependencies -Path <yaml/json> -KnownFunctions <hashtable>` | Discover dependencies for a single content file |
-| `Get-KqlBareIdentifiers -Query <kql>` | Extract bare table/function references from a KQL query |
-| `Get-KqlWatchlistReferences` / `Get-KqlExternalDataReferences` / `Get-ContentKqlQuery` / `Remove-KqlComments` | Lower-level KQL discovery helpers |
+| Logging | `Write-iSOCLog -Message ... -Level Info\|Warning\|Error\|Section\|Success\|Debug`, the only place the module writes to the console |
+| ARM and Graph requests | `Invoke-iSOCRestRequest` (`Private/Rest/`), over `Invoke-AzRestMethod`: retries, paging, errors |
+| Az cmdlets | Only under `Private/Az/` |
+| The workspace | `Connect-iSOCWorkspace` returns a read-only context; commands take `-Context` |
+| KQL discovery | `Private/Kql/` (`Get-iSOCKqlBareIdentifier`, `Remove-iSOCKqlComment`, ...) and the public `Get-iSOCContentDependency` |
 
-Import the module at the top of any new deployer-style script:
-
-```powershell
-Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -Force
-```
+Scripts outside the module (the PR template checker, the DCR watchlist
+runbook, the fork migration tool) carry the little logging they need
+themselves.
 
 ## Hard rules
 
-1. **Don't reimplement `Write-PipelineMessage`, `Invoke-SentinelApi`,
-   or `Connect-AzureEnvironment`.** The Sentinel.Common module extracted those out
-   of every script into the shared module specifically because
-   inline duplication caused bug-fix-in-one-copy regressions. If a
-   shared helper doesn't fit your need, add a new export to
-   `Sentinel.Common.psm1` (with a Pester test) rather than inlining.
-   The one sanctioned copy is the `iSOCBlueprint` module's
-   `Engine/Private/Vendor/SentinelCommon.Kql.ps1`, which carries
-   `Remove-KqlComments` and `Get-KqlBareIdentifiers` so the module stands
-   alone. `Tests/iSOCBlueprint/Vendored.Tests.ps1` fails while either
-   differs from `Sentinel.Common`: fix the shared module first, then copy
-   the function across.
+1. **Don't reimplement the module's logging, REST client or context
+   outside it.** They were pulled into one place because inline
+   duplication caused bug-fix-in-one-copy regressions. If a helper
+   doesn't fit your need, change or add one in the module (with a Pester
+   test) rather than inlining a copy. The `iSOCBlueprint` module is
+   separate and shares no code with `iSOCDeployments`; its
+   the helpers under `Private/Kql/Vendor` are its own code since
+   `Sentinel.Common` retired.
 2. **PSGallery module pins.** Every workflow / pipeline pins
    `powershell-yaml` and `Pester` to specific versions (env vars
    `YAML_VERSION` / `PESTER_VERSION`). New scripts that need a
@@ -272,33 +273,35 @@ Import-Module "$PSScriptRoot/../Modules/Sentinel.Common/Sentinel.Common.psd1" -F
 3. **`[void]` Boolean-leaking calls.** `Dictionary.Remove(key)`,
    `HashSet.Add(item)`, `List.Remove(item)` all return `Boolean`
    that PowerShell pipes to the function output stream. Prefix with
-   `[void]` to suppress: `[void]$dict.Remove($key)`. The
-   `Set-PlaybookPermissions.ps1` fix is the canonical example.
+   `[void]` to suppress: `[void]$dict.Remove($key)`.
 4. **Single-element array indexing.** `($func | ...)[0]` may index
    into a string when the pipeline returns one item. Use `@(...)[0]`
    to force array context first.
 5. **Strict-mode-safe property access.** Don't use
    `$obj.MaybePresent` directly when strict mode is on; use
    `$obj.PSObject.Properties['MaybePresent']` and check for `$null`.
-6. **Return values, not script-scope mutation.** `Connect-AzureEnvironment`
-   used to mutate `$script:*` in the caller; that pattern doesn't
-   survive module extraction (`$script:` in a module refers to the
-   module's scope, not the caller's). Return a hashtable; let the
-   caller assign.
+6. **Return values, not script-scope mutation.** A helper that sets
+   `$script:*` in its caller doesn't survive moving into a module
+   (`$script:` in a module refers to the module's scope, not the
+   caller's). Return the value and let the caller assign it, as
+   `Connect-iSOCWorkspace` returns its context.
 
-## Adding a new function to Sentinel.Common
+## Adding a function to iSOCDeployments
 
-1. Add the function definition under the appropriate section in
-   `Modules/Sentinel.Common/Sentinel.Common.psm1`.
-2. Add it to `Export-ModuleMember -Function ...` at the bottom of
-   the `.psm1`.
-3. Add it to `FunctionsToExport` in
-   `Modules/Sentinel.Common/Sentinel.Common.psd1`.
-4. Bump `ModuleVersion` in the `.psd1` (semver: patch for bug fix,
-   minor for new function, major for breaking change).
-5. Update `ReleaseNotes` in `PrivateData.PSData`.
-6. Add Pester tests to
-   `Tests/Test-SentinelCommon.Tests.ps1`.
+1. One function per file, named after it: `Public/<Verb>-iSOC<Noun>.ps1`
+   for a command, `Private/<Area>/<Verb>-iSOC<Noun>.ps1` for a helper.
+   Files are ASCII only.
+2. A command goes in `FunctionsToExport` in
+   `Modules/iSOCDeployments/iSOCDeployments.psd1` and carries full help;
+   no public synopsis says "Sentinel".
+3. Az cmdlets only under `Private/Az/`, ARM and Graph requests only
+   through `Private/Rest/`, console output only through `Write-iSOCLog`,
+   no `exit`, nothing installed.
+4. Add Pester tests under `Tests/iSOCDeployments/` (`Import-Module` and
+   `InModuleScope`); `Module.Tests.ps1` holds the module to the rules
+   above.
+5. A change in behaviour from what the module replaced gets an edit ID in
+   [`MIGRATION.md`](../../Modules/iSOCDeployments/MIGRATION.md).
 
 ## Testing
 
@@ -321,6 +324,6 @@ Never raise a baseline count to make a change pass. Details:
 ## Cross-references
 
 - Script reference: [`Docs/Deploy/Scripts.md`](../../Docs/Deploy/Scripts.md)
-- Module manifest: [`Modules/Sentinel.Common/Sentinel.Common.psd1`](../../Modules/Sentinel.Common/Sentinel.Common.psd1)
-- Module body: [`Modules/Sentinel.Common/Sentinel.Common.psm1`](../../Modules/Sentinel.Common/Sentinel.Common.psm1)
-- Tests: [`Tests/Test-SentinelCommon.Tests.ps1`](../../Tests/Test-SentinelCommon.Tests.ps1)
+- Module manifest: [`Modules/iSOCDeployments/iSOCDeployments.psd1`](../../Modules/iSOCDeployments/iSOCDeployments.psd1)
+- Module architecture: [`Docs/Modules/iSOCDeployments/Architecture.md`](../../Docs/Modules/iSOCDeployments/Architecture.md)
+- Tests: [`Tests/iSOCDeployments/Module.Tests.ps1`](../../Tests/iSOCDeployments/Module.Tests.ps1)

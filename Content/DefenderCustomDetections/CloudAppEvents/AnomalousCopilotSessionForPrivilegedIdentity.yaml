@@ -1,5 +1,6 @@
+id: anomalous-copilot-session-for-privileged-identity
 displayName: Anomalous Copilot session for a privileged identity
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     let PrivilegedUsers =
@@ -24,9 +25,8 @@ queryCondition:
               IPAddress, CountryCode, City, ISP, UserAgent, DeviceType, Application
     | join kind=leftanti Baseline on AccountObjectId, CountryCode
     | where isnotempty(CountryCode)
-lastModifiedDateTime: "2026-07-07T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Anomalous Copilot session for a privileged identity"
@@ -36,16 +36,18 @@ detectionAction:
       high-value targets, so a new-country Copilot session may indicate stolen
       credentials or a hijacked session being used to explore tenant data.
     severity: high
-    category: InitialAccess
-    mitreTechniques:
-      - T1078.004
+    tactics:
+      - tactic: InitialAccess
+        techniques:
+          - technique: T1078
+            subTechniques:
+              - T1078.004
     recommendedActions: |
       1. Confirm whether the account owner is travelling or using a VPN.
       2. Review the source IP and ISP against threat intelligence.
       3. Check the same account for risky sign-ins and OAuth consent grants.
       4. Review what Copilot referenced during the session for sensitive data.
       5. If unauthorised, disable the account, revoke sessions and reset credentials.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedUserAsset"
-        identifier: accountObjectId
-  responseActions: []
+    entityMappings:
+      accounts:
+        - aadUserIdColumn: AccountObjectId

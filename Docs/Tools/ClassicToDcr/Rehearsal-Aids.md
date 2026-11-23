@@ -1,32 +1,32 @@
 # Rehearsal Aids
 
-Three scripts under [`Tools/ClassicToDcr/Rehearsal/`](../../../Tools/ClassicToDcr/Rehearsal/) that
-manufacture test data, so you can practise a classic-to-DCR migration and prove the assess step
-detects what it claims to, before touching anything you care about.
+> **The three scripts this page describes were removed in release 26.11.0.**
+> The iSOCDeployments module replaces them: `New-iSOCClassicTableFixture`
+> and `Remove-iSOCClassicTableFixture`, `Test-iSOCDcrIngestion`, and
+> `New-iSOCDependencyFixture` and `Remove-iSOCDependencyFixture`. See
+> [Classic table migration](../../Modules/iSOCDeployments/Table-Migration.md#rehearsing-a-migration)
+> for how to run them. The rest of this page is kept as the reference for what
+> each rehearsal does and why it is built the way it is. The script paths and
+> commands in it are historical: they will not run on this tree, so do not copy
+> them into a current rehearsal.
+
+Three rehearsal aids manufacture test data, so you can practise a classic-to-DCR migration and prove
+the assess step detects what it claims to, before touching anything you care about.
 
 Migration is one-way. That is the whole reason these exist.
 
-| Script | Purpose | API it uses | Auth |
-| --- | --- | --- | --- |
-| [`New-ClassicTableFixture.ps1`](../../../Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1) | Create a throwaway classic `_CL` table with synthetic data, or stream into it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
-| [`Test-DcrIngestion.ps1`](../../../Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1) | Stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (current) | Service principal bearer token |
-| [`New-DependencyFixture.ps1`](../../../Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1) | Build known direct and indirect dependency chains (table, parser, rule) so the assess step's detection can be proved | Data Collector API, `savedSearches`, Sentinel `alertRules` | Workspace SharedKey plus your Az identity |
+| Script (removed) | Module command | Purpose | API it uses | Auth |
+| --- | --- | --- | --- | --- |
+| `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1` | `New-iSOCClassicTableFixture` | Create a throwaway classic `_CL` table with synthetic data, or stream into it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
+| `Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1` | `Test-iSOCDcrIngestion` | Stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (current) | Service principal bearer token |
+| `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` | `New-iSOCDependencyFixture` | Build known direct and indirect dependency chains (table, parser, rule) so the assess step's detection can be proved | Data Collector API, `savedSearches`, Sentinel `alertRules` | Workspace SharedKey plus your Az identity |
 
-**Scratch workspace only**, with one documented exception. Every script here creates real,
-billable Azure resources. `New-ClassicTableFixture.ps1` and `Test-DcrIngestion.ps1` should be
+**Scratch workspace only**, with one documented exception. Every rehearsal here creates real,
+billable Azure resources. `New-ClassicTableFixture` and `Test-DcrIngestion` should be
 pointed at a throwaway or dedicated test workspace, never production.
-`New-DependencyFixture.ps1` is built to survive a live security workspace, because that is where
+`New-DependencyFixture` is built to survive a live security workspace, because that is where
 dependency chains are worth proving, but it still writes real objects. Read
 [Safety design](#safety-design-and-why-this-one-can-face-a-live-workspace) before running it.
-
-Commands below are written to be run from `Tools/ClassicToDcr`, one level up, so they read
-`./Rehearsal/<script>.ps1`. That matches the commands the HTML report generates, so anything can
-be pasted into the same shell without changing directory.
-
-This page is the fuller reference. The on-the-box quick reference is
-[`Tools/ClassicToDcr/Rehearsal/README.md`](../../../Tools/ClassicToDcr/Rehearsal/README.md), which
-stays because the kit is designed to be copied standalone to a jump box where this `Docs/` tree
-will not be present.
 
 ## Three Azure behaviours that catch people out
 
@@ -306,9 +306,10 @@ principal, which needs Monitoring Metrics Publisher on the DCR.
 
 ### Configuring the service principal
 
-The tester reads its credentials from the environment. Copy
-[`Rehearsal/.env.example`](../../../Tools/ClassicToDcr/Rehearsal/.env.example) to
-`Rehearsal/.env` (the real `.env` is git-ignored) and fill in:
+`Test-iSOCDcrIngestion` reads its credentials from the parameters, the environment or a `.env`
+file. Copy
+[`Modules/iSOCDeployments/Resources/ClassicToDcr/.env.example`](../../../Modules/iSOCDeployments/Resources/ClassicToDcr/.env.example)
+to `.env` in the folder you run the command from (the real `.env` is git-ignored) and fill in:
 
 ```text
 DCR_INGEST_TENANT_ID=<tenant guid>
@@ -316,15 +317,16 @@ DCR_INGEST_CLIENT_ID=<app id>
 DCR_INGEST_CLIENT_SECRET=<secret>
 ```
 
-Resolution order for a relative `-EnvFile` is the **current directory first, then next to the
-script**, so a `.env` kept alongside the toolkit is found whether you run from `Rehearsal/` or
-from one level up as `./Rehearsal/Test-DcrIngestion.ps1`. An absolute path is used as given.
-Values already present in the environment are never overwritten, so an explicit export always
-beats the file. Explicit parameters beat both. The fallback env var names `AZURE_TENANT_ID`,
-`AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are also accepted.
+A relative `-EnvFile` (default `.env`) is read from the **current folder only**. The removed script
+also looked next to itself, so a `.env` kept beside the toolkit was found from anywhere; the command
+does not, so run it from the folder that holds the file or pass the path with `-EnvFile`. An
+absolute path is used as given, and a file that does not exist is ignored. Values already present
+in the environment are never overwritten, so an explicit export always beats the file. Explicit
+parameters beat both. The fallback env var names `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and
+`AZURE_CLIENT_SECRET` are also accepted.
 
 The secret is held in memory only and never printed. The same `DCR_INGEST_CLIENT_ID` is what you
-pass to `Invoke-ClassicTableMigration.ps1 -GrantIngestionRoleTo`.
+pass to `Invoke-iSOCClassicTableMigration -GrantIngestionRoleTo`.
 
 ### Arrival confirmation
 
@@ -343,7 +345,7 @@ Ingestion is asynchronous, so rows have not surfaced yet by the time the next ba
 | `-DcrResourceGroupName` | string | required | Resource group containing the DCR |
 | `-TenantId`, `-ClientId` | string | from environment | Sending service principal |
 | `-ClientSecret` | SecureString | from environment | Kept out of shell history and the process argument list |
-| `-EnvFile` | string | `.env` | Dotenv file of `KEY=VALUE` lines. Ignored if it does not exist |
+| `-EnvFile` | string | `.env` | Dotenv file of `KEY=VALUE` lines, read from the current folder when relative. Ignored if it does not exist |
 | `-StreamName` | string | inferred | Input stream, for example `Custom-MyApp_CL`. Optional when the DCR declares exactly one stream, which is the usual case for a migrated table |
 | `-BatchSize` | int, 1 to 1000 | `10` | Records per POST. Keep the JSON body under 1 MB |
 | `-IntervalSeconds` | int, 1 to 3600 | `5` | Seconds between batches |

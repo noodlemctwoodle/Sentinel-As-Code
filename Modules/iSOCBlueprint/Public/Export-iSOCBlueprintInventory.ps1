@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -7,7 +7,8 @@
 
 .DESCRIPTION
     The only step that talks to Azure. Everything else in the module works
-    offline from the folder this writes. Runs Engine/Export-SentinelInventory.ps1.
+    offline from the folder this writes. Needs the Az modules that
+    Test-iSOCBlueprintPrerequisite -Step Collect lists.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/Export-iSOCBlueprintInventory.ps1
@@ -15,9 +16,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.4.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.5.0
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+
 
     The collector itself requires Az.Accounts, Az.OperationalInsights,
     Az.Resources, Az.Monitor, Az.SecurityInsights and Az.LogicApp; see
@@ -153,6 +154,8 @@ function Export-iSOCBlueprintInventory {
         [switch] $NoDateFolder
     )
 
+    Assert-iSOCBlueprintPrerequisite -Step Collect
+
     $root = Resolve-iSOCBlueprintPath -Path $OutputPath -Default 'SecurityDocs'
     $runFolder = if ($NoDateFolder) { '' } else { Get-iSOCBlueprintRunFolderName }
     $params = @{
@@ -167,7 +170,7 @@ function Export-iSOCBlueprintInventory {
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'SubscriptionId', 'PlaybookResourceGroup'
     if ($IncludePreview) { $params.IncludePreview = $true }
 
-    $null = Invoke-iSOCBlueprintEngine -Script 'Export-SentinelInventory.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+    $null = Invoke-iSOCBlueprintCollect @params
 
     $workspace = Join-Path $root $WorkspaceName
     if ($runFolder) { $workspace = Join-Path $workspace $runFolder }

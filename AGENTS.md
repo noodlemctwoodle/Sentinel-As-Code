@@ -48,7 +48,7 @@ canonical instructions in
 - **Never push to `main` directly.** All changes via PR.
 - **Never push to `auto/*` branches.** Bot-managed.
 - **Never hand-edit `dependencies.json`.** Auto-derived. Run
-  `./Tools/Build-DependencyManifest.ps1 -Mode Generate` instead.
+  `Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest` instead.
 - **Never include AI / LLM references in commit messages or
   `Co-Authored-By` trailers.** This includes Claude, Anthropic,
   ChatGPT, Copilot, etc.

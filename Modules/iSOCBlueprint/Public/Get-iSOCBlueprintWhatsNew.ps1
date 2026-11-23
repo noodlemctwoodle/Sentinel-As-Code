@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Reads the Microsoft Sentinel and Microsoft Defender XDR What's new pages
-    (Engine/Private/Get-WhatsNew.ps1) and returns their items. The collector
+    (Private/WhatsNew) and returns their items. The collector
     runs the same function and saves the result as _raw/whats-new.json, which
     the renderer turns into the What's new page.
 
@@ -17,9 +17,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.
@@ -84,7 +84,6 @@ function Get-iSOCBlueprintWhatsNew {
     )
 
     process {
-        . (Join-Path $script:iSOCBlueprintEngineRoot 'Private/Get-WhatsNew.ps1')
         $result = Get-WhatsNew -Months $Months
         if ($Path) {
             $target = Join-Path (Resolve-iSOCBlueprintRawPath -Path $Path) 'whats-new.json'

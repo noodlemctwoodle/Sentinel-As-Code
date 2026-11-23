@@ -70,7 +70,7 @@ Bootstrap a fresh Sentinel analytical rule under
 
 7. **Regenerate the dependency manifest:**
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 
 8. **Run the schema tests:**

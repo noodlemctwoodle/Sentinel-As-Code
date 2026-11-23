@@ -18,7 +18,7 @@ conventions, the foot-gun list, and the module-manifest discipline.
   functions, applying the AST extraction pattern when a
   not-yet-tested function needs coverage.
 - **Modernising legacy patterns** — converting Windows PowerShell
-  5.1 idioms to PS 7.2+, replacing `[void]$x.Add()` clutter with
+  5.1 idioms to PS 7.6+, replacing `[void]$x.Add()` clutter with
   proper return-value handling, eliminating `$global:` mutation.
 - **Performance work** — replacing repeated `Invoke-RestMethod` with
   bulk endpoints, using `[System.Collections.Generic.HashSet]`
@@ -32,7 +32,7 @@ conventions, the foot-gun list, and the module-manifest discipline.
 - `Modules/Sentinel.Common/Sentinel.Common.psm1` — the shared module
 - `Modules/Sentinel.Common/Sentinel.Common.psd1` — the module manifest
 - `Deploy/*.ps1` and `Tools/*.ps1` — every deployer / drift / dependency / bootstrap script
-- `Tests/_helpers/Import-ScriptFunctions.psm1` — the AST extraction helper
+- `Tests/_helpers/Import-ScriptFunction.psm1` — the AST extraction helper
 
 ## Read this before editing
 
@@ -49,10 +49,10 @@ conventions, the foot-gun list, and the module-manifest discipline.
 | `Write-PipelineMessage -Level <Section\|Info\|Success\|Warning\|Error\|Debug> -Message ...` | ADO/GitHub/local-friendly logging abstraction. Use everywhere; never `Write-Host` directly. |
 | `Invoke-SentinelApi -Uri ... -Method ... -Headers ... [-Body ...] [-MaxRetries N] [-RetryDelaySeconds N]` | REST wrapper with retry-on-transient (429/500/502/503/504) and StreamReader response-body recovery. |
 | `Connect-AzureEnvironment -ResourceGroup ... -Workspace ... -Region ... [-IsGov] [-PlaybookResourceGroup ...] [-SubscriptionId ...]` | Az context bootstrap. Returns a state hashtable; caller assigns to its own scope. Never mutates caller's `$script:`. |
-| `Remove-KqlComments -Query <string>` | Strips KQL `//` and `/* */` comments. URL-safe (preserves `://`). |
+| `Remove-KqlComment -Query <string>` | Strips KQL `//` and `/* */` comments. URL-safe (preserves `://`). |
 | `Get-KqlWatchlistReferences -Query <string>` | Captures `_GetWatchlist('alias')` calls. |
 | `Get-KqlExternalDataReferences -Query <string>` | Captures URLs from `externaldata(...) [...]` blocks. |
-| `Get-KqlBareIdentifiers -Query <string>` | Extracts table/function references at data-source positions. Discovery-friendly patterns: start of statement, `let X =`, `union`, `materialize/view/toscalar`, `table('X')`, lambda wrappers. |
+| `Get-KqlBareIdentifier -Query <string>` | Extracts table/function references at data-source positions. Discovery-friendly patterns: start of statement, `let X =`, `union`, `materialize/view/toscalar`, `table('X')`, lambda wrappers. |
 | `Get-ContentKqlQuery -Path <yaml/json>` | Reads a content file and returns its embedded query (analytical / hunting / parser / summary / Defender shape). |
 | `Get-ContentDependencies -Path <file> -KnownFunctions <hashtable>` | Orchestrator. Returns `tables`, `watchlists`, `functions`, `externalData` for a single file. |
 

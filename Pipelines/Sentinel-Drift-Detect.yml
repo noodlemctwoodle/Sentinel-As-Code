@@ -28,6 +28,9 @@
 #
 # Runs daily at 06:00 UTC (independent from Sentinel-Deploy.yml's weekly cron).
 #
+# The drift step runs Compare-iSOCContent, Sync-iSOCContent and
+# Export-iSOCDriftReport from Modules/iSOCDeployments.
+#
 # Prerequisites:
 #   - Variable group 'sentinel-deployment' (shared with Sentinel-Deploy.yml).
 #   - Azure Service Connection ($(serviceConnection)) with 'Microsoft Sentinel
@@ -65,12 +68,12 @@ parameters:
   # ADO parameter 'values:' lists are evaluated at compile time, so we cannot
   # dynamically populate a dropdown from the live workspace catalogue — and
   # hardcoding solution names couples this pipeline to one specific workspace.
-  # The drift script always scans every Content Hub rule it finds; the report
-  # under reports/sentinel-drift-latest.md groups results per-solution so you
-  # can see which ones drifted without filtering on input.
+  # The drift step always scans every Content Hub rule it finds; the report
+  # under reports/ groups results per-solution so you can see which ones
+  # drifted without filtering on input.
   #
-  # For ad-hoc per-solution runs, invoke the script directly:
-  #   ./Tools/Test-SentinelRuleDrift.ps1 -Solutions "Microsoft Defender XDR" ...
+  # For ad-hoc per-solution runs, call the module directly:
+  #   Compare-iSOCContent -Solution 'Microsoft Defender XDR' ...
 
   - name: skipContentHub
     displayName: "  Drift › Skip Content Hub Bucket"
@@ -98,43 +101,28 @@ variables:
   - name: SuppressAzurePowerShellBreakingChangeWarnings
     value: "true"
 
+  # Pinned module version. Keep in step with YAML_VERSION in the GitHub
+  # workflows and yamlVersion in Sentinel-Blueprint.yml.
+  - name: yamlVersion
+    value: "0.4.12"
+
   # Branch configuration. These are deliberately variables (not parameters) so the
   # 'Run pipeline' panel stays minimal — the rolling sync branch and PR target are
   # bot-managed and shouldn't be tweaked per-run.
+  # Read-only, so no step can point the bot push at another branch.
   - name: syncBranch
     value: "auto/sentinel-drift-sync"
+    readonly: true
   - name: targetBranch
     value: "main"
+    readonly: true
 
   # Map boolean parameters to switch flag strings at compile time.
-  # Mirrors the convention used in Sentinel-Deploy.yml (lines 188-300).
-  - name: flagFailOnDrift
-    ${{ if eq(parameters.failOnDrift, true) }}:
-      value: "-FailOnDrift"
-    ${{ else }}:
-      value: ""
+  # Mirrors the flag convention in Sentinel-Deploy.yml.
 
   - name: flagReportOnly
     ${{ if eq(parameters.reportOnly, true) }}:
       value: "-ReportOnly"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipContentHub
-    ${{ if eq(parameters.skipContentHub, true) }}:
-      value: "-SkipContentHub"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipCustom
-    ${{ if eq(parameters.skipCustom, true) }}:
-      value: "-SkipCustom"
-    ${{ else }}:
-      value: ""
-
-  - name: flagSkipOrphans
-    ${{ if eq(parameters.skipOrphans, true) }}:
-      value: "-SkipOrphans"
     ${{ else }}:
       value: ""
 
@@ -159,41 +147,64 @@ stages:
               targetType: "inline"
               pwsh: true
               script: |
-                Write-Host "##[section]Installing powershell-yaml module"
-                Install-Module -Name powershell-yaml -Force -Scope CurrentUser -AllowClobber
-                Write-Host "powershell-yaml installed successfully."
+                $ErrorActionPreference = 'Stop'
+                Write-Host "##[section]Installing powershell-yaml $(yamlVersion)"
+                $haveYaml = Get-Module -ListAvailable -Name powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' }
+                if (-not $haveYaml) {
+                    Install-Module -Name powershell-yaml `
+                        -RequiredVersion '$(yamlVersion)' `
+                        -Force -Scope CurrentUser -AllowClobber
+                }
+                Get-Module -ListAvailable powershell-yaml |
+                    Where-Object { $_.Version -eq [version]'$(yamlVersion)' } |
+                    Format-Table Name, Version
 
+          # The drift step logs rule names set in the portal, so it may not
+          # set a variable or change PATH.
           - task: AzurePowerShell@5
             displayName: "Detect Sentinel Rule Drift"
+            target:
+              commands: restricted
+              settableVariables: none
             inputs:
               azureSubscription: $(serviceConnection)
               ScriptType: "InlineScript"
               azurePowerShellVersion: LatestVersion
               pwsh: true
-              errorActionPreference: "Continue"
               Inline: |
-                $scriptParams = @{
-                    SubscriptionId = "$(azureSubscriptionId)"
-                    ResourceGroup  = "$(sentinelResourceGroup)"
-                    Workspace      = "$(sentinelWorkspaceName)"
-                    Region         = "$(sentinelRegion)"
-                    RepoPath       = "$(Build.SourcesDirectory)"
+                # Compare, absorb what drifted (unless report only), write
+                # the report the commit step stages, and fail when asked to.
+                $ErrorActionPreference = 'Stop'
+                $repo = $env:BUILD_SOURCESDIRECTORY
+                Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+                $null = Connect-iSOCWorkspace -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME
+
+                $compare = @{ RepoPath = $repo }
+                $excluded = @()
+                if ('${{ parameters.skipContentHub }}' -eq 'True') { $excluded += 'ContentHub' }
+                if ('${{ parameters.skipCustom }}' -eq 'True') { $excluded += 'Custom' }
+                if ('${{ parameters.skipOrphans }}' -eq 'True') { $excluded += 'Orphan' }
+                if ($excluded) { $compare['ExcludeSource'] = $excluded }
+
+                $drift = Compare-iSOCContent @compare
+                if ('${{ parameters.reportOnly }}' -ne 'True') { $drift = $drift | Sync-iSOCContent }
+                $null = $drift | Export-iSOCDriftReport
+
+                if ('${{ parameters.failOnDrift }}' -eq 'True' -and $drift.HasDrift) {
+                    Write-Host '##vso[task.logissue type=error]Drift detected, and failOnDrift is set.'
+                    exit 1
                 }
-
-                if ("$(flagFailOnDrift)")    { $scriptParams['FailOnDrift']    = $true }
-                if ("$(flagReportOnly)")     { $scriptParams['ReportOnly']     = $true }
-                if ("$(flagSkipContentHub)") { $scriptParams['SkipContentHub'] = $true }
-                if ("$(flagSkipCustom)")     { $scriptParams['SkipCustom']     = $true }
-                if ("$(flagSkipOrphans)")    { $scriptParams['SkipOrphans']    = $true }
-
-                Write-Host "##[section]Launching Sentinel Rule Drift Detection"
-                Write-Host "Workspace: $(sentinelWorkspaceName) (RG: $(sentinelResourceGroup))"
-                Write-Host "Switches:  $(($scriptParams.Keys | Where-Object { $scriptParams[$_] -eq $true }) -join ', ')"
-
-                & "$(Build.SourcesDirectory)/Tools/Test-SentinelRuleDrift.ps1" @scriptParams
+            env:
+              SENTINEL_SUBSCRIPTION_ID: $(azureSubscriptionId)
+              SENTINEL_RESOURCE_GROUP: $(sentinelResourceGroup)
+              SENTINEL_WORKSPACE_NAME: $(sentinelWorkspaceName)
 
           # Commit + push + PR. Bash so 'az' and 'git' behave predictably.
           # Skipped entirely when -ReportOnly was passed: nothing on disk to commit.
+          # It prints the drift report, which holds rule names set in the
+          # portal, so it may not set a variable or change PATH either; and
+          # runtime variables reach it through env, never as macros.
           - bash: |
               set -euo pipefail
 
@@ -208,9 +219,6 @@ stages:
               git config user.email "noreply@sentinel-as-code.local"
               git config user.name  "Sentinel Drift Sync"
               git status --short
-
-              SYNC_BRANCH="$(syncBranch)"
-              TARGET_BRANCH="$(targetBranch)"
 
               # Reset the rolling sync branch from the LATEST target tip so the
               # branch always descends from the current main. This fixes the
@@ -227,9 +235,9 @@ stages:
 
               # Absorbed rules change the dependency graph. Regenerate the manifest
               # so the deploy and PR-validation drift gates stay green.
-              pwsh -NoProfile -File ./Tools/Build-DependencyManifest.ps1 -Mode Generate -RepoPath "$PWD"
+              pwsh -NoProfile -Command 'Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1; $null = Update-iSOCDependencyManifest -RepoPath $PWD.Path'
 
-              # Stage only paths the script may legitimately have touched.
+              # Stage only paths the drift step may legitimately have touched.
               git add Content/AnalyticalRules reports dependencies.json
 
               # Commit message includes the timestamp; the report filename is
@@ -341,6 +349,14 @@ stages:
             # Mirrors the GitHub workflow's 'if: inputs.reportOnly != true' guard.
             # Gate on the runtime flagReportOnly variable (set to "-ReportOnly"
             # only when reportOnly is true) rather than a compile-time expression.
-            condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'))
+            # Bot commits only ever run from main: a run queued on any other
+            # branch (a release branch under test) must never open a sync PR
+            # against main from that branch's content.
+            condition: and(succeeded(), ne(variables['flagReportOnly'], '-ReportOnly'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+            target:
+              commands: restricted
+              settableVariables: none
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+              SYNC_BRANCH: $(syncBranch)
+              TARGET_BRANCH: $(targetBranch)

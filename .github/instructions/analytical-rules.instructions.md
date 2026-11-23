@@ -80,7 +80,7 @@ defaults to Scheduled.
 
 1. Re-run the dep manifest:
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
 2. Stage the rule + the regenerated `dependencies.json` together.
 3. Run Pester locally: `Invoke-Pester -Path Tests/Test-AnalyticalRuleYaml.Tests.ps1`.
@@ -100,9 +100,9 @@ for KQL conventions. Key points:
 
 The deploy pipeline reads this YAML, converts it to the Sentinel REST
 API JSON shape, and `PUT`s it under
-`/providers/Microsoft.SecurityInsights/alertRules/<ruleId>`. The script
-that does this is
-[`Deploy/content/Deploy-CustomContent.ps1`](../../Deploy/content/Deploy-CustomContent.ps1).
+`/providers/Microsoft.SecurityInsights/alertRules/<ruleId>`. The command
+that does this is `Deploy-iSOCContent` in the
+[`iSOCDeployments`](../../Modules/iSOCDeployments/README.md) module.
 
 ## Cross-references
 

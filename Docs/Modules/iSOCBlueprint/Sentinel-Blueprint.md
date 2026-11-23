@@ -259,13 +259,13 @@ Beyond those headline pages the report groups into families:
   previewed and announced for retirement in Microsoft Sentinel and
   Microsoft Defender XDR over the last 12 months, retirements and calls to
   action first. The collector reads the two What's new pages on Microsoft
-  Learn as Markdown (`Engine/Private/Get-WhatsNew.ps1`, saved as
+  Learn as Markdown (`Private/WhatsNew`, saved as
   `_raw/whats-new.json`; the one capture that reads a public page rather
   than the tenant). The module's `Get-iSOCBlueprintWhatsNew` runs the same
   function on its own and, with `-Path`, refreshes an inventory's copy.
   The renderer ties each item to the report pages and
   maturity criteria it touches, with this workspace's status for each,
-  through `Private/Resources/whats-new-topics.json`. When the pages cannot
+  through `Resources/Data/whats-new-topics.json`. When the pages cannot
   be reached the page says so.
 - **Assessment**: `90-gap-analysis.md` (the findings) and
   `91-maturity-assessment.md` are one assessment. Each finding says which
@@ -487,10 +487,12 @@ Learn pages the tool depends on.
 
 ## How the gap engine works
 
-The findings on `90-gap-analysis.md` are produced by small `Test-*` functions
-in [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1),
-dispatched by the engine in [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelGap.ps1).
-The rules live in [`Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/best-practices.json),
+The findings on `90-gap-analysis.md` are produced by small `Test-*` functions,
+one per file under [`Modules/iSOCBlueprint/Private/Gap/Checks`](../../../Modules/iSOCBlueprint/Private/Gap/Checks)
+(a folder per rule-id prefix: `Logging` for `SAC-LOG-nn`, `Detection` for
+`SAC-DET-nn`, and so on) with their shared helpers in `Private/Gap/Helpers`.
+The module loads them all. The checks are dispatched by the engine in [`Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1`](../../../Modules/iSOCBlueprint/Private/GapAnalysis/Get-SentinelGap.ps1).
+The rules live in [`Modules/iSOCBlueprint/Resources/Data/best-practices.json`](../../../Modules/iSOCBlueprint/Resources/Data/best-practices.json),
 a single object with `$schema` / `version` / `rules` keys; `Get-SentinelGap`
 reads `(ConvertFrom-Json).rules`. Each entry looks like:
 
@@ -513,8 +515,8 @@ reads `(ConvertFrom-Json).rules`. Each entry looks like:
 ```
 
 `Get-SentinelGap` builds one `$Inventory` object from the JSON files in `_raw/`,
-then for each rule dot-sources `GapChecks.ps1` and dispatches the named `check`
-function. Every check function takes that single `$Inventory` parameter and
+then for each rule calls the named `check` function (one file each under
+`Private/Gap/Checks`, loaded with the module). Every check function takes that single `$Inventory` parameter and
 returns `$null` on pass or an Evidence/Detail object on fail; the engine wires the
 rule metadata (id, title, category, severity, remediation, Learn link) around the
 result.
@@ -665,17 +667,19 @@ reference files among them). `Inventory.RawFiles` lists the JSON files
 that exist, and the checks that need it use it to stay quiet when a
 capture did not run rather than report "none" on a failed call. KQL
 result cells arrive as strings, so the checks read numbers through small
-`_ToInt` / `_ToDouble` helpers rather than casting.
+`ConvertTo-GapInt` / `ConvertTo-GapDouble` helpers rather than casting.
 
 ### Adding a new rule
 
-1. Write `Test-MyNewRule` in `GapChecks.ps1`.
+1. Write `Test-MyNewRule` as its own file under
+   `Modules/iSOCBlueprint/Private/Gap/Checks/<Area>/`, the area named for the
+   rule id prefix. The module loads it with the rest; nothing else needs registering.
 2. Add a row to `best-practices.json` referencing it by name.
 3. Add a fixture-driven Pester test under
    `Tests/iSOCBlueprint/Get-SentinelGap.Tests.ps1`.
 
 That's the complete change. If the rule reads a capture that can be
-absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
+absent, read it through `Read-JsonArray` in `New-InventoryFromRaw.ps1` and check
 `$Inventory.RawFiles` before treating an empty array as a finding.
 
 ---
@@ -683,7 +687,8 @@ absent, read it through `Read-JsonArray` in `Get-SentinelGap.ps1` and check
 ## How the maturity assessment works
 
 After the gap engine, the collector runs
-[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelMaturity.ps1)
+[`Get-SentinelMaturity`](../../../Modules/iSOCBlueprint/Private/Maturity/Get-SentinelMaturity.ps1)
+(one function per file under `Modules/iSOCBlueprint/Private/Maturity`, loaded with the module)
 over the same `_raw/` folder and the per-rule outcomes, and writes
 `maturity.json`: eleven areas scored 0 to 5 from sixty criteria, each
 resolved to Met, Gap or Unknown from a SENT rule outcome or a metric
@@ -703,7 +708,7 @@ Categories are informational: `Cost`, `Coverage`, `Operational`, `Identity`,
 ## How the cost estimator works
 
 The `84-cost-estimate.md` page is produced by
-[`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1).
+[`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) (loaded with the module).
 It is opinionated and the methodology is reproduced verbatim in the report so
 the reader can trust or push back on the number.
 
@@ -724,7 +729,7 @@ In short:
    Analytics GB above it at the tier's effective rate (the price over the GB), as
    Microsoft bills it, shared over the Analytics tables by their GB.
 5. Data grants (Microsoft 365 E5 and Defender for Servers Plan 2, listed in
-   [`Private/Resources/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/sentinel-benefit-tables.json))
+   [`Resources/Data/sentinel-benefit-tables.json`](../../../Modules/iSOCBlueprint/Resources/Data/sentinel-benefit-tables.json))
    are **not deducted**: their allowances depend on licence and server counts the
    Blueprint does not read. The eligible tables are priced at list and reported
    beside the total as the most each grant could save. Gap rule SAC-LOG-13 flags
@@ -767,7 +772,7 @@ The Pester suite is fully offline:
   same fixture, copies output to a temp folder and asserts that every expected
   section file is produced and contains the headings + signal phrases the report
   promises.
-- `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Invoke-SentinelRest.ps1`:
+- `Invoke-SentinelRest.Tests.ps1` covers the REST wrapper `Private/Azure/Invoke-SentinelRest.ps1`:
   `value`/`nextLink` pagination, 429/5xx retry-with-backoff, and 404-as-empty.
 - `Get-KqlTableReferences.Tests.ps1` runs the table-to-rule builder over the
   fixture rules and templates and asserts equality with the hand-authored
@@ -835,7 +840,7 @@ diagnostic-settings pipelines that never appear in those two endpoints, so
 rendering section 10 purely from those two captures makes well-instrumented
 workspaces look almost empty.
 
-[`Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-EffectiveConnectors.ps1)
+[`Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-EffectiveConnector.ps1)
 synthesises a unified ingestion view by walking the five captures in this
 order, with each later step skipping any table already claimed by an earlier
 one (precedence avoids double-counting):
@@ -854,7 +859,7 @@ operator wants to know. It usually means data arrived via a path the
 Blueprint doesn't yet enumerate (e.g. ingestion through a Logic App
 running outside the captured playbook resource group, or a legacy MMA
 agent still attached to the workspace). Rather than leaving the `Identifier`
-blank, `Get-EffectiveConnectors` runs the table name through an
+blank, `Get-EffectiveConnector` runs the table name through an
 `_ActiveTableFamily` helper that maps it to an inferred product family
 (for example `Microsoft Defender XDR`, `Microsoft Entra ID`, or
 `CEF / Syslog`), so the row at least hints at which source the unmapped
@@ -884,8 +889,8 @@ billable data or wasn't seen in the 90-day usage window.
   reference of API versions, modules, and Microsoft Learn pages.
 - [iSOC Blueprint SharePoint Site](Sentinel-SharePoint-Site.md): the generated
   SharePoint site built from this tool's output.
-- [`Test-SentinelRuleDrift.ps1`](../../../Tools/Test-SentinelRuleDrift.ps1): sister
-  read-only tool that detects portal-edited rules. The Blueprint answers
+- [`Export-iSOCDriftReport`](../../../Modules/iSOCDeployments/Public/Export-iSOCDriftReport.ps1): sister
+  read-only command that detects portal-edited rules. The Blueprint answers
   "what is deployed?"; drift detection answers "is what's deployed what's in the
   repo?".
 - [Microsoft Sentinel best practices](https://learn.microsoft.com/azure/sentinel/best-practices):

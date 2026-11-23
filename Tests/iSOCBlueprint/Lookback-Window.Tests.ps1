@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,23 +19,36 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.4
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:engine = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine'
-    $script:resourcesDir = Join-Path $script:engine 'Private/Resources'
+    $script:moduleRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint'
+    $script:resourcesDir = Join-Path $script:moduleRoot 'Resources/Data'
     $script:fixtureRaw = Join-Path $repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-    $script:collector = Get-Content (Join-Path $script:engine 'Export-SentinelInventory.ps1') -Raw
-    $script:renderer = Get-Content (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') -Raw
+    $script:collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+    "`n"
+    $script:renderer = (Get-ChildItem (Join-Path $script:moduleRoot 'Private/Render') -Filter '*.ps1' -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+    "`n"
     $script:repoRoot = $repoRoot
 
     # A copy of the fixture's _raw with the run's lookback set.
     function New-WindowedFixture([int]$Days) {
-        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("bp-lookback-" + [guid]::NewGuid())
+        <#
+        .SYNOPSIS
+            Copies the fixture capture into a temporary folder with the given lookback window.
+        .PARAMETER Days
+            The lookback in days.
+        #>
+        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-lookback-' + [guid]::NewGuid())
         Copy-Item -Path $script:fixtureRaw -Destination $dir -Recurse
         $rcPath = Join-Path $dir 'run-context.json'
         $rc = Get-Content $rcPath -Raw | ConvertFrom-Json
@@ -46,6 +59,14 @@ BeforeAll {
     }
     # A function from a script, by name, for a test to call.
     function Get-ScriptFunction([string]$Path, [string]$Name) {
+        <#
+        .SYNOPSIS
+            Returns the source text of one function from a script.
+        .PARAMETER Path
+            The script to parse.
+        .PARAMETER Name
+            The function name.
+        #>
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
         return $ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq $Name }, $true).Extent.Text
     }
@@ -65,11 +86,12 @@ Describe 'The collector reads one lookback' {
 
     It 'runs every query with the window declared' {
         $script:collector | Should -Not -Match '-Query \$kql\w* -ErrorAction'
-        ([regex]::Matches($script:collector, '-Query \(Add-BpWindow \$kql\w*\)')).Count | Should -Be ([regex]::Matches($script:collector, 'Invoke-AzOperationalInsightsQuery -WorkspaceId')).Count
+        ([regex]::Matches($script:collector, '-Query \(Add-BpWindow \$kql\w*\)')).Count |
+            Should -Be ([regex]::Matches($script:collector, 'Invoke-AzOperationalInsightsQuery -WorkspaceId')).Count
     }
 
     It 'declares lookback, recent and daily ahead of the query text' {
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Export-SentinelInventory.ps1') 'Add-BpWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Collector/Helpers/Add-BpWindow.ps1') 'Add-BpWindow')))
         $script:LookbackDays = 14; $script:RecentDays = 7; $script:DailyDays = 14
         Add-BpWindow 'Usage | take 1' | Should -Be "let lookback = 14d;`nlet recent = 7d;`nlet daily = 14d;`nUsage | take 1"
     }
@@ -84,31 +106,33 @@ Describe 'The collector reads one lookback' {
 
 Describe 'The gap engine judges the window it was given' {
     BeforeAll {
-        . (Join-Path $script:engine 'Private/GapChecks.ps1')
-        . (Join-Path $script:engine 'Private/Get-SentinelGap.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
     }
 
     It 'reads 30 days and 7 from a run that carries no window' {
-        $w = _Window $null
+        $w = Get-GapWindow $null
         $w.Days | Should -Be 30
         $w.RecentDays | Should -Be 7
     }
 
     It 'compares a per-30-day threshold as a 30-day rate' {
         $inv = [pscustomobject]@{ Window = [pscustomobject]@{ Days = 14; RecentDays = 7 } }
-        _Per30 14 $inv | Should -Be 30
-        _Days 1 | Should -Be '1 day'
+        ConvertTo-GapPer30Day 14 $inv | Should -Be 30
+        Format-GapDay 1 | Should -Be '1 day'
     }
 
     It 'names the window in a finding''s evidence' {
-        $inv = [pscustomobject]@{ Window = [pscustomobject]@{ Days = 14; RecentDays = 7 }; IncidentsMttr = @([pscustomobject]@{ ClosedCount = 3; MTTRMinutes = 3000 }) }
+        $inv = [pscustomobject]@{
+            Window        = [pscustomobject]@{ Days = 14; RecentDays = 7 }
+            IncidentsMttr = @([pscustomobject]@{ ClosedCount = 3; MTTRMinutes = 3000 })
+        }
         (Test-IncidentMttrThreshold -Inventory $inv).Evidence | Should -Match 'over the last 14 days'
     }
 
     It 'fills {lookback} and {recent} in titles and remediation, and the inventory carries the window' {
         $raw = New-WindowedFixture 14
         try {
-            $findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json') -GapChecksPath (Join-Path $script:engine 'Private/GapChecks.ps1')
+            $findings = Get-SentinelGap -InputRoot $raw -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json')
             @($findings).Count | Should -BeGreaterThan 0
             ($findings | ConvertTo-Json -Depth 8) | Should -Not -Match '\{lookback\}|\{recent\}'
             (New-InventoryFromRaw -InputRoot $raw -ResourcesRoot $script:resourcesDir).Window.Days | Should -Be 14
@@ -125,19 +149,21 @@ Describe 'The gap engine judges the window it was given' {
 
 Describe 'The maturity assessment and the cost estimate follow the window' {
     BeforeAll {
-        . (Join-Path $script:engine 'Private/Get-SentinelMaturity.ps1')
-        . (Join-Path $script:engine 'Private/Get-SentinelCostEstimate.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Bundle Maturity)
+        . (Get-iSOCBlueprintAreaLoader -Bundle Cost)
     }
 
     It 'names the window in a criterion''s text' {
-        Format-MaturityWindow -Text 'Rows in {lookback}, Entra in {recent}' -Window ([pscustomobject]@{ Days = 1; RecentDays = 1 }) | Should -Be 'Rows in 1 day, Entra in 1 day'
+        Format-MaturityWindow -Text 'Rows in {lookback}, Entra in {recent}' -Window ([pscustomobject]@{ Days = 1; RecentDays = 1 }) |
+            Should -Be 'Rows in 1 day, Entra in 1 day'
         (Get-Content (Join-Path $script:resourcesDir 'maturity-criteria.json') -Raw) | Should -Not -Match '\b(7|12|14|30) days\b'
     }
 
     It 'scores with the run''s window and leaves no token behind' {
         $raw = New-WindowedFixture 21
         try {
-            $m = Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $script:resourcesDir -CriteriaPath (Join-Path $script:resourcesDir 'maturity-criteria.json') -TargetLevel 3
+            $m = Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $script:resourcesDir -CriteriaPath `
+            (Join-Path $script:resourcesDir 'maturity-criteria.json') -TargetLevel 3
             $m.methodology.lookbackDays | Should -Be 21
             $m.methodology.scaleNote | Should -Match '21 days of activity'
             ($m | ConvertTo-Json -Depth 12) | Should -Not -Match '\{lookback\}|\{recent\}'
@@ -159,11 +185,20 @@ Describe 'The maturity assessment and the cost estimate follow the window' {
 
 Describe 'The renderer names the window it read' {
     It 'fills the window tokens from run-context.json' {
-        function Read-Raw { param($Name) [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 } }
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') 'Get-BpWindow')))
-        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:engine 'Convert-SentinelInventoryToMarkdown.ps1') 'Resolve-BpWindowText')))
+        function Read-BlueprintRaw {
+            <#
+            .SYNOPSIS
+                Stand-in capture reader that returns a one day window.
+            .PARAMETER Name
+                The capture name the real reader takes; unused.
+            #>
+            param($Name)
+            [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 }
+        }
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Render/Helpers/Window/Get-BlueprintWindow.ps1') 'Get-BlueprintWindow')))
+        . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Render/Helpers/Window/Resolve-BlueprintWindowText.ps1') 'Resolve-BlueprintWindowText')))
         $script:BpWindow = $null
-        Resolve-BpWindowText 'last {lookback} ({lookback-d}), recent {recent} ({recent-d})' | Should -Be 'last 1 day (1d), recent 1 day (1d)'
+        Resolve-BlueprintWindowText 'last {lookback} ({lookback-d}), recent {recent} ({recent-d})' | Should -Be 'last 1 day (1d), recent 1 day (1d)'
     }
 
     It 'writes headings, labels and chart titles as window tokens' {
@@ -171,7 +206,7 @@ Describe 'The renderer names the window it read' {
         $script:renderer | Should -Match '## Incident metrics \(last \{recent-d\}\)'
         $script:renderer | Should -Match 'title "Top tables by billable GB \(\{lookback-d\}\)"'
         $script:renderer | Should -Match "Gb30d = 'GB \(\{lookback-d\}\)'"
-        $script:renderer | Should -Match '\$body = Resolve-BpWindowText \$body'
+        $script:renderer | Should -Match '\$body = Resolve-BlueprintWindowText \$body'
         $script:renderer | Should -Not -Match '\(last (7|30)d\)'
     }
 }
@@ -193,15 +228,19 @@ Describe 'The pipelines set the lookback' {
 
 Describe 'The site names the window on every card' {
     It 'the build carries the window into the model and the estate' {
-        $build = Get-Content (Join-Path $script:engine 'SharePoint/Build-SentinelDocsSite.ps1') -Raw
+        $build = ((Get-ChildItem (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Site') -Filter '*.ps1' -File -Recurse |
+                    Sort-Object FullName |
+                    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
         $build | Should -Match '\$window = \[ordered\]@\{ days = \$lookbackDays; recentDays = \$recentDays \}'
         $build | Should -Match 'window\s+= \$window'
         $build | Should -Match 'window\s+= "\$\(\$lookbackDays\)d"'
     }
 
     It 'the dashboard reads it once and labels from it' {
-        $html = Get-Content (Join-Path $script:engine 'SharePoint/templates/sharepoint-dashboard.html') -Raw
-        $html.Contains("const days=(M.window&&+M.window.days>0)? +M.window.days : 30;") | Should -BeTrue
+        . (Join-Path $script:moduleRoot 'Private/Site/Helpers/Output/Get-SiteDashboardTemplate.ps1')
+        $html = Get-SiteDashboardTemplate -Root (Join-Path $script:moduleRoot 'Resources/SharePoint/templates/dashboard')
+        $html.Contains('const days=(M.window&&+M.window.days>0)? +M.window.days : 30;') | Should -BeTrue
         $html.Contains("const paintWindow=()=>document.querySelectorAll('[data-win]')") | Should -BeTrue
         ([regex]::Matches($html, 'data-win="')).Count | Should -BeGreaterOrEqual 6
         $html | Should -Not -Match "\(30d\)</h3>|'Alerts \(30d\)'|over the last 30 days"

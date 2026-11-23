@@ -1,0 +1,22 @@
+{
+  // Bicep settings for the playbooks under Content/Playbooks/. The deploy
+  // (Deploy-iSOCContent) fills parameters such as AutomationResourceGroup
+  // and SentinelWorkpaceName by name, and the exporter declares them for
+  // every Sentinel-triggered playbook whether or not its workflow uses
+  // them, so an unused parameter is expected here. resourceGroup().location
+  // belongs in the default of the location parameter only, as the exporter
+  // and Convert-iSOCPlaybook write it. Every other warning stays on: the PR
+  // checks fail a playbook that builds with one.
+  "analyzers": {
+    "core": {
+      "rules": {
+        "no-unused-params": {
+          "level": "off"
+        },
+        "no-loc-expr-outside-params": {
+          "level": "warning"
+        }
+      }
+    }
+  }
+}

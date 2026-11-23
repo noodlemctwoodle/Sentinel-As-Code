@@ -33,7 +33,10 @@
 # Required variables (Settings -> Secrets and variables -> Variables):
 #   SENTINEL_RESOURCE_GROUP   - Resource Group name
 #   SENTINEL_WORKSPACE_NAME   - Log Analytics workspace name
-#   SENTINEL_REGION           - Azure region (e.g. uksouth)
+#
+# The drift step runs Compare-iSOCContent, Sync-iSOCContent and
+# Export-iSOCDriftReport from Modules/iSOCDeployments. The region is read
+# from the workspace, so no region variable is needed.
 #
 # Authentication: OIDC against the same SP used by sentinel-deploy.yml.
 # Needs Microsoft Sentinel Reader on the workspace at minimum.
@@ -114,35 +117,48 @@ jobs:
 
       - name: Run Sentinel drift detection
         uses: Azure/powershell@v3
+        env:
+          SENTINEL_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          SENTINEL_RESOURCE_GROUP:  ${{ vars.SENTINEL_RESOURCE_GROUP }}
+          SENTINEL_WORKSPACE_NAME:  ${{ vars.SENTINEL_WORKSPACE_NAME }}
+          FAIL_ON_DRIFT:            ${{ inputs.failOnDrift }}
+          REPORT_ONLY:              ${{ inputs.reportOnly }}
+          SKIP_CONTENT_HUB:         ${{ inputs.skipContentHub }}
+          SKIP_CUSTOM:              ${{ inputs.skipCustom }}
+          SKIP_ORPHANS:             ${{ inputs.skipOrphans }}
         with:
           azPSVersion: "latest"
           inlineScript: |
-            $scriptParams = @{
-                SubscriptionId = '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
-                ResourceGroup  = '${{ vars.SENTINEL_RESOURCE_GROUP }}'
-                Workspace      = '${{ vars.SENTINEL_WORKSPACE_NAME }}'
-                Region         = '${{ vars.SENTINEL_REGION }}'
-                RepoPath       = '${{ github.workspace }}'
+            # Compare, absorb what drifted (unless report only), write the
+            # report the commit step stages, and fail when asked to.
+            $ErrorActionPreference = 'Stop'
+            $repo = $env:GITHUB_WORKSPACE
+            Import-Module (Join-Path $repo 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
+            $null = Connect-iSOCWorkspace -SubscriptionId $env:SENTINEL_SUBSCRIPTION_ID -ResourceGroup $env:SENTINEL_RESOURCE_GROUP -WorkspaceName $env:SENTINEL_WORKSPACE_NAME
+
+            $compare = @{ RepoPath = $repo }
+            $excluded = @()
+            if ($env:SKIP_CONTENT_HUB -eq 'true') { $excluded += 'ContentHub' }
+            if ($env:SKIP_CUSTOM -eq 'true') { $excluded += 'Custom' }
+            if ($env:SKIP_ORPHANS -eq 'true') { $excluded += 'Orphan' }
+            if ($excluded) { $compare['ExcludeSource'] = $excluded }
+
+            $drift = Compare-iSOCContent @compare
+            if ($env:REPORT_ONLY -ne 'true') { $drift = $drift | Sync-iSOCContent }
+            $null = $drift | Export-iSOCDriftReport
+
+            if ($env:FAIL_ON_DRIFT -eq 'true' -and $drift.HasDrift) {
+                Write-Host '::error::Drift detected, and failOnDrift is set.'
+                exit 1
             }
-
-            if ('${{ inputs.failOnDrift }}'    -eq 'true') { $scriptParams['FailOnDrift']    = $true }
-            if ('${{ inputs.reportOnly }}'     -eq 'true') { $scriptParams['ReportOnly']     = $true }
-            if ('${{ inputs.skipContentHub }}' -eq 'true') { $scriptParams['SkipContentHub'] = $true }
-            if ('${{ inputs.skipCustom }}'     -eq 'true') { $scriptParams['SkipCustom']     = $true }
-            if ('${{ inputs.skipOrphans }}'    -eq 'true') { $scriptParams['SkipOrphans']    = $true }
-
-            Write-Host "##[section]Launching Sentinel Rule Drift Detection"
-            Write-Host "Workspace: $(${scriptParams}.Workspace) (RG: $(${scriptParams}.ResourceGroup))"
-            $activeFlags = ($scriptParams.GetEnumerator() | Where-Object { $_.Value -eq $true } | ForEach-Object { $_.Key }) -join ', '
-            Write-Host "Switches:  $activeFlags"
-
-            & "${{ github.workspace }}/Tools/Test-SentinelRuleDrift.ps1" @scriptParams
 
       # Commit + push + PR. Skipped entirely when -ReportOnly was passed
       # (nothing on disk to commit) or when no drift was detected (working
       # tree clean).
       - name: Commit, push, and open / refresh PR
-        if: ${{ inputs.reportOnly != true }}
+        # Bot commits only ever run from main: a dispatch on any other ref
+        # must never open a sync PR against main (mirrors the ADO condition).
+        if: ${{ inputs.reportOnly != true && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -171,9 +187,9 @@ jobs:
 
           # Absorbed rules change the dependency graph. Regenerate the manifest
           # so the deploy and PR-validation drift gates stay green.
-          pwsh -NoProfile -File ./Tools/Build-DependencyManifest.ps1 -Mode Generate -RepoPath "$PWD"
+          pwsh -NoProfile -Command "Import-Module ./Modules/iSOCDeployments/iSOCDeployments.psd1; \$null = Update-iSOCDependencyManifest -RepoPath \$PWD.Path"
 
-          # Stage only paths the script may legitimately have touched.
+          # Stage only paths the drift step may legitimately have touched.
           git add Content/AnalyticalRules reports dependencies.json
 
           REPORT_PATH=$(ls -1t reports/sentinel-drift-*.md 2>/dev/null | head -1 || true)
@@ -181,6 +197,10 @@ jobs:
               -m "chore(sentinel): sync drift from portal $(date -u +%Y-%m-%dT%H:%MZ)" \
               -m "Auto-generated by .github/workflows/sentinel-drift-detect.yml. See ${REPORT_PATH:-reports/} for details."
 
+          # The lease needs a remote-tracking ref for the rolling branch, so
+          # fetch it first; without one a branch left over from a previous
+          # run is rejected with "stale info".
+          git fetch origin "+refs/heads/$SYNC_BRANCH:refs/remotes/origin/$SYNC_BRANCH" 2>/dev/null || true
           # Force-push the rolling branch (it's a bot branch, never hand-edited).
           git push --force-with-lease origin "$SYNC_BRANCH"
 

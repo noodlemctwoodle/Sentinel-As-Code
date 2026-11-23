@@ -34,8 +34,8 @@ for first, but it does not exist. Workspace-level `/settings`,
 
 ### Blueprint capture method
 
-The exporter ([`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1),
-`Try-Capture 'sentinel-data-lake'`) does a single Resource Graph query
+The exporter ([`Invoke-SentinelDataLakeCapture`](../../../Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1),
+the `sentinel-data-lake` capture) does a single Resource Graph query
 across every subscription the executing identity can read:
 
 ```kql
@@ -71,7 +71,7 @@ workspace table is auto-mirrored to Lake at the same retention by default.
 
 ## What section 88 renders
 
-[`88-sentinel-data-lake.md`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
+[`88-sentinel-data-lake.md`](../../../Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake/Write-BlueprintSentinelDataLakeSection.ps1)
 (emitted by `Write-Section '88-sentinel-data-lake.md' $lakeBody`, the block
 build-up starts a few hundred lines earlier) is the user-facing surface. It
 composes the following blocks; each is rendered conditionally on captured
@@ -163,7 +163,7 @@ Detects asset-family system tables that Lake auto-creates on tenant
 onboarding:
 
 The patterns live in the `$assetTableNames` array inside
-`Convert-SentinelInventoryToMarkdown.ps1`:
+`Write-BlueprintSentinelDataLakeSection.ps1`:
 
 | Pattern (regex) | Family |
 |---|---|
@@ -223,7 +223,7 @@ recommendation.
 This block uses an ingest-volume heuristic. A second, independent
 Lake-candidate signal exists in the gap checker: `Test-DataLakeMirroringCandidate`
 (`SAC-LOG-14`, "Data Lake mirroring candidate") in
-[`Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1)
+[`Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1)
 flags Analytics-plan tables with `totalRetentionInDays > 365`, a retention
 heuristic, and surfaces via the report's Findings/Gaps section rather than
 Section 88. The two lists can disagree (a table can be high-volume but
@@ -253,7 +253,7 @@ mirror", "Analytics + Lake extended" and "Data lake only" boxes instead of
 one "Analytics plan" box), and a "Sentinel data lake" panel on the Insights
 tab with the enrolment status, the tier distribution donut, the top tables
 by lake-only retention and the lake cost split. The tier counts come from
-[`Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-TableTierProfile.ps1),
+[`Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1`](../../../Modules/iSOCBlueprint/Private/Lookup/Get-TableTierProfile.ps1),
 which section 88 also calls, so the page's pie and the dashboard's donut
 are the same numbers. The build's `dataLake` model key carries them; see
 [Sentinel-SharePoint-Site.md](Sentinel-SharePoint-Site.md).
@@ -273,10 +273,10 @@ node.
 
 ### `84-cost-estimate.md`, Sankey + cost split
 
-The cost calculator ([`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1))
+The cost calculator ([`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost), loaded with the module)
 recognises the `DataLake` plan as one of the four ingestion buckets
 (Analytics / Basic / Auxiliary / DataLake). Unit prices come from the
-`cost-meters.json` catalogue ([`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json)),
+`cost-meters.json` catalogue ([`Modules/iSOCBlueprint/Resources/Data/cost-meters.json`](../../../Modules/iSOCBlueprint/Resources/Data/cost-meters.json)),
 which maps Azure Retail Prices meter names to plan categories:
 
 ```json
@@ -307,7 +307,7 @@ No new captures were required to add Section 88, it composes from existing
 inventory.
 
 `$operationalTables` (the population behind the tier-distribution pie) is
-computed once, early in `Convert-SentinelInventoryToMarkdown.ps1`, as every
+computed once, early in `Read-BlueprintInventory.ps1` (the renderer's inventory reader), as every
 `workspace-tables.json` row that is either `tableType = CustomLog` (custom
 logs are always treated as intentional, so they surface even when silent)
 or present in the populated-table index built from `tables-with-data.json`.
@@ -338,7 +338,7 @@ retention chart.
 - **Lake-resident asset detection breadth.** The asset-data block detects
   five known families. As Lake expands its auto-ingested system tables
   (Defender threat intelligence, Microsoft Purview signals, etc.) the
-  pattern list in [`Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1)
+  pattern list in [`Write-BlueprintSentinelDataLakeSection.ps1`](../../../Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake/Write-BlueprintSentinelDataLakeSection.ps1)
   (search `_TopologyBucketFor` / asset table detection) should be
   extended.
 - **CMK incompatibility surface.** "Lake doesn't support CMK" is currently
@@ -362,17 +362,17 @@ retention chart.
 
 | File | Role |
 |---|---|
-| [`Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1`](../../../Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1) | `Try-Capture 'sentinel-data-lake'` (Resource Graph query) |
-| [`Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1`](../../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
-| [`Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/Get-SentinelCostEstimate.ps1) | DataLake plan handling in the cost split |
-| [`Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json`](../../../Modules/iSOCBlueprint/Engine/Private/Resources/cost-meters.json) | Lake meter → category mapping |
-| [`Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1`](../../../Modules/iSOCBlueprint/Engine/Private/GapChecks.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
+| [`Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1`](../../../Modules/iSOCBlueprint/Private/Collector/Captures/Workspace/Invoke-SentinelDataLakeCapture.ps1) | The `sentinel-data-lake` capture (Resource Graph query) |
+| [`Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake`](../../../Modules/iSOCBlueprint/Private/Render/Sections/SentinelDataLake) | Section 88 emit block (`Write-Section '88-sentinel-data-lake.md'`) |
+| [`Modules/iSOCBlueprint/Private/Cost`](../../../Modules/iSOCBlueprint/Private/Cost) | DataLake plan handling in the cost split |
+| [`Modules/iSOCBlueprint/Resources/Data/cost-meters.json`](../../../Modules/iSOCBlueprint/Resources/Data/cost-meters.json) | Lake meter → category mapping |
+| [`Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1`](../../../Modules/iSOCBlueprint/Private/Gap/Checks/Logging/Test-DataLakeMirroringCandidate.ps1) | `Test-DataLakeMirroringCandidate` (`SAC-LOG-14`), the retention-based Lake-candidate gap finding |
 | [`Content/Workbooks/SentinelDataLake/SdlMigrationExport/Public/Export-SdlMigrationWorkbook.ps1`](../../../Content/Workbooks/SentinelDataLake/SdlMigrationExport/Public/Export-SdlMigrationWorkbook.ps1) | Separate, non-Blueprint tool, per-table Lake ingestion/processing/storage cost modelling |
 
 Asset-table family inference (the `IdentityInfo` / `EntityGraph*` / `Asset*`
 / Office\* / Behavior\* pattern match) is driven by the `$assetTableNames`
-array defined locally inside `Convert-SentinelInventoryToMarkdown.ps1`, not
-by `Get-EffectiveConnectors.ps1`. `Get-EffectiveConnectors.ps1` does define
+array defined locally inside `Write-BlueprintSentinelDataLakeSection.ps1`, not
+by `Get-EffectiveConnector.ps1`. `Get-EffectiveConnector.ps1` does define
 its own `_ActiveTableFamily` helper, but that is a separate
 connector-classification function (active-table / UEBA detection for
 connector coverage elsewhere in the report) and is unrelated to Section

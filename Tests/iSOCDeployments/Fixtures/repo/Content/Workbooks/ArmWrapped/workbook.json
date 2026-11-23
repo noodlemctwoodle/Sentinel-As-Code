@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {},
+  "resources": [
+    {
+      "type": "microsoft.insights/workbooks",
+      "apiVersion": "2022-04-01",
+      "name": "x",
+      "kind": "shared",
+      "properties": {
+        "displayName": "ignored",
+        "serializedData": "{\"version\": \"Notebook/1.0\", \"items\": [], \"fallbackResourceIds\": []}",
+        "category": "sentinel"
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -32,9 +32,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
@@ -44,26 +44,25 @@ BeforeDiscovery {
     $rulesRoot = Join-Path $repoRoot 'Content/AutomationRules'
     if (Test-Path $rulesRoot) {
         $script:automationRuleCases = @(Get-ChildItem -Path $rulesRoot -Recurse -Filter '*.json' -File | ForEach-Object {
-            $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
-            $json = $null
-            $parseError = $null
-            try {
-                $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
-                if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
-                $json = ConvertFrom-Json -InputObject $raw -Depth 32 -AsHashtable -ErrorAction Stop
-            }
-            catch {
-                $parseError = $_.Exception.Message
-            }
+                $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
+                $json = $null
+                $parseError = $null
+                try {
+                    $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                    if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
+                    $json = ConvertFrom-Json -InputObject $raw -Depth 32 -AsHashtable -ErrorAction Stop
+                } catch {
+                    $parseError = $_.Exception.Message
+                }
 
-            @{
-                Path         = $_.FullName
-                RelativePath = $rel
-                Json         = $json
-                ParseError   = $parseError
-                ParseFailed  = ($null -ne $parseError) -or ($null -eq $json)
-            }
-        })
+                @{
+                    Path         = $_.FullName
+                    RelativePath = $rel
+                    Json         = $json
+                    ParseError   = $parseError
+                    ParseFailed  = ($null -ne $parseError) -or ($null -eq $json)
+                }
+            })
     }
 }
 
@@ -71,7 +70,7 @@ BeforeAll {
     $script:GuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 
     # Per Docs/Content/Automation-Rules.md.
-    $script:ValidTriggersOn   = @('Incidents', 'Alerts')
+    $script:ValidTriggersOn = @('Incidents', 'Alerts')
     $script:ValidTriggersWhen = @('Created', 'Updated')
     $script:ValidConditionTypes = @('Property', 'PropertyArrayChanged', 'PropertyChanged')
     $script:ValidActionTypes = @('ModifyProperties', 'RunPlaybook', 'AddIncidentTask')
@@ -83,7 +82,7 @@ BeforeAll {
         'EndsWith', 'NotEndsWith'
     )
 
-    $script:ValidArrayTypes  = @('Labels', 'Tactics', 'Alerts', 'Comments')
+    $script:ValidArrayTypes = @('Labels', 'Tactics', 'Alerts', 'Comments')
     $script:ValidArrayChange = @('Added', 'Removed')
 
     $script:ValidPropertyChangeTypes = @('ChangedFrom', 'ChangedTo')
@@ -96,7 +95,7 @@ Describe 'Automation rule schema: <RelativePath>' -ForEach $script:automationRul
 
     It 'parses as JSON with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
-        $Json       | Should -Not -BeNullOrEmpty
+        $Json | Should -Not -BeNullOrEmpty
         ($Json -is [System.Collections.IDictionary]) | Should -BeTrue
     }
 
@@ -156,18 +155,16 @@ Describe 'Automation rule schema: <RelativePath>' -ForEach $script:automationRul
                 if ([string]$cond.conditionType -eq 'Property') {
                     $cond.ContainsKey('conditionProperties') | Should -BeTrue
                     $props = $cond.conditionProperties
-                    $props.ContainsKey('propertyName')   | Should -BeTrue
-                    $props.ContainsKey('operator')       | Should -BeTrue
+                    $props.ContainsKey('propertyName') | Should -BeTrue
+                    $props.ContainsKey('operator') | Should -BeTrue
                     $script:ValidPropertyOperators | Should -Contain ([string]$props.operator)
                     $props.ContainsKey('propertyValues') | Should -BeTrue
                     ($props.propertyValues -is [System.Collections.IEnumerable] -and -not ($props.propertyValues -is [string])) | Should -BeTrue -Because 'propertyValues must be an array even with one value'
-                }
-                elseif ([string]$cond.conditionType -eq 'PropertyArrayChanged') {
+                } elseif ([string]$cond.conditionType -eq 'PropertyArrayChanged') {
                     $props = $cond.conditionProperties
-                    $script:ValidArrayTypes  | Should -Contain ([string]$props.arrayType)
+                    $script:ValidArrayTypes | Should -Contain ([string]$props.arrayType)
                     $script:ValidArrayChange | Should -Contain ([string]$props.changeType)
-                }
-                elseif ([string]$cond.conditionType -eq 'PropertyChanged') {
+                } elseif ([string]$cond.conditionType -eq 'PropertyChanged') {
                     $props = $cond.conditionProperties
                     $script:ValidPropertyChangeTypes | Should -Contain ([string]$props.changeType)
                 }
@@ -181,7 +178,7 @@ Describe 'Automation rule schema: <RelativePath>' -ForEach $script:automationRul
                 ($action -is [System.Collections.IDictionary]) | Should -BeTrue
                 $action.ContainsKey('actionType') | Should -BeTrue
                 $script:ValidActionTypes | Should -Contain ([string]$action.actionType)
-                $action.ContainsKey('order')      | Should -BeTrue
+                $action.ContainsKey('order') | Should -BeTrue
                 ($action.order -is [int] -or $action.order -is [long]) | Should -BeTrue
                 [int]$action.order | Should -BeGreaterOrEqual 1
             }
@@ -192,9 +189,9 @@ Describe 'Automation rule schema: <RelativePath>' -ForEach $script:automationRul
                 if ([string]$action.actionType -ne 'RunPlaybook') { continue }
                 $cfg = $action.actionConfiguration
                 ($cfg -is [System.Collections.IDictionary]) | Should -BeTrue
-                $cfg.ContainsKey('tenantId')           | Should -BeTrue
+                $cfg.ContainsKey('tenantId') | Should -BeTrue
                 $cfg.ContainsKey('logicAppResourceId') | Should -BeTrue
-                [string]$cfg.tenantId           | Should -Match $script:GuidPattern
+                [string]$cfg.tenantId | Should -Match $script:GuidPattern
                 [string]$cfg.logicAppResourceId | Should -Match '^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.Logic/workflows/[^/]+$' -Because 'logicAppResourceId must be a full ARM resource path'
             }
         }
@@ -227,9 +224,8 @@ Describe 'Automation rules: cross-file invariants' {
                     if (-not $script:ruleIdMap.ContainsKey($id)) { $script:ruleIdMap[$id] = @() }
                     $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                     $script:ruleIdMap[$id] += $rel
-                }
-                catch {
-                    # Per-file test owns parse errors.
+                } catch {
+                    Write-Verbose -Message 'Per-file test owns parse errors.'
                 }
             }
         }
@@ -239,8 +235,8 @@ Describe 'Automation rules: cross-file invariants' {
         $duplicates = $script:ruleIdMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {
-                "  id $($_.Key) used by:`n    - $($_.Value -join "`n    - ")"
-            }) -join "`n"
+                    "  id $($_.Key) used by:`n    - $($_.Value -join "`n    - ")"
+                }) -join "`n"
             throw "Duplicate automationRuleId values found (Sentinel uses it as the resource name; collisions silently overwrite):`n$report"
         }
     }

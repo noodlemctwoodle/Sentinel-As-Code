@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -20,14 +20,15 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-14
-    Version:      0.1.0
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.4
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    . (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-WhatsNew.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Bundle WhatsNew)
     $script:sentinelUrl = 'https://learn.microsoft.com/en-us/azure/sentinel/whats-new'
     $script:defenderUrl = 'https://learn.microsoft.com/en-us/defender-xdr/whats-new'
     $script:sentinelMd = @(
@@ -141,9 +142,14 @@ Describe 'Get-WhatsNew' {
 
 Describe 'whats-new-topics.json' {
     BeforeAll {
-        $script:topics = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/whats-new-topics.json') -Raw | ConvertFrom-Json).topics)
-        $script:criteria = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id)
-        $script:renderer = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -Raw
+        $script:topics = @((Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/whats-new-topics.json') -Raw | ConvertFrom-Json).topics)
+        $script:criteria = @(
+            (Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Resources/Data/maturity-criteria.json') -Raw | ConvertFrom-Json).criteria.id
+        )
+        $script:renderer = (Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse |
+                Sort-Object FullName |
+                ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+        "`n"
     }
 
     It 'gives every topic a pattern that compiles, a report page the renderer writes and real criteria' {
@@ -156,8 +162,11 @@ Describe 'whats-new-topics.json' {
     }
 
     It 'is captured by the collector as a single-object file' {
-        $collector = Get-Content (Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1') -Raw
-        $collector | Should -Match "Try-Capture 'whats-new' \{"
+        $collector = ((Get-ChildItem (Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector') -Filter '*.ps1' -File -Recurse |
+                    Sort-Object FullName |
+                    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })) -join
+        "`n"
+        $collector | Should -Match 'function Invoke-WhatsNewCapture \{'
         $collector | Should -Match "Save-Json -FileName 'whats-new\.json' -Data \(Get-WhatsNew -Months 12\)"
         $collector | Should -Match "'whats-new\.json'\s*\)"
     }

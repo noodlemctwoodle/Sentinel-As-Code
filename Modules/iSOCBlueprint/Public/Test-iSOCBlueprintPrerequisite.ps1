@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -14,9 +14,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.
@@ -39,8 +39,8 @@ function Test-iSOCBlueprintPrerequisite {
           ChartImage  mmdc (@mermaid-js/mermaid-cli)
           Word        pandoc (LibreOffice with python3-uno optional, for
                       page numbers in the contents)
-          Site        nothing beyond PowerShell 7.2
-          Publish     PowerShell 7.4 and PnP.PowerShell 3.4.1, for
+          Site        nothing beyond PowerShell 7.6
+          Publish     PnP.PowerShell 3.4.1, for
                       Publish-iSOCBlueprintSite and
                       Initialize-iSOCBlueprintSite
 
@@ -69,7 +69,7 @@ function Test-iSOCBlueprintPrerequisite {
         Installs pandoc when the Word step would fail without it.
     #>
     [CmdletBinding()]
-    [OutputType([pscustomobject], [bool])]
+    [OutputType([pscustomobject], [bool], [object[]])]
     param(
         [ValidateSet('Collect', 'Render', 'ChartImage', 'Word', 'Site', 'Publish')]
         [string[]] $Step = @('Collect', 'Render', 'ChartImage', 'Word', 'Site', 'Publish'),

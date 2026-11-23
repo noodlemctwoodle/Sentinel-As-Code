@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -6,7 +6,7 @@
     Markdown report with images.
 
 .DESCRIPTION
-    Runs Engine/Convert-MermaidToImage.ps1.
+    Calls Invoke-iSOCBlueprintChartImage.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprintChartImage.ps1
@@ -14,9 +14,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+
 
     Needs mmdc (@mermaid-js/mermaid-cli) on PATH; see
     Test-iSOCBlueprintPrerequisite -Step ChartImage.
@@ -100,7 +100,7 @@ function ConvertTo-iSOCBlueprintChartImage {
     $params = @{ Root = $root; Format = $Format }
     Copy-iSOCBlueprintParameter -BoundParameters $PSBoundParameters -Into $params -Name 'Theme', 'Background', 'Width', 'Scale' -Rename @{ AssetsDirectory = 'AssetsDir' }
 
-    $null = Invoke-iSOCBlueprintEngine -Script 'Convert-MermaidToImage.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+    $null = Invoke-iSOCBlueprintChartImage @params
 
     [pscustomobject]@{
         PSTypeName = 'iSOCBlueprint.ChartImages'

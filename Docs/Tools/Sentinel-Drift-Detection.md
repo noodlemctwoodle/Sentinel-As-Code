@@ -15,6 +15,12 @@ review.
 | Auto-sync branch | `auto/sentinel-drift-sync` (rolling, force-pushed each run) |
 | Schedule | Daily at 06:00 UTC (both CI systems) |
 
+> The iSOCDeployments module's `Compare-iSOCContent`, `Sync-iSOCContent`
+> and `Export-iSOCDriftReport` will replace the script in release 26.11.0;
+> the pipelines run the script until then.
+> [Drift](../Modules/iSOCDeployments/Drift.md) maps each parameter to the
+> commands and lists what changes.
+
 The same detection script drives two CI implementations. GitHub Actions is the
 repo's primary CI; the Azure DevOps pipeline is a functional mirror. Both invoke
 `Test-SentinelRuleDrift.ps1` on an identical daily schedule, reset the rolling
@@ -74,10 +80,17 @@ Compared fields:
 | `query` (whitespace-collapsed) | ✓ | ✓ |
 | `severity` (case-insensitive) | ✓ | ✓ |
 | `displayName` | ✓ | ✓ |
-| `queryFrequency` | ✓ | — |
-| `queryPeriod` | ✓ | — |
+| `queryFrequency` (ISO 8601 duration, compared by length) | ✓ | — |
+| `queryPeriod` (ISO 8601 duration, compared by length) | ✓ | — |
 | `triggerOperator` (short / long form normalised) | ✓ | — |
 | `triggerThreshold` | ✓ | — |
+
+Durations are compared by the length they describe, not by their spelling.
+ISO 8601 can write one duration several ways (`PT24H` and `P1D`), and the
+API returns its own spelling rather than the one the YAML was deployed with,
+so a rule written as `PT24H` is not drift when the API reads back `P1D`.
+When a duration really has changed, the YAML is rewritten with the
+canonical spelling (`P1D`, `PT5H`, `PT1H30M`).
 
 Deliberately **not** compared:
 
@@ -134,6 +147,11 @@ clean, the bash step exits early, no PR is opened.
 
 Two files are written per run, both timestamped (`yyyy-MM-ddTHH-mmZ`) so
 multiple runs accumulate without filename collisions.
+
+The drift-sync bot commits both files, so they hold no build-host or tenant
+detail: file paths are relative to the repository root, with forward
+slashes (`Content/AnalyticalRules/...`), and the subscription id is left
+out. The header names the resource group and workspace only.
 
 ### `reports/sentinel-drift-{timestamp}.md`
 
@@ -400,7 +418,11 @@ The serialiser emits the same field set the rest of the repo's Custom rules
 use: `id`, `name`, `description`, `severity`, scheduling fields (Scheduled
 only), `enabled`, `tactics`, `relevantTechniques`, `query` (block scalar),
 `entityMappings`, `eventGroupingSettings`, `incidentConfiguration`,
-`version: 1.0.0`, `kind`, and `tags`. The rule's existing resource GUID is
+`version: 1.0.0`, `kind`, and `tags`. `relevantTechniques` holds the
+rule's techniques and sub-techniques in one sorted list; the detector lists
+rules with the preview alert rules API (`2025-07-01-preview`, the version
+the deployers write them with) because every GA version leaves out
+`subTechniques`. The rule's existing resource GUID is
 reused as the YAML's `id:` value, and the YAML is tagged with
 `AbsorbedFromPortal-ContentHub` plus the originating solution name for audit.
 

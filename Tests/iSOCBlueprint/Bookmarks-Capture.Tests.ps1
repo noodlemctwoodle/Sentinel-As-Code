@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -19,22 +19,29 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-15
-    Version:      0.1.0
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.3
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $collectorPath = Join-Path $repoRoot 'Modules/iSOCBlueprint/Engine/Export-SentinelInventory.ps1'
-    $collector = Get-Content $collectorPath -Raw
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($collectorPath, [ref]$null, [ref]$null)
-    . ([scriptblock]::Create($ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertFrom-HuntingBookmarkRow' }, $true).Extent.Text))
-    # The bookmarks capture's own text, up to the next capture.
-    $start = $collector.IndexOf("Try-Capture 'bookmarks'")
-    $script:capture = $collector.Substring($start, $collector.IndexOf("Try-Capture 'hunts'") - $start)
+    $collectorRoot = Join-Path $repoRoot 'Modules/iSOCBlueprint/Private/Collector'
+    $helperPath = Join-Path $collectorRoot 'Helpers/ConvertFrom-HuntingBookmarkRow.ps1'
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($helperPath, [ref]$null, [ref]$null)
+    . ([scriptblock]::Create($ast.Find({
+                    param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'ConvertFrom-HuntingBookmarkRow'
+                }, $true).Extent.Text))
+    # The bookmarks capture's own text.
+    $script:capture = Get-Content (Join-Path $collectorRoot 'Captures/Sentinel/Invoke-BookmarksCapture.ps1') -Raw
 
     function New-BookmarkRow([string]$Tags) {
+        <#
+        .SYNOPSIS
+            Builds one bookmark row as the bookmarks query returns it.
+        .PARAMETER Tags
+            The tags value for the row.
+        #>
         [pscustomobject]@{
             BookmarkId      = '73e01a99-5cd7-4139-a149-9f2736ff2ab5'
             BookmarkName    = 'Lateral movement from VPN'
@@ -102,10 +109,12 @@ Describe 'The bookmarks capture when the list is refused as too large' {
 
     It 'says the bookmarks exist, and whether the table shows any change, before writing the files' {
         $script:capture | Should -Match 'Write-Information "  ↳ \$count bookmarks exist, too many for the API to list; listed the'
-        $script:capture | Should -Match 'none has been created or changed \$period \(the HuntingBookmark table, which logs every change, holds none\)\. Kept the count\.'
+        $script:capture |
+            Should -Match 'none has been created or changed \$period \(the HuntingBookmark table, which logs every change, holds none\)\. Kept the count\.'
         $script:capture | Should -Match '"in the last \$keeps days"'
         $script:capture | Should -Match 'the HuntingBookmark table could not be read: '
-        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{ Label = ''bookmarks''')).Count | Should -Be 2
-        $script:capture.IndexOf('Write-CaptureNote -Kind NotAvailable') | Should -BeLessThan $script:capture.IndexOf("Save-Json -FileName 'bookmarks-count.json'")
+        ([regex]::Matches($script:capture, '\$script:CaptureErrors\.Add\(\[pscustomobject\]@\{\s+Label\s*=\s*''bookmarks''')).Count | Should -Be 2
+        $script:capture.IndexOf('Write-CaptureNote -Kind NotAvailable') |
+            Should -BeLessThan $script:capture.IndexOf("Save-Json -FileName 'bookmarks-count.json'")
     }
 }

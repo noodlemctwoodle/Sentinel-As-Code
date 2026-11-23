@@ -8,8 +8,8 @@ runs five jobs on every pull request to `main` (`opened`, `synchronize`,
 | Job | Auth needed | What it catches |
 | --- | --- | --- |
 | `validate` | None | Pester suite regressions + content YAML/JSON schema breakage |
-| `bicep-build` | None | Bicep syntax errors and parameter type mismatches in `Infra/*.bicep` |
-| `arm-validate` | **OIDC** | Malformed playbook ARM templates, missing required parameters |
+| `bicep-build` | None | Bicep syntax errors and parameter type mismatches in `Infra/*.bicep`, and any error or warning in a playbook under `Content/Playbooks/` |
+| `arm-validate` | **OIDC** | Malformed playbook templates (Bicep and ARM JSON), missing required parameters |
 | `kql-validate` | None | KQL syntax errors across analytical rules / hunting queries / parsers / summary rules |
 | `dependency-manifest` | None | `dependencies.json` drift against auto-discovered content dependencies |
 
@@ -17,7 +17,8 @@ Four of the five work offline. **`arm-validate` needs Azure
 authentication** because it calls `Test-AzResourceGroupDeployment` (a
 template-validation call against the ARM deployment-validation API - the
 cmdlet has no `-WhatIf` parameter) against a real resource group with a
-real workspace, once for every `Content/Playbooks/**/*.json` template.
+real workspace, once for every playbook under `Content/Playbooks/` (each
+`.bicep` file, and any ARM `.json` template a fork still has).
 This page is the one-off setup runbook for that.
 
 ## Overview

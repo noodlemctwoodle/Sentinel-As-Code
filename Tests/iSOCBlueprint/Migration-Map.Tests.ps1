@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -30,9 +30,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.2.3
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+
 
     Version 0.1.0 checked the map against the old folder while it still
     existed (every file mapped, every edit still matching its source).
@@ -51,6 +51,12 @@ BeforeAll {
     $script:mapText = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/MIGRATION.md') -Raw
 
     function Test-RepoPath {
+        <#
+        .SYNOPSIS
+            Tests whether a path from the migration map exists in the repository.
+        .PARAMETER Path
+            The mapped path; a trailing glob is dropped.
+        #>
         param([string] $Path)
         Test-Path -LiteralPath (Join-Path $script:repoRoot ($Path -replace '/\*\*$', ''))
     }
@@ -66,7 +72,7 @@ Describe 'The move out of Tools/Blueprint' {
     }
 
     It '<Source> uses a known action' -ForEach $rows {
-        $Row.Action | Should -BeIn @('Copy', 'Move', 'Retire', 'Vendor')
+        $Row.Action | Should -BeIn @('Copy', 'Move', 'Retire', 'Vendor', 'Adopted')
     }
 
     It '<Source> is where the map says' -ForEach $rows {
@@ -79,6 +85,10 @@ Describe 'The move out of Tools/Blueprint' {
                 Test-RepoPath $Row.Source | Should -BeFalse
                 $Row.Destination | Should -BeNullOrEmpty
             }
+            'Adopted' {
+                Test-RepoPath $Row.Source | Should -BeFalse -Because 'the original has been removed'
+                Test-RepoPath $Row.Destination | Should -BeTrue
+            }
             default {
                 Test-RepoPath $Row.Source | Should -BeFalse -Because 'the old copy is gone'
                 Test-RepoPath $Row.Destination | Should -BeTrue
@@ -86,10 +96,8 @@ Describe 'The move out of Tools/Blueprint' {
         }
     }
 
-    It '<Source> kept its place in the tree when copied' -ForEach $rows {
-        if ($Row.Action -eq 'Copy') {
-            $Row.Destination | Should -BeExactly ($Row.Source -replace '^Tools/Blueprint/', 'Modules/iSOCBlueprint/Engine/')
-        }
+    It 'lists no Copy row, because every copied file has since moved' {
+        @($script:map | Where-Object Action -EQ 'Copy').Count | Should -Be 0
     }
 
     It 'documents every edit a row names' {
@@ -100,6 +108,6 @@ Describe 'The move out of Tools/Blueprint' {
 
     It 'sends no two rows to the same destination' {
         $dest = @($script:map | Where-Object { $_.Destination } | ForEach-Object Destination)
-        @($dest | Group-Object | Where-Object Count -gt 1).Name | Should -BeNullOrEmpty
+        @($dest | Group-Object | Where-Object Count -GT 1).Name | Should -BeNullOrEmpty
     }
 }

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -6,7 +6,8 @@
     catalogue the module ships.
 
 .DESCRIPTION
-    A maintainer task. Runs Engine/Update-ConnectorCatalogue.ps1.
+    A maintainer task. Reads the Toolkit's connectors.json and rewrites the catalogue the Blueprint ships
+    (Invoke-iSOCBlueprintConnectorCatalogueUpdate).
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/Update-iSOCBlueprintConnectorCatalogue.ps1
@@ -14,9 +15,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+
+    Version:      0.1.2
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.
@@ -45,7 +46,7 @@ function Update-iSOCBlueprintConnectorCatalogue {
 
     .PARAMETER OutputPath
         The catalogue to write. Defaults to
-        Engine/Private/Resources/connector-catalogue.json inside the module.
+        Resources/Data/connector-catalogue.json inside the module.
 
     .OUTPUTS
         [System.IO.FileInfo] The catalogue written, unless -WhatIf.
@@ -68,13 +69,13 @@ function Update-iSOCBlueprintConnectorCatalogue {
         [string] $OutputPath
     )
 
-    $target = Resolve-iSOCBlueprintPath -Path $OutputPath -Default (Join-Path $script:iSOCBlueprintEngineRoot 'Private/Resources/connector-catalogue.json')
+    $target = Resolve-iSOCBlueprintPath -Path $OutputPath -Default (Join-Path $script:iSOCBlueprintResourcesRoot 'Data/connector-catalogue.json')
     if (-not $PSCmdlet.ShouldProcess($target, 'Refresh the connector catalogue')) { return }
 
     $params = @{ OutputPath = $target }
     if ($Source) {
         $params.Source = if ($Source -match '^https?://') { $Source } else { Resolve-iSOCBlueprintPath -Path $Source }
     }
-    $null = Invoke-iSOCBlueprintEngine -Script 'Update-ConnectorCatalogue.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+    $null = Invoke-iSOCBlueprintConnectorCatalogueUpdate @params
     Get-Item -LiteralPath $target
 }

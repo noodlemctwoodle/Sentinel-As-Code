@@ -54,7 +54,7 @@ For every new rule:
 
 6. **Regenerate the dependency manifest:**
    ```powershell
-   ./Tools/Build-DependencyManifest.ps1 -Mode Generate
+   Import-Module ./Modules/iSOCDeployments; Update-iSOCDependencyManifest
    ```
    Stage `dependencies.json` together with the new rule.
 
@@ -88,9 +88,12 @@ For every new rule:
 - **Always run the dep manifest after editing.** The PR gate fails
   otherwise.
 - **Always run the schema test before claiming it works.**
-- **Never set `status:`** — the field is `enabled:` for analytical
-  rules. Defender XDR uses `isEnabled:`. Hunting queries don't have
-  an enabled field.
+- **Use the right enabled field.** Analytical rules use `enabled:`.
+  Defender XDR uses `status: enabled` or `status: disabled` (never
+  `isEnabled:`, which Graph removed on 2026-10-01). Hunting queries
+  don't have an enabled field.
+- **Defender XDR detections need a lowercase kebab-case `id`** (not a
+  GUID), unique across `Content/DefenderCustomDetections/`.
 - **Use the right `severity` casing.** Analytical: PascalCase
   (`High`, `Medium`). Defender: lowercase (`high`, `medium`).
 

@@ -1,5 +1,6 @@
+id: suspicious-dll-sideloading
 displayName: Suspicious DLL sideloading from writable directory
-isEnabled: true
+status: enabled
 queryCondition:
   queryText: |
     DeviceImageLoadEvents
@@ -15,9 +16,8 @@ queryCondition:
               InitiatingProcessFileName, InitiatingProcessFolderPath,
               InitiatingProcessCommandLine, InitiatingProcessSHA1,
               InitiatingProcessAccountUpn, InitiatingProcessAccountSid
-  lastModifiedDateTime: "2026-03-23T00:00:00Z"
 schedule:
-  period: "1H"
+  frequency: PT1H
 detectionAction:
   alertTemplate:
     title: "Suspicious DLL sideloading from writable directory"
@@ -26,20 +26,23 @@ detectionAction:
       This technique allows attackers to execute malicious code by placing a
       crafted DLL in a location searched before the legitimate system path.
     severity: medium
-    category: DefenseEvasion
-    mitreTechniques:
-      - T1574.002
+    tactics:
+      - tactic: DefenseEvasion
+        techniques:
+          - technique: T1574
+            subTechniques:
+              - T1574.002
     recommendedActions: |
       1. Review the loaded DLL path and verify it is not a legitimate application dependency.
       2. Check the DLL hash against threat intelligence and VirusTotal.
       3. Examine the initiating process for signs of abuse (unusual parent, command line).
       4. Review recent file creation events in the same directory.
       5. If confirmed malicious, isolate the device and remove the DLL.
-    impactedAssets:
-      - "@odata.type": "#microsoft.graph.security.impactedDeviceAsset"
-        identifier: deviceId
-  responseActions:
-    - "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction"
-      identifier: deviceId
-    - "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction"
-      identifier: deviceId
+    entityMappings:
+      hosts:
+        - deviceIdColumn: DeviceId
+  automatedActions:
+    collectInvestigationPackages:
+      - deviceIdColumn: DeviceId
+    runAntivirusScans:
+      - deviceIdColumn: DeviceId

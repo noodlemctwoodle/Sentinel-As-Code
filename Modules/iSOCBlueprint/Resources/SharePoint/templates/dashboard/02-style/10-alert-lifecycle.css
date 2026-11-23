@@ -1,0 +1,48 @@
+  /* ---------- alert lifecycle (under Workspace at a glance) ---------- */
+  /* The picture's own colours, light and dark; strands keep the family
+     colours in both. Dark mode keeps the black "screen" the glow reads on. */
+  .lifecycle{--lc-line:var(--line);--lc-ring:rgba(13,148,136,.40);--lc-ring2:rgba(13,148,136,.16);--lc-glow:#14b8a6;
+    background:radial-gradient(110% 130% at 50% 40%,#ecf9f6 0%,var(--panel) 62%);overflow:hidden}
+  html[data-theme="dark"] .lifecycle{--lc-line:rgba(148,163,184,.16);--lc-ring:rgba(94,234,212,.28);--lc-ring2:rgba(94,234,212,.14);--lc-glow:#5eead4;
+    background:radial-gradient(120% 140% at 50% 42%,#0c1d26 0%,#070e18 55%,#04070d 100%);border-color:#13202f}
+  .lc-stage{position:relative;margin:2px -4px 0}
+  .lc-stage svg{display:block;width:100%;height:auto}
+  .lc-stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .lc-node{cursor:pointer;outline:none}
+  .lc-node:hover .lc-num,.lc-node:focus-visible .lc-num{fill:var(--lc-glow)}
+  .lc-node:focus-visible .lc-hit{stroke:var(--lc-glow);stroke-width:1.5}
+  .lc-num{font-weight:800;fill:var(--ink);font-variant-numeric:tabular-nums}
+  .lc-lbl{fill:var(--muted);font-weight:700;letter-spacing:.14em}
+  .lc-src{fill:var(--ink-2);font-weight:650} .lc-sub{fill:var(--faint)}
+  .lc-ring{stroke:var(--lc-ring)} .lc-ring2{stroke:var(--lc-ring2)}
+  .lc-glowstop{stop-color:var(--lc-glow)} .lc-junction{fill:var(--lc-glow)}
+  .lc-strand{stroke-opacity:.5} html[data-theme="dark"] .lc-strand{stroke-opacity:.45}
+  /* Moving beads: the strand's own colour on light, near-white on dark. */
+  .lc-flow{fill:none;stroke-linecap:round;stroke-opacity:.95;animation:lcflow linear infinite}
+  html[data-theme="dark"] .lc-flow{stroke:#e6fffb;stroke-opacity:.55}
+  @keyframes lcflow{to{stroke-dashoffset:-72}}
+  .lc-spin{transform-box:fill-box;transform-origin:center;animation:lcspin 48s linear infinite}
+  .lc-spin.rev{animation-duration:70s;animation-direction:reverse}
+  @keyframes lcspin{to{transform:rotate(360deg)}}
+  .lc-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:4px;border-top:1px solid var(--lc-line,var(--line))}
+  .lc-kpi{padding:14px 16px 8px;border-left:1px solid var(--lc-line,var(--line))} .lc-kpi:first-child{border-left:0}
+  .es-strip{margin-top:14px}
+  .es-kpi[role="button"]{cursor:pointer;border-radius:0}
+  .es-kpi[role="button"]:hover .k,.es-kpi[role="button"]:focus-visible .k{color:var(--brand-ink)}
+  .es-kpi:focus-visible{outline:none}
+  .es-pct{font-size:12.5px;font-weight:800;margin-left:10px}
+  .es-bar{height:4px;border-radius:999px;background:var(--line-2);margin:8px 0 5px;overflow:hidden}
+  .es-bar i{display:block;height:100%;border-radius:999px}
+  .lc-kpi .k{font-size:11px;font-weight:750;color:var(--muted);letter-spacing:.04em}
+  .lc-kpi .v{font-size:26px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .lc-kpi .v small{font-size:12px;font-weight:650;color:var(--muted);margin-left:3px}
+  .lc-kpi .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .lc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .lc-chip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:5px;color:#0b1220}
+  .lc-spark{display:block;width:100%;height:30px;margin-top:6px}
+  /* Incidents a day: a line per severity, a soft halo under each so the
+     yellow Low line holds on white. */
+  .lc-sev{display:block;width:100%;height:30px;margin-top:6px;--lc-halo:rgba(15,18,34,.16)}
+  html[data-theme="dark"] .lc-sev{--lc-halo:rgba(0,0,0,.45)}
+  .lc-axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:2px}
+  .lc-spark polyline{stroke:var(--lc-glow)}

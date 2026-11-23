@@ -67,7 +67,7 @@ End every explanation with **file pointers** so the user knows
 where to read on:
 
 > See `Modules/Sentinel.Common/Sentinel.Common.psm1:454` for the full
-> `Get-KqlBareIdentifiers` body and
+> `Get-KqlBareIdentifier` body and
 > `Tests/Test-SentinelCommon.Tests.ps1:346` for the unit tests.
 
 ## Common request patterns

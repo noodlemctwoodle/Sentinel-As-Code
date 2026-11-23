@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -12,7 +12,7 @@
     they are exercised directly on small inputs. The renderer is then run
     over the fixture twice, with both output formats and with -OutputFormat
     Json, and every section file and the index are validated against
-    Modules/iSOCBlueprint/Engine/Schemas.
+    Modules/iSOCBlueprint/Resources/Schemas.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCBlueprint/Section-Model.Tests.ps1 -Output Detailed
@@ -23,21 +23,39 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.2.0
-    Last Updated: 2026-10-13
-    Requires:     PowerShell 7.2+, Pester 5+, powershell-yaml (renderer)
+    Version:      0.2.5
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml (renderer)
 #>
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $private = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private'
-    . (Join-Path $private 'ConvertFrom-BlueprintMermaid.ps1')
-    . (Join-Path $private 'ConvertTo-BlueprintSection.ps1')
-    $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section.schema.json'
-    $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Schemas/section-index.schema.json'
+    Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
+    . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+    . (Get-iSOCBlueprintAreaLoader -Area Mermaid, Section)
+    $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Schemas/section.schema.json'
+    $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Schemas/section-index.schema.json'
 
-    function ConvertTo-Model([string] $Markdown, [string] $Id = '20-analytics-rules') { ConvertTo-BlueprintSection -Markdown $Markdown -Id $Id }
-    function Get-Chart([string] $Source) { ConvertFrom-BlueprintMermaid -Source $Source }
+    function ConvertTo-Model([string] $Markdown, [string] $Id = '20-analytics-rules') {
+        <#
+        .SYNOPSIS
+            Converts Markdown to a section model.
+        .PARAMETER Markdown
+            The Markdown to convert.
+        .PARAMETER Id
+            The section id.
+        #>
+        ConvertTo-BlueprintSection -Markdown $Markdown -Id $Id
+    }
+    function Get-Chart([string] $Source) {
+        <#
+        .SYNOPSIS
+            Parses Mermaid source into a chart model.
+        .PARAMETER Source
+            The Mermaid source.
+        #>
+        ConvertFrom-BlueprintMermaid -Source $Source
+    }
 }
 
 Describe 'ConvertTo-BlueprintSection' {
@@ -50,7 +68,7 @@ Describe 'ConvertTo-BlueprintSection' {
         It 'takes the H1 as the title' { $m.title | Should -Be 'Analytics rules' }
         It 'reads the order from the id' { $m.order | Should -Be 20 }
         It 'drops the metadata banner but keeps later quotes as notes' {
-            @($m.blocks | Where-Object type -eq 'note').Count | Should -Be 1
+            @($m.blocks | Where-Object type -EQ 'note').Count | Should -Be 1
             ($m | ConvertTo-Json -Depth 32) | Should -Not -Match 'Workspace'
         }
         It 'gives the heading after an anchor line that anchor' { $m.blocks[0].anchor | Should -Be 'sac-det-01' }
@@ -148,6 +166,14 @@ Describe 'Long tables' {
     # converter parses long tables in chunks and joins them.
     BeforeAll {
         function New-TableMarkdown([int] $Rows, [string] $Name = 'Rule') {
+            <#
+            .SYNOPSIS
+                Builds a Markdown table with one linked row per count.
+            .PARAMETER Rows
+                Number of rows.
+            .PARAMETER Name
+                Header of the first column and the link text.
+            #>
             $sb = [System.Text.StringBuilder]::new()
             [void]$sb.AppendLine("| $Name | Alerts |")
             [void]$sb.AppendLine('|---|---:|')
@@ -270,20 +296,20 @@ flowchart LR
             ($f.data.edges | Where-Object { $_.from -eq 'ANA' -and $_.style -eq 'dotted' }).label | Should -Be 'auto-mirror'
         }
         It 'puts nodes in their subgraph and takes their labels' {
-            ($f.data.nodes | Where-Object id -eq 'P1').group | Should -Be 'PRIN'
-            ($f.data.nodes | Where-Object id -eq 'LAKE').label | Should -Be 'Lake'
+            ($f.data.nodes | Where-Object id -EQ 'P1').group | Should -Be 'PRIN'
+            ($f.data.nodes | Where-Object id -EQ 'LAKE').label | Should -Be 'Lake'
         }
         It 'applies classDef colours and click links' {
-            ($f.data.nodes | Where-Object id -eq 'R2').fill | Should -Be '#5b1a1a'
-            ($f.data.nodes | Where-Object id -eq 'P2').href | Should -Be '90-gap-analysis.md#sac-gov-06'
+            ($f.data.nodes | Where-Object id -EQ 'R2').fill | Should -Be '#5b1a1a'
+            ($f.data.nodes | Where-Object id -EQ 'P2').href | Should -Be '90-gap-analysis.md#sac-gov-06'
         }
         It 'gives a node''s click link a target, the same as a text run''s' {
             $md = "# T`n`n``````mermaid`nflowchart LR`n    P1[Group] --> R1[Owner]`n    click P1 href `"90-gap-analysis.md#sac-gov-06`" `"SAC-GOV-06`"`n```````n"
             $nodes = @((ConvertTo-Model $md).blocks[0].data.nodes)
-            $p1 = $nodes | Where-Object id -eq 'P1'
+            $p1 = $nodes | Where-Object id -EQ 'P1'
             $p1.target.kind | Should -Be 'finding'
             $p1.target.id | Should -Be 'SAC-GOV-06'
-            ($nodes | Where-Object id -eq 'R1').target | Should -BeNullOrEmpty
+            ($nodes | Where-Object id -EQ 'R1').target | Should -BeNullOrEmpty
         }
     }
 
@@ -291,14 +317,14 @@ flowchart LR
         $c = Get-Chart "sequenceDiagram`n    autonumber`n    participant DS as Data source`n    DS->>DCR: Event`n    Note over DCR: ~5 min`n    DCR-->>DS: Ack"
         $c.data.autonumber | Should -BeTrue
         @($c.data.participants).Count | Should -Be 2
-        @($c.data.steps | Where-Object kind -eq 'message').Count | Should -Be 2
-        ($c.data.steps | Where-Object kind -eq 'note').text | Should -Be '~5 min'
+        @($c.data.steps | Where-Object kind -EQ 'message').Count | Should -Be 2
+        ($c.data.steps | Where-Object kind -EQ 'note').text | Should -Be '~5 min'
     }
 
     It 'parses a state diagram with nested states and a block note' {
         $c = Get-Chart "stateDiagram-v2`n    [*] --> New : Alert fires`n    New --> Closed`n    state Closed {`n        [*] --> TruePositive`n    }`n    note right of New`n        40 incidents`n    end note"
         @($c.data.transitions).Count | Should -Be 3
-        ($c.data.transitions | Where-Object to -eq 'TruePositive').parent | Should -Be 'Closed'
+        ($c.data.transitions | Where-Object to -EQ 'TruePositive').parent | Should -Be 'Closed'
         $c.data.notes[0].text | Should -Be '40 incidents'
     }
 
@@ -366,8 +392,7 @@ Describe 'Renderer section model output' {
 
     BeforeAll {
         $fixtureRaw = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample/_raw'
-        $renderer = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
-        $resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+        $resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
         $script:root = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-model-test-$(New-Guid)"
         $script:dirs = @{}
         foreach ($mode in 'Both', 'Json') {
@@ -375,7 +400,9 @@ Describe 'Renderer section model output' {
             New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
             Copy-Item -Path (Join-Path $fixtureRaw '*.json') -Destination (Join-Path $ws '_raw')
             $formats = if ($mode -eq 'Json') { @('Json') } else { @('Markdown', 'Json') }
-            & $renderer -WorkspaceName 'law-sentinel-model' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $resources -OutputFormat $formats -InformationAction SilentlyContinue
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-sentinel-model' -Path $ws -OutputPath $ws -ResourcesPath $resources -Format $formats `
+                -InformationAction SilentlyContinue |
+                Out-Null
             $script:dirs[$mode] = $ws
         }
     }
@@ -383,10 +410,10 @@ Describe 'Renderer section model output' {
 
     It 'writes a valid section file for every Markdown section but the contents page' {
         # index.md (the contents page) has no model: sections/index.json lists the sections.
-        $md = @(Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object BaseName)
-        $json = @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -ne 'index.json' | ForEach-Object BaseName)
+        $md = @(Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -NE 'index' | ForEach-Object BaseName)
+        $json = @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -NE 'index.json' | ForEach-Object BaseName)
         $json | Sort-Object | Should -Be ($md | Sort-Object)
-        foreach ($f in Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -ne 'index.json') {
+        foreach ($f in Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -NE 'index.json') {
             Test-Json -Path $f.FullName -SchemaFile $sectionSchema -ErrorAction SilentlyContinue | Should -BeTrue -Because $f.Name
         }
     }
@@ -408,7 +435,8 @@ Describe 'Renderer section model output' {
 
     It 'writes no Markdown with -OutputFormat Json, and the same sections' {
         @(Get-ChildItem $dirs.Json -Filter '*.md').Count | Should -Be 0
-        @(Get-ChildItem (Join-Path $dirs.Json 'sections') -Filter '*.json').Count | Should -Be @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json').Count
+        @(Get-ChildItem (Join-Path $dirs.Json 'sections') -Filter '*.json').Count |
+            Should -Be @(Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json').Count
     }
 
     It 'gives the incident lifecycle its graphic''s data, keeping the Mermaid for the export' {
@@ -433,7 +461,9 @@ Describe 'Renderer section model output' {
     }
 
     It 'gives each diagram with a purpose-built graphic its kind and data' {
-        $charts = { param($id) @((Get-Content (Join-Path $dirs.Both "sections/$id.json") -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' }) }
+        $charts = {
+            param($id) @((Get-Content (Join-Path $dirs.Both "sections/$id.json") -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' })
+        }
         $rk = @(& $charts '20-analytics-rules')[0]
         $rk.kind | Should -Be 'rule-kinds'
         @($rk.data.kinds.kind)[0..4] | Should -Be @('Scheduled', 'NRT', 'Fusion', 'MicrosoftSecurityIncidentCreation', 'ThreatIntelligence')
@@ -524,9 +554,12 @@ Describe 'Renderer section model output' {
     }
 
     It 'carries every Mermaid chart, and every bp:visual graphic, as a chart block' {
-        $fences = (Get-ChildItem $dirs.Both -Filter '*.md' | Where-Object BaseName -ne 'index' | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid|^<!-- bp:visual ').Count } | Measure-Object -Sum).Sum
+        $fences = (Get-ChildItem $dirs.Both -Filter '*.md' |
+                Where-Object BaseName -NE 'index' |
+                ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '(?m)^```mermaid|^<!-- bp:visual ').Count } |
+                Measure-Object -Sum).Sum
         $charts = 0
-        foreach ($f in Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -ne 'index.json') {
+        foreach ($f in Get-ChildItem (Join-Path $dirs.Both 'sections') -Filter '*.json' | Where-Object Name -NE 'index.json') {
             $charts += ([regex]::Matches((Get-Content $f.FullName -Raw), '"type":\s*"chart"')).Count
         }
         $charts | Should -Be $fences

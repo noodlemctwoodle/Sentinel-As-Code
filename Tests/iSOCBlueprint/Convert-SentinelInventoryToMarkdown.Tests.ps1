@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+﻿#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -6,7 +6,7 @@
     Tests for the iSOC Blueprint renderer.
 
 .DESCRIPTION
-    Drives Convert-SentinelInventoryToMarkdown.ps1 against the fixture under
+    Drives ConvertTo-iSOCBlueprint against the fixture under
     Tests/iSOCBlueprint/Fixtures/sample/_raw and asserts that the expected Markdown
     section files are produced and contain the headings + signal phrases the
     template promises.
@@ -31,17 +31,17 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-06-03
-    Version:      0.5.0
-    Last Updated: 2026-10-15
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.5.5
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeAll {
-    $script:repoRoot   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $script:fixtureWs  = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
+    $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    Import-Module (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/iSOCBlueprint.psd1') -Force
+    $script:fixtureWs = Join-Path $script:repoRoot 'Tests/iSOCBlueprint/Fixtures/sample'
     $script:fixtureRaw = Join-Path $script:fixtureWs '_raw'
-    $script:renderer   = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1'
-    $script:resources  = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Resources'
+    $script:resources = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Data'
 
     $script:outDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-test-$(New-Guid)"
     New-Item -ItemType Directory -Path $script:outDir -Force | Out-Null
@@ -55,12 +55,12 @@ BeforeAll {
     $script:tempWsRoot = $tempWsRoot
 
     # Run the renderer.
-    & $script:renderer `
+    ConvertTo-iSOCBlueprint `
         -WorkspaceName 'law-sentinel-test' `
-        -InputRoot     $tempWsRoot `
-        -OutputRoot    $tempWsRoot `
-        -ResourcesRoot $script:resources `
-        -InformationAction SilentlyContinue
+        -Path $tempWsRoot `
+        -OutputPath $tempWsRoot `
+        -ResourcesPath $script:resources `
+        -InformationAction SilentlyContinue | Out-Null
 }
 
 AfterAll {
@@ -74,23 +74,23 @@ Describe 'iSOC Blueprint renderer' {
     Context 'produces every expected section file' {
 
         $expected = @(
-            'index.md','00-overview.md','01-live-snapshot.md','02-deprecated-legacy-features.md',
-            '10-data-connectors.md','11-sentinel-health.md','12-soc-optimization.md',
+            'index.md', '00-overview.md', '01-live-snapshot.md', '02-deprecated-legacy-features.md',
+            '10-data-connectors.md', '11-sentinel-health.md', '12-soc-optimization.md',
             '13-data-source-hygiene.md',
             '14-coverage-breakdowns.md',
-            '15-incidents.md','16-alerts.md',
-            '20-analytics-rules.md','21-rule-performance.md','22-rule-health-quality.md',
-            '25-mitre-coverage.md','26-ueba.md','27-threat-intelligence.md',
+            '15-incidents.md', '16-alerts.md',
+            '20-analytics-rules.md', '21-rule-performance.md', '22-rule-health-quality.md',
+            '25-mitre-coverage.md', '26-ueba.md', '27-threat-intelligence.md',
             '28-detection-opportunities.md',
-            '30-hunting-queries.md','35-parsers-functions.md',
-            '36-data-export.md','37-search-restore.md','38-summary-rules.md',
-            '40-workbooks.md','50-watchlists.md','60-automation-rules-playbooks.md',
-            '70-content-hub.md','80-workspace.md','81-table-plans-retention.md',
-            '82-dedicated-cluster.md','83-data-collection.md','84-cost-estimate.md',
-            '85-rbac.md','86-subscription-context.md','87-azure-monitor-agents.md',
-            '88-sentinel-data-lake.md','89-retention.md',
-            '90-gap-analysis.md','91-maturity-assessment.md',
-            '96-references-microsoft.md','99-references.md'
+            '30-hunting-queries.md', '35-parsers-functions.md',
+            '36-data-export.md', '37-search-restore.md', '38-summary-rules.md',
+            '40-workbooks.md', '50-watchlists.md', '60-automation-rules-playbooks.md',
+            '70-content-hub.md', '80-workspace.md', '81-table-plans-retention.md',
+            '82-dedicated-cluster.md', '83-data-collection.md', '84-cost-estimate.md',
+            '85-rbac.md', '86-subscription-context.md', '87-azure-monitor-agents.md',
+            '88-sentinel-data-lake.md', '89-retention.md',
+            '90-gap-analysis.md', '91-maturity-assessment.md',
+            '96-references-microsoft.md', '99-references.md'
         )
 
         It 'creates <_>' -ForEach $expected {
@@ -166,7 +166,8 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists the tables no template covers in their own subsection' {
-            $script:opp | Should -Match '## Tables with no template available[\s\S]*\| FirewallLogs_CL \| 2,000\.00 \|[\s\S]*\| LegacyCLv1_CL \| 10\.00 \|[\s\S]*## Undeployed templates ready to enable'
+            $script:opp |
+                Should -Match '## Tables with no template available[\s\S]*\| FirewallLogs_CL \| 2,000\.00 \|[\s\S]*\| LegacyCLv1_CL \| 10\.00 \|[\s\S]*## Undeployed templates ready to enable'
             $section = ($script:opp -split '## Tables with no template available')[1] -split '## Undeployed templates' | Select-Object -First 1
             $section | Should -Not -Match '\| OfficeActivity \|'
         }
@@ -176,7 +177,8 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists ready templates highest severity first' {
-            $script:opp | Should -Match '## Undeployed templates ready to enable[\s\S]*\| Data exfiltration \| Built-in \| +\| High \| Scheduled \|[\s\S]*\| Low-severity noise \| Built-in \| +\| Low \| Scheduled \|'
+            $script:opp |
+                Should -Match '## Undeployed templates ready to enable[\s\S]*\| Data exfiltration \| Built-in \| +\| High \| Scheduled \|[\s\S]*\| Low-severity noise \| Built-in \| +\| Low \| Scheduled \|'
         }
     }
 
@@ -268,7 +270,8 @@ Describe 'iSOC Blueprint renderer' {
         It 'points to the rule effectiveness on 21-rule-performance.md, which tables it with the source and the false-positive rate' {
             $script:inc15 | Should -Match '\[21-rule-performance\.md\]\(21-rule-performance\.md\)'
             $script:inc15 | Should -Not -Match '## Rule effectiveness'
-            Get-Content (Join-Path $script:tempWsRoot '21-rule-performance.md') -Raw | Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.20 \|'
+            Get-Content (Join-Path $script:tempWsRoot '21-rule-performance.md') -Raw |
+                Should -Match '\| Suspicious sign-in from rare country \| Analytics rule \| 30 \| 24 \| 3 \| 19 \| 1 \| 1 \| 79\.20 \|'
         }
     }
 
@@ -327,7 +330,8 @@ Describe 'iSOC Blueprint renderer' {
             ([array]::IndexOf($heads, 'Microsoft-managed rules')) | Should -BeLessThan ([array]::IndexOf($heads, 'Recent modifications'))
             ([array]::IndexOf($heads, 'Recent modifications')) | Should -BeLessThan ([array]::IndexOf($heads, 'By Content Hub solution'))
             $perfHeads = [regex]::Matches($script:perfMd, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value }
-            $perfHeads | Should -Be @('By alert volume (last 30d)', 'Rule effectiveness (last 30d)', 'Noisy rules (closed mostly as false positive)', 'References')
+            $perfHeads |
+                Should -Be @('By alert volume (last 30d)', 'Rule effectiveness (last 30d)', 'Noisy rules (closed mostly as false positive)', 'References')
         }
 
         It 'keeps the charts and tables, each on its page' {
@@ -339,7 +343,8 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists the noisy analytics rule (24 closed, 79.2% false positive) on 21' {
-            $script:perfMd | Should -Match '## Noisy rules \(closed mostly as false positive\)[\s\S]*\| Suspicious sign-in from rare country \| 30 \| 24 \| 19 \| 79\.20 \|'
+            $script:perfMd |
+                Should -Match '## Noisy rules \(closed mostly as false positive\)[\s\S]*\| Suspicious sign-in from rare country \| 30 \| 24 \| 19 \| 79\.20 \|'
             ($script:perfMd -split '## Noisy rules')[1] | Should -Not -Match 'Failed logons across multiple accounts'
         }
 
@@ -415,7 +420,8 @@ Describe 'iSOC Blueprint renderer' {
     Context '70-content-hub.md lists the legacy management solutions' {
         It 'shows the OMS SecurityInsights solution with its product and publisher' {
             $md = Get-Content (Join-Path $script:tempWsRoot '70-content-hub.md') -Raw
-            $md | Should -Match '## Legacy management solutions[\s\S]*\| SecurityInsights\(law-sentinel-test\) \| OMSGallery/SecurityInsights \| Microsoft \| Succeeded \| 6 Feb 2026 00:00 \|'
+            $md |
+                Should -Match '## Legacy management solutions[\s\S]*\| SecurityInsights\(law-sentinel-test\) \| OMSGallery/SecurityInsights \| Microsoft \| Succeeded \| 6 Feb 2026 00:00 \|'
         }
     }
 
@@ -530,7 +536,8 @@ Describe 'iSOC Blueprint renderer' {
         It 'lists the failing rule with its reason' {
             $md = Get-Content (Join-Path $script:tempWsRoot '22-rule-health-quality.md') -Raw
             $md | Should -Match '## Rule run failures \(last 30d\)'
-            $md | Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 6 May 2026 06:15 \| Query execution exceeded the 2 minute timeout. \|'
+            $md |
+                Should -Match '\| Suspicious sign-in from rare country \| Failure \| 3 \| 6 May 2026 06:15 \| Query execution exceeded the 2 minute timeout. \|'
         }
     }
 
@@ -547,7 +554,8 @@ Describe 'iSOC Blueprint renderer' {
         It 'classifies the titles and maps the phishing title to a response' {
             $md = Get-Content (Join-Path $script:tempWsRoot '60-automation-rules-playbooks.md') -Raw
             $md | Should -Match '## Automation opportunities \(incident titles, last 30d\)'
-            $md | Should -Match '\| Phishing email reported by user \| Medium \| 48 \| 46 \| 22\.50 \| 41 \| 30 \| 9 \| Mostly false positive \| Soft-delete similar messages'
+            $md |
+                Should -Match '\| Phishing email reported by user \| Medium \| 48 \| 46 \| 22\.50 \| 41 \| 30 \| 9 \| Mostly false positive \| Soft-delete similar messages'
             $md | Should -Match '\| Brute force attempt against Entra ID \|[^\n]*\| Fast-closing \|[^\n]*\| Disable-AADUser / Confirm-AADRiskyUser \|'
             $md | Should -Match '\| Suspicious sign-in from rare country \|[^\n]*\| Mostly false positive \|'
         }
@@ -615,10 +623,12 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'lists every enabled rule once with its mapping, and no rule names in a technique table' {
             $script:mitre | Should -Match '\| Failed logons across multiple accounts \| Enabled \| Credential Access \| T1110 \| T1110\.003 \|'
-            $script:mitre | Should -Match '\| Suspicious sign-in from rare country \| Enabled \| Initial Access, Credential Access \| T1078, T1110 \| T1078\.004 \|'
+            $script:mitre |
+                Should -Match '\| Suspicious sign-in from rare country \| Enabled \| Initial Access, Credential Access \| T1078, T1110 \| T1078\.004 \|'
             # Disabled rules are listed too, after the enabled ones, and do
             # not count towards the tactic and technique tables.
-            $script:mitre | Should -Match '(?s)\| Suspicious sign-in from rare country \| Enabled \|.*\| Lateral movement detected \| Disabled \| Lateral Movement \| T1021 \| T1021\.001 \|'
+            $script:mitre |
+                Should -Match '(?s)\| Suspicious sign-in from rare country \| Enabled \|.*\| Lateral movement detected \| Disabled \| Lateral Movement \| T1021 \| T1021\.001 \|'
             $script:mitre | Should -Not -Match '### TA0008'
             $script:mitre | Should -Match '\*\*4\*\* of \*\*5\*\* rules are enabled'
             $script:mitre | Should -Match 'Enabling the disabled rules would add \*\*1\*\* techniques'
@@ -687,7 +697,8 @@ Describe 'iSOC Blueprint renderer' {
             foreach ($f in Get-ChildItem $script:tempWsRoot -Filter '*.md' | Where-Object Name -NE 'index.md') {
                 $parts = (Get-Content $f.FullName -Raw) -split '(?m)^## References\s*$'
                 # A line of external links only, outside the References list, is one the move missed.
-                $parts[0] | Should -Not -Match '(?m)^(\*\*Reference:\*\* )?\[[^\]]+\]\(https?://[^)]+\)(\s*\u00B7\s*\[[^\]]+\]\(https?://[^)]+\))*\s*$' -Because $f.Name
+                $parts[0] |
+                    Should -Not -Match '(?m)^(\*\*Reference:\*\* )?\[[^\]]+\]\(https?://[^)]+\)(\s*\u00B7\s*\[[^\]]+\]\(https?://[^)]+\))*\s*$' -Because $f.Name
                 if ($parts.Count -gt 1) {
                     $parts.Count | Should -Be 2 -Because $f.Name
                     $parts[1] | Should -Not -Match '(?m)^#{1,3} ' -Because "$($f.Name) ends with its References"
@@ -715,7 +726,10 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'names a Sentinel rule in Rule effectiveness by its rule id, not its alert name' {
-            $src = Get-Content (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Engine/Convert-SentinelInventoryToMarkdown.ps1') -Raw
+            $src = (Get-ChildItem (Join-Path $PSScriptRoot '../../Modules/iSOCBlueprint/Private/Render') -Filter '*.ps1' -File -Recurse |
+                    Sort-Object FullName |
+                    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join
+            "`n"
             $src.Contains('if ($rid -and $rdn) { $ruleNameById[$rid] = $rdn }') | Should -BeTrue
             $src.Contains('Rule         = $(if ($rk -and $ruleNameById.ContainsKey($rk)) { $ruleNameById[$rk] } else { $_.RuleName })') | Should -BeTrue
             $script:perfMd | Should -Match '\| Failed logons across multiple accounts \| Analytics rule \|'
@@ -734,7 +748,7 @@ Describe 'iSOC Blueprint renderer' {
             # spread across multiple sources so the bucketing rule has
             # something to do.
             $busyOut = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-busy-$(New-Guid)"
-            $busyWs  = Join-Path $busyOut 'law-sentinel-busy'
+            $busyWs = Join-Path $busyOut 'law-sentinel-busy'
             New-Item -ItemType Directory -Path (Join-Path $busyWs '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | ForEach-Object {
                 Copy-Item -Path $_.FullName -Destination (Join-Path $busyWs '_raw') -Force
@@ -744,16 +758,16 @@ Describe 'iSOC Blueprint renderer' {
             $cost = Get-Content $costPath -Raw | ConvertFrom-Json
 
             $busyTables = @(
-                @{ Table='CommonSecurityLog'; Plan='Analytics'; Gb30d=2400.0; MonthlyCost=4800.0 },
-                @{ Table='Syslog';             Plan='Analytics'; Gb30d=1800.0; MonthlyCost=3600.0 },
-                @{ Table='SecurityEvent';      Plan='Analytics'; Gb30d=900.0;  MonthlyCost=1800.0 },
-                @{ Table='DeviceEvents';       Plan='Analytics'; Gb30d=750.0;  MonthlyCost=1500.0 },
-                @{ Table='EmailEvents';        Plan='Analytics'; Gb30d=600.0;  MonthlyCost=1200.0 },
-                @{ Table='SigninLogs';         Plan='Analytics'; Gb30d=420.0;  MonthlyCost=840.0 },
-                @{ Table='AuditLogs';          Plan='Analytics'; Gb30d=200.0;  MonthlyCost=400.0 },
-                @{ Table='AzureActivity';      Plan='Analytics'; Gb30d=140.0;  MonthlyCost=280.0 },
-                @{ Table='AzureDiagnostics';   Plan='Analytics'; Gb30d=130.0;  MonthlyCost=260.0 },
-                @{ Table='OfficeActivity';     Plan='Analytics'; Gb30d=110.0;  MonthlyCost=220.0 }
+                @{ Table = 'CommonSecurityLog'; Plan = 'Analytics'; Gb30d = 2400.0; MonthlyCost = 4800.0 },
+                @{ Table = 'Syslog'; Plan = 'Analytics'; Gb30d = 1800.0; MonthlyCost = 3600.0 },
+                @{ Table = 'SecurityEvent'; Plan = 'Analytics'; Gb30d = 900.0; MonthlyCost = 1800.0 },
+                @{ Table = 'DeviceEvents'; Plan = 'Analytics'; Gb30d = 750.0; MonthlyCost = 1500.0 },
+                @{ Table = 'EmailEvents'; Plan = 'Analytics'; Gb30d = 600.0; MonthlyCost = 1200.0 },
+                @{ Table = 'SigninLogs'; Plan = 'Analytics'; Gb30d = 420.0; MonthlyCost = 840.0 },
+                @{ Table = 'AuditLogs'; Plan = 'Analytics'; Gb30d = 200.0; MonthlyCost = 400.0 },
+                @{ Table = 'AzureActivity'; Plan = 'Analytics'; Gb30d = 140.0; MonthlyCost = 280.0 },
+                @{ Table = 'AzureDiagnostics'; Plan = 'Analytics'; Gb30d = 130.0; MonthlyCost = 260.0 },
+                @{ Table = 'OfficeActivity'; Plan = 'Analytics'; Gb30d = 110.0; MonthlyCost = 220.0 }
             )
             for ($i = 1; $i -le 70; $i++) {
                 $prefix = switch ($i % 5) {
@@ -775,14 +789,14 @@ Describe 'iSOC Blueprint renderer' {
             $cost | Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue $busyTables -Force
             $cost | ConvertTo-Json -Depth 32 | Set-Content -Path $costPath
 
-            & $script:renderer `
+            ConvertTo-iSOCBlueprint `
                 -WorkspaceName 'law-sentinel-busy' `
-                -InputRoot     $busyWs `
-                -OutputRoot    $busyWs `
-                -ResourcesRoot $script:resources `
-                -InformationAction SilentlyContinue
+                -Path $busyWs `
+                -OutputPath $busyWs `
+                -ResourcesPath $script:resources `
+                -InformationAction SilentlyContinue | Out-Null
 
-            $script:busyOut    = $busyOut
+            $script:busyOut = $busyOut
             $script:busyCostMd = Get-Content (Join-Path $busyWs '84-cost-estimate.md') -Raw
         }
 
@@ -809,8 +823,8 @@ Describe 'iSOC Blueprint renderer' {
             # Strip the markdown to just the Sankey block before asserting —
             # the section narrative and methodology reference table names too.
             $sankeyStart = $script:busyCostMd.IndexOf('## Cost by source and plan')
-            $sankeyEnd   = $script:busyCostMd.IndexOf('Where the billable data comes from', $sankeyStart)
-            $sankey      = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
+            $sankeyEnd = $script:busyCostMd.IndexOf('Where the billable data comes from', $sankeyStart)
+            $sankey = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
             $sankey | Should -Match 'CommonSecurityLog'
             $sankey | Should -Match 'Syslog'
             $sankey | Should -Match 'SecurityEvent'
@@ -841,7 +855,7 @@ Describe 'iSOC Blueprint renderer' {
             # match to the Sankey block since other charts have their own
             # height config earlier in the file.
             $sankeyStart = $script:busyCostMd.IndexOf('sankey:')
-            $sankeyEnd   = $script:busyCostMd.IndexOf('sankey-beta', $sankeyStart)
+            $sankeyEnd = $script:busyCostMd.IndexOf('sankey-beta', $sankeyStart)
             $sankeyConfig = $script:busyCostMd.Substring($sankeyStart, $sankeyEnd - $sankeyStart)
             $sankeyConfig | Should -Match 'height: \d+'
             $h = ([regex]'height: (\d+)').Match($sankeyConfig).Groups[1].Value -as [int]
@@ -978,9 +992,9 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'compares versions as numbers, not text' {
-            . ([scriptblock]::Create(([System.Management.Automation.Language.Parser]::ParseFile($script:renderer, [ref]$null, [ref]$null)).Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq '_CompareVersion' }, $true).Extent.Text))
-            _CompareVersion '3.0.10' '3.0.9' | Should -BeGreaterThan 0
-            _CompareVersion '3.0.3' '3.0.3' | Should -Be 0
+            . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Render/Sections/ContentHub/Compare-BlueprintVersion.ps1')
+            Compare-BlueprintVersion '3.0.10' '3.0.9' | Should -BeGreaterThan 0
+            Compare-BlueprintVersion '3.0.3' '3.0.3' | Should -Be 0
         }
     }
 
@@ -1302,16 +1316,19 @@ Describe 'iSOC Blueprint renderer' {
         }
 
         It 'lists the suspicious-sign-in rule as stale (lastModifiedUtc > 1y)' {
-            $script:qualityMd | Should -Match '## Stale rules \(enabled, last modified over a year ago\)[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| High \| 15 Jan 2024 08:00 \|'
+            $script:qualityMd |
+                Should -Match '## Stale rules \(enabled, last modified over a year ago\)[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| High \| 15 Jan 2024 08:00 \|'
         }
 
         It 'shows the suspicious-sign-in rule as behind its template (1.0.0 vs 1.2.0)' {
-            $script:qualityMd | Should -Match '## Rules behind their latest template version[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| 1\.0\.0 \| 1\.2\.0 \|'
+            $script:qualityMd |
+                Should -Match '## Rules behind their latest template version[\s\S]*\| Suspicious sign-in from rare country \| Scheduled \| 1\.0\.0 \| 1\.2\.0 \|'
         }
 
         It 'lists the rule with no entity mappings and the rule that creates no incidents' {
             $script:qualityMd | Should -Match '## Rules without entity mappings[\s\S]*\| Failed logons across multiple accounts \| Scheduled \| Medium \|'
-            $script:qualityMd | Should -Match '## Rules that raise alerts without incidents[\s\S]*\| Failed logons across multiple accounts \| Scheduled \| Medium \|'
+            $script:qualityMd |
+                Should -Match '## Rules that raise alerts without incidents[\s\S]*\| Failed logons across multiple accounts \| Scheduled \| Medium \|'
         }
 
         It 'no longer carries those sections on the inventory page' {
@@ -1366,14 +1383,18 @@ Describe 'iSOC Blueprint renderer' {
 
         It 'is titled Microsoft References and tables its pages by topic, with what each is for' {
             (Get-Content (Join-Path $script:tempWsRoot '96-references-microsoft.md') -First 1) | Should -Be '# Microsoft References'
-            foreach ($h in 'Microsoft Sentinel', 'Workspace design and resilience', 'Data connectors and coverage', 'Content and automation', 'Log Analytics, tables and retention', 'Cost', 'Health and troubleshooting', 'Access and the wider platform') {
+            foreach ($h in 'Microsoft Sentinel', 'Workspace design and resilience', 'Data connectors and coverage', 'Content and automation',
+                'Log Analytics, tables and retention', 'Cost', 'Health and troubleshooting', 'Access and the wider platform') {
                 $script:ref96 | Should -Match ('(?m)^## ' + [regex]::Escape($h) + '\r?$') -Because $h
             }
             $script:ref96 | Should -Match '\| Page \| Use it for \|'
         }
 
         It 'carries the best-practice pages the Conventions page used to list, each once' {
-            foreach ($u in '/azure/sentinel/best-practices', '/azure/sentinel/deploy-overview', '/azure/azure-monitor/logs/workspace-design', '/azure/sentinel/mitre-coverage', '/azure/azure-monitor/fundamentals/best-practices-cost', '/azure/sentinel/datalake/sentinel-lake-overview', '/azure/sentinel/ci-cd-custom-content', '/azure/azure-monitor/logs/logs-dedicated-clusters') {
+            foreach ($u in '/azure/sentinel/best-practices', '/azure/sentinel/deploy-overview', '/azure/azure-monitor/logs/workspace-design',
+                '/azure/sentinel/mitre-coverage', '/azure/azure-monitor/fundamentals/best-practices-cost',
+                '/azure/sentinel/datalake/sentinel-lake-overview', '/azure/sentinel/ci-cd-custom-content',
+                '/azure/azure-monitor/logs/logs-dedicated-clusters') {
                 ([regex]::Matches($script:ref96, [regex]::Escape('https://learn.microsoft.com' + $u + ')'))).Count | Should -Be 1 -Because $u
             }
             $script:ref96 | Should -Not -Match ([string][char]0x2014)
@@ -1421,20 +1442,20 @@ Describe 'iSOC Blueprint renderer — empty-state safety' {
         }
         # Deliberately remove the files that caused phantom rows on the production run.
         # TI removal needs both sources gone — the renderer falls back from metrics to counts.
-        @('threat-intel-counts.json','threat-intel-metrics.json','playbooks.json','rbac-playbook-mi.json',
-          'maturity.json','hunts.json','playbook-runs.json','rule-effectiveness.json',
-          'rule-table-references.json','template-table-references.json','workspace-usage-daily.json') | ForEach-Object {
+        @('threat-intel-counts.json', 'threat-intel-metrics.json', 'playbooks.json', 'rbac-playbook-mi.json',
+            'maturity.json', 'hunts.json', 'playbook-runs.json', 'rule-effectiveness.json',
+            'rule-table-references.json', 'template-table-references.json', 'workspace-usage-daily.json') | ForEach-Object {
             $f = Join-Path $emptyWsRoot "_raw/$_"
             if (Test-Path $f) { Remove-Item -Force $f }
         }
         $script:emptyWsRoot = $emptyWsRoot
 
-        & $script:renderer `
+        ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-empty' `
-            -InputRoot     $emptyWsRoot `
-            -OutputRoot    $emptyWsRoot `
-            -ResourcesRoot $script:resources `
-            -InformationAction SilentlyContinue
+            -Path $emptyWsRoot `
+            -OutputPath $emptyWsRoot `
+            -ResourcesPath $script:resources `
+            -InformationAction SilentlyContinue | Out-Null
     }
 
     AfterAll {
@@ -1527,12 +1548,12 @@ Describe 'iSOC Blueprint renderer - snapshots from before the rename' {
         $ctx.Remove('BlueprintVersion')
         $ctx | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $ctxPath -Encoding utf8
 
-        & $script:renderer `
+        ConvertTo-iSOCBlueprint `
             -WorkspaceName 'law-sentinel-legacy' `
-            -InputRoot     $legacyWsRoot `
-            -OutputRoot    $legacyWsRoot `
-            -ResourcesRoot $script:resources `
-            -InformationAction SilentlyContinue
+            -Path $legacyWsRoot `
+            -OutputPath $legacyWsRoot `
+            -ResourcesPath $script:resources `
+            -InformationAction SilentlyContinue | Out-Null
         $script:legacyOverview = Get-Content -LiteralPath (Join-Path $legacyWsRoot '00-overview.md') -Raw
     }
 
@@ -1550,9 +1571,9 @@ Describe 'iSOC Blueprint renderer - snapshots from before the rename' {
 Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
     BeforeAll {
         $script:bmOutDir = Join-Path ([System.IO.Path]::GetTempPath()) "blueprint-bookmarks-test-$(New-Guid)"
-        $listRoot  = Join-Path $script:bmOutDir 'law-sentinel-list'
+        $listRoot = Join-Path $script:bmOutDir 'law-sentinel-list'
         $countRoot = Join-Path $script:bmOutDir 'law-sentinel-count'
-        $logsRoot  = Join-Path $script:bmOutDir 'law-sentinel-logs'
+        $logsRoot = Join-Path $script:bmOutDir 'law-sentinel-logs'
         $emptyRoot = Join-Path $script:bmOutDir 'law-sentinel-empty'
         $quietRoot = Join-Path $script:bmOutDir 'law-sentinel-quiet'
         foreach ($root in $listRoot, $countRoot, $logsRoot, $emptyRoot, $quietRoot) {
@@ -1586,14 +1607,22 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
         '{ "Count": 350, "Source": "too large" }' | Set-Content (Join-Path $quietRoot '_raw/bookmarks-count.json') -Encoding UTF8
         '[]' | Set-Content (Join-Path $quietRoot '_raw/bookmarks-from-logs.json') -Encoding UTF8
         $quietTables = Join-Path $quietRoot '_raw/workspace-tables.json'
-        $tablesDoc = @(Get-Content $quietTables -Raw | ConvertFrom-Json) + [pscustomobject]@{ name = 'HuntingBookmark'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 90; totalRetentionInDays = 90 } }
+        $tablesDoc = @(
+            Get-Content $quietTables -Raw | ConvertFrom-Json
+        ) + [pscustomobject]@{ name = 'HuntingBookmark'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 90; totalRetentionInDays = 90 } }
         ConvertTo-Json -InputObject $tablesDoc -Depth 10 | Set-Content $quietTables -Encoding UTF8
-        foreach ($pair in @(@($listRoot, 'law-sentinel-list'), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'), @($quietRoot, 'law-sentinel-quiet'))) {
-            & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -InformationAction SilentlyContinue
+        foreach ($pair in @(
+                @(
+                    $listRoot, 'law-sentinel-list'
+                ), @($countRoot, 'law-sentinel-count'), @($logsRoot, 'law-sentinel-logs'), @($emptyRoot, 'law-sentinel-empty'), @($quietRoot, 'law-sentinel-quiet')
+            )) {
+            ConvertTo-iSOCBlueprint -WorkspaceName $pair[1] -Path $pair[0] -OutputPath $pair[0] -ResourcesPath $script:resources -InformationAction `
+                SilentlyContinue |
+                Out-Null
         }
-        $script:bmList  = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
+        $script:bmList = Get-Content (Join-Path $listRoot '30-hunting-queries.md') -Raw
         $script:bmCount = Get-Content (Join-Path $countRoot '30-hunting-queries.md') -Raw
-        $script:bmLogs  = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
+        $script:bmLogs = Get-Content (Join-Path $logsRoot '30-hunting-queries.md') -Raw
         $script:bmEmpty = Get-Content (Join-Path $emptyRoot '30-hunting-queries.md') -Raw
         $script:bmQuiet = Get-Content (Join-Path $quietRoot '30-hunting-queries.md') -Raw
     }
@@ -1613,18 +1642,21 @@ Describe 'iSOC Blueprint renderer - bookmarks on the hunting page' {
     }
 
     It 'tables the bookmarks from the HuntingBookmark table when the API refused the list' {
-        $script:bmLogs | Should -Match '## Bookmarks[\s\S]*refused its list of \*\*350 bookmarks\*\* as too large, so these 2 come from the HuntingBookmark table'
+        $script:bmLogs |
+            Should -Match '## Bookmarks[\s\S]*refused its list of \*\*350 bookmarks\*\* as too large, so these 2 come from the HuntingBookmark table'
         $script:bmLogs | Should -Match '\| Beaconing to new domain \| 2 Oct 2026[^|]*\| c2 \| From the table \|'
         ($script:bmLogs.IndexOf('Beaconing to new domain')) | Should -BeLessThan ($script:bmLogs.IndexOf('Mailbox rule created'))
     }
 
     It 'says the table holds none of them when it was read but empty' {
-        $script:bmEmpty | Should -Match '\*\*350 bookmarks\*\* exist\. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them'
+        $script:bmEmpty |
+            Should -Match '\*\*350 bookmarks\*\* exist\. The list was too large for the API to return, and the HuntingBookmark table, which keeps entries only for its retention period, holds none of them'
         $script:bmEmpty | Should -Not -Match 'could not be read'
     }
 
     It 'says no bookmark has changed within the table''s retention when it names it' {
-        $script:bmQuiet | Should -Match '\*\*350 bookmarks\*\* exist, and none has been created, changed or deleted in the last 90 days: the HuntingBookmark table, which logs every bookmark change and keeps 90 days, holds no entries\.'
+        $script:bmQuiet |
+            Should -Match '\*\*350 bookmarks\*\* exist, and none has been created, changed or deleted in the last 90 days: the HuntingBookmark table, which logs every bookmark change and keeps 90 days, holds no entries\.'
     }
 
     It 'says when the table holds fewer bookmarks than the service counted' {
@@ -1648,21 +1680,25 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
             New-Item -ItemType Directory -Path (Join-Path $dir '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $dir '_raw')
         }
-        foreach ($name in 'linked-storage-accounts.json', 'agent-heartbeat-mix.json', 'threat-intel-tables.json', 'threat-intel-health.json', 'taxii-clients.json', 'azure-firewall-categories.json') {
+        foreach ($name in 'linked-storage-accounts.json', 'agent-heartbeat-mix.json', 'threat-intel-tables.json', 'threat-intel-health.json',
+            'taxii-clients.json', 'azure-firewall-categories.json') {
             Remove-Item (Join-Path $old "_raw/$name") -Force
         }
         $inc = Get-Content (Join-Path $old '_raw/incidents-summary.json') -Raw | ConvertFrom-Json
         $inc[0].PSObject.Properties.Remove('Count7d'); $inc[0].PSObject.Properties.Remove('ByProvider')
         ConvertTo-Json -InputObject @($inc) -Depth 8 | Set-Content (Join-Path $old '_raw/incidents-summary.json')
         $tables = Get-Content (Join-Path $lake '_raw/workspace-tables.json') -Raw | ConvertFrom-Json
-        ($tables | Where-Object name -eq 'AuditLogs').properties.totalRetentionInDays = 365
+        ($tables | Where-Object name -EQ 'AuditLogs').properties.totalRetentionInDays = 365
         ConvertTo-Json -InputObject @($tables) -Depth 16 | Set-Content (Join-Path $lake '_raw/workspace-tables.json')
 
         foreach ($pair in @(@($full, 'law-hc-full'), @($old, 'law-hc-old'), @($lake, 'law-hc-lake'))) {
-            & $script:renderer -WorkspaceName $pair[1] -InputRoot $pair[0] -OutputRoot $pair[0] -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName $pair[1] -Path $pair[0] -OutputPath $pair[0] -ResourcesPath $script:resources -Format Markdown `
+                -InformationAction SilentlyContinue *> $null
         }
         $script:hc = @{}
-        foreach ($n in '01-live-snapshot', '02-deprecated-legacy-features', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene', '14-coverage-breakdowns', '15-incidents', '16-alerts', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention', '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '89-retention', '91-maturity-assessment') {
+        foreach ($n in '01-live-snapshot', '02-deprecated-legacy-features', '10-data-connectors', '11-sentinel-health', '13-data-source-hygiene',
+            '14-coverage-breakdowns', '15-incidents', '16-alerts', '26-ueba', '27-threat-intelligence', '36-data-export', '81-table-plans-retention',
+            '85-rbac', '86-subscription-context', '87-azure-monitor-agents', '89-retention', '91-maturity-assessment') {
             $script:hc[$n] = & $page $full "$n.md"
         }
         $script:hcOld = @{}
@@ -1714,9 +1750,11 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'adds the 7-day incident metrics, incidents by provider and alert volumes by provider' {
-        $hc['15-incidents'] | Should -Match '## Incident metrics \(last 7d\)[\s\S]*\| Incidents \| 14 \|[\s\S]*\| Raised through Defender XDR \(unified\) \| 5 \|[\s\S]*\| MTTA \(incidents closed in the window\) \| 60\.5 min \|'
+        $hc['15-incidents'] |
+            Should -Match '## Incident metrics \(last 7d\)[\s\S]*\| Incidents \| 14 \|[\s\S]*\| Raised through Defender XDR \(unified\) \| 5 \|[\s\S]*\| MTTA \(incidents closed in the window\) \| 60\.5 min \|'
         $hc['15-incidents'] | Should -Match '## Incidents by provider \(last 30d\)[\s\S]*\| Microsoft XDR \| 12 \|'
-        $hc['16-alerts'] | Should -Match '## Alert volumes by provider \(last 30d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 18 \| 4 \|'
+        $hc['16-alerts'] |
+            Should -Match '## Alert volumes by provider \(last 30d\)[\s\S]*\| ASI NRT Alerts \| Azure Sentinel \| Privileged group membership change \| High \| 18 \| 4 \|'
     }
 
     It 'shows unified incidents and legacy alert paths on the unification table' {
@@ -1729,7 +1767,8 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'adds AzureDiagnostics by category and both forms of Azure Firewall logging' {
-        $hc['14-coverage-breakdowns'] | Should -Match '## AzureDiagnostics per category \(last 30d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9,000 \|'
+        $hc['14-coverage-breakdowns'] |
+            Should -Match '## AzureDiagnostics per category \(last 30d\)[\s\S]*\| MICROSOFT\.NETWORK \| AzureFirewallNetworkRule \| 9,000 \|'
         $hc['14-coverage-breakdowns'] | Should -Match '## Azure Firewall categories \(last 30d\)\s+\*\*Collected twice\.\*\*'
         $hc['14-coverage-breakdowns'] | Should -Match '\| AZFWNetworkRule \|'
     }
@@ -1751,7 +1790,8 @@ Describe 'iSOC Blueprint renderer - sections from health check build 38' {
     }
 
     It 'lists the legacy features still in use on their own page and counts them on the live snapshot' {
-        $hc['02-deprecated-legacy-features'] | Should -Match '## Platform deprecation runway[\s\S]*## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 Aug 2024 \| In use \| 8 machine'
+        $hc['02-deprecated-legacy-features'] |
+            Should -Match '## Platform deprecation runway[\s\S]*## Legacy features still in use[\s\S]*\| Legacy Log Analytics agent \(MMA / OMS\), retired 31 Aug 2024 \| In use \| 8 machine'
         $hc['02-deprecated-legacy-features'] | Should -Match '\| Retired ThreatIntelligenceIndicator table \(ingestion\) \| Not in use \|'
         $hc['01-live-snapshot'] | Should -Match '\| Legacy features still in use \| \d+ of \d+ checked; see \[02-deprecated-legacy-features\.md\]'
         $hc['01-live-snapshot'] | Should -Not -Match '## Legacy features still in use|## Platform deprecation runway'
@@ -1786,17 +1826,41 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
         # tables and twenty-five catalogue-only schemas.
         $cost = Get-Content (Join-Path $wide '_raw/cost-estimate.json') -Raw | ConvertFrom-Json
         $all = @(@('FirewallLogs_CL', 'Syslog', 'DeviceProcessEvents') + @(1..9 | ForEach-Object { "WideTable$_`_CL" }))
-        $cost | Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue @($all | ForEach-Object -Begin { $gb = 2400 } -Process { $gb -= 100; [pscustomobject]@{ Table = $_; Plan = 'Analytics'; Gb30d = $gb; MonthlyCost = $gb * 2 } })
+        $cost |
+            Add-Member -NotePropertyName AllTablesByCost -NotePropertyValue @(
+                $all |
+                    ForEach-Object -Begin {
+                        $gb = 2400
+                    } -Process { $gb -= 100; [pscustomobject]@{ Table = $_; Plan = 'Analytics'; Gb30d = $gb; MonthlyCost = $gb * 2 } }
+                )
         & $raw 'cost-estimate.json' $cost
         Remove-Item (Join-Path $wide '_raw/threat-intel-metrics.json') -Force
-        & $raw 'threat-intel-counts.json' @(1..8 | ForEach-Object { [pscustomobject]@{ SourceSystem = "Feed $_"; Count = 1000 - $_; Indicators = 100; Last = '2026-05-06T07:00:00Z' } })
+        & $raw 'threat-intel-counts.json' @(
+            1..8 | ForEach-Object { [pscustomobject]@{ SourceSystem = "Feed $_"; Count = 1000 - $_; Indicators = 100; Last = '2026-05-06T07:00:00Z' } }
+        )
         & $raw 'cef-devices.json' @(1..8 | ForEach-Object { [pscustomobject]@{ DeviceVendor = "Vendor $_"; DeviceProduct = 'Firewall'; LogCount = 900 - $_ } })
-        & $raw 'xdr-table-presence.json' @(@('DeviceNetworkEvents') + @(1..14 | ForEach-Object { "XdrTable$_" }) | ForEach-Object { [pscustomobject]@{ Type = $_; RecordCount = 500 } })
+        & $raw 'xdr-table-presence.json' @(
+            @('DeviceNetworkEvents') + @(1..14 | ForEach-Object { "XdrTable$_" }) | ForEach-Object { [pscustomobject]@{ Type = $_; RecordCount = 500 } }
+        )
         $tables = @(Get-Content (Join-Path $wide '_raw/workspace-tables.json') -Raw | ConvertFrom-Json)
-        $tables += @(1..25 | ForEach-Object { [pscustomobject]@{ name = ('CatalogueOnly{0:D2}' -f $_); properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'Microsoft' } } } })
+        $tables += @(
+            1..25 |
+                ForEach-Object {
+                    [pscustomobject]@{
+                        name       = ('CatalogueOnly{0:D2}' -f $_)
+                        properties = [pscustomobject]@{
+                            plan                 = 'Analytics'
+                            retentionInDays      = 30
+                            totalRetentionInDays = 30
+                            schema               = [pscustomobject]@{ tableType = 'Microsoft' }
+                        }
+                    }
+                }
+        )
         & $raw 'workspace-tables.json' $tables
 
-        & $script:renderer -WorkspaceName 'law-wide' -InputRoot $wide -OutputRoot $wide -ResourcesRoot $script:resources -OutputFormat Markdown, Json -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-wide' -Path $wide -OutputPath $wide -ResourcesPath $script:resources -Format Markdown,
+        Json -InformationAction SilentlyContinue *> $null
         $script:wide = $wide
         $script:widePage = { param($Name) Get-Content (Join-Path $script:wide "$Name.md") -Raw }
     }
@@ -1841,7 +1905,10 @@ Describe 'iSOC Blueprint renderer - full reporting in plain words' {
         $md = & $script:widePage '14-coverage-breakdowns'
         $md | Should -Match 'bar \[(500, ){14}500\]'
         $md | Should -Match '%% x-labels \["DeviceNetworkEvents", "XdrTable1"'
-        $chart = @((Get-Content (Join-Path $script:wide 'sections/14-coverage-breakdowns.json') -Raw | ConvertFrom-Json).blocks | Where-Object { $_.type -eq 'chart' -and $_.kind -eq 'xy' })[0]
+        $chart = @(
+            (Get-Content (Join-Path $script:wide 'sections/14-coverage-breakdowns.json') -Raw | ConvertFrom-Json).blocks |
+                Where-Object { $_.type -eq 'chart' -and $_.kind -eq 'xy' }
+        )[0]
         @($chart.data.xAxis.labels).Count | Should -Be 15
         $chart.data.xAxis.labels[0] | Should -Be 'DeviceNetworkEvents'
     }
@@ -1863,17 +1930,42 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
         $conn += [pscustomobject]@{ name = 'dt'; kind = 'DarktraceAma'; properties = [pscustomobject]@{} }
         & $raw 'data-connectors-classic.json' $conn
         $tables = @(Get-Content (Join-Path $ws '_raw/workspace-tables.json') -Raw | ConvertFrom-Json)
-        $tables += [pscustomobject]@{ name = 'Dynamics365Activity'; properties = [pscustomobject]@{ plan = 'Analytics'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'Microsoft' } } }
+        $tables += [pscustomobject]@{
+            name       = 'Dynamics365Activity'
+            properties = [pscustomobject]@{
+                plan                 = 'Analytics'
+                retentionInDays      = 30
+                totalRetentionInDays = 30
+                schema               = [pscustomobject]@{ tableType = 'Microsoft' }
+            }
+        }
         & $raw 'workspace-tables.json' $tables
         & $raw 'kql-savedsearches.json' @(
             [pscustomobject]@{ name = 'h1'; properties = [pscustomobject]@{ category = 'Hunting Queries'; displayName = 'A hunt'; query = 'SigninLogs' } }
-            [pscustomobject]@{ name = 'f1'; properties = [pscustomobject]@{ category = 'Functions'; displayName = 'A parser'; functionAlias = 'MyParser'; query = 'Syslog' } }
-            [pscustomobject]@{ name = 'l1'; properties = [pscustomobject]@{ category = 'Log Management'; displayName = 'Failed sign-ins by user'; query = "SigninLogs`n| where ResultType != 0`n| summarize count() by UserPrincipalName" } }
+            [pscustomobject]@{
+                name       = 'f1'
+                properties = [pscustomobject]@{ category = 'Functions'; displayName = 'A parser'; functionAlias = 'MyParser'; query = 'Syslog' }
+            }
+            [pscustomobject]@{
+                name       = 'l1'
+                properties = [pscustomobject]@{
+                    category    = 'Log Management'
+                    displayName = 'Failed sign-ins by user'
+                    query       = "SigninLogs`n| where ResultType != 0`n| summarize count() by UserPrincipalName"
+                }
+            }
             [pscustomobject]@{ name = 'g1'; properties = [pscustomobject]@{ category = 'General Exploration'; displayName = 'All syslog'; query = 'Syslog' } }
         )
-        & $raw 'solutions-installed.json' @([pscustomobject]@{ name = 'SecurityInsights(law-cat)'; plan = [pscustomobject]@{ product = 'OMSGallery/SecurityInsights' }; properties = [pscustomobject]@{ sku = [pscustomobject]@{ name = 'Unified' } } })
+        & $raw 'solutions-installed.json' @(
+            [pscustomobject]@{
+                name       = 'SecurityInsights(law-cat)'
+                plan       = [pscustomobject]@{ product = 'OMSGallery/SecurityInsights' }
+                properties = [pscustomobject]@{ sku = [pscustomobject]@{ name = 'Unified' } }
+            }
+        )
 
-        & $script:renderer -WorkspaceName 'law-cat' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-cat' -Path $ws -OutputPath $ws -ResourcesPath $script:resources -Format Markdown -InformationAction `
+            SilentlyContinue *> $null
         $script:catPage = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
     }
 
@@ -1883,7 +1975,8 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
 
     It 'matches each connected connector against the catalogue, silent ones first' {
         $md = & $script:catPage '10-data-connectors'
-        $md | Should -Match '## Connected connectors against the catalogue[\s\S]*\| Azure DevOps Audit Logs \(via Codeless Connector Platform\) \| AzureDevOpsAuditing \| Silent \|'
+        $md |
+            Should -Match '## Connected connectors against the catalogue[\s\S]*\| Azure DevOps Audit Logs \(via Codeless Connector Platform\) \| AzureDevOpsAuditing \| Silent \|'
         $md | Should -Match '\| AI Analyst Darktrace via AMA \| AI Analyst Darktrace \| Receiving data, deprecated connector \| CommonSecurityLog \|'
         $md | Should -Match '\| MicrosoftThreatIntelligence \|\s+\| Not in the catalogue \|'
         $section = ($md -split '## Connected connectors against the catalogue')[1]
@@ -1897,27 +1990,32 @@ Describe 'iSOC Blueprint renderer - connector catalogue, saved searches and Sent
     }
 
     It 'lists deprecated connectors still connected among the legacy features' {
-        & $script:catPage '02-deprecated-legacy-features' | Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector: AI Analyst Darktrace via AMA \|'
+        & $script:catPage '02-deprecated-legacy-features' |
+            Should -Match '\| Deprecated data connectors still connected \| In use \| 1 connector: AI Analyst Darktrace via AMA \|'
     }
 
     It 'names the connector that would fill a catalogue-only schema and the solutions behind tables with no template' {
         & $script:catPage '81-table-plans-retention' | Should -Match '\| Dynamics365Activity \| Dynamics 365 \|'
-        & $script:catPage '28-detection-opportunities' | Should -Match '## Tables with no template available[\s\S]*\| CommonSecurityLog \| 300\.00 \| Shared by \d+ solutions \|'
+        & $script:catPage '28-detection-opportunities' |
+            Should -Match '## Tables with no template available[\s\S]*\| CommonSecurityLog \| 300\.00 \| Shared by \d+ solutions \|'
     }
 
     It 'lists the saved searches that are neither hunting queries nor parsers' {
         $md = & $script:catPage '35-parsers-functions'
-        $md | Should -Match '## Other saved searches[\s\S]*\| General Exploration \| All syslog \| 1 \|[\s\S]*\| Log Management \| Failed sign-ins by user \| 3 \|'
+        $md |
+            Should -Match '## Other saved searches[\s\S]*\| General Exploration \| All syslog \| 1 \|[\s\S]*\| Log Management \| Failed sign-ins by user \| 3 \|'
         ($md -split '## Other saved searches')[1] | Should -Not -Match 'A hunt|A parser'
     }
 
     It 'says how the workspace is billed, from the Sentinel solution''s SKU' {
-        & $script:catPage '84-cost-estimate' | Should -Match '## How the workspace is billed[\s\S]*\| Microsoft Sentinel pricing \| Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion \(solution SKU `Unified`\) \|'
+        & $script:catPage '84-cost-estimate' |
+            Should -Match '## How the workspace is billed[\s\S]*\| Microsoft Sentinel pricing \| Simplified: one Microsoft Sentinel meter covers analysis and Log Analytics ingestion \(solution SKU `Unified`\) \|'
         & $script:catPage '80-workspace' | Should -Match '## SKU and pricing[\s\S]*\| Microsoft Sentinel pricing \| Simplified: '
     }
 
     It 'says the pricing model is not recorded when the solution carries no SKU, as on the sample' {
-        Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Match '## How the workspace is billed[\s\S]*\| Microsoft Sentinel pricing \| _\(not recorded on the Microsoft Sentinel solution\)_ \|'
+        Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw |
+            Should -Match '## How the workspace is billed[\s\S]*\| Microsoft Sentinel pricing \| _\(not recorded on the Microsoft Sentinel solution\)_ \|'
         Get-Content (Join-Path $script:tempWsRoot '84-cost-estimate.md') -Raw | Should -Not -Match 'pricings endpoint'
     }
 }
@@ -1936,7 +2034,8 @@ Describe 'iSOC Blueprint renderer - findings and maturity as one assessment' {
     }
 
     It 'says on each finding card which criterion it decides and what closing it is worth' {
-        $script:gap90 | Should -Match '\*\*Maturity:\*\* decides \[SAC-LOG-03\]\(91-maturity-assessment\.md#criteria\) A daily cap is set \(Log management and cost\), now Gap; closing it lifts the overall score by \+0\.08\.'
+        $script:gap90 |
+            Should -Match '\*\*Maturity:\*\* decides \[SAC-LOG-03\]\(91-maturity-assessment\.md#criteria\) A daily cap is set \(Log management and cost\), now Gap; closing it lifts the overall score by \+0\.08\.'
         $script:gap90 | Should -Match '\*\*Maturity:\*\* not scored\. This is a hygiene or cost check'
     }
 
@@ -1958,14 +2057,24 @@ Describe '37-search-restore.md lists the search job and restored tables' {
         $tables = @(Get-Content (Join-Path $script:fixtureRaw 'workspace-tables.json') -Raw | ConvertFrom-Json)
         $tables += [pscustomobject]@{ name = 'SigninLogs_1A2B_SRCH'; properties = [pscustomobject]@{
                 createDate = '2026-09-01T10:00:00Z'; totalRetentionInDays = 30
-                schema = [pscustomobject]@{ tableType = 'SearchResults' }
+                schema        = [pscustomobject]@{ tableType = 'SearchResults' }
                 searchResults = [pscustomobject]@{ sourceTable = 'SigninLogs'; query = 'SigninLogs | where ResultType != 0'
-                    startSearchTime = '2025-01-01T00:00:00Z'; endSearchTime = '2025-03-31T00:00:00Z' } } }
+                    startSearchTime = '2025-01-01T00:00:00Z'; endSearchTime = '2025-03-31T00:00:00Z'
+                }
+            }
+        }
         $tables += [pscustomobject]@{ name = 'Syslog_RST'; properties = [pscustomobject]@{
-                schema = [pscustomobject]@{ tableType = 'RestoredLogs' }
-                restoredLogs = [pscustomobject]@{ sourceTable = 'Syslog'; startRestoreTime = '2025-02-01T00:00:00Z'; endRestoreTime = '2025-02-02T00:00:00Z' } } }
+                schema       = [pscustomobject]@{ tableType = 'RestoredLogs' }
+                restoredLogs = [pscustomobject]@{
+                    sourceTable      = 'Syslog'
+                    startRestoreTime = '2025-02-01T00:00:00Z'
+                    endRestoreTime   = '2025-02-02T00:00:00Z'
+                }
+            }
+        }
         ConvertTo-Json -InputObject $tables -Depth 10 | Set-Content (Join-Path $root '_raw/workspace-tables.json')
-        & $script:renderer -WorkspaceName 'law-sr' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-sr' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown -InformationAction `
+            SilentlyContinue *> $null
         $script:sr37 = Get-Content (Join-Path $root '37-search-restore.md') -Raw
         $script:fx37 = Get-Content (Join-Path $script:tempWsRoot '37-search-restore.md') -Raw
     }
@@ -1976,7 +2085,8 @@ Describe '37-search-restore.md lists the search job and restored tables' {
 
     It 'reads them from the table list when the snapshot has neither file' {
         $script:sr37 | Should -Match '\*\*1 search job\*\* and \*\*1 restore\*\*'
-        $script:sr37 | Should -Match '\| SigninLogs_1A2B_SRCH \| SigninLogs \| 1 Jan 2025 00:00 to 31 Mar 2025 00:00 UTC \| 1 Sep 2026 10:00 \| 30 days \| `SigninLogs \\\| where ResultType != 0` \|'
+        $script:sr37 |
+            Should -Match '\| SigninLogs_1A2B_SRCH \| SigninLogs \| 1 Jan 2025 00:00 to 31 Mar 2025 00:00 UTC \| 1 Sep 2026 10:00 \| 30 days \| `SigninLogs \\\| where ResultType != 0` \|'
         $script:sr37 | Should -Match '\| Syslog_RST \| Syslog \| 1 Feb 2025 00:00 to 2 Feb 2025 00:00 UTC \|'
     }
 
@@ -1989,35 +2099,33 @@ Describe '37-search-restore.md lists the search job and restored tables' {
 
 Describe 'Gap evidence lists keep a name that starts with a Markdown marker as text' {
     BeforeAll {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:renderer, [ref]$null, [ref]$null)
-        foreach ($name in '_EscapeMdListItem', '_FormatGapEvidence') {
-            $fn = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true)
-            . ([scriptblock]::Create($fn.Extent.Text))
+        foreach ($name in 'ConvertTo-BlueprintListItem', 'Format-BlueprintGapEvidence') {
+            . (Join-Path $script:repoRoot "Modules/iSOCBlueprint/Private/Render/Sections/GapAnalysis/$name.ps1")
         }
     }
 
     It 'words an older snapshot''s "?" for an unnamed principal, and leaves a real question mark alone' {
         $ev = '28 service principal(s) hold Owner or Contributor at workspace scope: ?; App one; App two; ?; App three; ?.'
-        $md = _FormatGapEvidence $ev
+        $md = Format-BlueprintGapEvidence $ev
         $md | Should -Not -Match '(?m)^  - \?\.?$'
         ([regex]::Matches($md, 'Unnamed \(no name in this snapshot\)')).Count | Should -Be 3
         $md | Should -Match '(?m)^  - App one$'
-        _FormatGapEvidence 'Is the cap set? No.' | Should -Be 'Is the cap set? No.'
+        Format-BlueprintGapEvidence 'Is the cap set? No.' | Should -Be 'Is the cap set? No.'
     }
 
     It 'escapes a leading bullet, heading, quote or number marker' {
-        _EscapeMdListItem '* Deteccion trafico SMB 1.0' | Should -Be '\* Deteccion trafico SMB 1.0'
-        _EscapeMdListItem '- dash' | Should -Be '\- dash'
-        _EscapeMdListItem '# hash' | Should -Be '\# hash'
-        _EscapeMdListItem '> quote' | Should -Be '\> quote'
-        _EscapeMdListItem '1. Test' | Should -Be '1\. Test'
-        _EscapeMdListItem 'SAP - Login' | Should -Be 'SAP - Login'
-        _EscapeMdListItem '*bold*' | Should -Be '*bold*'
+        ConvertTo-BlueprintListItem '* Deteccion trafico SMB 1.0' | Should -Be '\* Deteccion trafico SMB 1.0'
+        ConvertTo-BlueprintListItem '- dash' | Should -Be '\- dash'
+        ConvertTo-BlueprintListItem '# hash' | Should -Be '\# hash'
+        ConvertTo-BlueprintListItem '> quote' | Should -Be '\> quote'
+        ConvertTo-BlueprintListItem '1. Test' | Should -Be '1\. Test'
+        ConvertTo-BlueprintListItem 'SAP - Login' | Should -Be 'SAP - Login'
+        ConvertTo-BlueprintListItem '*bold*' | Should -Be '*bold*'
     }
 
     It 'writes such a name as one bullet, not an empty bullet and a nested one' {
         $ev = '146 rule(s) disabled: ' + ((1..20 | ForEach-Object { "Rule number $_" }) + '* Deteccion trafico SMB 1.0' -join '; ')
-        $md = _FormatGapEvidence $ev
+        $md = Format-BlueprintGapEvidence $ev
         $md | Should -Match '(?m)^  - \\\* Deteccion trafico SMB 1\.0$'
         $md | Should -Not -Match '(?m)^  - \* '
     }
@@ -2034,7 +2142,8 @@ Describe 'Sentinel health statuses read as a plain list' {
             $h = @(Get-Content (Join-Path $root '_raw/sentinel-health.json') -Raw | ConvertFrom-Json)
             foreach ($r in $h) { $r.Statuses = ($r.Statuses | ConvertTo-Json -Compress -AsArray) }
             $h | ConvertTo-Json -Depth 5 -AsArray | Set-Content (Join-Path $root '_raw/sentinel-health.json')
-            & $script:renderer -WorkspaceName 'law-hs' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-hs' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown `
+                -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $root '11-sentinel-health.md') -Raw
             $md | Should -Match '\| Success, Failure \|'
             $md | Should -Not -Match '\["Success'
@@ -2046,7 +2155,8 @@ Describe 'Sentinel health statuses read as a plain list' {
 
 Describe 'Every report page opens with what it covers' {
     It 'puts a description under the title and workspace line of each page that had none' {
-        foreach ($f in '00-overview.md', '10-data-connectors.md', '15-incidents.md', '20-analytics-rules.md', '84-cost-estimate.md', '91-maturity-assessment.md') {
+        foreach ($f in '00-overview.md', '10-data-connectors.md', '15-incidents.md', '20-analytics-rules.md', '84-cost-estimate.md',
+            '91-maturity-assessment.md') {
             $md = Get-Content (Join-Path $script:tempWsRoot $f) -Raw
             # Title, workspace line, then the description as the first paragraph.
             $md | Should -Match '(?s)^# [^\n]+\n\n> \*\*Workspace\*\*[^\n]*\n\n[A-Z][^\n]{60,}\n' -Because $f
@@ -2059,7 +2169,8 @@ Describe 'Every report page opens with what it covers' {
             New-Item -ItemType Directory -Path (Join-Path $root '_raw') -Force | Out-Null
             Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $root '_raw')
             '{}' | Set-Content (Join-Path $root '_raw/dedicated-cluster.json')
-            & $script:renderer -WorkspaceName 'law-cl' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-cl' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown `
+                -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $root '82-dedicated-cluster.md') -Raw
             $md | Should -Match 'No dedicated cluster linked to this workspace'
             $md | Should -Not -Match '\| Property \| Value \|'
@@ -2069,12 +2180,27 @@ Describe 'Every report page opens with what it covers' {
 
 Describe 'Detection opportunities name each template''s Content Hub solution' {
     BeforeAll {
-        . (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Engine/Private/Get-TemplateSolution.ps1')
-        $dep = { param($ids) [pscustomobject]@{ operator = 'AND'; criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule'; version = '1.0.0' } }) + @([pscustomobject]@{ contentId = 'wb-1'; kind = 'Workbook' }) } }
-        $script:installed = @([pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('AAAA-1', 'aaaa-2')) } })
+        . (Join-Path $PSScriptRoot '_helpers/Get-iSOCBlueprintAreaLoader.ps1')
+        . (Get-iSOCBlueprintAreaLoader -Area Lookup)
+        $dep = {
+            param($ids) [pscustomobject]@{
+                operator = 'AND'
+                criteria = @(
+                    foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule'; version = '1.0.0' } }
+                ) + @([pscustomobject]@{ contentId = 'wb-1'; kind = 'Workbook' })
+            }
+        }
+        $script:installed = @(
+            [pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('AAAA-1', 'aaaa-2')) } }
+        )
         $script:catalogue = @(
             [pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Microsoft Entra ID'; dependencies = (& $dep @('aaaa-1', 'aaaa-2')) } }
-            [pscustomobject]@{ properties = [pscustomobject]@{ displayName = 'Azure Activity'; dependencies = [pscustomobject]@{ criteria = @([pscustomobject]@{ operator = 'OR'; criteria = (& $dep @('bbbb-1')).criteria }) } } }
+            [pscustomobject]@{
+                properties = [pscustomobject]@{
+                    displayName  = 'Azure Activity'
+                    dependencies = [pscustomobject]@{ criteria = @([pscustomobject]@{ operator = 'OR'; criteria = (& $dep @('bbbb-1')).criteria }) }
+                }
+            }
         )
         $script:map = Get-TemplateSolutionMap -Installed $script:installed -Catalogue $script:catalogue
     }
@@ -2092,12 +2218,37 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
     It 'credits a template to a live solution over a deprecated one, and marks one only deprecated solutions ship, naming the replacement' {
         $d = { param($ids) [pscustomobject]@{ criteria = @(foreach ($i in $ids) { [pscustomobject]@{ contentId = $i; kind = 'AnalyticsRule' } }) } }
         $cat = @(
-            [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = (& $d @('tttt-1', 'tttt-2')) } }
-            [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = $false; dependencies = (& $d @('tttt-2')) } }
-            [pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'feed'; displayName = '[Deprecated] Legacy Feed'; isDeprecated = $true; dependencies = (& $d @('xxxx-1')) } }
+            [pscustomobject]@{
+                properties = [pscustomobject]@{
+                    contentId    = 'ti-old'
+                    displayName  = 'Threat Intelligence'
+                    isDeprecated = 'true'
+                    dependencies = (& $d @('tttt-1', 'tttt-2'))
+                }
+            }
+            [pscustomobject]@{
+                properties = [pscustomobject]@{
+                    contentId    = 'ti-new'
+                    displayName  = 'Threat Intelligence (NEW)'
+                    isDeprecated = $false
+                    dependencies = (& $d @('tttt-2'))
+                }
+            }
+            [pscustomobject]@{
+                properties = [pscustomobject]@{
+                    contentId    = 'feed'
+                    displayName  = '[Deprecated] Legacy Feed'
+                    isDeprecated = $true
+                    dependencies = (& $d @('xxxx-1'))
+                }
+            }
         )
         # The installed copy carries no flag; its catalogue entry's flag applies.
-        $ins = @([pscustomobject]@{ properties = [pscustomobject]@{ contentId = 'TI-OLD'; displayName = 'Threat Intelligence'; dependencies = (& $d @('tttt-1', 'tttt-2')) } })
+        $ins = @(
+            [pscustomobject]@{
+                properties = [pscustomobject]@{ contentId = 'TI-OLD'; displayName = 'Threat Intelligence'; dependencies = (& $d @('tttt-1', 'tttt-2')) }
+            }
+        )
         $m = Get-TemplateSolutionMap -Installed $ins -Catalogue $cat
         $t1 = Get-TemplateSolution -Map $m -TemplateId 'tttt-1'
         $t1.Solution | Should -Be 'Threat Intelligence'
@@ -2126,12 +2277,14 @@ Describe 'Detection opportunities name each template''s Content Hub solution' {
                 @{ properties = @{ contentId = 'ti-old'; displayName = 'Threat Intelligence'; isDeprecated = 'true'; dependencies = $d } }
                 @{ properties = @{ contentId = 'ti-new'; displayName = 'Threat Intelligence (NEW)'; isDeprecated = 'false' } }
             ) | ConvertTo-Json -Depth 10 -AsArray | Set-Content (Join-Path $root '_raw/content-product-packages.json')
-            & $script:renderer -WorkspaceName 'law-dep' -InputRoot $root -OutputRoot $root -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-dep' -Path $root -OutputPath $root -ResourcesPath $script:resources -Format Markdown `
+                -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $root '28-detection-opportunities.md') -Raw
             $ready = ($md -split '## Undeployed templates ready to enable')[1] -split '## Templates from deprecated solutions' | Select-Object -First 1
             $ready | Should -Not -Match 'Low-severity noise'
             $ready | Should -Match 'Data exfiltration'
-            $md | Should -Match '## Templates from deprecated solutions[\s\S]*\| Low-severity noise \| Threat Intelligence \| Threat Intelligence \(NEW\) \| SecurityEvent \|'
+            $md |
+                Should -Match '## Templates from deprecated solutions[\s\S]*\| Low-severity noise \| Threat Intelligence \| Threat Intelligence \(NEW\) \| SecurityEvent \|'
             $md | Should -Match '\*\*1 template\*\* reads a table with data but is left out'
         } finally { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue }
     }
@@ -2164,14 +2317,57 @@ Describe 'Content Hub, RBAC, watchlist and ingestion pages read at a glance' {
         Get-ChildItem -Path $script:fixtureRaw -File | Copy-Item -Destination (Join-Path $script:wlRoot '_raw')
         $old = (Get-Date).ToUniversalTime().AddDays(-200).ToString('o'); $new = (Get-Date).ToUniversalTime().AddDays(-5).ToString('o')
         @(
-            [pscustomobject]@{ name = 'w1'; properties = [pscustomobject]@{ displayName = 'VIP accounts'; watchlistAlias = 'vips'; source = 'vips.csv'; provider = 'Custom'; itemsSearchKey = 'UPN'; updated = $old; description = 'Executives' } }
-            [pscustomobject]@{ name = 'w2'; properties = [pscustomobject]@{ displayName = 'Branch IPs'; watchlistAlias = 'branch'; source = 'Manual'; provider = 'Custom'; itemsSearchKey = 'Ip'; updated = $new } }
-            [pscustomobject]@{ name = 'w3'; properties = [pscustomobject]@{ displayName = 'SAP - Systems'; watchlistAlias = 'SAPSystems'; source = 'ContentHub'; provider = 'Microsoft'; itemsSearchKey = 'SystemID'; updated = $old } }
+            [pscustomobject]@{
+                name       = 'w1'
+                properties = [pscustomobject]@{
+                    displayName    = 'VIP accounts'
+                    watchlistAlias = 'vips'
+                    source         = 'vips.csv'
+                    provider       = 'Custom'
+                    itemsSearchKey = 'UPN'
+                    updated        = $old
+                    description    = 'Executives'
+                }
+            }
+            [pscustomobject]@{
+                name       = 'w2'
+                properties = [pscustomobject]@{
+                    displayName    = 'Branch IPs'
+                    watchlistAlias = 'branch'
+                    source         = 'Manual'
+                    provider       = 'Custom'
+                    itemsSearchKey = 'Ip'
+                    updated        = $new
+                }
+            }
+            [pscustomobject]@{
+                name       = 'w3'
+                properties = [pscustomobject]@{
+                    displayName    = 'SAP - Systems'
+                    watchlistAlias = 'SAPSystems'
+                    source         = 'ContentHub'
+                    provider       = 'Microsoft'
+                    itemsSearchKey = 'SystemID'
+                    updated        = $old
+                }
+            }
         ) | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $script:wlRoot '_raw/watchlists.json')
         $rules = @(Get-Content (Join-Path $script:fixtureRaw 'alert-rules.json') -Raw | ConvertFrom-Json)
-        $rules += [pscustomobject]@{ name = 'vip-rule'; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = 'VIP sign-in'; enabled = $true; severity = 'High'; query = '_GetWatchlist("vips") | join SigninLogs on UPN'; tactics = @(); techniques = @() } }
+        $rules += [pscustomobject]@{
+            name       = 'vip-rule'
+            kind       = 'Scheduled'
+            properties = [pscustomobject]@{
+                displayName = 'VIP sign-in'
+                enabled     = $true
+                severity    = 'High'
+                query       = '_GetWatchlist("vips") | join SigninLogs on UPN'
+                tactics     = @()
+                techniques  = @()
+            }
+        }
         ConvertTo-Json -InputObject $rules -Depth 10 | Set-Content (Join-Path $script:wlRoot '_raw/alert-rules.json')
-        & $script:renderer -WorkspaceName 'law-wl' -InputRoot $script:wlRoot -OutputRoot $script:wlRoot -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-wl' -Path $script:wlRoot -OutputPath $script:wlRoot -ResourcesPath $script:resources -Format Markdown `
+            -InformationAction SilentlyContinue *> $null
         $script:wl = Get-Content (Join-Path $script:wlRoot '50-watchlists.md') -Raw
     }
 
@@ -2222,13 +2418,28 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
 
         # A table on the data lake plan, and the lake's share of a large bill.
         $tables = & $read 'workspace-tables.json'
-        $tables += [pscustomobject]@{ name = 'LakeOnly_CL'; properties = [pscustomobject]@{ plan = 'DataLake'; retentionInDays = 30; totalRetentionInDays = 30; schema = [pscustomobject]@{ tableType = 'CustomLog' } } }
+        $tables += [pscustomobject]@{
+            name       = 'LakeOnly_CL'
+            properties = [pscustomobject]@{
+                plan                 = 'DataLake'
+                retentionInDays      = 30
+                totalRetentionInDays = 30
+                schema               = [pscustomobject]@{ tableType = 'CustomLog' }
+            }
+        }
         & $raw 'workspace-tables.json' $tables
         $cost = Get-Content (Join-Path $ws '_raw/cost-estimate.json') -Raw | ConvertFrom-Json
         $cost.MonthlyTotal = 137355.53
         $cost.ByPlan.Analytics = [pscustomobject]@{ Gb30d = 156409.3663; MonthlyCost = 135854.17 }
         $cost.ByPlan.DataLake = [pscustomobject]@{ Gb30d = 10426.0977; MonthlyCost = 491.76 }
-        $cost | Add-Member -NotePropertyName CommitmentTier -NotePropertyValue ([pscustomobject]@{ Level = 2000; DailyPrice = 4528.47; EffectivePerGb = 2.2642; DailyAverageGb = 1737.9; Utilisation = 86.9 })
+        $cost |
+            Add-Member -NotePropertyName CommitmentTier -NotePropertyValue ([pscustomobject]@{
+                    Level          = 2000
+                    DailyPrice     = 4528.47
+                    EffectivePerGb = 2.2642
+                    DailyAverageGb = 1737.9
+                    Utilisation    = 86.9
+                })
         & $raw 'cost-estimate.json' $cost
 
         # Log Analytics hands counts back as text; the page writes them the same way as numbers.
@@ -2237,21 +2448,52 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
             [pscustomobject]@{ DeviceVendor = 'Fortinet'; DeviceProduct = 'Fortigate'; LogCount = 92143 }
         )
         & $raw 'top-event-ids.json' @(
-            [pscustomobject]@{ TableName = 'SecurityEvent'; EventID = 4624; EventDescription = 'An account was successfully logged on'; BilledSizeGB = '1963.364'; LogCount = '3980413051' }
+            [pscustomobject]@{
+                TableName        = 'SecurityEvent'
+                EventID          = 4624
+                EventDescription = 'An account was successfully logged on'
+                BilledSizeGB     = '1963.364'
+                LogCount         = '3980413051'
+            }
             [pscustomobject]@{ TableName = 'Event'; EventID = 1000; EventDescription = 'Application Error'; BilledSizeGB = 0.004; LogCount = 48810 }
         )
 
         # Alerts across the lookback; one name with none in it stays out.
         $volumes = & $read 'analytics-rule-volumes.json'
-        $volumes += [pscustomobject]@{ AlertName = 'Quiet rule'; ProductName = 'Azure Sentinel'; AlertSeverity = 'Low'; Alerts = 0; Alerts7d = 0; ProviderName = 'ASI Scheduled Alerts' }
-        $volumes += [pscustomobject]@{ AlertName = 'Busy rule'; ProductName = 'Azure Sentinel'; AlertSeverity = 'High'; Alerts = 3500; Alerts7d = 12; ProviderName = 'ASI Scheduled Alerts' }
-        $volumes += [pscustomobject]@{ AlertName = 'Older rule'; ProductName = 'Microsoft Defender for Endpoint'; AlertSeverity = 'Medium'; Alerts = 800; Alerts7d = 0; ProviderName = 'MDATP' }
+        $volumes += [pscustomobject]@{
+            AlertName     = 'Quiet rule'
+            ProductName   = 'Azure Sentinel'
+            AlertSeverity = 'Low'
+            Alerts        = 0
+            Alerts7d      = 0
+            ProviderName  = 'ASI Scheduled Alerts'
+        }
+        $volumes += [pscustomobject]@{
+            AlertName     = 'Busy rule'
+            ProductName   = 'Azure Sentinel'
+            AlertSeverity = 'High'
+            Alerts        = 3500
+            Alerts7d      = 12
+            ProviderName  = 'ASI Scheduled Alerts'
+        }
+        $volumes += [pscustomobject]@{
+            AlertName     = 'Older rule'
+            ProductName   = 'Microsoft Defender for Endpoint'
+            AlertSeverity = 'Medium'
+            Alerts        = 800
+            Alerts7d      = 0
+            ProviderName  = 'MDATP'
+        }
         & $raw 'analytics-rule-volumes.json' $volumes
 
         # Two rules modified on days whose text sorts the wrong way round as strings.
         $rules = & $read 'alert-rules.json'
         foreach ($d in @(@('Nine Sep rule', '2026-09-09T10:00:00Z'), @('Ten Sep rule', '2026-09-10T10:00:00Z'))) {
-            $rules += [pscustomobject]@{ name = "rule-$($d[0])"; kind = 'Scheduled'; properties = [pscustomobject]@{ displayName = $d[0]; severity = 'Low'; enabled = $false; tactics = @('Discovery'); lastModifiedUtc = $d[1] } }
+            $rules += [pscustomobject]@{
+                name       = "rule-$($d[0])"
+                kind       = 'Scheduled'
+                properties = [pscustomobject]@{ displayName = $d[0]; severity = 'Low'; enabled = $false; tactics = @('Discovery'); lastModifiedUtc = $d[1] }
+            }
         }
         & $raw 'alert-rules.json' $rules
 
@@ -2260,7 +2502,8 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
         $gaps[0].Evidence = 'Playbook failed, last 2026-10-14T23:16:38Z; retirement 2026-09-14.'
         & $raw 'gap-analysis.json' $gaps
 
-        & $script:renderer -WorkspaceName 'law-style' -InputRoot $ws -OutputRoot $ws -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+        ConvertTo-iSOCBlueprint -WorkspaceName 'law-style' -Path $ws -OutputPath $ws -ResourcesPath $script:resources -Format Markdown -InformationAction `
+            SilentlyContinue *> $null
         $script:page = { param($Name) Get-Content (Join-Path $ws "$Name.md") -Raw }
         $script:pages = @(Get-ChildItem $ws -Filter '*.md' | ForEach-Object { [pscustomobject]@{ Name = $_.BaseName; Text = Get-Content $_.FullName -Raw } })
     }
@@ -2285,14 +2528,16 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
             (& $script:page '01-live-snapshot') | Should -Match '\| Estimated monthly cost \| £137,356 \|'
             $cost = & $script:page '84-cost-estimate'
             $cost | Should -Match '> \*\*Headline\*\* \*\*£137,356\*\* for the workspace'
-            $cost | Should -Match 'on the \*\*2,000 GB a day commitment tier\*\*: £4,528 a day, an effective £2\.2642 per GB\. Analytics ingest averaged 1,737\.90 GB a day'
+            $cost |
+                Should -Match 'on the \*\*2,000 GB a day commitment tier\*\*: £4,528 a day, an effective £2\.2642 per GB\. Analytics ingest averaged 1,737\.90 GB a day'
             $cost | Should -Match '\| Analytics \| 156,409\.37 \| £135,854 \|'
             $cost | Should -Match '\| FirewallLogs_CL \| Analytics \| 2,000\.00 \| £4,600 \|'
             $cost | Should -Match '\| 100 GB a day \| £3,933 \| -£1,311 \|'
         }
 
         It 'lists the data caveats one to a line' {
-            (& $script:page '84-cost-estimate') | Should -Match '- Query-time billing for Basic/Auxiliary plans not included\.\r?\n- Search-job and restored-log storage not included\.'
+            (& $script:page '84-cost-estimate') |
+                Should -Match '- Query-time billing for Basic/Auxiliary plans not included\.\r?\n- Search-job and restored-log storage not included\.'
         }
     }
 
@@ -2302,7 +2547,8 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
             $md | Should -Match '## Alert volumes by provider \(last 30d\)'
             $md | Should -Match 'Every alert name that fired in the last 30 days'
             $md | Should -Match '\| Provider \| Product \| Alert \| Severity \| Alerts \| Alerts \(7d\) \|'
-            $md | Should -Match '\| ASI Scheduled Alerts \| Azure Sentinel \| Busy rule \| High \| 3,500 \| 12 \|[\s\S]*\| MDATP \| Microsoft Defender for Endpoint \| Older rule \| Medium \| 800 \| 0 \|[\s\S]*\| ASI Scheduled Alerts \| Azure Sentinel \| Suspicious sign-in from rare country \| High \| 412 \| 97 \|'
+            $md |
+                Should -Match '\| ASI Scheduled Alerts \| Azure Sentinel \| Busy rule \| High \| 3,500 \| 12 \|[\s\S]*\| MDATP \| Microsoft Defender for Endpoint \| Older rule \| Medium \| 800 \| 0 \|[\s\S]*\| ASI Scheduled Alerts \| Azure Sentinel \| Suspicious sign-in from rare country \| High \| 412 \| 97 \|'
         }
 
         It 'leaves out an alert name that did not fire in the lookback' {
@@ -2318,7 +2564,8 @@ Describe 'iSOC Blueprint renderer - figures, money, dates, plurals and names in 
             New-Item -ItemType Directory -Path (Join-Path $alt '_raw') -Force | Out-Null
             Get-ChildItem -Path (Join-Path $ws '_raw') -File | Copy-Item -Destination (Join-Path $alt '_raw')
             ConvertTo-Json -InputObject $volumes -Depth 8 | Set-Content (Join-Path $alt '_raw/analytics-rule-volumes.json')
-            & $script:renderer -WorkspaceName 'law-style' -InputRoot $alt -OutputRoot $alt -ResourcesRoot $script:resources -OutputFormat Markdown -InformationAction SilentlyContinue *> $null
+            ConvertTo-iSOCBlueprint -WorkspaceName 'law-style' -Path $alt -OutputPath $alt -ResourcesPath $script:resources -Format Markdown `
+                -InformationAction SilentlyContinue *> $null
             $md = Get-Content (Join-Path $alt '16-alerts.md') -Raw
             $md | Should -Match '\| Provider \| Product \| Alert \| Severity \| Alerts \|\r?\n'
             $md | Should -Not -Match 'fired in the last 7 days'

@@ -1,0 +1,17 @@
+displayName: "Fixture: mail rule the tenant already has"
+queryCondition:
+  queryText: |
+    EmailEvents
+    | where ThreatTypes has "Phish"
+    | project Timestamp, ReportId, NetworkMessageId, RecipientEmailAddress
+schedule:
+  frequency: PT1H
+detectionAction:
+  alertTemplate:
+    title: "Fixture: mail rule the tenant already has"
+    severity: low
+    tactics:
+      - tactic: InitialAccess
+    entityMappings:
+      mailboxes:
+        - primaryAddressColumn: RecipientEmailAddress

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -6,8 +6,8 @@
     (JSON) and the Markdown report.
 
 .DESCRIPTION
-    Offline: reads only the inventory folder. Runs
-    Engine/Convert-SentinelInventoryToMarkdown.ps1.
+    Offline: reads only the inventory folder. Needs the powershell-yaml
+    module.
 
 .NOTES
     File:         Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprint.ps1
@@ -15,9 +15,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.2.0
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+
 
     The renderer itself requires powershell-yaml; see
     Test-iSOCBlueprintPrerequisite -Step Render.
@@ -98,6 +98,10 @@ function ConvertTo-iSOCBlueprint {
         [string] $ResourcesPath
     )
 
+    begin {
+        Assert-iSOCBlueprintPrerequisite -Step Render
+    }
+
     process {
         $in = Resolve-iSOCBlueprintRunPath -Path (Resolve-iSOCBlueprintPath -Path $Path -Default (Join-Path 'SecurityDocs' $WorkspaceName))
         $out = Resolve-iSOCBlueprintPath -Path $OutputPath -Default $in
@@ -109,7 +113,7 @@ function ConvertTo-iSOCBlueprint {
         }
         if ($ResourcesPath) { $params.ResourcesRoot = Resolve-iSOCBlueprintPath -Path $ResourcesPath }
 
-        $null = Invoke-iSOCBlueprintEngine -Script 'Convert-SentinelInventoryToMarkdown.ps1' -Parameters $params -BoundParameters $PSBoundParameters
+        $null = Invoke-iSOCBlueprintRender @params
 
         [pscustomobject]@{
             PSTypeName    = 'iSOCBlueprint.Report'

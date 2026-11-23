@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 
 <#
@@ -35,9 +35,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-05-13
-    Version:      0.1.0
-    Last Updated: 2026-09-01
-    Requires:     PowerShell 7.2+, Pester 5+
+    Version:      0.1.1
+    Last Updated: 2026-11-09
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
@@ -47,26 +47,25 @@ BeforeDiscovery {
     $rulesRoot = Join-Path $repoRoot 'Content/SummaryRules'
     if (Test-Path $rulesRoot) {
         $script:summaryRuleCases = @(Get-ChildItem -Path $rulesRoot -Recurse -Filter '*.json' -File | ForEach-Object {
-            $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
-            $json = $null
-            $parseError = $null
-            try {
-                $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
-                if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
-                $json = ConvertFrom-Json -InputObject $raw -Depth 32 -AsHashtable -ErrorAction Stop
-            }
-            catch {
-                $parseError = $_.Exception.Message
-            }
+                $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
+                $json = $null
+                $parseError = $null
+                try {
+                    $raw = Get-Content -Path $_.FullName -Raw -ErrorAction Stop
+                    if ([string]::IsNullOrWhiteSpace($raw)) { throw 'File is empty' }
+                    $json = ConvertFrom-Json -InputObject $raw -Depth 32 -AsHashtable -ErrorAction Stop
+                } catch {
+                    $parseError = $_.Exception.Message
+                }
 
-            @{
-                Path         = $_.FullName
-                RelativePath = $rel
-                Json         = $json
-                ParseError   = $parseError
-                ParseFailed  = ($null -ne $parseError) -or ($null -eq $json)
-            }
-        })
+                @{
+                    Path         = $_.FullName
+                    RelativePath = $rel
+                    Json         = $json
+                    ParseError   = $parseError
+                    ParseFailed  = ($null -ne $parseError) -or ($null -eq $json)
+                }
+            })
     }
 }
 
@@ -74,24 +73,24 @@ BeforeAll {
     # Per Docs/Content/Summary-Rules.md "Allowed binSize Values".
     $script:ValidBinSizes = @(20, 30, 60, 120, 180, 360, 720, 1440)
 
-    $script:NameAllowedPattern    = '^[A-Za-z0-9-]+$'
-    $script:DestSuffixPattern     = '_CL$'
-    $script:BinDelayMaxMinutes    = 1440
+    $script:NameAllowedPattern = '^[A-Za-z0-9-]+$'
+    $script:DestSuffixPattern = '_CL$'
+    $script:BinDelayMaxMinutes = 1440
 
     # Per Docs/Content/Summary-Rules.md "KQL Query Restrictions". Each entry
     # is a regex; if any matches, the query violates a documented restriction.
     # Patterns are case-insensitive (the (?i) flag is added at match time).
     $script:KqlForbiddenPatterns = @(
-        @{ Name = 'time filter on TimeGenerated';        Pattern = '\bwhere\s+TimeGenerated\s*[<>]' }
-        @{ Name = 'time filter via ago()';               Pattern = '\bwhere\s+\w+\s*[<>]\s*ago\s*\(' }
+        @{ Name = 'time filter on TimeGenerated'; Pattern = '\bwhere\s+TimeGenerated\s*[<>]' }
+        @{ Name = 'time filter via ago()'; Pattern = '\bwhere\s+\w+\s*[<>]\s*ago\s*\(' }
         @{ Name = 'cross-workspace workspaces() lookup'; Pattern = '\bworkspaces\s*\(' }
-        @{ Name = 'cross-resource app() lookup';         Pattern = '\bapp\s*\(' }
-        @{ Name = 'cross-resource resource() lookup';    Pattern = '\bresource\s*\(' }
-        @{ Name = 'cross-resource adx() lookup';         Pattern = '\badx\s*\(' }
-        @{ Name = 'pivot operator';                      Pattern = '\|\s*pivot\b' }
-        @{ Name = 'bag_unpack plugin';                   Pattern = '\bbag_unpack\s*\(' }
-        @{ Name = 'narrow plugin';                       Pattern = '\|\s*narrow\b' }
-        @{ Name = 'union *';                             Pattern = '\bunion\s+\*' }
+        @{ Name = 'cross-resource app() lookup'; Pattern = '\bapp\s*\(' }
+        @{ Name = 'cross-resource resource() lookup'; Pattern = '\bresource\s*\(' }
+        @{ Name = 'cross-resource adx() lookup'; Pattern = '\badx\s*\(' }
+        @{ Name = 'pivot operator'; Pattern = '\|\s*pivot\b' }
+        @{ Name = 'bag_unpack plugin'; Pattern = '\bbag_unpack\s*\(' }
+        @{ Name = 'narrow plugin'; Pattern = '\|\s*narrow\b' }
+        @{ Name = 'union *'; Pattern = '\bunion\s+\*' }
     )
 }
 
@@ -99,7 +98,7 @@ Describe 'Summary rule schema: <RelativePath>' -ForEach $script:summaryRuleCases
 
     It 'parses as JSON with a mapping at the root' {
         $ParseError | Should -BeNullOrEmpty
-        $Json       | Should -Not -BeNullOrEmpty
+        $Json | Should -Not -BeNullOrEmpty
         ($Json -is [System.Collections.IDictionary]) | Should -BeTrue
     }
 
@@ -173,9 +172,8 @@ Describe 'Summary rules: cross-file invariants' {
                     if (-not $script:summaryNameMap.ContainsKey($name)) { $script:summaryNameMap[$name] = @() }
                     $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                     $script:summaryNameMap[$name] += $rel
-                }
-                catch {
-                    # Per-file test owns parse errors.
+                } catch {
+                    Write-Verbose -Message 'Per-file test owns parse errors.'
                 }
             }
         }
@@ -185,8 +183,8 @@ Describe 'Summary rules: cross-file invariants' {
         $duplicates = $script:summaryNameMap.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
         if ($duplicates) {
             $report = ($duplicates | ForEach-Object {
-                "  '$($_.Key)' used by:`n    - $($_.Value -join "`n    - ")"
-            }) -join "`n"
+                    "  '$($_.Key)' used by:`n    - $($_.Value -join "`n    - ")"
+                }) -join "`n"
             throw "Duplicate summary-rule name values found (Sentinel uses name as the resource name; collisions silently overwrite):`n$report"
         }
     }

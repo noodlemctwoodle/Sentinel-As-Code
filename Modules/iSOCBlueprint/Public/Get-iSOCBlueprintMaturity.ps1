@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Offline. Runs the gap analysis and then the maturity assessment
-    (Engine/Private/Get-SentinelMaturity.ps1 with maturity-criteria.json)
+    (Private/Maturity with maturity-criteria.json)
     and returns the assessment as one object.
 
 .NOTES
@@ -16,9 +16,9 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-10-13
-    Version:      0.1.1
-    Last Updated: 2026-10-14
-    Requires:     PowerShell 7.2+
+    Version:      0.1.3
+    Last Updated: 2026-11-16
+    Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter and
     per-example detail lives on the function's own help block.
@@ -77,15 +77,11 @@ function Get-iSOCBlueprintMaturity {
 
     process {
         $raw = Resolve-iSOCBlueprintRawPath -Path $Path
-        $engine = $script:iSOCBlueprintEngineRoot
-        $resources = Join-Path $engine 'Private/Resources'
-        . (Join-Path $engine 'Private/Get-SentinelGap.ps1')
-        . (Join-Path $engine 'Private/Get-SentinelMaturity.ps1')
+        $resources = Join-Path $script:iSOCBlueprintResourcesRoot 'Data'
 
         $outcomes = [System.Collections.Generic.List[object]]::new()
         $null = Get-SentinelGap -InputRoot $raw -ResourcesRoot $resources `
             -RulesPath (Join-Path $resources 'best-practices.json') `
-            -GapChecksPath (Join-Path $engine 'Private/GapChecks.ps1') `
             -OutcomeCollector $outcomes
 
         Get-SentinelMaturity -InputRoot $raw -ResourcesRoot $resources `

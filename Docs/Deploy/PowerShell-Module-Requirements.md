@@ -12,8 +12,8 @@ dependencies or permissions, update this doc in the same PR.
 
 ## Baseline runtime
 
-- **PowerShell 7.2 or later** - required by every script and declared in the
-  `Sentinel.Common` manifest (`PowerShellVersion = '7.2'`).
+- **PowerShell 7.6 or later** - required by every script and declared in the
+  `iSOCDeployments` and `iSOCBlueprint` manifests (`PowerShellVersion = '7.6'`).
 
 ## Modules required to validate the project
 
@@ -61,10 +61,10 @@ the authenticated context) is the only module it needs.
 The read-only Blueprint, the
 [`iSOCBlueprint`](../../Modules/iSOCBlueprint/README.md) module, records its
 module set in
-[`Blueprint.psd1`](../../Modules/iSOCBlueprint/Engine/Blueprint.psd1). The
+[`Blueprint.psd1`](../../Modules/iSOCBlueprint/Resources/Blueprint.psd1). The
 collector (`Export-iSOCBlueprintInventory`) imports the Az modules; the
 renderer (`ConvertTo-iSOCBlueprint`) only needs `powershell-yaml`; publishing
-and setting up the SharePoint site need PowerShell 7.4 and PnP.PowerShell
+and setting up the SharePoint site need PnP.PowerShell
 3.4.1. The module declares no required modules: each command needs only what
 its step uses, and `Test-iSOCBlueprintPrerequisite` lists what a machine has
 and is missing.
@@ -95,6 +95,7 @@ need `PSScriptAnalyzer` 1.25.0, which both PR pipelines install.
 | LibreOffice + `python3-uno` (optional) | [`Export-iSOCBlueprintWord`](../../Modules/iSOCBlueprint/Public/Export-iSOCBlueprintWord.ps1): page numbers in the contents |
 | Node.js + `@mermaid-js/mermaid-cli` | [`ConvertTo-iSOCBlueprintChartImage`](../../Modules/iSOCBlueprint/Public/ConvertTo-iSOCBlueprintChartImage.ps1) |
 | Azure CLI + Bicep (`az bicep build`) | PR-validation `bicep-build` job |
+| Bicep CLI (standalone `bicep` 0.30+ on PATH) | iSOCDeployments, for Bicep playbooks: reading and deploying them (`Deploy-iSOCContent`, Az.Resources), `Convert-iSOCPlaybook`, and its Pester suites. `az bicep install` puts it in `~/.azure/bin` |
 | Azure CLI (`az`) | [`Set-RunbookPermissions.ps1`](../../Deploy/permissions/Set-RunbookPermissions.ps1) (`az automation account show`, `az role assignment create` / `delete` / `list`) |
 
 ## Quick install
