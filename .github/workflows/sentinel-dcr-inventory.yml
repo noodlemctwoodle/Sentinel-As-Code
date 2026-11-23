@@ -17,6 +17,11 @@
 #   After the first deployment, run manually:
 #     az role assignment create --assignee <principalId> --role "Monitoring Reader" --scope /subscriptions/<subId>
 #     az role assignment create --assignee <principalId> --role "Microsoft Sentinel Contributor" --scope /subscriptions/<subId>
+#   or, with the iSOCDeployments module (Monitoring Reader on the
+#   subscription, Microsoft Sentinel Contributor on the Sentinel resource
+#   group, nothing broader):
+#     Connect-iSOCWorkspace -ResourceGroup <sentinelRg> -WorkspaceName <workspace>
+#     Grant-iSOCRunbookPermission -AutomationAccountName <name> -AutomationResourceGroup <rg>
 #
 # Required secrets:
 #   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
@@ -33,7 +38,6 @@ on:
     paths:
       - 'Infra/dcr-watchlist/**'
       - 'Tools/Invoke-DCRWatchlistSync.ps1'
-      - 'Deploy/permissions/Set-RunbookPermissions.ps1'
       - '.github/workflows/sentinel-dcr-inventory.yml'
 
   workflow_dispatch:
