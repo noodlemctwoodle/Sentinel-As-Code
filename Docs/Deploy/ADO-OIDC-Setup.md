@@ -217,7 +217,7 @@ Then rename to drop the auto-generated prefix:
 | Setting | Value |
 | --- | --- |
 | Build pipeline | `Sentinel-PR-Validation` |
-| Path filter | `Content/AnalyticalRules/*;Content/HuntingQueries/*;Content/Playbooks/*;Content/Parsers/*;Content/Watchlists/*;Content/AutomationRules/*;Content/SummaryRules/*;Content/WorkspaceSettings/*;Content/DefenderCustomDetections/*;Infra/*;sentinel-deployment.config;Content/Workbooks/*;Content/CodelessConnectors/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*` |
+| Path filter | `Content/AnalyticalRules/*;Content/HuntingQueries/*;Content/Playbooks/*;Content/Parsers/*;Content/Watchlists/*;Content/AutomationRules/*;Content/SummaryRules/*;Content/WorkspaceSettings/*;Content/DefenderCustomDetections/*;Infra/*;sentinel-deployment.config;Content/Workbooks/*;Content/CodelessConnectors/*;Modules/*;Deploy/*;Tools/*;Tests/*;dependencies.json;Pipelines/*;.github/workflows/*` (or leave empty to gate every PR) |
 | Trigger | Automatic |
 | Policy requirement | Required |
 | Build expiration | Immediately when source branch is updated |
