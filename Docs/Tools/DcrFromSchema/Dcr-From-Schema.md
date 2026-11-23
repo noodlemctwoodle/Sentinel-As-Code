@@ -1,37 +1,26 @@
 # DCR from Schema
 
-A single wizard-driven PowerShell script under
-[`Tools/DcrFromSchema/`](../../../Tools/DcrFromSchema/) that turns a JSON table schema into a Log
-Analytics custom table and a Direct Data Collection Rule for the Logs Ingestion API, then leaves
-the ARM templates behind so the result is reviewable and committable.
+> **The wizard script this page describes was removed in release 26.11.0.**
+> `New-iSOCDcrFromSchema` in the iSOCDeployments module is the entrypoint
+> now. It takes the workspace from `Connect-iSOCWorkspace` and never prompts;
+> see [Custom tables from a schema](../../Modules/iSOCDeployments/Dcr-From-Schema.md)
+> for how to run it and how each old parameter maps. The rest of this page is
+> kept as the reference for the schema format, the documented limits and where
+> each comes from, the design rationale, the guards and the failure modes,
+> which the module keeps. The script paths, wizard prompts and commands in it
+> are historical: they will not run on this tree, so do not copy them into a
+> current run.
 
-| What | Where |
-| --- | --- |
-| The script | [`Tools/DcrFromSchema/New-DcrFromSchema.ps1`](../../../Tools/DcrFromSchema/New-DcrFromSchema.ps1) |
-| Example schemas | [`Tools/DcrFromSchema/Examples/`](../../../Tools/DcrFromSchema/Examples/) |
-| On-the-box quick reference | [`Tools/DcrFromSchema/README.md`](../../../Tools/DcrFromSchema/README.md) |
-| Tests | [`Tests/Test-NewDcrFromSchema.Tests.ps1`](../../../Tests/Test-NewDcrFromSchema.Tests.ps1) |
+The tool turns a JSON table schema into a Log Analytics custom table and a Direct Data Collection
+Rule for the Logs Ingestion API, then leaves the ARM templates behind so the result is reviewable
+and committable.
 
-The iSOCDeployments module has `New-iSOCDcrFromSchema`, which replaces
-this script at the 26.11.0 cut-over; see
-[Custom tables from a schema](../../Modules/iSOCDeployments/Dcr-From-Schema.md).
-It takes the workspace from `Connect-iSOCWorkspace` and never prompts.
-Until then use the script described here.
-
-## Where the documentation lives
-
-This page is the authoritative reference. The kit also carries its own
-[`README.md`](../../../Tools/DcrFromSchema/README.md), and that stays. The script is designed to be
-copied out of this repository and run on a jump box, in an automation account, or on a customer
-machine, and the `Docs/` tree does not travel with it. The README is therefore the quick reference
-guaranteed to be on the box next to the script you are about to run.
-
-| Source | Scope |
-| --- | --- |
-| [`Tools/DcrFromSchema/README.md`](../../../Tools/DcrFromSchema/README.md) | On-the-box quick reference. Enough to run the script safely without access to this repository. |
-| This page | The fuller reference: the documented limits and their sources, design rationale, every guard and why it exists, failure modes, troubleshooting. |
-
-When the two disagree, the code wins, then this page, then the README.
+| What | Where it was | Now |
+| --- | --- | --- |
+| The script | `Tools/DcrFromSchema/New-DcrFromSchema.ps1` (removed) | `New-iSOCDcrFromSchema` |
+| Example schemas | `Tools/DcrFromSchema/Examples/` (removed) | The schema shapes under [The schema file](#the-schema-file) |
+| On-the-box quick reference | `Tools/DcrFromSchema/README.md` (removed) | The module page above |
+| Tests | `Tests/Test-NewDcrFromSchema.Tests.ps1` (removed) | [`Tests/iSOCDeployments/DcrFromSchema.Tests.ps1`](../../../Tests/iSOCDeployments/DcrFromSchema.Tests.ps1) |
 
 ## Contents
 

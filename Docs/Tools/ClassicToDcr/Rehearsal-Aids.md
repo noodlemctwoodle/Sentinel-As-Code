@@ -1,39 +1,32 @@
 # Rehearsal Aids
 
-Three scripts under [`Tools/ClassicToDcr/Rehearsal/`](../../../Tools/ClassicToDcr/Rehearsal/) that
-manufacture test data, so you can practise a classic-to-DCR migration and prove the assess step
-detects what it claims to, before touching anything you care about.
+> **The three scripts this page describes were removed in release 26.11.0.**
+> The iSOCDeployments module replaces them: `New-iSOCClassicTableFixture`
+> and `Remove-iSOCClassicTableFixture`, `Test-iSOCDcrIngestion`, and
+> `New-iSOCDependencyFixture` and `Remove-iSOCDependencyFixture`. See
+> [Classic table migration](../../Modules/iSOCDeployments/Table-Migration.md#rehearsing-a-migration)
+> for how to run them. The rest of this page is kept as the reference for what
+> each rehearsal does and why it is built the way it is. The script paths and
+> commands in it are historical: they will not run on this tree, so do not copy
+> them into a current rehearsal.
+
+Three rehearsal aids manufacture test data, so you can practise a classic-to-DCR migration and prove
+the assess step detects what it claims to, before touching anything you care about.
 
 Migration is one-way. That is the whole reason these exist.
 
-The iSOCDeployments module has `New-iSOCClassicTableFixture`,
-`Remove-iSOCClassicTableFixture`, `Test-iSOCDcrIngestion`,
-`New-iSOCDependencyFixture` and `Remove-iSOCDependencyFixture`, which
-replace the three scripts at the 26.11.0 cut-over; see
-[Classic table migration](../../Modules/iSOCDeployments/Table-Migration.md#rehearsing-a-migration).
-Until then use the scripts described here.
+| Script (removed) | Module command | Purpose | API it uses | Auth |
+| --- | --- | --- | --- | --- |
+| `Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1` | `New-iSOCClassicTableFixture` | Create a throwaway classic `_CL` table with synthetic data, or stream into it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
+| `Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1` | `Test-iSOCDcrIngestion` | Stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (current) | Service principal bearer token |
+| `Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1` | `New-iSOCDependencyFixture` | Build known direct and indirect dependency chains (table, parser, rule) so the assess step's detection can be proved | Data Collector API, `savedSearches`, Sentinel `alertRules` | Workspace SharedKey plus your Az identity |
 
-| Script | Purpose | API it uses | Auth |
-| --- | --- | --- | --- |
-| [`New-ClassicTableFixture.ps1`](../../../Tools/ClassicToDcr/Rehearsal/New-ClassicTableFixture.ps1) | Create a throwaway classic `_CL` table with synthetic data, or stream into it continuously | HTTP Data Collector API (legacy) | Workspace SharedKey |
-| [`Test-DcrIngestion.ps1`](../../../Tools/ClassicToDcr/Rehearsal/Test-DcrIngestion.ps1) | Stream synthetic data into a migrated DCR and confirm it arrives | Logs Ingestion API (current) | Service principal bearer token |
-| [`New-DependencyFixture.ps1`](../../../Tools/ClassicToDcr/Rehearsal/New-DependencyFixture.ps1) | Build known direct and indirect dependency chains (table, parser, rule) so the assess step's detection can be proved | Data Collector API, `savedSearches`, Sentinel `alertRules` | Workspace SharedKey plus your Az identity |
-
-**Scratch workspace only**, with one documented exception. Every script here creates real,
-billable Azure resources. `New-ClassicTableFixture.ps1` and `Test-DcrIngestion.ps1` should be
+**Scratch workspace only**, with one documented exception. Every rehearsal here creates real,
+billable Azure resources. `New-ClassicTableFixture` and `Test-DcrIngestion` should be
 pointed at a throwaway or dedicated test workspace, never production.
-`New-DependencyFixture.ps1` is built to survive a live security workspace, because that is where
+`New-DependencyFixture` is built to survive a live security workspace, because that is where
 dependency chains are worth proving, but it still writes real objects. Read
 [Safety design](#safety-design-and-why-this-one-can-face-a-live-workspace) before running it.
-
-Commands below are written to be run from `Tools/ClassicToDcr`, one level up, so they read
-`./Rehearsal/<script>.ps1`. That matches the commands the HTML report generates, so anything can
-be pasted into the same shell without changing directory.
-
-This page is the fuller reference. The on-the-box quick reference is
-[`Tools/ClassicToDcr/Rehearsal/README.md`](../../../Tools/ClassicToDcr/Rehearsal/README.md), which
-stays because the kit is designed to be copied standalone to a jump box where this `Docs/` tree
-will not be present.
 
 ## Three Azure behaviours that catch people out
 
@@ -314,7 +307,7 @@ principal, which needs Monitoring Metrics Publisher on the DCR.
 ### Configuring the service principal
 
 The tester reads its credentials from the environment. Copy
-[`Rehearsal/.env.example`](../../../Tools/ClassicToDcr/Rehearsal/.env.example) to
+`Rehearsal/.env.example` (removed with the scripts) to
 `Rehearsal/.env` (the real `.env` is git-ignored) and fill in:
 
 ```text
