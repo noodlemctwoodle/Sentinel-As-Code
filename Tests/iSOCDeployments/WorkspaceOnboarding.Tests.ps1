@@ -3,20 +3,19 @@
 
 <#
 .SYNOPSIS
-    Pester tests for Get-iSOCWorkspaceOnboarding, against the inline
-    PowerShell of the deploy pipelines' first stage.
+    Pester tests for Get-iSOCWorkspaceOnboarding, the first stage of the
+    deploy pipelines.
 
 .DESCRIPTION
-    The decision table on its own, then parity with GitHub: the Check for
-    Existing Resources step of .github/workflows/sentinel-deploy.yml is
-    lifted out of the YAML unchanged and run in a child pwsh, with stand-in
-    Az cmdlets, beside the command, over one stand-in subscription
-    (_helpers/WorkspaceStandIn.psm1). For each state of the workspace the
-    command must read what the GitHub step reads and decide as it decides,
-    or report the same unrecoverable state. Parity with the old Check for
-    Existing Log Analytics Workspace step of Pipelines/Sentinel-Deploy.yml
-    (MIGRATION.md edit E42) was proven on release/26.11.0 before that step
-    was replaced by the command.
+    The decision table on its own, then the command over one stand-in
+    subscription (_helpers/WorkspaceStandIn.psm1): what it returns, the
+    playbook resource group it leaves out, the read it stops on when refused,
+    the api-versions it reads at, the sign-in it moves to -SubscriptionId and
+    the prerequisites it needs. Parity with the inline steps it replaced (the
+    Check for Existing Resources step of .github/workflows/sentinel-deploy.yml
+    and the Check for Existing Log Analytics Workspace step of
+    Pipelines/Sentinel-Deploy.yml, MIGRATION.md edit E42) was proven before
+    each step was replaced by the command, and both pipelines now call it.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/WorkspaceOnboarding.Tests.ps1
@@ -29,117 +28,17 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-04
-    Version:      0.2.1
-    Last Updated: 2026-11-09
-    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml
+    Version:      0.3.0
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
-
-BeforeDiscovery {
-    $script:cases = @(
-        @{ Case = 'a fully onboarded workspace'; State = @{}; Playbook = ''; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
-        @{ Case = 'no resource group'; State = @{ ResourceGroups = @('rg-playbooks'); Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NoResourceGroup'; Infra = $true; Sentinel = $true }
-        @{ Case = 'no workspace'; State = @{ Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NoWorkspace'; Infra = $true; Sentinel = $true }
-        @{ Case = 'a workspace without Sentinel'; State = @{ Solutions = @(); Onboarded = @() }; Playbook = ''; Status = 'NotOnboarded'; Infra = $true; Sentinel = $true }
-        @{ Case = 'the onboarding state missing'; State = @{ Onboarded = @() }; Playbook = ''; Status = 'StateMissing'; Infra = $true; Sentinel = $true }
-        @{ Case = 'the solution missing'; State = @{ Solutions = @() }; Playbook = ''; Status = 'SolutionMissing'; Infra = $false; Sentinel = $false }
-        @{ Case = 'a playbook group that exists'; State = @{}; Playbook = 'rg-playbooks'; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
-        @{ Case = 'a playbook group that is missing'; State = @{ ResourceGroups = @('rg-sentinel') }; Playbook = 'rg-playbooks'; Status = 'Onboarded'; Infra = $true; Sentinel = $false }
-        @{ Case = 'the Sentinel group named as the playbook group'; State = @{}; Playbook = 'rg-sentinel'; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
-        @{ Case = 'a playbook group with spaces round it'; State = @{}; Playbook = '  rg-playbooks  '; Status = 'Onboarded'; Infra = $false; Sentinel = $false }
-        @{ Case = 'nothing at all and a playbook group'; State = @{ ResourceGroups = @(); Workspaces = @(); Solutions = @(); Onboarded = @() }; Playbook = 'rg-playbooks'; Status = 'NoResourceGroup'; Infra = $true; Sentinel = $true }
-    )
-}
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
     $script:standInModule = Join-Path $PSScriptRoot '_helpers/WorkspaceStandIn.psm1'
     Import-Module $script:standInModule -Force
-    $script:gitHubFile = Join-Path $script:repoRoot '.github/workflows/sentinel-deploy.yml'
     $script:subscription = (Get-WorkspaceStandIn).SubscriptionId
-
-    function Get-CaseState {
-        <#
-        .SYNOPSIS
-            Returns a stand-in workspace state built from the case parameters.
-        .PARAMETER State
-            The parameters of Get-WorkspaceStandIn, splatted.
-        #>
-        param([hashtable] $State)
-        Get-WorkspaceStandIn @State
-    }
-
-    function Invoke-PipelineStep {
-        <#
-        .SYNOPSIS
-            Run one pipeline step unchanged in a child pwsh over $State; return its outputs, error lines, exit code and the state after.
-        .PARAMETER File
-            The path of the pipeline file.
-        .PARAMETER Step
-            The display name, or name, of the step.
-        .PARAMETER State
-            The stand-in state the step runs over.
-        .PARAMETER Playbook
-            The playbook resource group the step is given.
-        #>
-        param([string] $File, [string] $Step, $State, [string] $Playbook)
-
-        $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
-        New-Item -ItemType Directory -Path $dir | Out-Null
-        $statePath = Join-Path $dir 'state.json'
-        $outputPath = Join-Path $dir 'github-output.txt'
-        Export-WorkspaceStandIn -State $State -Path $statePath
-        $variables = @{ RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; PLAYBOOK_RESOURCE_GROUP = $Playbook; AZURE_SUBSCRIPTION_ID = $State.SubscriptionId }
-        $inline = Get-PipelineInlineScript -Path $File -Step $Step -Variables $variables
-        $wrapper = @'
-$ErrorActionPreference = 'Stop'
-Import-Module '__MODULE__'
-$script:StandIn = Import-WorkspaceStandIn -Path '__STATE__'
-$env:GITHUB_OUTPUT = '__OUTPUT__'
-function Get-StandInBody { param($Answer) $Answer.Body | ConvertTo-Json -Depth 20 | ConvertFrom-Json }
-function Get-AzContext { [pscustomobject]@{ Subscription = [pscustomobject]@{ Id = $script:StandIn.SubscriptionId } } }
-function Get-AzResourceGroup {
-    [CmdletBinding()] param([string] $Name)
-    $answer = Invoke-WorkspaceStandInArm -State $script:StandIn -Method GET -Path "/subscriptions/$($script:StandIn.SubscriptionId)/resourceGroups/$Name"
-    if ($answer.Status -eq 200) { return Get-StandInBody $answer }
-    Write-Error "Provided resource group does not exist. ($($answer.Status))"
-}
-function Get-AzOperationalInsightsWorkspace {
-    [CmdletBinding()] param([string] $ResourceGroupName, [string] $Name)
-    $answer = Invoke-WorkspaceStandInArm -State $script:StandIn -Method GET -Path "/subscriptions/$($script:StandIn.SubscriptionId)/resourceGroups/$ResourceGroupName/providers/Microsoft.OperationalInsights/workspaces/$Name"
-    if ($answer.Status -eq 200) { return Get-StandInBody $answer }
-    Write-Error "The workspace was not found. ($($answer.Status))"
-}
-function Get-AzResource {
-    [CmdletBinding()] param([string] $ResourceId, [string] $ApiVersion)
-    $answer = Invoke-WorkspaceStandInArm -State $script:StandIn -Method GET -Path $ResourceId
-    if ($answer.Status -eq 200) { return Get-StandInBody $answer }
-    Write-Error "The resource was not found. ($($answer.Status))"
-}
-try {
-__SCRIPT__
-}
-finally {
-    Export-WorkspaceStandIn -State $script:StandIn -Path '__STATE__'
-}
-'@
-        $runPath = Join-Path $dir 'run.ps1'
-        $wrapper.Replace('__MODULE__', $script:standInModule).Replace('__STATE__', $statePath).Replace('__OUTPUT__', $outputPath).Replace('__SCRIPT__', $inline) |
-            Set-Content -LiteralPath $runPath -Encoding utf8NoBOM
-        $lines = @(& pwsh -NoProfile -NonInteractive -File $runPath 2>&1 | ForEach-Object { "$_" })
-        $code = $LASTEXITCODE
-        $outputs = @{}
-        if (Test-Path -LiteralPath $outputPath) {
-            foreach ($line in Get-Content -LiteralPath $outputPath) { if ($line -match '^(\w+)=(.*)$') { $outputs[$Matches[1]] = $Matches[2] } }
-        }
-        [pscustomobject]@{
-            Outputs  = $outputs
-            Errors   = @($lines | Where-Object { $_ -like '::error::*' } | ForEach-Object { $_.Substring(9) })
-            ExitCode = $code
-            Lines    = $lines
-            State    = Import-WorkspaceStandIn -Path $statePath
-        }
-    }
 
     function Invoke-ModuleOnboarding {
         <#
@@ -208,52 +107,6 @@ Describe 'Get-iSOCOnboardingDecision' {
     }
 }
 
-Describe 'Get-iSOCWorkspaceOnboarding beside the GitHub step: <Case>' -ForEach $script:cases {
-    BeforeAll {
-        $script:gitHub = Invoke-PipelineStep -File $script:gitHubFile -Step 'Check for Existing Resources' -State (Get-CaseState $State) -Playbook $Playbook
-        $script:module = Invoke-ModuleOnboarding -State (Get-CaseState $State) -Playbook $Playbook
-    }
-
-    It 'runs the command to a result' {
-        $script:module.Error | Should -BeNullOrEmpty
-        $script:module.Result.PSObject.TypeNames | Should -Contain 'iSOCDeployments.WorkspaceOnboarding'
-    }
-
-    It 'reports <Status>' {
-        $script:module.Result.Status | Should -Be $Status
-        $script:module.Result.InfrastructureNeeded | Should -Be $Infra
-        $script:module.Result.DeploySentinel | Should -Be $Sentinel
-    }
-
-    It 'reads what the GitHub step reads, in its order' {
-        @($script:gitHub.State.Reads).Count | Should -BeGreaterThan 0
-        @($script:module.State.Reads) | Should -Be @($script:gitHub.State.Reads)
-    }
-
-    It 'decides as the GitHub step decides' {
-        if ($Status -eq 'SolutionMissing') {
-            $script:gitHub.ExitCode | Should -Not -Be 0
-            $script:module.Result.ExitCode | Should -Be 1
-            return
-        }
-        $script:gitHub.ExitCode | Should -Be 0
-        $script:module.Result.ExitCode | Should -Be 0
-        $script:gitHub.Outputs['bicep_needed'] | Should -Be $script:module.Result.InfrastructureNeeded.ToString().ToLower()
-        $script:gitHub.Outputs['deploy_sentinel'] | Should -Be $script:module.Result.DeploySentinel.ToString().ToLower()
-    }
-
-    It 'logs the GitHub step''s errors, naming the deployment rather than the workflow' {
-        $moduleErrors = @($script:module.Logs | Where-Object Level -EQ 'Error' | ForEach-Object { $_.Message })
-        $expected = @($script:gitHub.Errors | ForEach-Object { $_.Replace('re-run this workflow', 're-run the deployment') })
-        if ($Status -eq 'SolutionMissing') { $expected.Count | Should -BeGreaterThan 0 }
-        ($moduleErrors -join "`n") | Should -BeExactly ($expected -join "`n")
-    }
-
-    It 'logs nothing that names the subscription' {
-        @($script:module.Logs | Where-Object { $_.Message -like "*$script:subscription*" }) | Should -BeNullOrEmpty
-    }
-}
-
 Describe 'Get-iSOCWorkspaceOnboarding' {
     It 'returns what it found' {
         $run = Invoke-ModuleOnboarding -State (Get-WorkspaceStandIn -ResourceGroups @('rg-sentinel')) -Playbook ' rg-playbooks '
@@ -273,14 +126,11 @@ Describe 'Get-iSOCWorkspaceOnboarding' {
         $run.Result.PlaybookResourceGroupExists | Should -BeNullOrEmpty
     }
 
-    It 'stops on a read it is refused, where the GitHub step read the solution as missing' {
+    It 'stops on a read it is refused, rather than reading the solution as missing' {
         $solution = '/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-sentinel/providers/Microsoft.OperationsManagement/solutions/SecurityInsights(law-sentinel)'
         $run = Invoke-ModuleOnboarding -State (Get-WorkspaceStandIn -Forbidden @($solution)) -Playbook ''
         $run.Error | Should -Not -BeNullOrEmpty
         $run.Error.Exception.Message | Should -BeLike 'HTTP 403*'
-        $gitHub = Invoke-PipelineStep -File $script:gitHubFile -Step 'Check for Existing Resources' -State (Get-WorkspaceStandIn -Forbidden @($solution)) -Playbook ''
-        $gitHub.ExitCode | Should -Not -Be 0
-        $gitHub.Errors[0] | Should -BeLike 'Unrecoverable partial Sentinel onboarding state*'
     }
 
     It 'reads at the module''s api-versions' {

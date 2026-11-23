@@ -3,8 +3,7 @@
 
 <#
 .SYNOPSIS
-    Pester tests for the workspace setting content type, against the
-    Configure Sentinel Settings step of the GitHub deploy workflow.
+    Pester tests for the workspace setting content type.
 
 .DESCRIPTION
     The handlers on their own: every file under Content/WorkspaceSettings/
@@ -12,17 +11,15 @@
     file's kind and properties, and the Deploy handler sends the
     workspace's etag and skips a setting it is not allowed to change.
 
-    Then parity with GitHub: the Configure Sentinel Settings step of
-    .github/workflows/sentinel-deploy.yml is lifted out of the YAML
-    unchanged and run in a child pwsh, with stand-in Az cmdlets, beside
-    Deploy-iSOCContent -ContentType WorkspaceSetting over the repository's
-    files, against one stand-in workspace (_helpers/WorkspaceStandIn.psm1).
-    Both must write the same settings with the same bodies and etags, and
-    succeed and fail on the same ones, as MIGRATION.md edit E43 describes.
-    Until the workflow moves to the module, this holds the repository's
-    files to the values it sends. Parity with the old Configure Sentinel
-    Settings step of Pipelines/Sentinel-Deploy.yml was proven on
-    release/26.11.0 before that step was replaced by the module.
+    Then Deploy-iSOCContent -ContentType WorkspaceSetting over the
+    repository's files, against one stand-in workspace
+    (_helpers/WorkspaceStandIn.psm1), for a new workspace, one with every
+    setting, an identity without the directory role and a setting the
+    service rejects. Parity with the inline Configure Sentinel Settings steps
+    it replaced (.github/workflows/sentinel-deploy.yml and
+    Pipelines/Sentinel-Deploy.yml, MIGRATION.md edit E43) was proven before
+    each step was replaced by the module, and both pipelines now deploy the
+    settings with Deploy-iSOCWorkspace -Stage WorkspaceSettings.
 
 .EXAMPLE
     Invoke-Pester -Path Tests/iSOCDeployments/WorkspaceSetting.Tests.ps1
@@ -36,23 +33,20 @@
     Website:      https://sentinel.blog
     Created:      2026-11-04
     Version:      0.2.1
-    Last Updated: 2026-11-09
-    Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml
+    Last Updated: 2026-11-23
+    Requires:     PowerShell 7.6+, Pester 5+
 #>
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $script:files = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Content/WorkspaceSettings') -Filter '*.json' -File | ForEach-Object { @{ File = $_.Name; Path = $_.FullName } })
-    $pipelines = @(
-        @{ Pipeline = 'GitHub Actions'; File = '.github/workflows/sentinel-deploy.yml' }
-    )
     $cases = @(
         @{ Case = 'a new workspace'; State = @{}; Denied = @(); Failing = @() }
         @{ Case = 'a workspace with every setting'; State = @{ Settings = @{ Anomalies = 'W/"a-1"'; EyesOn = 'W/"e-1"'; EntityAnalytics = 'W/"ea-1"'; Ueba = 'W/"u-1"' } }; Denied = @(); Failing = @() }
         @{ Case = 'an identity without the directory role'; State = @{ Settings = @{ Ueba = 'W/"u-1"' }; Denied = @('Ueba', 'EntityAnalytics') }; Denied = @('Ueba', 'EntityAnalytics'); Failing = @() }
         @{ Case = 'a setting the service rejects'; State = @{ Failing = @('EyesOn') }; Denied = @(); Failing = @('EyesOn') }
     )
-    $script:runs = foreach ($pipeline in $pipelines) { foreach ($case in $cases) { $case + $pipeline } }
+    $script:runs = $cases
 }
 
 BeforeAll {
@@ -69,27 +63,6 @@ BeforeAll {
             WorkspaceResourceId = $W; WorkspaceId = 'cccccccc-0000-0000-0000-000000000001'; Region = 'uksouth'; PlaybookResourceGroup = 'rg-sentinel'
             Environment = 'AzureCloud'; IsGov = $false; ArmUrl = 'https://management.azure.com'; GraphUrl = 'https://graph.microsoft.com'; Account = 'deployer@example.test'
         }
-    }
-
-    function ConvertTo-CanonicalJson {
-        <#
-        .SYNOPSIS
-            JSON with every object's keys sorted, so two bodies compare whatever order they were built in.
-        .PARAMETER Value
-            The value to convert.
-        #>
-        param($Value)
-        $sort = {
-            param($v)
-            if ($v -is [System.Collections.IDictionary]) {
-                $o = [ordered]@{}
-                foreach ($k in @($v.Keys | Sort-Object { [string]$_ } -CaseSensitive)) { $o[[string]$k] = & $sort $v[$k] }
-                return $o
-            }
-            if ($v -is [System.Collections.IList]) { return , @($v | ForEach-Object { & $sort $_ }) }
-            $v
-        }
-        ConvertTo-Json -InputObject (& $sort $Value) -Depth 30 -Compress
     }
 
     function Get-SettingRepo {
@@ -123,60 +96,6 @@ BeforeAll {
         }
     }
 
-    function Invoke-PipelineSettingStep {
-        <#
-        .SYNOPSIS
-            Run the workflow's Configure Sentinel Settings step unchanged in a child pwsh over $State.
-        .PARAMETER File
-            The path of the pipeline file.
-        .PARAMETER State
-            The stand-in state the step runs over.
-        #>
-        param([string] $File, $State)
-
-        $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
-        New-Item -ItemType Directory -Path $dir | Out-Null
-        $statePath = Join-Path $dir 'state.json'
-        Export-WorkspaceStandIn -State $State -Path $statePath
-        $variables = @{ RESOURCE_GROUP = 'rg-sentinel'; WORKSPACE_NAME = 'law-sentinel'; AZURE_SUBSCRIPTION_ID = $State.SubscriptionId }
-        $inline = Get-PipelineInlineScript -Path (Join-Path $script:repoRoot $File) -Step 'Configure Sentinel Settings' -Variables $variables
-        $wrapper = @'
-$ErrorActionPreference = 'Stop'
-Import-Module '__MODULE__'
-$script:StandIn = Import-WorkspaceStandIn -Path '__STATE__'
-function Get-AzAccessToken { [CmdletBinding()] param([string] $ResourceUrl) [pscustomobject]@{ Token = 'stand-in-token' } }
-function Invoke-RestMethod {
-    [CmdletBinding()] param([string] $Uri, [string] $Method, [hashtable] $Headers, [string] $Body)
-    $answer = Invoke-WorkspaceStandInArm -State $script:StandIn -Method $Method.ToUpperInvariant() -Path $Uri -Body $Body
-    if ($Method -eq 'Put') {
-        $write = @($script:StandIn.Writes)[-1]
-        $write.IfMatch = $Headers['If-Match']
-        $write.ApiVersion = ([regex]::Match($Uri, 'api-version=([^&]+)')).Groups[1].Value
-    }
-    if ($answer.Status -ge 400) { throw [System.Net.Http.HttpRequestException]::new("Response status code does not indicate success: $($answer.Status).") }
-    $answer.Body | ConvertTo-Json -Depth 20 | ConvertFrom-Json
-}
-try {
-__SCRIPT__
-}
-finally {
-    Export-WorkspaceStandIn -State $script:StandIn -Path '__STATE__'
-}
-'@
-        $runPath = Join-Path $dir 'run.ps1'
-        $wrapper.Replace('__MODULE__', $script:standInModule).Replace('__STATE__', $statePath).Replace('__SCRIPT__', $inline) |
-            Set-Content -LiteralPath $runPath -Encoding utf8NoBOM
-        $lines = @(& pwsh -NoProfile -NonInteractive -File $runPath 2>&1 | ForEach-Object { "$_" })
-        $code = $LASTEXITCODE
-        [pscustomobject]@{
-            Configured = @($lines | Where-Object { $_ -match '^Configured: (\w+)$' } | ForEach-Object { $_.Substring(12) })
-            Warned     = @($lines | Where-Object { $_ -match 'Failed to configure (\w+):' } | ForEach-Object { [regex]::Match($_, 'Failed to configure (\w+):').Groups[1].Value })
-            ExitCode   = $code
-            Lines      = $lines
-            State      = Import-WorkspaceStandIn -Path $statePath
-        }
-    }
-
     function Invoke-ModuleSettingDeploy {
         <#
         .SYNOPSIS
@@ -207,18 +126,6 @@ finally {
         [pscustomobject]@{ Run = $run; Logs = $script:logs.ToArray(); State = $script:standIn }
     }
 
-    function Get-SentBody {
-        <#
-        .SYNOPSIS
-            A write's body as the service reads it: an etag of null is no etag.
-        .PARAMETER Write
-            The write the stand-in recorded.
-        #>
-        param($Write)
-        $body = [ordered]@{}
-        foreach ($key in $Write.Body.Keys) { if (-not ($key -eq 'etag' -and $null -eq $Write.Body[$key])) { $body[$key] = $Write.Body[$key] } }
-        $body
-    }
 }
 
 AfterAll {
@@ -348,46 +255,31 @@ Describe 'Invoke-iSOCWorkspaceSettingDeploy' {
     }
 }
 
-Describe 'Deploy-iSOCContent -ContentType WorkspaceSetting beside the <Pipeline> step: <Case>' -ForEach $script:runs {
+Describe 'Deploy-iSOCContent -ContentType WorkspaceSetting over a stand-in workspace: <Case>' -ForEach $script:runs {
     BeforeAll {
-        $script:old = Invoke-PipelineSettingStep -File $File -State (Get-WorkspaceStandIn @State)
         $script:new = Invoke-ModuleSettingDeploy -State (Get-WorkspaceStandIn @State)
-        $script:oldWrites = @($script:old.State.Writes)
         $script:newWrites = @($script:new.State.Writes)
     }
 
-    It 'writes every setting the step writes, and no other' {
-        $script:oldWrites.Count | Should -Be 4
-        @($script:newWrites | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:oldWrites | ForEach-Object { $_.Name } | Sort-Object)
+    It 'writes each of the four settings once' {
+        $script:newWrites.Count | Should -Be 4
+        @($script:newWrites | ForEach-Object { $_.Name } | Sort-Object -Unique).Count | Should -Be 4
     }
 
-    It 'sends the bodies the step sends, with the same etags' {
-        foreach ($old in $script:oldWrites) {
-            $new = @($script:newWrites | Where-Object { $_.Name -eq $old.Name })
-            $new.Count | Should -Be 1 -Because "the module writes $($old.Name) once"
-            ConvertTo-CanonicalJson (Get-SentBody $new[0]) | Should -BeExactly (ConvertTo-CanonicalJson (Get-SentBody $old)) -Because $old.Name
-        }
-    }
-
-    It 'deploys what the step configured, and skips or fails what it warned of' {
+    It 'deploys what it can, and skips or fails the rest' {
         $results = @($script:new.Run.Results)
-        @($results | Where-Object Outcome -EQ 'Deployed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:old.Configured | Sort-Object)
-        @($results | Where-Object Outcome -In 'Skipped', 'Failed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($script:old.Warned | Sort-Object)
+        $names = @($script:newWrites | ForEach-Object { $_.Name })
+        $expected = @($names | Where-Object { $_ -notin $Denied -and $_ -notin $Failing } | Sort-Object)
+        @($results | Where-Object Outcome -EQ 'Deployed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be $expected
         @($results | Where-Object Outcome -EQ 'Skipped' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($Denied | Sort-Object)
         @($results | Where-Object Outcome -EQ 'Failed' | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @($Failing | Sort-Object)
     }
 
-    It 'fails the run only for a rejected setting, where the step always succeeded' {
-        $script:old.ExitCode | Should -Be 0
+    It 'fails the run only for a rejected setting' {
         $script:new.Run.ExitCode | Should -Be $(if ($Failing.Count) { 1 } else { 0 })
     }
 
-    It 'sends at 2025-07-01-preview, where the step sent at 2024-01-01-preview with If-Match' {
-        foreach ($old in $script:oldWrites) {
-            $old.ApiVersion | Should -Be '2024-01-01-preview'
-            $etag = if ($old.Body['etag']) { $old.Body['etag'] } else { '*' }
-            $old.IfMatch | Should -Be $etag
-        }
+    It 'sends at 2025-07-01-preview' {
         foreach ($new in $script:newWrites) { $new.ApiVersion | Should -Be '2025-07-01-preview' }
     }
 
