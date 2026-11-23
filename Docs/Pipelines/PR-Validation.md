@@ -227,6 +227,15 @@ paths:
   include:
     - Content/AnalyticalRules
     - Content/HuntingQueries
+    - Content/Playbooks
+    - Content/Parsers
+    - Content/Watchlists
+    - Content/AutomationRules
+    - Content/SummaryRules
+    - Content/WorkspaceSettings
+    - Content/DefenderCustomDetections
+    - Infra
+    - sentinel-deployment.config
     - Content/Workbooks
     - Content/CodelessConnectors
     - Modules
@@ -234,7 +243,8 @@ paths:
     - Tools
     - Tests
     - dependencies.json
-    - Pipelines/Sentinel-PR-Validation.yml
+    - Pipelines
+    - .github/workflows
 ```
 
 - `pr` runs the pipeline automatically against PR commits (even before the
@@ -243,8 +253,8 @@ paths:
 
 Unlike the GitHub workflow, the ADO pipeline **does** filter by path: it only
 runs when one of the listed paths changes. Every folder that holds PowerShell
-must be listed, so the PSScriptAnalyzer lint sees changes to it, and the
-branch policy's path filter (see [ADO OIDC setup](../Deploy/ADO-OIDC-Setup.md))
+or a deployable input must be listed, so the PSScriptAnalyzer lint and the
+content suites see changes to it, and the branch policy's path filter (see [ADO OIDC setup](../Deploy/ADO-OIDC-Setup.md))
 must match these lists.
 
 ### Variables

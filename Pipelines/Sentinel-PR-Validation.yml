@@ -42,6 +42,16 @@ pr:
       - Content/AnalyticalRules
       - Content/HuntingQueries
       - Content/Playbooks
+      # Every other deployable input: each has a Pester suite under Tests/
+      # that validates it, and Infra/ holds the Bicep the bicep gate builds.
+      - Content/Parsers
+      - Content/Watchlists
+      - Content/AutomationRules
+      - Content/SummaryRules
+      - Content/WorkspaceSettings
+      - Content/DefenderCustomDetections
+      - Infra
+      - sentinel-deployment.config
       # PowerShell outside Modules/Deploy/Tools/Tests lives here; the
       # PSScriptAnalyzer lint (Tests/Test-PSScriptAnalyzer.Tests.ps1) must
       # see changes to it.
@@ -67,6 +77,16 @@ trigger:
       - Content/AnalyticalRules
       - Content/HuntingQueries
       - Content/Playbooks
+      # Every other deployable input: each has a Pester suite under Tests/
+      # that validates it, and Infra/ holds the Bicep the bicep gate builds.
+      - Content/Parsers
+      - Content/Watchlists
+      - Content/AutomationRules
+      - Content/SummaryRules
+      - Content/WorkspaceSettings
+      - Content/DefenderCustomDetections
+      - Infra
+      - sentinel-deployment.config
       # PowerShell outside Modules/Deploy/Tools/Tests lives here; the
       # PSScriptAnalyzer lint (Tests/Test-PSScriptAnalyzer.Tests.ps1) must
       # see changes to it.

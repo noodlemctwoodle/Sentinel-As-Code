@@ -39,8 +39,8 @@
     Author:       noodlemctwoodle
     Website:      https://sentinel.blog
     Created:      2026-11-05
-    Version:      0.3.2
-    Last Updated: 2026-11-09
+    Version:      0.3.3
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Pester 5+, powershell-yaml
 #>
 
@@ -416,6 +416,17 @@ Describe 'Pipelines/Sentinel-PR-Validation.yml' {
         $yaml = Read-PipelineYaml -Path $script:gatePipeline
         @($yaml.pr.paths.include) | Should -Contain 'Content/Playbooks'
         @($yaml.trigger.paths.include) | Should -Contain 'Content/Playbooks'
+    }
+
+    It 'runs for a change to any deployable input' {
+        $module = Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force -PassThru
+        $folders = @(& $module { Get-iSOCContentTypeRegistry } | ForEach-Object { $_.RepoFolder })
+        $deployable = @($folders) + @('Infra', 'sentinel-deployment.config', 'dependencies.json')
+        $yaml = Read-PipelineYaml -Path $script:gatePipeline
+        foreach ($folder in $deployable) {
+            @($yaml.pr.paths.include) | Should -Contain $folder -Because "a change to $folder is a deployment input and must be validated"
+            @($yaml.trigger.paths.include) | Should -Contain $folder -Because "a push to main that changes $folder must be validated"
+        }
     }
 
     It 'passes a current manifest' {
