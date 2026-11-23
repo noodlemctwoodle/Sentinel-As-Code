@@ -50,6 +50,12 @@ BeforeAll {
 
     # Run the gate over a repository holding the named suites.
     function Invoke-Gate {
+        <#
+        .SYNOPSIS
+            Runs the PR validation script against a throwaway repository holding the named test suites.
+        .PARAMETER Suite
+            Names of the suites to write into the temporary repository.
+        #>
         param([string[]] $Suite)
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path (Join-Path $repo 'Tests') -Force | Out-Null

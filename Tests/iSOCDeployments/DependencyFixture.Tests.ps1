@@ -49,6 +49,16 @@ BeforeAll {
     Import-Module $script:helperPath -Force
 
     function Invoke-ModuleFixture {
+        <#
+        .SYNOPSIS
+            Run the dependency fixture command against the stand-in with the Azure and REST commands stood in.
+        .PARAMETER Parameters
+            Parameters splatted to the command.
+        .PARAMETER Remove
+            Run the removal rather than the deployment.
+        .PARAMETER StandIn
+            Switches that change the stand-in state: Existing, UnmarkedOrphan, NotOnboarded and RaceOnce.
+        #>
         param([hashtable] $Parameters, [switch] $Remove, [hashtable] $StandIn = @{})
         $switches = @{}
         foreach ($k in 'Existing', 'UnmarkedOrphan', 'NotOnboarded', 'RaceOnce') { if ($StandIn[$k]) { $switches[$k] = $true } }

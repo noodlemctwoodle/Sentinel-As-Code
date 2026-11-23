@@ -39,8 +39,6 @@ function Write-BlueprintAutomationRulesPlaybooksSection {
     $autoRules = $Context.autoRules
     $connectors = $Context.connectors
     $enabledRules = $Context.enabledRules
-    $m = $Context.m
-    $n = $Context.n
     $playbookRuns = $Context.playbookRuns
     $rawRoot = $Context.rawRoot
     $title = $Context.title

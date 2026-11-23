@@ -63,8 +63,8 @@ BeforeDiscovery {
     # extension — typically a sign of a half-renamed or
     # accidentally-committed file. Capture for a separate test.
     $script:strayFiles = @(
-        Get-ChildItem -Path "$repoRoot/.github/agents", "$repoRoot/.github/instructions", "$repoRoot/.github/prompts" -Recurse -File -ErrorAction SilentlyContinue
-        | Where-Object { $_.Name -notmatch '\.(agent|instructions|prompt)\.md$' }
+        Get-ChildItem -Path "$repoRoot/.github/agents", "$repoRoot/.github/instructions", "$repoRoot/.github/prompts" -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch '\.(agent|instructions|prompt)\.md$' }
     )
 }
 
@@ -77,6 +77,12 @@ BeforeAll {
     Import-Module powershell-yaml -ErrorAction Stop
 
     function Get-Frontmatter {
+        <#
+        .SYNOPSIS
+            Parses the YAML front matter at the top of a Markdown file.
+        .PARAMETER Path
+            Path of the Markdown file to read.
+        #>
         param([Parameter(Mandatory)] [string] $Path)
 
         $content = Get-Content -Path $Path -Raw

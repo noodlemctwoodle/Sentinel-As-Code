@@ -38,7 +38,6 @@ function Write-BlueprintCostEstimateSection {
     # Taken from the render context.
     $cost = $Context.cost
     $name = $Context.name
-    $Table = $Context.Table
 
     # ---------------------------------------------------------------------------
     # Section: 84 — cost estimate

@@ -36,9 +36,6 @@ function Write-BlueprintIndexSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $found = $Context.found
-    $m = $Context.m
-    $n = $Context.n
     $OutputRoot = $Context.OutputRoot
     $ResourcesRoot = $Context.ResourcesRoot
     $run = $Context.run

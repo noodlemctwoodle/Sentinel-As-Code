@@ -35,6 +35,7 @@ function ConvertTo-SacFileMentionHtml {
         Scriptblock taking the section id and the escaped title, returning
         the link HTML.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Link', Justification = 'Read inside the -creplace script block, which the analyser does not follow.')]
     [CmdletBinding()]
     [OutputType([string])]
     param([AllowEmptyString()] [AllowNull()] [string] $Html, [Parameter(Mandatory)] [scriptblock] $Link)

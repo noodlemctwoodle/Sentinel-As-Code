@@ -39,6 +39,7 @@ function Test-SecurityEventDuplicates {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The name is the published CheckName on every finding and is dispatched by name from best-practices.json.')]
     [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if ($Inventory.RawFiles -notcontains 'security-event-duplicates.json') { return $null }
     $hosts = @($Inventory.SecurityEventDuplicates | Where-Object { $null -ne $_ -and [string](Get-PropOrDefault $_ 'Computer' '') })

@@ -69,6 +69,14 @@ BeforeAll {
     }
 
     function Get-Offender {
+        <#
+        .SYNOPSIS
+            Filters the parsed module files and projects each match to a message.
+        .PARAMETER Where
+            Filter that selects the offending files.
+        .PARAMETER Select
+            Projection that builds the message for each offender.
+        #>
         param([scriptblock] $Where, [scriptblock] $Select)
         @($script:files | Where-Object $Where | ForEach-Object $Select)
     }

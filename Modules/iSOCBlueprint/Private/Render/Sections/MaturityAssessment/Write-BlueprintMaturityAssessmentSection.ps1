@@ -36,12 +36,10 @@ function Write-BlueprintMaturityAssessmentSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $m = $Context.m
     $maturity = $Context.maturity
     $maturityBasis = $Context.maturityBasis
     $maturityOk = $Context.maturityOk
     $maturityScope = $Context.maturityScope
-    $n = $Context.n
 
     # Section 91 — Maturity assessment, from _raw/maturity.json. Engine:
     # Private/Maturity/Get-SentinelMaturity.ps1; methodology and criteria:

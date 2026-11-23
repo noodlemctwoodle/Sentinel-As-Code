@@ -98,6 +98,12 @@ BeforeDiscovery {
     # failure message points at exactly which dependency declared a broken
     # reference.
     function Get-AliasCase {
+        <#
+        .SYNOPSIS
+            Collects the aliases listed under one array key of the dependency manifest.
+        .PARAMETER ArrayKey
+            Name of the manifest array whose aliases are collected.
+        #>
         param([string]$ArrayKey)
         $bucket = @{}
         if ($script:manifest -and $script:manifest.ContainsKey('dependencies')) {
@@ -142,7 +148,7 @@ BeforeAll {
                     $script:knownWatchlistAliases[[string]$wl.watchlistAlias] = $_.FullName
                 }
             } catch {
-                # Schema test for watchlists owns parse errors; skip silently here.
+                Write-Verbose -Message 'Schema test for watchlists owns parse errors; skip silently here.'
             }
         }
     }
@@ -158,7 +164,7 @@ BeforeAll {
                     $script:knownFunctionAliases[[string]$p['functionAlias']] = $_.FullName
                 }
             } catch {
-                # Parser-schema test owns parse errors; skip silently here.
+                Write-Verbose -Message 'Parser-schema test owns parse errors; skip silently here.'
             }
         }
     }

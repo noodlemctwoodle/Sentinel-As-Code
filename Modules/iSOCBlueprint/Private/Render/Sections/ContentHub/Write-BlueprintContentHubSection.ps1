@@ -37,8 +37,6 @@ function Write-BlueprintContentHubSection {
 
     # Taken from the render context.
     $cat = $Context.cat
-    $m = $Context.m
-    $n = $Context.n
 
     $contentPackages = Read-BlueprintRawArray 'content-packages.json'
     $contentCatalogue = Read-BlueprintRawArray 'content-product-packages.json'

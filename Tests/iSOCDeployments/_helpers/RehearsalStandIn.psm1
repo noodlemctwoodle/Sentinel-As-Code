@@ -35,6 +35,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-RehearsalStandIn {
+    <#
+    .SYNOPSIS
+        Returns the stand-in state of the scratch workspace used by the rehearsal tests.
+    .PARAMETER FailBatch
+        The numbers of the Logs Ingestion batches that fail with a service error.
+    .PARAMETER FailCollector
+        Makes the Data Collector post fail.
+    #>
     param([int[]] $FailBatch = @(), [switch] $FailCollector)
 
     $sub = '11111111-2222-3333-4444-555555555555'
@@ -79,12 +87,25 @@ function Get-RehearsalStandIn {
 }
 
 function Add-RehearsalWrite {
+    <#
+    .SYNOPSIS
+        Appends a write to the Writes list of the stand-in state.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Write
+        The write to record, added to the Writes list of the state.
+    #>
     param($State, [hashtable] $Write)
     $State.Writes = @($State.Writes) + @([pscustomobject]$Write)
 }
 
 function ConvertTo-RehearsalCanonical {
-    <# JSON with every object's keys sorted, so hashtable order cannot differ. #>
+    <#
+    .SYNOPSIS
+        JSON with every object's keys sorted, so hashtable order cannot differ.
+    .PARAMETER Value
+        The value to turn into canonical JSON.
+    #>
     param($Value)
     $walk = {
         param($Node)
@@ -104,7 +125,18 @@ function ConvertTo-RehearsalCanonical {
 }
 
 function Invoke-RehearsalCollector {
-    <# One Data Collector post. Returns the HTTP status. #>
+    <#
+    .SYNOPSIS
+        One Data Collector post. Returns the HTTP status.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Uri
+        The URI of the request.
+    .PARAMETER Headers
+        The headers of the request.
+    .PARAMETER Body
+        The request body.
+    #>
     param($State, [string] $Uri, [hashtable] $Headers, [byte[]] $Body)
 
     if ($Uri -ne "https://$($State.WorkspaceId).ods.opinsights.azure.com/api/logs?api-version=2016-04-01") { return 404 }
@@ -140,7 +172,16 @@ function Invoke-RehearsalCollector {
 }
 
 function Invoke-RehearsalArm {
-    <# One ARM call; returns @{ Status; Body }. #>
+    <#
+    .SYNOPSIS
+        One ARM call; returns @{ Status; Body }.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Method
+        The HTTP method of the call.
+    .PARAMETER Path
+        The request path, with any query string.
+    #>
     param($State, [string] $Method, [string] $Path)
     $p = ($Path -split '\?')[0]
     $ws = [regex]::Escape($State.WorkspacePath)
@@ -167,7 +208,16 @@ function Invoke-RehearsalArm {
 }
 
 function Invoke-RehearsalToken {
-    <# One token request. Returns @{ Status; Body }. #>
+    <#
+    .SYNOPSIS
+        One token request. Returns @{ Status; Body }.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Uri
+        The URI of the request.
+    .PARAMETER Form
+        The form fields of the token request.
+    #>
     param($State, [string] $Uri, [hashtable] $Form)
     if ($Uri -notmatch '^https://login\.microsoftonline\.com/([^/]+)/oauth2/v2\.0/token$') { return @{ Status = 404; Body = @{ error = 'not_found' } } }
     $tenant = $Matches[1]
@@ -180,7 +230,18 @@ function Invoke-RehearsalToken {
 }
 
 function Invoke-RehearsalIngest {
-    <# One Logs Ingestion post. Returns @{ Status; Content }. #>
+    <#
+    .SYNOPSIS
+        One Logs Ingestion post. Returns @{ Status; Content }.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Uri
+        The URI of the request.
+    .PARAMETER Headers
+        The headers of the request.
+    .PARAMETER Body
+        The request body.
+    #>
     param($State, [string] $Uri, [hashtable] $Headers, [byte[]] $Body)
     $dcr = @($State.Dcrs.Values | Where-Object { $_.properties.Contains('endpoints') -and $Uri.StartsWith("$($_.properties.endpoints.logsIngestion)/dataCollectionRules/$($_.properties.immutableId)/streams/") }) | Select-Object -First 1
     if (-not $dcr -or $Uri -notmatch '/streams/([^/?]+)\?api-version=2023-01-01$') { return @{ Status = 404; Content = '{"error":"not found"}' } }
@@ -212,6 +273,14 @@ function Invoke-RehearsalIngest {
 }
 
 function Invoke-RehearsalQuery {
+    <#
+    .SYNOPSIS
+        Answers the row-count log queries the rehearsal runs over the rows the state holds. Anything else throws.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Query
+        The log query text the stand-in answers.
+    #>
     param($State, [string] $Query)
     if ($Query -match "^(\w+) \| where (\w+) has '([0-9a-f]{12})' \| count$") {
         $rows = @($(if ($State.Rows.Contains($Matches[1])) { $State.Rows[$Matches[1]] } else { @() }))
@@ -224,6 +293,16 @@ function Invoke-RehearsalQuery {
 }
 
 function Get-RehearsalAssignment {
+    <#
+    .SYNOPSIS
+        Returns the role assignments of a principal, limited to those that cover the scope when one is given.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER PrincipalId
+        The principal ID of the role assignment.
+    .PARAMETER Scope
+        The scope of the assignment.
+    #>
     param($State, [string] $PrincipalId, [string] $Scope)
     foreach ($a in @($State.Assignments)) {
         if ($a.PrincipalId -ne $PrincipalId) { continue }
@@ -233,6 +312,18 @@ function Get-RehearsalAssignment {
 }
 
 function Add-RehearsalAssignment {
+    <#
+    .SYNOPSIS
+        Adds a role assignment and records the grant write.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER PrincipalId
+        The principal ID of the role assignment.
+    .PARAMETER Role
+        The role of the assignment.
+    .PARAMETER Scope
+        The scope of the assignment.
+    #>
     param($State, [string] $PrincipalId, [string] $Role, [string] $Scope)
     $State.Assignments = @($State.Assignments) + @([ordered]@{ PrincipalId = $PrincipalId; Role = $Role; Scope = $Scope })
     Add-RehearsalWrite -State $State -Write @{ Kind = 'Grant'; PrincipalId = $PrincipalId; Role = $Role; Scope = $Scope }

@@ -63,10 +63,11 @@
     Website:        https://sentinel.blog
     Created:        2026-06-03
     Version:        0.1.6
-    Last Updated:   2026-11-16
+    Last Updated:   2026-11-23
     Requires:       PowerShell 7.6+, git
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The closing summary is operator-facing console output, written straight to the host and not meant to be captured.')]
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory = $false)]
@@ -131,6 +132,17 @@ $moveMap = [ordered]@{
 # sides have (a genuine conflict, left in place), and removes a source folder
 # the merge leaves empty.
 function Merge-ForkFolder {
+    <#
+    .SYNOPSIS
+        Merge one folder into another at any depth, leaving real conflicts in place.
+
+    .PARAMETER From
+        The source folder; it is removed once the merge leaves it empty.
+
+    .PARAMETER To
+        The destination folder.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The function has no CmdletBinding of its own; it reaches the script-level $PSCmdlet through dynamic scope, so -WhatIf and -Confirm apply.')]
     param([string]$From, [string]$To)
 
     foreach ($item in Get-ChildItem -LiteralPath $From -Force) {

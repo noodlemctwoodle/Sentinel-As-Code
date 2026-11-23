@@ -33,6 +33,7 @@ function Build-SiteDaily {
     .PARAMETER Context
         The build context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'lakeEnrolled', Justification = 'Read by Get-FlowPlanLabel from this function scope, which the analyser cannot see.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

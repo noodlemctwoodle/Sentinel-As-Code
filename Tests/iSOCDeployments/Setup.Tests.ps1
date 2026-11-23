@@ -56,6 +56,14 @@ BeforeAll {
     $script:setup = InModuleScope iSOCDeployments -Parameters @{ S = $script:Sub } { param($S) Get-iSOCServicePrincipalSetup -SubscriptionId $S }
 
     function Invoke-Private {
+        <#
+        .SYNOPSIS
+            Runs a private module command inside the module scope with logging mocked.
+        .PARAMETER Command
+            The name of the private command.
+        .PARAMETER Arguments
+            The parameters splatted to the command.
+        #>
         param([string] $Command, [hashtable] $Arguments = @{})
         InModuleScope iSOCDeployments -Parameters @{ C = $Command; A = $Arguments } { param($C, $A) Mock Write-iSOCLog { }; & $C @A }
     }
@@ -63,6 +71,14 @@ BeforeAll {
     # The stand-in tenant: the service principal, what it holds already,
     # and what refuses.
     function Get-StandInTenant {
+        <#
+        .SYNOPSIS
+            Returns the stand-in state of a tenant with a deployment service principal and Graph.
+        .PARAMETER Held
+            Starts with the roles and permissions already granted.
+        .PARAMETER FailEntra
+            Makes the Entra directory role assignment fail.
+        #>
         param([switch] $Held, [switch] $FailEntra)
         $state = [ordered]@{
             SubscriptionId = $script:Sub; TenantId = $script:Tenant; AppId = $script:AppId; ObjectId = $script:ObjectId
@@ -137,6 +153,14 @@ Describe 'The Graph SDK wrappers' {
 Describe 'Initialize-iSOCServicePrincipal' {
     BeforeAll {
         function Invoke-ModuleSetup {
+            <#
+            .SYNOPSIS
+                Runs Initialize-iSOCServicePrincipal over a stand-in tenant with the Azure and Graph commands mocked, and returns what it did.
+            .PARAMETER Tenant
+                The stand-in tenant state.
+            .PARAMETER Parameters
+                The parameters of Initialize-iSOCServicePrincipal.
+            #>
             param([hashtable] $Tenant, [hashtable] $Parameters = @{})
             $script:tenantState = $Tenant
             $script:moduleWrites = [System.Collections.Generic.List[object]]::new()
@@ -182,7 +206,18 @@ Describe 'Initialize-iSOCServicePrincipal' {
                 'AppRole' { "AppRole $($Write.PrincipalId) $($Write.ResourceId) $($Write.AppRoleId)" }
             }
         }
-        function Get-WriteKey { param($Writes, [string[]] $Kind) @($Writes | Where-Object { $_.Kind -in $Kind } | ForEach-Object { & $script:writeKey $_ } | Sort-Object) }
+        function Get-WriteKey {
+            <#
+            .SYNOPSIS
+                Returns the sorted keys of the writes of the given kinds.
+            .PARAMETER Writes
+                The writes the stand-in recorded.
+            .PARAMETER Kind
+                The kinds of write to include.
+            #>
+            param($Writes, [string[]] $Kind)
+            @($Writes | Where-Object { $_.Kind -in $Kind } | ForEach-Object { & $script:writeKey $_ } | Sort-Object)
+        }
 
         # The grants Setup-ServicePrincipal.ps1 made over this stand-in tenant
         # on release/26.11.0, with the role definition GUIDs and the condition

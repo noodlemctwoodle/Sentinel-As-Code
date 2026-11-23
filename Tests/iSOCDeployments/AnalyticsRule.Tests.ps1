@@ -48,6 +48,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-FixtureItem {
+        <#
+        .SYNOPSIS
+            Read the analytical rule items from a repository, inside the module scope.
+        .PARAMETER Repo
+            Repository root to read; defaults to the fixture repository.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -56,10 +62,24 @@ BeforeAll {
         }
     }
     function Get-Item1 {
+        <#
+        .SYNOPSIS
+            Return the fixture item whose relative path ends in the given leaf.
+        .PARAMETER Leaf
+            File name, or trailing path, to match against item relative paths.
+        #>
         param([string] $Leaf)
         $script:items | Where-Object { $_.RelativePath -like "*/$Leaf" }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Build the deployment request for an analytical rule item, inside the module scope.
+        .PARAMETER Item
+            Parsed content item to act on.
+        .PARAMETER Disabled
+            Build the request with the rule disabled.
+        #>
         param([psobject] $Item, [switch] $Disabled)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item; D = [bool]$Disabled } { param($I, $D) ConvertTo-iSOCAnalyticsRuleRequest -Item $I -Disabled:$D }
     }
@@ -115,10 +135,22 @@ Describe 'Read-iSOCAnalyticsRuleRepo' {
 Describe 'Test-iSOCAnalyticsRule' {
     BeforeAll {
         function Test-Rule {
+            <#
+            .SYNOPSIS
+                Validate an analytical rule item with the module and return its findings.
+            .PARAMETER Item
+                Parsed content item to act on.
+            #>
             param([psobject] $Item)
             @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCAnalyticsRule -Item $I })
         }
         function New-Item1 {
+            <#
+            .SYNOPSIS
+                Build a minimal in-memory analytical rule item around the given data.
+            .PARAMETER Data
+                Rule data to place on the item.
+            #>
             param([object] $Data)
             [pscustomobject]@{ ContentType = 'AnalyticsRule'; Identity = 'x'; Name = 'x'; Path = 'x'; RelativePath = 'x'; Source = 'Custom'; Data = $Data; ParseError = $null }
         }
@@ -275,6 +307,14 @@ Describe 'Content/AnalyticalRules in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AnalyticsRule }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Invoke a handler of the repository content type, inside the module scope.
+            .PARAMETER Handler
+                Name of the content-type handler to invoke.
+            .PARAMETER Parameters
+                Parameters passed to the command or handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

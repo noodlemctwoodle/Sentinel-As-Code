@@ -39,6 +39,8 @@ function Test-OnboardedToDefender {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Inventory', Justification = 'Every gap check takes the inventory; this one raises an information finding that does not depend on it.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The name is the published CheckName on every finding and is dispatched by name from best-practices.json.')]
     [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     # The defender-onboarding state is workspace-specific and exposed via a separate REST
     # surface that may not be in scope. Until we wire that detection, surface the deadline

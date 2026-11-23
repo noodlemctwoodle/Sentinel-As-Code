@@ -40,6 +40,14 @@ BeforeAll {
     $script:roleIds = @{ 'Monitoring Metrics Publisher' = '3913510d-42f4-4e42-8a64-420c390055eb' }
 
     function Invoke-ModuleMigration {
+        <#
+        .SYNOPSIS
+            Run the classic table migration with the Azure, REST and logging commands stood in, and return the run, error and recorded writes.
+        .PARAMETER Parameters
+            Parameters splatted to the migration command.
+        .PARAMETER UsageFails
+            Make the stand-in usage query fail.
+        #>
         param([hashtable] $Parameters, [switch] $UsageFails)
         $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         $templates = Join-Path $tree 'templates'

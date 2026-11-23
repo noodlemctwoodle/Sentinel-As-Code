@@ -36,8 +36,26 @@ BeforeAll {
     $script:sectionSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Schemas/section.schema.json'
     $script:indexSchema = Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Resources/Schemas/section-index.schema.json'
 
-    function ConvertTo-Model([string] $Markdown, [string] $Id = '20-analytics-rules') { ConvertTo-BlueprintSection -Markdown $Markdown -Id $Id }
-    function Get-Chart([string] $Source) { ConvertFrom-BlueprintMermaid -Source $Source }
+    function ConvertTo-Model([string] $Markdown, [string] $Id = '20-analytics-rules') {
+        <#
+        .SYNOPSIS
+            Converts Markdown to a section model.
+        .PARAMETER Markdown
+            The Markdown to convert.
+        .PARAMETER Id
+            The section id.
+        #>
+        ConvertTo-BlueprintSection -Markdown $Markdown -Id $Id
+    }
+    function Get-Chart([string] $Source) {
+        <#
+        .SYNOPSIS
+            Parses Mermaid source into a chart model.
+        .PARAMETER Source
+            The Mermaid source.
+        #>
+        ConvertFrom-BlueprintMermaid -Source $Source
+    }
 }
 
 Describe 'ConvertTo-BlueprintSection' {
@@ -148,6 +166,14 @@ Describe 'Long tables' {
     # converter parses long tables in chunks and joins them.
     BeforeAll {
         function New-TableMarkdown([int] $Rows, [string] $Name = 'Rule') {
+            <#
+            .SYNOPSIS
+                Builds a Markdown table with one linked row per count.
+            .PARAMETER Rows
+                Number of rows.
+            .PARAMETER Name
+                Header of the first column and the link text.
+            #>
             $sb = [System.Text.StringBuilder]::new()
             [void]$sb.AppendLine("| $Name | Alerts |")
             [void]$sb.AppendLine('|---|---:|')

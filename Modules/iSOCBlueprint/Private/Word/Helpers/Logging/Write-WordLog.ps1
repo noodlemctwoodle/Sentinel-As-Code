@@ -40,6 +40,7 @@ function Write-WordLog {
     .PARAMETER Level
         Info, Section, Warning, Error or Success. Info when omitted.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The function exists to write a coloured progress line for the operator at the console, by level.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $Message,

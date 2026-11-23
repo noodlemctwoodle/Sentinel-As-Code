@@ -39,7 +39,15 @@ BeforeAll {
     $script:result = & $script:tool -OutputPath (Join-Path $script:outDir 'sentinel-blog-uks-law') -DailyGb 500 -LookbackDays $script:days -AsOf $script:asOf `
         -Seed 7 -Build 6> $null 3> $null
     $script:raw = $script:result.Raw
-    function Read-Demo([string]$Name) { Get-Content -LiteralPath (Join-Path $script:raw $Name) -Raw | ConvertFrom-Json -Depth 64 }
+    function Read-Demo([string]$Name) {
+        <#
+        .SYNOPSIS
+            Reads a generated demo capture file as JSON.
+        .PARAMETER Name
+            File name inside the raw folder.
+        #>
+        Get-Content -LiteralPath (Join-Path $script:raw $Name) -Raw | ConvertFrom-Json -Depth 64
+    }
 }
 
 AfterAll {

@@ -39,6 +39,7 @@ function Test-RuleCreatesIncidents {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The name is the published CheckName on every finding and is dispatched by name from best-practices.json.')]
     [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $rules = @(Get-GapEnabledQueryRule $Inventory)
     if ($rules.Count -eq 0) { return $null }

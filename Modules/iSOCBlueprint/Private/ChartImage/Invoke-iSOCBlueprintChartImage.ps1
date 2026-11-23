@@ -87,6 +87,11 @@ function Invoke-iSOCBlueprintChartImage {
     .PARAMETER Scale
         mmdc output scale factor (PNG only) for retina sharpness. Defaults to 2.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Progress and the summary for the operator at the console; the ##[section] line is a pipeline logging command that must reach the host stream.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Theme', Justification = 'Read inside the Regex.Replace script block that runs mmdc, which the analyser does not follow.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Background', Justification = 'Read inside the Regex.Replace script block that runs mmdc, which the analyser does not follow.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Width', Justification = 'Read inside the Regex.Replace script block that runs mmdc, which the analyser does not follow.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Scale', Justification = 'Read inside the Regex.Replace script block that runs mmdc, which the analyser does not follow.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $Root,

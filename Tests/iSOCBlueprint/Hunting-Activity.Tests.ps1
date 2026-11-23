@@ -34,10 +34,22 @@ BeforeAll {
 
     $script:asOf = [datetime]::new(2026, 10, 15, 12, 0, 0, [System.DateTimeKind]::Utc)
     function New-Bookmark([int]$DaysAgo) {
+        <#
+        .SYNOPSIS
+            Builds a bookmark created and updated the given number of days before the run.
+        .PARAMETER DaysAgo
+            Age of the bookmark in days.
+        #>
         $t = $script:asOf.AddDays(-$DaysAgo).ToString('yyyy-MM-ddTHH:mm:ssZ')
         [pscustomobject]@{ name = "bm-$DaysAgo"; properties = [pscustomobject]@{ displayName = "B $DaysAgo"; created = $t; updated = $t } }
     }
     function New-Hunt([Nullable[int]]$DaysAgo) {
+        <#
+        .SYNOPSIS
+            Builds a hunt, with timestamps when an age is given.
+        .PARAMETER DaysAgo
+            Age of the hunt in days; none leaves the timestamps off.
+        #>
         $h = [pscustomobject]@{ name = 'h'; properties = [pscustomobject]@{ displayName = 'H'; status = 'Active' } }
         if ($null -ne $DaysAgo) {
             $t = $script:asOf.AddDays(-$DaysAgo).ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -50,6 +62,14 @@ BeforeAll {
     # A copy of the fixture's _raw with the hunting files given, for the
     # gap and maturity engines.
     function New-HuntingRaw([hashtable]$Files, [int]$Lookback = 30) {
+        <#
+        .SYNOPSIS
+            Copies the fixture capture into a temporary folder and replaces its hunting files.
+        .PARAMETER Files
+            File name mapped to the content to write.
+        .PARAMETER Lookback
+            The lookback window in days.
+        #>
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) "hunting-activity-$(New-Guid)"
         Copy-Item -Path $script:fixtureRaw -Destination $dir -Recurse
         foreach ($n in 'bookmarks.json', 'bookmarks-count.json', 'bookmarks-from-logs.json', 'hunts.json') {
@@ -64,6 +84,12 @@ BeforeAll {
         $dir
     }
     function Get-Hnt01([string]$Dir) {
+        <#
+        .SYNOPSIS
+            Runs the gap analysis and returns the outcome and finding for rule SAC-HNT-01.
+        .PARAMETER Dir
+            The capture folder to analyse.
+        #>
         $out = [System.Collections.Generic.List[object]]::new()
         $findings = (Get-SentinelGap -InputRoot $Dir -ResourcesRoot $script:resourcesDir -RulesPath (Join-Path $script:resourcesDir 'best-practices.json') `
                 -OutcomeCollector $out)

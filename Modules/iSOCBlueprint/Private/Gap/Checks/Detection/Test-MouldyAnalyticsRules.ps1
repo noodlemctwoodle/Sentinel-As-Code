@@ -39,6 +39,7 @@ function Test-MouldyAnalyticsRules {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The name is the published CheckName on every finding and is dispatched by name from best-practices.json.')]
     [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     if (-not $Inventory.AlertRules) { return $null }
     $cutoff = (Get-Date).ToUniversalTime().AddDays(-365)
@@ -52,7 +53,7 @@ function Test-MouldyAnalyticsRules {
             $lm = Get-PropOrDefault $_ 'properties.lastModifiedUtc' $null
             $parsed = [datetime]::MinValue
             $tsValid = $false
-            if ($lm) { try { $parsed = [datetime]$lm; $tsValid = $true } catch {} }
+            if ($lm) { try { $parsed = [datetime]$lm; $tsValid = $true } catch { Write-Verbose 'Unparseable timestamp: the rule is not counted as stale.' } }
             ($kind -in @('Scheduled', 'NRT')) -and $enabled -and $tsValid -and ($parsed.ToUniversalTime() -lt $cutoff)
         })
     if ($mouldy.Count -eq 0) { return $null }

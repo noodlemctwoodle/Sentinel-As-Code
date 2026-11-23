@@ -49,6 +49,14 @@ echo fake > "$out"
     }
 
     function script:Invoke-Step {
+        <#
+        .SYNOPSIS
+            Runs the chart image step inside the module and returns its output as text.
+        .PARAMETER Root
+            The workspace folder the step runs against.
+        .PARAMETER Extra
+            Extra parameters splatted to the step.
+        #>
         param([string] $Root, [hashtable] $Extra = @{})
         & $script:module { param($r, $e) Invoke-iSOCBlueprintChartImage -Root $r @e 6>&1 3>&1 | ForEach-Object { "$_" } } $Root $Extra
     }

@@ -143,7 +143,6 @@ function Write-BlueprintSentinelDataLakeSection {
             "`"$s`""
         }) -join ', '
     $retLakeBars = ($topRetention | ForEach-Object { $_.LakeOnlyDays }) -join ', '
-    $retAnaBars = ($topRetention | ForEach-Object { $_.AnalyticsDays }) -join ', '
     $retYmax = 1
     foreach ($r in $topRetention) { $sum = $r.AnalyticsDays + $r.LakeOnlyDays; if ($sum -gt $retYmax) { $retYmax = $sum } }
 

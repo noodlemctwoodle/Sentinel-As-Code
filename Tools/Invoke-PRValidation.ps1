@@ -85,6 +85,7 @@
     Requires:       PowerShell 7.6+, Pester 5+, powershell-yaml and PSScriptAnalyzer (all auto-installed if missing)
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The ##[section] and ##[error] lines are Azure DevOps and GitHub Actions log commands, which only work on stdout.')]
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
@@ -190,6 +191,13 @@ Write-Host ('  Duration:     {0}' -f $result.Duration)
 
 # Every line of an error, each marked so the pipeline annotates it.
 function Write-PRValidationError {
+    <#
+    .SYNOPSIS
+        Write every line of each error record as a pipeline error annotation.
+
+    .PARAMETER ErrorRecord
+        The error records to write; empty entries are skipped.
+    #>
     param([object[]] $ErrorRecord)
     foreach ($record in @($ErrorRecord | Where-Object { $_ })) {
         $text = if ($record.PSObject.Properties['DisplayErrorMessage'] -and $record.DisplayErrorMessage) {

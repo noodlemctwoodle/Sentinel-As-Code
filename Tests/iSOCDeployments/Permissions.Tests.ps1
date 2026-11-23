@@ -62,11 +62,27 @@ BeforeAll {
     $script:roleIds = InModuleScope iSOCDeployments { Get-iSOCRoleDefinitionId }
 
     function Invoke-Private {
+        <#
+        .SYNOPSIS
+            Runs a private module command inside the module scope with logging mocked.
+        .PARAMETER Command
+            The name of the private command.
+        .PARAMETER Arguments
+            The parameters splatted to the command.
+        #>
         param([string] $Command, [hashtable] $Arguments = @{})
         InModuleScope iSOCDeployments -Parameters @{ C = $Command; A = $Arguments } { param($C, $A) Mock Write-iSOCLog { }; & $C @A }
     }
 
     function New-Workflow {
+        <#
+        .SYNOPSIS
+            Builds a Logic App workflow object with the given managed API connections and actions, as the service returns it.
+        .PARAMETER Connector
+            The names of the managed APIs the workflow has connections to.
+        .PARAMETER Actions
+            The actions of the workflow definition.
+        #>
         param([string[]] $Connector = @(), [System.Collections.IDictionary] $Actions = @{})
         $connections = [ordered]@{}
         foreach ($api in $Connector) { $connections[$api] = @{ id = "/subscriptions/x/providers/Microsoft.Web/locations/uksouth/managedApis/$api"; connectionId = 'c' } }
@@ -74,7 +90,16 @@ BeforeAll {
         if ($connections.Count -gt 0) { $properties.parameters = @{ '$connections' = @{ value = $connections } } }
         $properties | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
     }
-    function Get-Role { param($Properties) Invoke-Private Get-iSOCPlaybookRequiredRole @{ Properties = $Properties } }
+    function Get-Role {
+        <#
+        .SYNOPSIS
+            Returns the role the module requires for a playbook with the given properties.
+        .PARAMETER Properties
+            The properties of the playbook workflow.
+        #>
+        param($Properties)
+        Invoke-Private Get-iSOCPlaybookRequiredRole @{ Properties = $Properties }
+    }
 }
 
 AfterAll {
@@ -250,6 +275,12 @@ Describe 'The permission commands over a stand-in tenant' {
         }
 
         function Invoke-ModulePermission {
+            <#
+            .SYNOPSIS
+                Runs a script block with the module REST, logging and prerequisite commands mocked over the stand-in tenant, recording the role assignment writes.
+            .PARAMETER Command
+                The script block to run.
+            #>
             param([scriptblock] $Command)
             $script:moduleWrites = [System.Collections.Generic.List[object]]::new()
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }

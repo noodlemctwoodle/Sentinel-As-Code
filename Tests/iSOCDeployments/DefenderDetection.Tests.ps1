@@ -70,6 +70,12 @@ BeforeAll {
     }
 
     function Get-DetectionItem {
+        <#
+        .SYNOPSIS
+            Read the Defender detection items from a repository, inside the module scope.
+        .PARAMETER Repo
+            Repository root to read; defaults to the fixture repository.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -78,14 +84,36 @@ BeforeAll {
         }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Validate a Defender detection item with the module and return its findings.
+        .PARAMETER Item
+            Parsed content item to act on.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCDefenderDetection -Item $I })
     }
     function Get-Body {
+        <#
+        .SYNOPSIS
+            Build the request body for a Defender detection item, inside the module scope.
+        .PARAMETER Item
+            Parsed content item to act on.
+        .PARAMETER ForCreate
+            Build the body for creation rather than update.
+        #>
         param([psobject] $Item, [switch] $ForCreate)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item; F = [bool]$ForCreate } { param($I, $F) (ConvertTo-iSOCDefenderDetectionRequest -Item $I -ForCreate:$F).Body }
     }
     function New-DetectionFile {
+        <#
+        .SYNOPSIS
+            Write the given YAML as a detection file in a fresh repository and return its parsed item.
+        .PARAMETER Yaml
+            YAML text written to the detection file.
+        .PARAMETER Leaf
+            File name to write.
+        #>
         param([string] $Yaml, [string] $Leaf = 'Rule.yaml')
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path (Join-Path $repo 'Content/DefenderCustomDetections') -Force | Out-Null
@@ -94,16 +122,34 @@ BeforeAll {
     }
     # An item around a rule built in the test, as the reader would return it.
     function New-RuleItem {
+        <#
+        .SYNOPSIS
+            Build a minimal in-memory Defender detection item around a rule.
+        .PARAMETER Rule
+            Rule definition to use.
+        #>
         param([System.Collections.IDictionary] $Rule)
         [pscustomobject]@{ ContentType = 'DefenderDetection'; Identity = 'x'; Name = 'x'; RelativePath = 'Content/DefenderCustomDetections/x.yaml'; Rule = $Rule; LegacyFields = @(); ParseError = $null }
     }
     function Invoke-InModule {
+        <#
+        .SYNOPSIS
+            Run a script block inside the iSOCDeployments module scope.
+        .PARAMETER ScriptBlock
+            Script block to run inside the module scope.
+        .PARAMETER Parameters
+            Values made available to the script block.
+        #>
         param([scriptblock] $ScriptBlock, [hashtable] $Parameters = @{})
-        InModuleScope iSOCDeployments -ScriptBlock $ScriptBlock -Parameters $Parameters
+        InModuleScope iSOCDeployments -Parameters $Parameters $ScriptBlock
     }
 
     # A minimal rule in the current shape; tests add or replace fields.
     function New-CurrentRule {
+        <#
+        .SYNOPSIS
+            Return a detection rule in the current Graph shape.
+        #>
         @{
             id              = 'test-rule'
             displayName     = 'Test rule'
@@ -122,6 +168,10 @@ BeforeAll {
 
     # The same rule written with the retired field names.
     function New-LegacyRule {
+        <#
+        .SYNOPSIS
+            Return a detection rule in the legacy Graph shape.
+        #>
         @{
             displayName     = 'Legacy rule'
             isEnabled       = $false
@@ -578,7 +628,18 @@ Describe 'Defender detection deploy' {
             if ($Method -eq 'GET') { return $script:tenant }
             if ($Method -eq 'POST') { return [pscustomobject]@{ id = $Body.id } }
         }
-        function Get-Outcome { param($Run, [string] $Leaf) $Run.Results | Where-Object { $_.RelativePath -like "*$Leaf" } }
+        function Get-Outcome {
+            <#
+            .SYNOPSIS
+                Return the run results whose relative path ends in the given leaf.
+            .PARAMETER Run
+                Deployment or drift run object returned by the module.
+            .PARAMETER Leaf
+                File name, or trailing path, to match against item relative paths.
+            #>
+            param($Run, [string] $Leaf)
+            $Run.Results | Where-Object { $_.RelativePath -like "*$Leaf" }
+        }
     }
 
     It 'updates the rule the tenant has by name, in any case, and creates the new ones with their ids' {
@@ -682,6 +743,14 @@ Describe 'Content/DefenderCustomDetections in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name DefenderDetection }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Invoke a handler of the repository content type, inside the module scope.
+            .PARAMETER Handler
+                Name of the content-type handler to invoke.
+            .PARAMETER Parameters
+                Parameters passed to the command or handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

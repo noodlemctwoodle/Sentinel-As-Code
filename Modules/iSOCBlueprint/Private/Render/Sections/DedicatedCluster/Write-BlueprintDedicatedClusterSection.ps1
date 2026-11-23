@@ -32,12 +32,9 @@ function Write-BlueprintDedicatedClusterSection {
     .PARAMETER Context
         The render context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Context', Justification = 'Every section writer is called with the render context; this one reads nothing from it.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
-
-    # Taken from the render context.
-    $m = $Context.m
-    $n = $Context.n
 
     # ---------------------------------------------------------------------------
     # Section: 82 — dedicated cluster

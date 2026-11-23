@@ -45,6 +45,7 @@ function Publish-SacAppPackage {
     .OUTPUTS
         [string] The package version now deployed.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Progress for the operator at the console as the package is checked and deployed to the app catalog.')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
     param([Parameter(Mandatory)] [string] $Path)

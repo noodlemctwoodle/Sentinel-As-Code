@@ -124,7 +124,18 @@ BeforeAll {
     New-Item -ItemType Directory -Path (Join-Path $script:repo 'Content') -Force | Out-Null
 
     function Invoke-ModuleWorkspace {
-        <# Run Deploy-iSOCWorkspace with every stage command stood in for; return what each was given. Stages named in $Fail fail. #>
+        <#
+        .SYNOPSIS
+            Run Deploy-iSOCWorkspace with every stage command stood in, and return what each stage was given. Stages named in Fail fail.
+        .PARAMETER Parameters
+            Parameters splatted to Deploy-iSOCWorkspace.
+        .PARAMETER Fail
+            Stages that should fail.
+        .PARAMETER Drift
+            Report dependency manifest drift.
+        .PARAMETER NoManifest
+            Report that the dependency manifest does not exist.
+        #>
         param([hashtable] $Parameters, [string[]] $Fail = @(), [switch] $Drift, [switch] $NoManifest)
         $script:calls = [System.Collections.Generic.List[object]]::new()
         $script:fail = @($Fail)
@@ -148,7 +159,14 @@ BeforeAll {
     }
 
     function Get-Given {
-        <# What one stage command was given, or nothing when it was not called. #>
+        <#
+        .SYNOPSIS
+            Return what one stage command was given, or nothing when it was not called.
+        .PARAMETER Module
+            Result of the stood-in workspace run.
+        .PARAMETER Stage
+            Stage name to look up.
+        #>
         param($Module, [string] $Stage)
         $call = @($Module.Calls | Where-Object { $_.Stage -eq $Stage })
         if ($call.Count -gt 1) { throw "$Stage was called $($call.Count) times." }
@@ -156,13 +174,29 @@ BeforeAll {
     }
 
     function Get-Sorted {
-        <# A list's names, sorted and joined, so two lists compare whatever order or shape they came in. #>
+        <#
+        .SYNOPSIS
+            Sort a list's names and join them, so lists compare whatever order or shape they came in.
+        .PARAMETER Value
+            Value to process.
+        #>
         param($Value)
         (@($Value | Where-Object { $null -ne $_ -and [string]$_ -ne '' }) | Sort-Object) -join ', '
     }
 
     function Get-RunStage {
-        <# The stages a pipeline would run, from its stage conditions, for a mix of failed and left-out stages. #>
+        <#
+        .SYNOPSIS
+            Return the stages a pipeline would run, from its stage conditions, for a mix of failed and left-out stages.
+        .PARAMETER Pipeline
+            Pipeline to read the conditions from.
+        .PARAMETER Failed
+            Stages that fail.
+        .PARAMETER Excluded
+            Stages left out of the run.
+        .PARAMETER DeployInfrastructure
+            Whether infrastructure deployment is switched on.
+        #>
         param([string] $Pipeline, [string[]] $Failed, [string[]] $Excluded, [bool] $DeployInfrastructure = $true)
         $result = @{ Infrastructure = 'Succeeded' }
         $ran = [System.Collections.Generic.List[string]]::new()
@@ -179,7 +213,12 @@ BeforeAll {
     }
 
     function Get-PipelineCondition {
-        <# Each later stage's toggle and gate, read from the pipeline's conditions, which must keep the one shape this suite understands. #>
+        <#
+        .SYNOPSIS
+            Return each later stage's toggle and gate, read from the pipeline's conditions.
+        .PARAMETER Pipeline
+            Pipeline to read, such as GitHub Actions.
+        #>
         param([string] $Pipeline)
         $stageOf = @{
             'deploy-infrastructure' = 'Infrastructure'; 'deploy-content-hub' = 'ContentHub'; 'deploy-custom-content' = 'CustomContent'; 'deploy-defender-detections' = 'DefenderDetections'

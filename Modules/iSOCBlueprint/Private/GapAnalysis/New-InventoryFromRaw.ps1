@@ -53,6 +53,7 @@ function New-InventoryFromRaw {
     .OUTPUTS
         [pscustomobject] The inventory.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -63,6 +64,13 @@ function New-InventoryFromRaw {
     )
 
     function Read-Json([string]$Name) {
+        <#
+        .SYNOPSIS
+            Parse one JSON file under InputRoot; $null when it is missing or empty.
+
+        .PARAMETER Name
+            The file name under InputRoot.
+        #>
         $p = Join-Path $InputRoot $Name
         if (-not (Test-Path $p)) { return $null }
         $raw = Get-Content $p -Raw
@@ -71,6 +79,13 @@ function New-InventoryFromRaw {
     }
 
     function Read-Resource([string]$Name) {
+        <#
+        .SYNOPSIS
+            Parse one reference file under ResourcesRoot; $null when it is missing or empty.
+
+        .PARAMETER Name
+            The file name under ResourcesRoot.
+        #>
         $p = Join-Path $ResourcesRoot $Name
         if (-not (Test-Path $p)) { return $null }
         $raw = Get-Content $p -Raw
@@ -82,6 +97,13 @@ function New-InventoryFromRaw {
     # @(), so checks can take .Count without guarding. Checks that need to
     # know whether the file exists at all consult RawFiles.
     function Read-JsonArray([string]$Name) {
+        <#
+        .SYNOPSIS
+            Parse one JSON file under InputRoot as an array, empty for a missing or empty file.
+
+        .PARAMETER Name
+            The file name under InputRoot.
+        #>
         $data = Read-Json $Name
         if ($null -eq $data) { return , @() }
         return , @($data)

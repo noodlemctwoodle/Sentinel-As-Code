@@ -41,6 +41,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-StandInRuleId {
+    <#
+    .SYNOPSIS
+        Returns a GUID derived from a prefix and a scenario, so the same scenario always gets the same rule ID.
+    .PARAMETER Prefix
+        The prefix of the rule.
+    .PARAMETER Scenario
+        The name of the scenario.
+    #>
     param([string] $Prefix, [string] $Scenario)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $hash = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes("Sentinel-As-Code/ClassicToDcr/DependencyFixture|$Prefix|$Scenario"))
@@ -49,6 +57,18 @@ function Get-StandInRuleId {
 }
 
 function Get-DependencyFixtureStandIn {
+    <#
+    .SYNOPSIS
+        Returns the stand-in state of a workspace for the dependency fixture tests, with the switches choosing which odd cases it holds.
+    .PARAMETER Existing
+        Starts with the fixture resources already deployed.
+    .PARAMETER UnmarkedOrphan
+        Adds an orphaned resource that carries no marker.
+    .PARAMETER NotOnboarded
+        Leaves the workspace without Sentinel onboarded.
+    .PARAMETER RaceOnce
+        Makes one create race with another deployment once.
+    #>
     param([switch] $Existing, [switch] $UnmarkedOrphan, [switch] $NotOnboarded, [switch] $RaceOnce)
 
     $sub = '11111111-2222-3333-4444-555555555555'
@@ -112,11 +132,25 @@ function Get-DependencyFixtureStandIn {
 }
 
 function Add-DependencyFixtureWrite {
+    <#
+    .SYNOPSIS
+        Appends a write to the Writes list of the stand-in state.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Write
+        The write to record, added to the Writes list of the state.
+    #>
     param($State, [hashtable] $Write)
     $State.Writes = @($State.Writes) + @([pscustomobject]$Write)
 }
 
 function ConvertTo-StandInCanonical {
+    <#
+    .SYNOPSIS
+        Returns compressed JSON with the keys of every object sorted, so two values compare whatever order they were built in.
+    .PARAMETER Value
+        The value to turn into canonical JSON.
+    #>
     param($Value)
     $walk = {
         param($Node)
@@ -136,7 +170,12 @@ function ConvertTo-StandInCanonical {
 }
 
 function ConvertTo-StandInNormalBody {
-    <# The body with the run id and the removal hint made the same for both sides. #>
+    <#
+    .SYNOPSIS
+        The body with the run id and the removal hint made the same for both sides.
+    .PARAMETER Json
+        The JSON text of the body.
+    #>
     param([string] $Json)
     $o = $Json | ConvertFrom-Json -Depth 30 -AsHashtable
     $props = $o['properties']
@@ -150,6 +189,18 @@ function ConvertTo-StandInNormalBody {
 }
 
 function Invoke-DependencyFixtureCollector {
+    <#
+    .SYNOPSIS
+        Stand-in for one Data Collector post: checks the URI and the shared key signature, creates the table when it is new, records the post and returns the HTTP status.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Uri
+        The URI of the request.
+    .PARAMETER Headers
+        The headers of the request.
+    .PARAMETER Body
+        The request body.
+    #>
     param($State, [string] $Uri, [hashtable] $Headers, [byte[]] $Body)
     if ($Uri -ne "https://$($State.WorkspaceId).ods.opinsights.azure.com/api/logs?api-version=2016-04-01") { return 404 }
     $date = $Headers['x-ms-date']
@@ -173,13 +224,32 @@ function Invoke-DependencyFixtureCollector {
 }
 
 function Invoke-DependencyFixtureQuery {
+    <#
+    .SYNOPSIS
+        Answers a take-one log query on a table the state holds, and throws for any other query.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Query
+        The log query text the stand-in answers.
+    #>
     param($State, [string] $Query)
     if ($Query -match '^(\w+) \| take 1$' -and $State.Tables.Contains($Matches[1])) { return [pscustomobject]@{ Results = @() } }
     throw "Failed to resolve table expression named '$Query'"
 }
 
 function Invoke-DependencyFixtureArm {
-    <# One ARM call; returns @{ Status; Body }. Body is a JSON string for a PUT. #>
+    <#
+    .SYNOPSIS
+        One ARM call; returns @{ Status; Body }. Body is a JSON string for a PUT.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Method
+        The HTTP method of the call.
+    .PARAMETER Path
+        The request path, with any query string.
+    .PARAMETER Body
+        The request body.
+    #>
     param($State, [string] $Method, [string] $Path, [string] $Body)
     $p = ($Path -split '\?')[0]
     $ws = [regex]::Escape($State.WorkspacePath)

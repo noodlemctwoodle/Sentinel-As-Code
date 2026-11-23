@@ -60,6 +60,13 @@ $ErrorActionPreference = 'Stop'
 $chartsDir = Join-Path $PSScriptRoot 'src/webparts/isocBlueprintChart/charts'
 # Ordinal order, so the hash does not depend on the machine's culture.
 function Get-OrdinalSorted([System.IO.FileInfo[]] $Files) {
+    <#
+    .SYNOPSIS
+        Return the files sorted by name in ordinal order.
+
+    .PARAMETER Files
+        The files to sort.
+    #>
     $names = [string[]]@($Files | ForEach-Object Name)
     [Array]::Sort($names, [StringComparer]::Ordinal)
     foreach ($n in $names) { $Files | Where-Object Name -CEQ $n }

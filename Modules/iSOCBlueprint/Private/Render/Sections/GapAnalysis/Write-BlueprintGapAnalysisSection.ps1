@@ -38,10 +38,8 @@ function Write-BlueprintGapAnalysisSection {
     # Taken from the render context.
     $gapByCategory = $Context.gapByCategory
     $gapFindings = $Context.gapFindings
-    $m = $Context.m
     $maturity = $Context.maturity
     $maturityOk = $Context.maturityOk
-    $n = $Context.n
     $ResourcesRoot = $Context.ResourcesRoot
     $t = $Context.t
 

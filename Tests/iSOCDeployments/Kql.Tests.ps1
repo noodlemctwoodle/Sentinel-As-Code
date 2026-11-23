@@ -41,6 +41,14 @@ BeforeAll {
     Import-Module powershell-yaml -ErrorAction Stop
 
     function Get-FileDependency {
+        <#
+        .SYNOPSIS
+            Return the query dependencies of the KQL in a content file, inside the module scope.
+        .PARAMETER Path
+            Content file to read.
+        .PARAMETER KnownFunctions
+            Known function names.
+        #>
         param([string] $Path, [hashtable] $KnownFunctions)
         InModuleScope iSOCDeployments -Parameters @{ P = $Path; K = $KnownFunctions } {
             param($P, $K)
@@ -49,6 +57,14 @@ BeforeAll {
     }
 
     function Invoke-Kql {
+        <#
+        .SYNOPSIS
+            Invoke a module command inside the module scope.
+        .PARAMETER Command
+            Name of the command to invoke.
+        .PARAMETER Parameters
+            Parameters splatted to the command.
+        #>
         param([string] $Command, [hashtable] $Parameters)
         InModuleScope iSOCDeployments -Parameters @{ C = $Command; P = $Parameters } { param($C, $P) & $C @P }
     }
@@ -156,6 +172,14 @@ Describe 'Get-iSOCQueryDependency' {
     BeforeAll {
         $script:known = @{ UnifiedSignInLogs = $true }
         function New-RuleFile {
+            <#
+            .SYNOPSIS
+                Write a minimal rule file containing the given query and return its path.
+            .PARAMETER Name
+                File name under the test drive.
+            .PARAMETER Query
+                Query text, indented into the YAML.
+            #>
             param([string] $Name, [string] $Query)
             $path = Join-Path $TestDrive $Name
             Set-Content -LiteralPath $path -Value "id: aaaa1111-2222-3333-4444-555555555555`nname: Test rule`nquery: |`n$((($Query -split "`n") | ForEach-Object { "    $_" }) -join "`n")"

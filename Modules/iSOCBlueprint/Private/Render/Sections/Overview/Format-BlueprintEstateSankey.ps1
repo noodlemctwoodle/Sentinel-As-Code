@@ -44,18 +44,19 @@ function Format-BlueprintEstateSankey {
     [OutputType([string])]
     [CmdletBinding()]
     param($Estate)
-    function _Gb([double]$v) {
+    $toGb = {
+        param([double]$v)
         if ($v -le 0) { return $null }
         return ([math]::Max(0.01, [math]::Round($v, 2))).ToString('0.##', [System.Globalization.CultureInfo]::InvariantCulture)
     }
     $rows = New-Object System.Collections.Generic.List[string]
     foreach ($src in $Estate.Sources) {
-        $c = _Gb $src.CoveredGb
-        $u = _Gb ($src.Gb - $src.CoveredGb)
+        $c = & $toGb $src.CoveredGb
+        $u = & $toGb ($src.Gb - $src.CoveredGb)
         if ($c) { $rows.Add("`"$($src.Category)`",`"Ingestion`",$c") }
         if ($u) { $rows.Add("`"$($src.Category)`",`"Not monitored`",$u") }
     }
-    $covered = _Gb $Estate.CoveredGb
+    $covered = & $toGb $Estate.CoveredGb
     if ($covered) {
         $det = "Detection ($(Format-BlueprintPlural $Estate.RulesEnabled 'enabled rule'))"
         $al = "Alerts ($(Format-BlueprintCount $Estate.Alerts) in {lookback-d})"
@@ -65,8 +66,8 @@ function Format-BlueprintEstateSankey {
         $rows.Add("`"$al`",`"$inc`",$covered")
         if ($Estate.Incidents -gt 0) {
             $closedShare = [double]$Estate.CoveredGb * $Estate.IncidentsClosed / $Estate.Incidents
-            $c2 = _Gb $closedShare
-            $o2 = _Gb ($Estate.CoveredGb - $closedShare)
+            $c2 = & $toGb $closedShare
+            $o2 = & $toGb ($Estate.CoveredGb - $closedShare)
             if ($c2) { $rows.Add("`"$inc`",`"Closed ($(Format-BlueprintCount $Estate.IncidentsClosed))`",$c2") }
             if ($o2) { $rows.Add("`"$inc`",`"Open ($(Format-BlueprintCount $Estate.IncidentsOpen))`",$o2") }
         }

@@ -41,7 +41,6 @@ function Write-BlueprintSentinelDataLakeSectionPart3 {
     $assetDataRows = $Context.assetDataRows
     $cost = $Context.cost
     $dlCandidateRows = $Context.dlCandidateRows
-    $found = $Context.found
     $lakeArchitectureBlock = $Context.lakeArchitectureBlock
     $lakeBillingMeters = $Context.lakeBillingMeters
     $lakeCapabilities = $Context.lakeCapabilities
@@ -52,8 +51,6 @@ function Write-BlueprintSentinelDataLakeSectionPart3 {
     $lakeSignals = $Context.lakeSignals
     $lakeTablesBlock = $Context.lakeTablesBlock
     $lakeUsageBlock = $Context.lakeUsageBlock
-    $m = $Context.m
-    $n = $Context.n
     $tierChartBlock = $Context.tierChartBlock
 
     # Asset-data block — present when at least one asset-family table is

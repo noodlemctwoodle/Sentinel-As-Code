@@ -41,7 +41,6 @@ function Build-WordInput {
     $NoReformatFindings = $Context.NoReformatFindings
     $OutputPath = $Context.OutputPath
     $StripLinePattern = $Context.StripLinePattern
-    $Title = $Context.Title
 
     # ---------------------------------------------------------------------------
     # Run pandoc

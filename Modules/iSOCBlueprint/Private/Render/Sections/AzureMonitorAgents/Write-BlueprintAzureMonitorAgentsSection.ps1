@@ -36,9 +36,6 @@ function Write-BlueprintAzureMonitorAgentsSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $found = $Context.found
-    $m = $Context.m
-    $n = $Context.n
     $t = $Context.t
 
     # Section 87 — Azure Monitor Agents (TOC 4.5)

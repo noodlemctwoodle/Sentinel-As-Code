@@ -65,6 +65,12 @@ BeforeDiscovery {
     Import-Module powershell-yaml -ErrorAction Stop
 
     function Get-YamlCase {
+        <#
+        .SYNOPSIS
+            Reads every analytical-rule YAML file under a folder and returns one test case per file.
+        .PARAMETER Subdirectory
+            Folder under the repository root to scan recursively.
+        #>
         param([string]$Subdirectory)
         $path = Join-Path $repoRoot $Subdirectory
         if (-not (Test-Path $path)) { return @() }
@@ -282,7 +288,7 @@ Describe 'Analytical rules: cross-file invariants' {
                         $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                         $script:idMap[$id] += $rel
                     } catch {
-                        # Schema tests catch parse errors; skip silently here.
+                        Write-Verbose -Message 'Schema tests catch parse errors; skip silently here.'
                     }
                 }
         }

@@ -37,6 +37,9 @@ function New-MaturityMetric {
     .OUTPUTS
         [ordered] hashtable, one entry per metric.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'InputRoot', Justification = 'Read inside the nested Read-Json and Read-Row helpers, which the analyser does not follow.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Justification = 'The five nested helpers are small readers local to this function, and the file is at the 300 line limit, so they carry no help blocks of their own.')]
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param(
@@ -197,7 +200,9 @@ function New-MaturityMetric {
     }
 
     $tiIndicators30d = Get-RowSum $tiCounts 'Count'
-    $mdtiRows30d = Get-RowSum $tiCounts 'Count' { param($row) ([string](Get-MaturityPropertyValue $row 'SourceSystem' '')) -match '^Microsoft' }
+    $mdtiRows30d = Get-RowSum -Rows $tiCounts -Property 'Count' -Filter {
+        param($row) ([string](Get-MaturityPropertyValue $row 'SourceSystem' '')) -match '^Microsoft'
+    }
     $tiObjects30d = Get-RowSum (Read-Row 'threat-intel-objects.json') 'Count'
 
     $highPrivilegeAssignments = $null; $sentinelRoleAssignments = $null
@@ -236,7 +241,7 @@ function New-MaturityMetric {
     $huntingActivity = Get-HuntingActivity -Bookmarks (Read-Row 'bookmarks.json') -BookmarksCount (Read-Json 'bookmarks-count.json') -BookmarksFromLogs `
     (Read-Row 'bookmarks-from-logs.json') -Hunts (Read-Row 'hunts.json') -WorkspaceTables $schema -WindowDays $activityDays -AsOf $activityAsOf
 
-    $connectorFailures7d = Get-RowSum $health 'LogCount' {
+    $connectorFailures7d = Get-RowSum -Rows $health -Property 'LogCount' -Filter {
         param($row) ((Get-MaturityPropertyValue $row 'Status' '') -eq 'Failure') -and
         (([string](Get-MaturityPropertyValue $row 'OperationName' '')) -match '(?i)data fetcher|data connector')
     }

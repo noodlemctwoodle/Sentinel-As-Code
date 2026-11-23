@@ -68,6 +68,7 @@ function New-CollectorRunContext {
     .OUTPUTS
         One [pscustomobject], the content of _raw/run-context.json.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [CmdletBinding()]
     [OutputType([pscustomobject])]
     param(

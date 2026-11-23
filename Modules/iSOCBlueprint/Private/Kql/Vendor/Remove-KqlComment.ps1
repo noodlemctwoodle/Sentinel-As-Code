@@ -34,6 +34,7 @@ function Remove-KqlComment {
     .PARAMETER Query
         The KQL query text.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Strips comments from a string in memory; nothing outside the call changes.')]
     [OutputType([string])]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string]$Query)

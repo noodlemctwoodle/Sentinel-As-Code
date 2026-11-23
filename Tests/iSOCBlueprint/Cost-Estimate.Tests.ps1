@@ -50,6 +50,22 @@ BeforeAll {
 
     # A workspace: tables as @{ Name = @(GB over 30 days, plan) }.
     function Invoke-Estimate([hashtable]$Tables, [object[]]$Prices, [string]$Sku = 'PerGB2018', [int]$Level = 0, [switch]$Lake, [string]$SentinelSku = '') {
+        <#
+        .SYNOPSIS
+            Writes a synthetic capture and returns the cost estimate computed from it.
+        .PARAMETER Tables
+            Table name mapped to its 30 day volume and plan.
+        .PARAMETER Prices
+            The price list rows to use.
+        .PARAMETER Sku
+            The workspace SKU name.
+        .PARAMETER Level
+            The capacity reservation level in GB a day.
+        .PARAMETER Lake
+            Estimate lake tier pricing.
+        .PARAMETER SentinelSku
+            The Sentinel pricing model, when set.
+        #>
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-cost-' + [guid]::NewGuid())
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $tw = @(foreach ($k in $Tables.Keys) { [ordered]@{ DataType = $k; BillableLast30d = [double]$Tables[$k][0] } })
@@ -78,7 +94,17 @@ BeforeAll {
         }
         try { Get-SentinelCostEstimate -InputRoot $dir -ResourcesRoot $script:resources } finally { Remove-Item $dir -Recurse -Force }
     }
-    function Get-Row($Estimate, [string]$Table) { @($Estimate.AllTablesByCost | Where-Object Table -EQ $Table)[0] }
+    function Get-Row($Estimate, [string]$Table) {
+        <#
+        .SYNOPSIS
+            Returns the estimate row for one table.
+        .PARAMETER Estimate
+            The estimate object.
+        .PARAMETER Table
+            The table name.
+        #>
+        @($Estimate.AllTablesByCost | Where-Object Table -EQ $Table)[0]
+    }
 }
 
 Describe 'The price list it reads' {
@@ -140,7 +166,7 @@ Describe 'Pricing by plan' {
 Describe 'Commitment tiers' {
     It 'charges the tier a day, and the GB above it at the tier''s effective rate' {
         # 4,500 GB over 30 days is 150 a day on the 100 GB tier.
-        $e = Invoke-Estimate @{ CommonSecurityLog = @(3000, 'Analytics'); Syslog = @(1500, 'Analytics') } $script:Simplified 'CapacityReservation' 100
+        $e = Invoke-Estimate @{ CommonSecurityLog = @(3000, 'Analytics'); Syslog = @(1500, 'Analytics') } $script:Simplified -Sku 'CapacityReservation' -Level 100
         $expected = 30 * (279.2558 + 50 * 279.2558 / 100)
         [math]::Round($e.MonthlyTotal, 0) | Should -Be ([math]::Round($expected, 0))
         $e.CommitmentTier.Level | Should -Be 100
@@ -151,12 +177,12 @@ Describe 'Commitment tiers' {
     }
 
     It 'charges the whole tier when the ingest is below it' {
-        $e = Invoke-Estimate @{ CommonSecurityLog = @(1800, 'Analytics') } $script:Simplified 'CapacityReservation' 100
+        $e = Invoke-Estimate @{ CommonSecurityLog = @(1800, 'Analytics') } $script:Simplified -Sku 'CapacityReservation' -Level 100
         [math]::Round($e.MonthlyTotal, 0) | Should -Be ([math]::Round(30 * 279.2558, 0))
     }
 
     It 'prices at pay-as-you-go and says so when the price list lacks the tier' {
-        $e = Invoke-Estimate @{ CommonSecurityLog = @(3000, 'Analytics') } $script:Simplified 'CapacityReservation' 500
+        $e = Invoke-Estimate @{ CommonSecurityLog = @(3000, 'Analytics') } $script:Simplified -Sku 'CapacityReservation' -Level 500
         $e.CommitmentTier | Should -BeNullOrEmpty
         (Get-Row $e 'CommonSecurityLog').MonthlyCost | Should -Be ([math]::Round(3000 * 4.0605, 2))
         ($e.Caveats -join ' ') | Should -Match '500 GB a day commitment tier, but the price list has no price for it'

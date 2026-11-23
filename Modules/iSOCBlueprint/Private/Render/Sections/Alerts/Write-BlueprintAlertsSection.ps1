@@ -41,8 +41,6 @@ function Write-BlueprintAlertsSection {
     $alertProviderRows = $Context.alertProviderRows
     $alertSeverityRows = $Context.alertSeverityRows
     $alertSourceRows = $Context.alertSourceRows
-    $m = $Context.m
-    $n = $Context.n
 
     # Section 16: alerts, across every product that raises them.
     $alertsBody = @"

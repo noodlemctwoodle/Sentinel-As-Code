@@ -62,6 +62,7 @@ function New-MaturityArea {
     .OUTPUTS
         One [pscustomobject], an entry of the assessment's areas.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [CmdletBinding()]
     [OutputType([pscustomobject])]
     param(

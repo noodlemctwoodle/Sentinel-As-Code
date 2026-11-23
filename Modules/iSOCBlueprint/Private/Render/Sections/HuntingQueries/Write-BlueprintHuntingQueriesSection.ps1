@@ -41,8 +41,6 @@ function Write-BlueprintHuntingQueriesSection {
     $bookmarksFromLogs = $Context.bookmarksFromLogs
     $hunts = $Context.hunts
     $key = $Context.key
-    $m = $Context.m
-    $n = $Context.n
     $p = $Context.p
     $rawRoot = $Context.rawRoot
     $workspaceTables = $Context.workspaceTables

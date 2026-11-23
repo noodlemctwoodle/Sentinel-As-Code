@@ -42,6 +42,7 @@ function Format-MinutesScalar {
     .OUTPUTS
         [string].
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'CountAcknowledged', Justification = 'Callers pass the count the figure was taken from; the formatted text does not depend on it.')]
     [OutputType([string])]
     [CmdletBinding()]
     param($Value, $CountAcknowledged)

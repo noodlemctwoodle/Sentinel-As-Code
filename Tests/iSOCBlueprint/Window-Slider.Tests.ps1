@@ -41,6 +41,14 @@ BeforeAll {
 
     # The fixture's _raw in a workspace folder, changed by $Edit, built.
     function Build-Fixture([string]$Name, [scriptblock]$Edit) {
+        <#
+        .SYNOPSIS
+            Builds a site from the fixture capture, after an optional edit, and returns its model.
+        .PARAMETER Name
+            The workspace folder name.
+        .PARAMETER Edit
+            Script block run against the raw folder before the build.
+        #>
         $ws = Join-Path $script:outDir $Name
         New-Item -ItemType Directory -Path (Join-Path $ws '_raw') -Force | Out-Null
         Copy-Item -Path (Join-Path $script:fixtureRaw '*.json') -Destination (Join-Path $ws '_raw')
@@ -50,12 +58,28 @@ BeforeAll {
     }
     # A day entry's value at index $I, summed over the whole series.
     function Get-SeriesSum($Series, [int]$I) {
+        <#
+        .SYNOPSIS
+            Sums one position across every data series.
+        .PARAMETER Series
+            The chart series.
+        .PARAMETER I
+            The position to sum.
+        #>
         $s = 0.0
         foreach ($x in @($Series)) { foreach ($e in @($x.d)) { $s += [double]$e[$I] } }
         return $s
     }
     # A function from a script, by name, for a test to call.
     function Get-ScriptFunction([string]$Path, [string]$Name) {
+        <#
+        .SYNOPSIS
+            Returns the source text of one function from a script.
+        .PARAMETER Path
+            The script to parse.
+        .PARAMETER Name
+            The function name.
+        #>
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
         return $ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq $Name }, $true).Extent.Text
     }

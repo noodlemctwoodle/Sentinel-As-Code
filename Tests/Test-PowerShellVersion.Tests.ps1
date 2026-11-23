@@ -61,6 +61,12 @@ BeforeAll {
     $script:allFiles = $null
 
     function Get-RepoFile {
+        <#
+        .SYNOPSIS
+            Lists the tracked repository files that have one of the given extensions.
+        .PARAMETER Extension
+            File extensions to keep, without the dot.
+        #>
         param([Parameter(Mandatory)] [string[]] $Extension)
 
         if ($null -eq $script:allFiles) {
@@ -83,17 +89,37 @@ BeforeAll {
     }
 
     function Read-RepoFile {
+        <#
+        .SYNOPSIS
+            Reads a repository file as text.
+        .PARAMETER Path
+            Repository-relative path of the file.
+        #>
         param([Parameter(Mandatory)] [string] $Path)
         [IO.File]::ReadAllText((Join-Path $script:repoRoot $Path))
     }
 
     function ConvertTo-FloorVersion {
+        <#
+        .SYNOPSIS
+            Converts a version floor such as 7 or 7.4 to a version object.
+        .PARAMETER Text
+            The version text; a bare major number gets a zero minor.
+        #>
         param([Parameter(Mandatory)] [string] $Text)
         if ($Text -notmatch '\.') { $Text = "$Text.0" }
         [version]$Text
     }
 
     function Get-BicepResource {
+        <#
+        .SYNOPSIS
+            Returns the text of each Bicep resource declaration of one type.
+        .PARAMETER Text
+            The Bicep source.
+        .PARAMETER Type
+            The resource type to find, without the API version.
+        #>
         param(
             [Parameter(Mandatory)] [string] $Text,
             [Parameter(Mandatory)] [string] $Type
@@ -113,6 +139,12 @@ BeforeAll {
     }
 
     function Get-Because {
+        <#
+        .SYNOPSIS
+            Builds the failure reason shown when files break a rule.
+        .PARAMETER Offender
+            The files that break the rule.
+        #>
         param([string[]] $Offender)
         if (-not $Offender) { return 'nothing breaks the rule' }
         "these break the rule ($($Offender.Count)): " + ($Offender -join '; ')

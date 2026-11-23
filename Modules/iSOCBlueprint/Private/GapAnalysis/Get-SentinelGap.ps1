@@ -104,6 +104,7 @@ function Get-SentinelGap {
         Remediation, Learn, CheckName and PassedAt. An empty array when nothing
         fired.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'OutcomeCollector', Justification = 'Read inside the $recordOutcome script block, which the analyser does not follow.')]
     [OutputType([object[]])]
     [CmdletBinding()]
     param(

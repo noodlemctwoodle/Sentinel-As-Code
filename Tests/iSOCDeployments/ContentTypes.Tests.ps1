@@ -44,6 +44,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-BrokenIssue {
+        <#
+        .SYNOPSIS
+            Apply a change to the analytical rule definition and return the validation issues it produces.
+        .PARAMETER Change
+            Script block that receives and modifies the definition.
+        #>
         param([scriptblock] $Change)
         InModuleScope iSOCDeployments -Parameters @{ Change = $Change } {
             param($Change)

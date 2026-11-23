@@ -37,8 +37,6 @@ function Write-BlueprintWatchlistsSection {
 
     # Taken from the render context.
     $a = $Context.a
-    $m = $Context.m
-    $n = $Context.n
     $p = $Context.p
     $rulesByWatchlistAlias = $Context.rulesByWatchlistAlias
     $watchlists = $Context.watchlists

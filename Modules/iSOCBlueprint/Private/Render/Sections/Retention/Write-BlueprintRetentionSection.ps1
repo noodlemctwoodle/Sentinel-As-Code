@@ -36,9 +36,6 @@ function Write-BlueprintRetentionSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $found = $Context.found
-    $m = $Context.m
-    $n = $Context.n
     $retentionChartBlock = $Context.retentionChartBlock
     $tableRows = $Context.tableRows
     $workspace = $Context.workspace

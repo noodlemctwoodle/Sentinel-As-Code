@@ -35,6 +35,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-DcrFromSchemaStandIn {
+    <#
+    .SYNOPSIS
+        Returns the stand-in state of a workspace, its tables, resource groups and data collection rules for the schema-to-rule tests.
+    .PARAMETER NoEndpoint
+        Leaves the logs ingestion endpoint off the data collection rules the stand-in deploys.
+    #>
     param([switch] $NoEndpoint)
 
     $sub = '11111111-2222-3333-4444-555555555555'
@@ -69,12 +75,29 @@ function Get-DcrFromSchemaStandIn {
 }
 
 function Add-DcrFromSchemaWrite {
+    <#
+    .SYNOPSIS
+        Appends a write to the Writes list of the stand-in state.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Write
+        The write to record, added to the Writes list of the state.
+    #>
     param($State, [hashtable] $Write)
     $State.Writes = @($State.Writes) + @([pscustomobject]$Write)
 }
 
 function Invoke-DcrFromSchemaArm {
-    <# One ARM read; returns @{ Status; Body } with Body a JSON-ready object. #>
+    <#
+    .SYNOPSIS
+        One ARM read; returns @{ Status; Body } with Body a JSON-ready object.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Method
+        The HTTP method of the call.
+    .PARAMETER Path
+        The request path, with any query string.
+    #>
     param($State, [string] $Method, [string] $Path)
 
     $p = ($Path -split '\?')[0]
@@ -108,13 +131,28 @@ function Invoke-DcrFromSchemaArm {
 }
 
 function Get-DcrFromSchemaTemplateResource {
+    <#
+    .SYNOPSIS
+        Reads an ARM template file and returns its text with its first resource.
+    .PARAMETER TemplateFile
+        The path of the ARM template file.
+    #>
     param([string] $TemplateFile)
     $template = Get-Content -LiteralPath $TemplateFile -Raw
     [pscustomobject]@{ Text = $template; Resource = ($template | ConvertFrom-Json -Depth 30).resources[0] }
 }
 
 function Invoke-DcrFromSchemaValidate {
-    <# Test-AzResourceGroupDeployment: nothing when valid, else its error list as one object. #>
+    <#
+    .SYNOPSIS
+        Test-AzResourceGroupDeployment: nothing when valid, else its error list as one object.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER ResourceGroup
+        The resource group the deployment targets.
+    .PARAMETER TemplateFile
+        The path of the ARM template file.
+    #>
     param($State, [string] $ResourceGroup, [string] $TemplateFile)
 
     $t = Get-DcrFromSchemaTemplateResource -TemplateFile $TemplateFile
@@ -133,6 +171,18 @@ function Invoke-DcrFromSchemaValidate {
 }
 
 function Invoke-DcrFromSchemaDeploy {
+    <#
+    .SYNOPSIS
+        Stand-in for a resource group deployment: records the write, fails when the state says so, else adds the table or data collection rule the template holds.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Name
+        The name of the deployment.
+    .PARAMETER ResourceGroup
+        The resource group the deployment targets.
+    .PARAMETER TemplateFile
+        The path of the ARM template file.
+    #>
     param($State, [string] $Name, [string] $ResourceGroup, [string] $TemplateFile)
 
     $t = Get-DcrFromSchemaTemplateResource -TemplateFile $TemplateFile
@@ -154,6 +204,14 @@ function Invoke-DcrFromSchemaDeploy {
 }
 
 function Get-DcrFromSchemaDeploymentOperation {
+    <#
+    .SYNOPSIS
+        Returns the operations of a deployment: a failed and a succeeded one when the deployment failed, otherwise nothing.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER DeploymentName
+        The name of the deployment whose operations are returned.
+    #>
     param($State, [string] $DeploymentName)
     if (-not $State.Contains("Failed-$DeploymentName")) { return }
     [ordered]@{ properties = [ordered]@{ provisioningState = 'Failed'; statusMessage = [ordered]@{ status = 'Failed'; error = [ordered]@{ code = 'InvalidOutputTable'; message = 'Table for output stream Custom-Failing_CL is not available.' } } } }
@@ -161,12 +219,30 @@ function Get-DcrFromSchemaDeploymentOperation {
 }
 
 function Resolve-DcrFromSchemaApp {
+    <#
+    .SYNOPSIS
+        Returns the stand-in application with the given ID, or null when there is none.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER AppId
+        The application ID to look up.
+    #>
     param($State, [string] $AppId)
     if ($State.Apps.Contains($AppId)) { return $State.Apps[$AppId] }
     $null
 }
 
 function Get-DcrFromSchemaAssignment {
+    <#
+    .SYNOPSIS
+        Returns the role assignments of a principal, limited to those that cover the scope when one is given.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER PrincipalId
+        The principal ID of the role assignment.
+    .PARAMETER Scope
+        The scope of the assignment.
+    #>
     param($State, [string] $PrincipalId, [string] $Scope)
     foreach ($a in @($State.Assignments)) {
         if ($a.PrincipalId -ne $PrincipalId) { continue }
@@ -176,6 +252,18 @@ function Get-DcrFromSchemaAssignment {
 }
 
 function Add-DcrFromSchemaAssignment {
+    <#
+    .SYNOPSIS
+        Adds a role assignment and records the grant write, or throws the authorisation error when the principal is denied.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER PrincipalId
+        The principal ID of the role assignment.
+    .PARAMETER Role
+        The role of the assignment.
+    .PARAMETER Scope
+        The scope of the assignment.
+    #>
     param($State, [string] $PrincipalId, [string] $Role, [string] $Scope)
     if ($State.Denied -contains $PrincipalId) { throw "The client does not have authorization to perform action 'Microsoft.Authorization/roleAssignments/write' over scope '$Scope'." }
     $State.Assignments = @($State.Assignments) + @([ordered]@{ PrincipalId = $PrincipalId; Role = $Role; Scope = $Scope })

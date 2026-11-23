@@ -86,7 +86,17 @@ BeforeAll {
         window         = [ordered]@{ days = 30 }
     }
     $script:record = New-SacProgressRecord -Model $script:model -Date '2026-10-15' -GeneratedUtc '2026-10-15 09:00 UTC'
-    function New-Rec([string]$Date, [int]$Findings = 1) { [ordered]@{ schemaVersion = 1; date = $Date; metrics = [ordered]@{ findings = $Findings } } }
+    function New-Rec([string]$Date, [int]$Findings = 1) {
+        <#
+        .SYNOPSIS
+            Builds a progress history record for one date.
+        .PARAMETER Date
+            The record date.
+        .PARAMETER Findings
+            The finding count.
+        #>
+        [ordered]@{ schemaVersion = 1; date = $Date; metrics = [ordered]@{ findings = $Findings } }
+    }
 }
 
 Describe 'A run''s progress record' {

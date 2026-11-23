@@ -36,8 +36,6 @@ function Write-BlueprintWorkbooksSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $m = $Context.m
-    $n = $Context.n
     $workbooksSaved = $Context.workbooksSaved
 
     # ---------------------------------------------------------------------------

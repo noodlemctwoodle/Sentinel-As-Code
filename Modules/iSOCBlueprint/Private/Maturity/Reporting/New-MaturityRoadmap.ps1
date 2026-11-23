@@ -44,6 +44,7 @@ function New-MaturityRoadmap {
         The roadmap entries in priority order, each with priority and
         projectedScore.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [OutputType([object[]])]
     [CmdletBinding()]
     param(

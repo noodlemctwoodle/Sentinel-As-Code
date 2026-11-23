@@ -37,7 +37,6 @@ function Write-BlueprintRbacSection {
 
     # Taken from the render context.
     $c = $Context.c
-    $m = $Context.m
     $n = $Context.n
 
     # ---------------------------------------------------------------------------

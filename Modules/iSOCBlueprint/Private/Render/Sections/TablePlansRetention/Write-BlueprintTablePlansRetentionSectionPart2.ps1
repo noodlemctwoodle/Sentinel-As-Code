@@ -42,8 +42,6 @@ function Write-BlueprintTablePlansRetentionSectionPart2 {
     $classicBlock = $Context.classicBlock
     $coverageBlock = $Context.coverageBlock
     $gbByPlan = $Context.gbByPlan
-    $m = $Context.m
-    $n = $Context.n
     $orphans = $Context.orphans
     $planPieAnalytics = $Context.planPieAnalytics
     $planPieAuxiliary = $Context.planPieAuxiliary

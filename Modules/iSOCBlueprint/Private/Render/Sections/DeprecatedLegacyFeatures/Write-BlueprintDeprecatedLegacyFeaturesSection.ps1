@@ -39,13 +39,9 @@ function Write-BlueprintDeprecatedLegacyFeaturesSection {
     $classicTables01 = $Context.classicTables01
     $clv1Days = $Context.clv1Days
     $connectors = $Context.connectors
-    $f = $Context.f
     $has01 = $Context.has01
     $legacyRows = $Context.legacyRows
-    $m = $Context.m
     $mmaMachines01 = $Context.mmaMachines01
-    $n = $Context.n
-    $rawRoot = $Context.rawRoot
     $tiLegacyRows01 = $Context.tiLegacyRows01
     $tiLegacyRules01 = $Context.tiLegacyRules01
     $tipDays = $Context.tipDays

@@ -61,6 +61,7 @@ function Write-CaptureSummary {
     .PARAMETER ExpectIfActive
         Files an active workspace usually fills; empty is worth a look.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The capture summary is console output for the operator, coloured by outcome, and carries the pipeline warning annotations.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $RawRoot,

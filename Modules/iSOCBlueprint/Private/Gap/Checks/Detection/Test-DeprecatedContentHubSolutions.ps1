@@ -39,6 +39,7 @@ function Test-DeprecatedContentHubSolutions {
         $null when the rule passes; otherwise the finding New-Finding returns, with its
         Evidence and Detail.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The name is the published CheckName on every finding and is dispatched by name from best-practices.json.')]
     [CmdletBinding()] param([Parameter(Mandatory = $true)]$Inventory)
     $installed = @($Inventory.ContentPackages | Where-Object { $null -ne $_ })
     $catalogue = @($Inventory.ContentProductPackages | Where-Object { $null -ne $_ })

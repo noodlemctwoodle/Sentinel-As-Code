@@ -45,6 +45,8 @@ function New-SacProgressRecord {
         techniques (ATT&CK techniques an enabled rule covers), tables (tables
         ingesting) and uncovered (those no enabled detection reads).
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Model', Justification = 'Read inside the $v script block that looks values up in the model, which the analyser does not follow.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param(

@@ -95,6 +95,7 @@ function Get-EffectiveConnector {
         [pscustomobject[]] with the columns Source, Identifier, Table, Last24hGB
         and LastIngested.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSProvideCommentHelp', '', Justification = 'The two nested helpers are small local lookups, and the file is close to the 300 line limit, so they carry no help blocks of their own.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)] [object[]]$ClassicConnectors = @(),

@@ -61,13 +61,37 @@ BeforeAll {
     }
 
     function Invoke-InModule {
+        <#
+        .SYNOPSIS
+            Run a script block inside the iSOCDeployments module scope.
+        .PARAMETER ScriptBlock
+            Script block to run inside the module scope.
+        .PARAMETER Parameters
+            Values made available to the script block.
+        #>
         param([scriptblock] $ScriptBlock, [hashtable] $Parameters = @{})
-        InModuleScope iSOCDeployments -ScriptBlock $ScriptBlock -Parameters $Parameters
+        InModuleScope iSOCDeployments -Parameters $Parameters $ScriptBlock
     }
-    function Get-RuleType { Invoke-InModule { Get-iSOCContentTypeDefinition -Name AnalyticsRule } }
+    function Get-RuleType {
+        <#
+        .SYNOPSIS
+            Return the analytical rule content type definition.
+        #>
+        Invoke-InModule { Get-iSOCContentTypeDefinition -Name AnalyticsRule }
+    }
 
     # A workspace rule as the API returns it.
     function New-WorkspaceRule {
+        <#
+        .SYNOPSIS
+            Build a workspace analytical rule as the portal API would return it.
+        .PARAMETER Name
+            Rule name.
+        .PARAMETER Kind
+            Rule kind.
+        .PARAMETER Properties
+            Property values that replace the defaults.
+        #>
         param([string] $Name, [string] $Kind = 'Scheduled', [hashtable] $Properties = @{})
         $base = [ordered]@{
             displayName = "Rule $Name"; description = 'A portal rule.'; severity = 'Medium'; enabled = $true
@@ -86,10 +110,26 @@ BeforeAll {
         } | ConvertTo-Json -Depth 20 | ConvertFrom-Json
     }
     function Compare-Body {
+        <#
+        .SYNOPSIS
+            Compare an expected and an actual analytical rule body and return the differences.
+        .PARAMETER Expected
+            Expected value.
+        .PARAMETER Actual
+            Actual value.
+        #>
         param([object] $Expected, [object] $Actual)
         @(Invoke-InModule { param($T, $E, $A) Compare-iSOCContentBody -ContentType $T -Expected $E -Actual $A } @{ T = (Get-RuleType); E = $Expected; A = $Actual })
     }
     function New-ExpectedBody {
+        <#
+        .SYNOPSIS
+            Build the expected rule body for a workspace rule of the given kind.
+        .PARAMETER Kind
+            Rule kind.
+        .PARAMETER Properties
+            Property values that replace the defaults.
+        #>
         param([string] $Kind = 'Scheduled', [hashtable] $Properties = @{})
         $rule = New-WorkspaceRule -Name 'r' -Kind $Kind -Properties $Properties
         @{ kind = $Kind; properties = $rule.properties }
@@ -170,7 +210,16 @@ Describe 'Update-iSOCAnalyticsRuleYaml' {
     BeforeEach {
         $script:tmp = Join-Path $TestDrive "rule-$([guid]::NewGuid()).yaml"
         Copy-Item -LiteralPath $script:fixtureRule -Destination $script:tmp
-        function Update-Rule { param([object[]] $Modification) Invoke-InModule { param($P, $M) Update-iSOCAnalyticsRuleYaml -Path $P -Modification $M } @{ P = $script:tmp; M = $Modification } }
+        function Update-Rule {
+            <#
+            .SYNOPSIS
+                Apply modifications to the analytical rule YAML in the temporary folder.
+            .PARAMETER Modification
+                Modifications to apply.
+            #>
+            param([object[]] $Modification)
+            Invoke-InModule { param($P, $M) Update-iSOCAnalyticsRuleYaml -Path $P -Modification $M } @{ P = $script:tmp; M = $Modification }
+        }
     }
 
     It 'rewrites <Field> on its own line' -ForEach @(
@@ -320,6 +369,14 @@ Describe 'Get-iSOCAnalyticsRuleSource' {
         Set-Content -LiteralPath (Join-Path $script:classifyRepo 'Content/AnalyticalRules/Invalid.yaml') -Value "id: 9d9d9d9d-0000-4000-8000-000000000009`nname: No kind`nseverity: Low`nquery: T"
         $script:repoRuleId = '303E7728-B654-467C-A509-00211879716C'
         function Get-Source {
+            <#
+            .SYNOPSIS
+                Return the drift source classification for a workspace rule.
+            .PARAMETER Rule
+                Rule definition to use.
+            .PARAMETER Options
+                Drift run options.
+            #>
             param([psobject] $Rule, [hashtable] $Options = @{})
             Invoke-InModule {
                 param($C, $R, $O, $Rule)
@@ -492,6 +549,12 @@ Describe 'Whole runs against a workspace built from this repository' {
         $script:standInJson = $script:standIn | ConvertTo-Json -Depth 30
 
         function Get-StandInAnswer {
+            <#
+            .SYNOPSIS
+                Return the stand-in REST answer for a request path.
+            .PARAMETER Path
+                Path to use.
+            #>
             param([string] $Path)
             $data = $script:standInJson | ConvertFrom-Json -Depth 30
             if ($Path -like '*/alertRules*') { return $data.Rules }
@@ -500,6 +563,10 @@ Describe 'Whole runs against a workspace built from this repository' {
         }
 
         function New-RepoCopy {
+            <#
+            .SYNOPSIS
+                Copy the repository analytical rules into a fresh test folder and return its path.
+            #>
             $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString())
             New-Item -ItemType Directory -Path (Join-Path $copy 'Content') -Force | Out-Null
             Copy-Item -LiteralPath (Join-Path $script:repoRoot 'Content/AnalyticalRules') -Destination (Join-Path $copy 'Content') -Recurse
@@ -507,6 +574,14 @@ Describe 'Whole runs against a workspace built from this repository' {
         }
 
         function Invoke-ModuleDrift {
+            <#
+            .SYNOPSIS
+                Compare, sync and export drift against a repository copy with the REST client stood in.
+            .PARAMETER Setting
+                Switches that exclude sources: SkipContentHub, SkipCustom and SkipOrphans.
+            .PARAMETER NoSync
+                Skip the sync step.
+            #>
             param([hashtable] $Setting = @{}, [switch] $NoSync)
             $copy = New-RepoCopy
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }
@@ -522,6 +597,12 @@ Describe 'Whole runs against a workspace built from this repository' {
         }
 
         function Read-Report {
+            <#
+            .SYNOPSIS
+                Read the drift report written to a repository, or return null when there is none.
+            .PARAMETER Repo
+                Repository root.
+            #>
             param([string] $Repo)
             $file = @(Get-ChildItem -LiteralPath (Join-Path $Repo 'reports') -Filter 'sentinel-drift-*.json' -ErrorAction SilentlyContinue)
             if ($file.Count -eq 0) { return $null }
@@ -531,6 +612,12 @@ Describe 'Whole runs against a workspace built from this repository' {
         # Every file under Content/ that differs between a copy and the
         # repository, as relative path to text.
         function Get-ChangedFile {
+            <#
+            .SYNOPSIS
+                Return the text of each content file that differs from the repository original, keyed by relative path.
+            .PARAMETER Repo
+                Repository copy to compare.
+            #>
             param([string] $Repo)
             $changed = [ordered]@{}
             foreach ($file in Get-ChildItem -LiteralPath (Join-Path $Repo 'Content') -Recurse -File | Sort-Object FullName) {
@@ -631,6 +718,12 @@ Describe 'Sync-iSOCContent and Export-iSOCDriftReport under -WhatIf, and with no
         New-Item -ItemType Directory -Path (Join-Path $script:quietRepo 'Content/AnalyticalRules') -Force | Out-Null
         Copy-Item -LiteralPath $script:fixtureRule -Destination (Join-Path $script:quietRepo 'Content/AnalyticalRules/Repo.yaml')
         function Invoke-Compare {
+            <#
+            .SYNOPSIS
+                Compare repository content against the given workspace rules with the REST client stood in.
+            .PARAMETER Rules
+                Workspace rules the stand-in returns.
+            #>
             param([object[]] $Rules)
             $script:quietRules = $Rules
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }

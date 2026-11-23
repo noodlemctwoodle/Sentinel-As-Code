@@ -39,12 +39,28 @@ BeforeAll {
     # Queue the responses the mocked Invoke-AzRestMethod returns, in order,
     # and record every call it receives.
     function Set-Response {
+        <#
+        .SYNOPSIS
+            Queues the responses the stubbed request command returns, and clears the recorded calls.
+        .PARAMETER Response
+            The responses, returned one per call in order.
+        #>
         param([object[]] $Response)
         $script:queue = [System.Collections.Generic.Queue[object]]::new()
         foreach ($r in $Response) { $script:queue.Enqueue($r) }
         $script:calls = [System.Collections.Generic.List[hashtable]]::new()
     }
     function New-Response {
+        <#
+        .SYNOPSIS
+            Returns a response object with a status code, a content string and headers.
+        .PARAMETER Status
+            The HTTP status code.
+        .PARAMETER Body
+            The body: a string is used as it is, any other value is converted to JSON.
+        .PARAMETER Headers
+            The response headers.
+        #>
         param([int] $Status = 200, [AllowNull()] [object] $Body, [hashtable] $Headers = @{})
         $content = if ($null -eq $Body) { '' } elseif ($Body -is [string]) { $Body } else { ConvertTo-Json -InputObject $Body -Depth 20 -Compress }
         [pscustomobject]@{ StatusCode = $Status; Content = $content; Headers = $Headers }
@@ -275,6 +291,20 @@ Describe 'Invoke-iSOCRestRequest against a cmdlet that honours -WhatIf' {
         # defined in the module's scope so the client calls it.
         InModuleScope iSOCDeployments {
             function script:Invoke-AzRestMethod {
+                <#
+                .SYNOPSIS
+                    Stand-in for Invoke-AzRestMethod that returns a fixed success response when the call is confirmed.
+                .PARAMETER Path
+                    The request path.
+                .PARAMETER Uri
+                    The request URI.
+                .PARAMETER ResourceId
+                    The resource ID of the request.
+                .PARAMETER Method
+                    The HTTP method.
+                .PARAMETER Payload
+                    The request body.
+                #>
                 [CmdletBinding(SupportsShouldProcess)]
                 param($Path, $Uri, $ResourceId, $Method, $Payload)
                 if ($PSCmdlet.ShouldProcess($Path, $Method)) { [pscustomobject]@{ StatusCode = 200; Content = '{"ran":true}'; Headers = @{} } }

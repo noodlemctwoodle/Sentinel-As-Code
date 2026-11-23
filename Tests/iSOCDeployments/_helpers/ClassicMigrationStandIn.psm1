@@ -33,6 +33,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-ClassicMigrationStandIn {
+    <#
+    .SYNOPSIS
+        Returns the stand-in state of a Sentinel workspace with Classic custom tables, row counts, data collection rules and role assignments.
+    .PARAMETER UsageFails
+        Makes the Usage query throw, as a caller who cannot read Usage would see.
+    #>
     param([switch] $UsageFails)
 
     $sub = '11111111-2222-3333-4444-555555555555'
@@ -83,11 +89,27 @@ function Get-ClassicMigrationStandIn {
 }
 
 function Add-StandInWrite {
+    <#
+    .SYNOPSIS
+        Appends a write to the Writes list of the stand-in state.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Write
+        The write to record, added to the Writes list of the state.
+    #>
     param($State, [hashtable] $Write)
     $State.Writes = @($State.Writes) + @([pscustomobject]$Write)
 }
 
 function Get-StandInTableBody {
+    <#
+    .SYNOPSIS
+        Returns the ARM body of one table of the stand-in workspace, or null when the table does not exist.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Name
+        The name of the table.
+    #>
     param($State, [string] $Name)
     $t = $State.Tables[$Name]
     if (-not $t) { return $null }
@@ -96,7 +118,16 @@ function Get-StandInTableBody {
 }
 
 function Invoke-StandInArm {
-    <# One ARM call; returns @{ Status; Body } with Body a JSON-ready object. #>
+    <#
+    .SYNOPSIS
+        One ARM call; returns @{ Status; Body } with Body a JSON-ready object.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Method
+        The HTTP method of the call.
+    .PARAMETER Path
+        The request path, with any query string.
+    #>
     param($State, [string] $Method, [string] $Path)
 
     $p = ($Path -split '\?')[0]
@@ -128,12 +159,28 @@ function Invoke-StandInArm {
 }
 
 function Invoke-StandInMigrate {
+    <#
+    .SYNOPSIS
+        Marks a table as migrated to data collection rules and records the migrate write.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Table
+        The name of the table.
+    #>
     param($State, [string] $Table)
     $State.Tables[$Table].subType = 'DataCollectionRuleBased'
     Add-StandInWrite -State $State -Write @{ Kind = 'Migrate'; Table = $Table }
 }
 
 function Invoke-StandInLogQuery {
+    <#
+    .SYNOPSIS
+        Answers a log query: the Usage table, or the row count of a table over the last days. Anything else throws.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Query
+        The log query text the stand-in answers.
+    #>
     param($State, [string] $Query)
     if ($Query -match '^\s*Usage') {
         if ($State.UsageFails) { throw 'Forbidden: the caller cannot read Usage.' }
@@ -149,6 +196,18 @@ function Invoke-StandInLogQuery {
 }
 
 function Invoke-StandInDeploy {
+    <#
+    .SYNOPSIS
+        Stand-in for a resource group deployment of a data collection rule template: records the write, fails when the state says so, else adds the rule.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Name
+        The name of the deployment.
+    .PARAMETER ResourceGroup
+        The resource group the deployment targets.
+    .PARAMETER TemplateFile
+        The path of the ARM template file to deploy.
+    #>
     param($State, [string] $Name, [string] $ResourceGroup, [string] $TemplateFile)
     $template = Get-Content -LiteralPath $TemplateFile -Raw
     $dcrName = ($template | ConvertFrom-Json -Depth 30).resources[0].name
@@ -166,6 +225,14 @@ function Invoke-StandInDeploy {
 }
 
 function Get-StandInDeploymentOperation {
+    <#
+    .SYNOPSIS
+        Returns the operations of a deployment: a failed and a succeeded one when the deployment failed, otherwise nothing.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER DeploymentName
+        The name of the deployment whose operations are returned.
+    #>
     param($State, [string] $DeploymentName)
     if (-not $State.Contains("Failed-$DeploymentName")) { return }
     [ordered]@{ properties = [ordered]@{ provisioningState = 'Failed'; statusMessage = [ordered]@{ status = 'Failed'; error = [ordered]@{ code = 'InvalidOutputTable'; message = 'Table for output stream Custom-Odd_CL is not available.' } } } }
@@ -173,12 +240,30 @@ function Get-StandInDeploymentOperation {
 }
 
 function Resolve-StandInApp {
+    <#
+    .SYNOPSIS
+        Returns the stand-in application with the given ID, or null when there is none.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER AppId
+        The application ID to look up.
+    #>
     param($State, [string] $AppId)
     if ($State.Apps.Contains($AppId)) { return $State.Apps[$AppId] }
     $null
 }
 
 function Get-StandInAssignment {
+    <#
+    .SYNOPSIS
+        Returns the role assignments of a principal, limited to those that cover the scope when one is given.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER PrincipalId
+        The principal ID of the role assignment.
+    .PARAMETER Scope
+        The scope of the assignment.
+    #>
     param($State, [string] $PrincipalId, [string] $Scope)
     foreach ($a in @($State.Assignments)) {
         if ($a.PrincipalId -ne $PrincipalId) { continue }
@@ -188,6 +273,18 @@ function Get-StandInAssignment {
 }
 
 function Add-StandInAssignment {
+    <#
+    .SYNOPSIS
+        Adds a role assignment and records the grant write, or throws the authorisation error when the principal is denied.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER PrincipalId
+        The principal ID of the role assignment.
+    .PARAMETER Role
+        The role of the assignment.
+    .PARAMETER Scope
+        The scope of the assignment.
+    #>
     param($State, [string] $PrincipalId, [string] $Role, [string] $Scope)
     if ($State.Denied -contains $PrincipalId) { throw "The client does not have authorization to perform action 'Microsoft.Authorization/roleAssignments/write' over scope '$Scope'." }
     $State.Assignments = @($State.Assignments) + @([ordered]@{ PrincipalId = $PrincipalId; Role = $Role; Scope = $Scope })

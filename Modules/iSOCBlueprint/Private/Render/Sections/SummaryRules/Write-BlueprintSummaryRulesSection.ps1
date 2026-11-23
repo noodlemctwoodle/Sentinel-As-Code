@@ -36,9 +36,6 @@ function Write-BlueprintSummaryRulesSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $found = $Context.found
-    $m = $Context.m
-    $n = $Context.n
     $props = $Context.props
 
     # Section 38 — Summary rules (TOC 4.3.5)

@@ -36,8 +36,6 @@ function Write-BlueprintThreatIntelligenceSectionPart2 {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $m = $Context.m
-    $n = $Context.n
     $taxiiRows = $Context.taxiiRows
     $tiFeedRows = $Context.tiFeedRows
     $tiHeadline = $Context.tiHeadline

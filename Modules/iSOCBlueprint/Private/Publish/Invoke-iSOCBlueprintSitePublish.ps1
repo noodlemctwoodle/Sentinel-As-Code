@@ -118,6 +118,7 @@ function Invoke-iSOCBlueprintSitePublish {
     .OUTPUTS
         [string] The site URL.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The worker function makes the ShouldProcess calls; -WhatIf and -Confirm reach it through the preference variables.')]
     [OutputType([string])]
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Token')]
     param(

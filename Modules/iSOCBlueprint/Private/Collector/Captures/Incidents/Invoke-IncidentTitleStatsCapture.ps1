@@ -31,6 +31,7 @@ function Invoke-IncidentTitleStatsCapture {
         The collector's run state: the Azure scope, API versions and paths the
         captures share.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Context', Justification = 'The collector calls every capture as & $capture -Context $context, so each takes the same parameter even when it reads its state from script scope.')]
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)] [hashtable] $Context)
 

@@ -58,6 +58,7 @@ function Invoke-iSOCBlueprintConnectorCatalogueUpdate {
         Where to write the catalogue. Defaults to the Blueprint resources
         folder.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Reports to the operator at the console that the catalogue was written and what it holds.')]
     [CmdletBinding()]
     param(
         [string] $Source = 'https://raw.githubusercontent.com/noodlemctwoodle/Sentinel-As-Code-Toolkit/main/data/connectors.json',

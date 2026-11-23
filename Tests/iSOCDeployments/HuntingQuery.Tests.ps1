@@ -43,6 +43,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-HuntingItem {
+        <#
+        .SYNOPSIS
+            Read the hunting query items from a repository, inside the module scope.
+        .PARAMETER Repo
+            Repository root to read; defaults to the fixture repository.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -51,10 +57,22 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Build the deployment request for a hunting query item, inside the module scope.
+        .PARAMETER Item
+            Parsed content item to act on.
+        #>
         param([psobject] $Item)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) ConvertTo-iSOCHuntingQueryRequest -Item $I }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Validate a hunting query item with the module and return its findings.
+        .PARAMETER Item
+            Parsed content item to act on.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCHuntingQuery -Item $I })
     }
@@ -113,6 +131,14 @@ Describe 'Content/HuntingQueries in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name HuntingQuery }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Invoke a handler of the repository content type, inside the module scope.
+            .PARAMETER Handler
+                Name of the content-type handler to invoke.
+            .PARAMETER Parameters
+                Parameters passed to the command or handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

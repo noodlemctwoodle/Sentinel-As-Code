@@ -80,7 +80,7 @@ BeforeDiscovery {
                                     ($_ -replace '^[ \t]*"|"[ \t]*$', '').Trim()
                                 } | Where-Object { $_ })
                         } catch {
-                            # Leave csvHeader empty; the header-resolution test will fail.
+                            Write-Verbose -Message 'Leave csvHeader empty; the header-resolution test will fail.'
                         }
                     }
 
@@ -175,7 +175,7 @@ BeforeDiscovery {
                             $script:wlAliasMap[$alias] += $_.Name
                         }
                     } catch {
-                        # Per-directory test owns parse errors.
+                        Write-Verbose -Message 'Per-directory test owns parse errors.'
                     }
                 }
             }

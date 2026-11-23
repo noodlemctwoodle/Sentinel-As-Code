@@ -79,6 +79,7 @@ function Invoke-iSOCBlueprintWordConversion {
         The Resources/Report folder, which holds the templates and the LibreOffice
         helper. Defaults to the module's own.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The conversion step it runs calls ShouldProcess itself and inherits -WhatIf and -Confirm from this command.')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]

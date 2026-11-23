@@ -33,6 +33,7 @@ function Test-MaturityCriteriaDocument {
     .PARAMETER MetricNames
         The metric names New-MaturityMetric produces.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'MetricNames', Justification = 'Read inside the $checkSource script block, which the analyser does not follow.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)] $Document,

@@ -36,6 +36,7 @@ function Wait-SacPageComponent {
     .PARAMETER WaitSeconds
         How long to wait at most.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Tells the operator at the console why the wait for the chart web part continues, with a yellow warning when the component list cannot be read.')]
     [CmdletBinding()]
     [OutputType([bool])]
     param(

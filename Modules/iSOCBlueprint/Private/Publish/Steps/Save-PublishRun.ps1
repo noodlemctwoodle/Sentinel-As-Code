@@ -33,6 +33,7 @@ function Save-PublishRun {
     .PARAMETER Context
         The publish context: the values earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Prints the published site address in green for the operator at the console.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

@@ -77,6 +77,12 @@ BeforeAll {
     $script:exported = @((Get-Module iSOCBlueprint).ExportedFunctions.Keys)
 
     function ConvertTo-ParsableScript {
+        <#
+        .SYNOPSIS
+            Replaces pipeline macros with plain text so the script parses.
+        .PARAMETER Text
+            The script text from a pipeline file.
+        #>
         # Stand in for the pipeline macros: $(Name) in Azure DevOps (a
         # -WhatIf style flag becomes nothing) and ${{ expr }} in both.
         param([string] $Text)
@@ -86,6 +92,14 @@ BeforeAll {
     }
 
     function Get-SplatKey {
+        <#
+        .SYNOPSIS
+            Returns the keys a script puts in the table it splats.
+        .PARAMETER Ast
+            The parsed script.
+        .PARAMETER Name
+            The splat variable name.
+        #>
         # Keys a script puts in the table it splats: the literal's keys and
         # any $t['Key'] = / $t.Key = assignments.
         param($Ast, [string] $Name)

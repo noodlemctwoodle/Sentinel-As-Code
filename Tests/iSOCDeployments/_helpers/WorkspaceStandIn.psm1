@@ -41,7 +41,26 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-WorkspaceStandIn {
-    <# The default: rg-sentinel with law-sentinel, fully onboarded, and rg-playbooks; no settings yet. #>
+    <#
+    .SYNOPSIS
+        The default: rg-sentinel with law-sentinel, fully onboarded, and rg-playbooks; no settings yet.
+    .PARAMETER ResourceGroups
+        The names of the resource groups that exist.
+    .PARAMETER Workspaces
+        The workspaces that exist, as resource group and workspace name.
+    .PARAMETER Solutions
+        The workspaces that have the Sentinel solution, as resource group and workspace name.
+    .PARAMETER Onboarded
+        The workspaces that are onboarded to Sentinel, as resource group and workspace name.
+    .PARAMETER Settings
+        The existing workspace settings: name to etag.
+    .PARAMETER Denied
+        The names of the settings the caller may not change.
+    .PARAMETER Failing
+        The names of the settings whose change fails as not valid.
+    .PARAMETER Forbidden
+        The paths the caller may not read.
+    #>
     param(
         [string[]] $ResourceGroups = @('rg-sentinel', 'rg-playbooks'),
         [string[]] $Workspaces = @('rg-sentinel/law-sentinel'),
@@ -71,11 +90,25 @@ function Get-WorkspaceStandIn {
 }
 
 function Export-WorkspaceStandIn {
+    <#
+    .SYNOPSIS
+        Writes the stand-in state to a JSON file.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Path
+        The path of the file to read or write.
+    #>
     param($State, [string] $Path)
     $State | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
 }
 
 function Import-WorkspaceStandIn {
+    <#
+    .SYNOPSIS
+        Reads a stand-in state back from a JSON file written by Export-WorkspaceStandIn.
+    .PARAMETER Path
+        The path of the file to read or write.
+    #>
     param([string] $Path)
     $raw = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable
     $state = [ordered]@{}
@@ -88,7 +121,18 @@ function Import-WorkspaceStandIn {
 }
 
 function Invoke-WorkspaceStandInArm {
-    <# One ARM request; returns @{ Status; Body } with Body a JSON-ready object. Path without host; any query is ignored. #>
+    <#
+    .SYNOPSIS
+        One ARM request; returns @{ Status; Body } with Body a JSON-ready object. Path without host; any query is ignored.
+    .PARAMETER State
+        The stand-in state table the call reads and changes.
+    .PARAMETER Method
+        The HTTP method of the request.
+    .PARAMETER Path
+        The path of the file to read or write.
+    .PARAMETER Body
+        The request body: JSON text or an object.
+    #>
     param($State, [string] $Method, [string] $Path, $Body)
 
     $p = ($Path -replace '^https?://[^/]+', '' -split '\?')[0]
@@ -140,7 +184,12 @@ function Invoke-WorkspaceStandInArm {
 }
 
 function Read-PipelineYaml {
-    <# The parsed pipeline file. #>
+    <#
+    .SYNOPSIS
+        The parsed pipeline file.
+    .PARAMETER Path
+        The path of the pipeline file.
+    #>
     param([string] $Path)
     Import-Module powershell-yaml -ErrorAction Stop
     Get-Content -LiteralPath $Path -Raw | ConvertFrom-Yaml
@@ -148,10 +197,15 @@ function Read-PipelineYaml {
 
 function Resolve-PipelineParameter {
     <#
-    The value of every parameter a pipeline declares: its default, or the
-    value $Parameters gives it. A name the pipeline does not declare, or a
-    value outside the parameter's values list, is an error, as Azure DevOps
-    makes it when the run is queued.
+    .SYNOPSIS
+        The value of every parameter a pipeline declares: its default, or the
+        value $Parameters gives it. A name the pipeline does not declare, or a
+        value outside the parameter's values list, is an error, as Azure DevOps
+        makes it when the run is queued.
+    .PARAMETER Yaml
+        The parsed pipeline file.
+    .PARAMETER Parameters
+        The values the pipeline parameters take instead of their defaults.
     #>
     param([System.Collections.IDictionary] $Yaml, [hashtable] $Parameters = @{})
 
@@ -174,11 +228,16 @@ function Resolve-PipelineParameter {
 
 function Test-PipelineCondition {
     <#
-    Evaluate a template condition of the form eq(parameters.name, 'value')
-    or ne(...), with a quoted string or true/false. Strings compare without
-    case, as Azure DevOps compares them. Any other condition is an error,
-    so a pipeline that gains one fails the test rather than being read
-    wrongly.
+    .SYNOPSIS
+        Evaluate a template condition of the form eq(parameters.name, 'value')
+        or ne(...), with a quoted string or true/false. Strings compare without
+        case, as Azure DevOps compares them. Any other condition is an error,
+        so a pipeline that gains one fails the test rather than being read
+        wrongly.
+    .PARAMETER Condition
+        The template condition text.
+    .PARAMETER Values
+        The resolved parameter values, by name.
     #>
     param([string] $Condition, [hashtable] $Values)
 
@@ -193,10 +252,15 @@ function Test-PipelineCondition {
 
 function Expand-PipelineSequence {
     <#
-    The items of a stages, jobs or steps list after template insertion:
-    an item that is only ${{ if c }}, ${{ elseif c }} or ${{ else }} is
-    replaced by its own items when its branch is taken, and dropped when it
-    is not.
+    .SYNOPSIS
+        The items of a stages, jobs or steps list after template insertion:
+        an item that is only ${{ if c }}, ${{ elseif c }} or ${{ else }} is
+        replaced by its own items when its branch is taken, and dropped when it
+        is not.
+    .PARAMETER Items
+        The items of the stages, jobs or steps list.
+    .PARAMETER Values
+        The resolved parameter values, by name.
     #>
     param([object[]] $Items, [hashtable] $Values)
 
@@ -237,10 +301,15 @@ function Expand-PipelineSequence {
 
 function Get-PipelineStep {
     <#
-    Every step of a pipeline file, in order, after template insertion with
-    the pipeline's parameter defaults and the values $Parameters gives.
-    Each step carries the stage and job it is in, as PipelineStage and
-    PipelineJob keys (null in a GitHub workflow's stage).
+    .SYNOPSIS
+        Every step of a pipeline file, in order, after template insertion with
+        the pipeline's parameter defaults and the values $Parameters gives.
+        Each step carries the stage and job it is in, as PipelineStage and
+        PipelineJob keys (null in a GitHub workflow's stage).
+    .PARAMETER Path
+        The path of the pipeline file.
+    .PARAMETER Parameters
+        The values the pipeline parameters take instead of their defaults.
     #>
     param([string] $Path, [hashtable] $Parameters = @{})
 
@@ -267,9 +336,14 @@ function Get-PipelineStep {
 
 function Get-PipelineStage {
     <#
-    The stages of an Azure DevOps pipeline file after template insertion
-    with the parameter defaults and $Parameters, each with its dependsOn
-    list expanded too (as an array, empty when it has none).
+    .SYNOPSIS
+        The stages of an Azure DevOps pipeline file after template insertion
+        with the parameter defaults and $Parameters, each with its dependsOn
+        list expanded too (as an array, empty when it has none).
+    .PARAMETER Path
+        The path of the pipeline file.
+    .PARAMETER Parameters
+        The values the pipeline parameters take instead of their defaults.
     #>
     param([string] $Path, [hashtable] $Parameters = @{})
 
@@ -283,10 +357,15 @@ function Get-PipelineStage {
 
 function Get-PipelineVariableValue {
     <#
-    The compile-time value of each variable an Azure DevOps pipeline file
-    declares in its top-level variables list, by name: a value, or the
-    ${{ if }} / ${{ else }} branch its parameters take. Variable groups are
-    left out.
+    .SYNOPSIS
+        The compile-time value of each variable an Azure DevOps pipeline file
+        declares in its top-level variables list, by name: a value, or the
+        ${{ if }} / ${{ else }} branch its parameters take. Variable groups are
+        left out.
+    .PARAMETER Path
+        The path of the pipeline file.
+    .PARAMETER Parameters
+        The values the pipeline parameters take instead of their defaults.
     #>
     param([string] $Path, [hashtable] $Parameters = @{})
 
@@ -306,17 +385,26 @@ function Get-PipelineVariableValue {
 
 function Get-PipelineInlineScript {
     <#
-    Return the inline PowerShell of the step named $Step (an ADO step's
-    displayName, a GitHub step's name) in a pipeline file, with each of its
-    pipeline variables replaced by the value $Variables gives it by name:
-    ADO macros $(name) for the deployment variables, $(Build.SourcesDirectory)
-    and the flag variables; GitHub and ADO template expressions
-    ${{ env|vars|secrets|inputs|parameters|github.NAME }}, with a
-    || 'literal' default taken when the value is empty or false. A variable
-    it uses that $Variables does not name, or any other template
-    expression, is an error, so a step that gains one fails the test rather
-    than running with the macro in its text. The steps are the ones the
-    pipeline runs with $Parameters (Get-PipelineStep).
+    .SYNOPSIS
+        Return the inline PowerShell of the step named $Step (an ADO step's
+        displayName, a GitHub step's name) in a pipeline file, with each of its
+        pipeline variables replaced by the value $Variables gives it by name:
+        ADO macros $(name) for the deployment variables, $(Build.SourcesDirectory)
+        and the flag variables; GitHub and ADO template expressions
+        ${{ env|vars|secrets|inputs|parameters|github.NAME }}, with a
+        || 'literal' default taken when the value is empty or false. A variable
+        it uses that $Variables does not name, or any other template
+        expression, is an error, so a step that gains one fails the test rather
+        than running with the macro in its text. The steps are the ones the
+        pipeline runs with $Parameters (Get-PipelineStep).
+    .PARAMETER Path
+        The path of the pipeline file.
+    .PARAMETER Step
+        The display name, or name, of the step.
+    .PARAMETER Variables
+        The values of the pipeline variables the step uses, by name.
+    .PARAMETER Parameters
+        The values the pipeline parameters take instead of their defaults.
     #>
     param([string] $Path, [string] $Step, [hashtable] $Variables, [hashtable] $Parameters = @{})
 

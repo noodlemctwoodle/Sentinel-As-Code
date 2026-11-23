@@ -33,6 +33,7 @@ function Invoke-PublishPrune {
     .PARAMETER Context
         The publish context: the values earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Reports each removal to the operator at the console as the publish runs.')]
     [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

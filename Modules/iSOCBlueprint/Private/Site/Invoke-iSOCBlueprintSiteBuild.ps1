@@ -129,6 +129,7 @@ function Invoke-iSOCBlueprintSiteBuild {
 
         Builds the bundle into ./SecurityDocs/law-sentinel-prod/2026-11-12/sharepoint.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'The steps it runs call ShouldProcess themselves and inherit -WhatIf and -Confirm from this command.')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]

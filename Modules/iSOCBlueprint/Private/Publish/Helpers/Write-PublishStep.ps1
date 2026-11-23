@@ -35,6 +35,7 @@ function Write-PublishStep {
     .PARAMETER Message
         The heading text.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The stage heading is coloured console output for the operator.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string] $Message)
     Write-Host "`n$Message" -ForegroundColor Cyan

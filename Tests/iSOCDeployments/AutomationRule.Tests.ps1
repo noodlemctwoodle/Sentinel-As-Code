@@ -43,6 +43,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-RuleItem {
+        <#
+        .SYNOPSIS
+            Read the automation rule items from a repository, inside the module scope.
+        .PARAMETER Repo
+            Repository root to read; defaults to the fixture repository.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -51,14 +57,32 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Build the deployment request for an automation rule item, inside the module scope.
+        .PARAMETER Item
+            Parsed content item to act on.
+        #>
         param([psobject] $Item)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) ConvertTo-iSOCAutomationRuleRequest -Item $I }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Validate an automation rule item with the module and return its findings.
+        .PARAMETER Item
+            Parsed content item to act on.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCAutomationRule -Item $I })
     }
     function New-RuleFile {
+        <#
+        .SYNOPSIS
+            Write the given JSON as a rule file in a fresh repository and return its parsed item.
+        .PARAMETER Json
+            JSON text written to the rule file.
+        #>
         param([string] $Json)
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path (Join-Path $repo 'Content/AutomationRules') -Force | Out-Null
@@ -128,6 +152,14 @@ Describe 'Content/AutomationRules in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name AutomationRule }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Invoke a handler of the repository content type, inside the module scope.
+            .PARAMETER Handler
+                Name of the content-type handler to invoke.
+            .PARAMETER Parameters
+                Parameters passed to the command or handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

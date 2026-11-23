@@ -52,7 +52,7 @@
     Website:      https://sentinel.blog
     Created:      2026-08-20
     Version:      0.1.2
-    Last Updated: 2026-11-09
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+, Azure CLI (az) signed in with rights to create tables, DCRs and Sentinel resources
 
     API versions:
@@ -70,6 +70,7 @@
     https://learn.microsoft.com/azure/sentinel/create-codeless-connector
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The step, status and completion lines are coloured operator progress, written straight to the host and not meant to be captured.')]
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $SubscriptionId,
@@ -106,10 +107,41 @@ foreach ($f in @($tableFile, $dcrFile, $connDefFile, $pollingFile)) {
 }
 
 # --- Helpers -------------------------------------------------------------------
-function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -ForegroundColor Cyan }
-function Write-Ok { param([string]$Message) Write-Host "    [OK] $Message" -ForegroundColor Green }
+function Write-Step {
+    <#
+    .SYNOPSIS
+        Write a step heading in cyan.
+
+    .PARAMETER Message
+        The heading text.
+    #>
+    param([string]$Message)
+    Write-Host "`n==> $Message" -ForegroundColor Cyan
+}
+
+function Write-Ok {
+    <#
+    .SYNOPSIS
+        Write a success line in green.
+
+    .PARAMETER Message
+        The text to write after the OK marker.
+    #>
+    param([string]$Message)
+    Write-Host "    [OK] $Message" -ForegroundColor Green
+}
 
 function Invoke-AzRestPut {
+    <#
+    .SYNOPSIS
+        PUT a JSON body to an Azure Resource Manager URL with az rest and return the parsed response.
+
+    .PARAMETER Url
+        The full request URL, including the api-version.
+
+    .PARAMETER BodyJson
+        The JSON request body, passed as an in-memory argument.
+    #>
     # The body is passed as an in-memory argument rather than via a temporary file. The
     # poller bodies carry the Sophos client secret, and a temp file would place that secret
     # on disk with default ACLs for the lifetime of the call. PowerShell passes native
@@ -127,6 +159,13 @@ function Invoke-AzRestPut {
 }
 
 function Invoke-AzRestGet {
+    <#
+    .SYNOPSIS
+        GET an Azure Resource Manager URL with az rest and return the parsed response.
+
+    .PARAMETER Url
+        The full request URL, including the api-version.
+    #>
     param([string]$Url)
     $result = az rest --method get --url $Url 2>&1
     if ($LASTEXITCODE -ne 0) { throw "GET $Url failed:`n$result" }

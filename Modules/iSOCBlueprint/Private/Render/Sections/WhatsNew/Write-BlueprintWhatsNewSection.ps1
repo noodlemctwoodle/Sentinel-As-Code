@@ -32,6 +32,7 @@ function Write-BlueprintWhatsNewSection {
     .PARAMETER Context
         The render context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'wnTopics', Justification = 'Read by Get-WhatsNewRelation from this function scope, which the analyser cannot see.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

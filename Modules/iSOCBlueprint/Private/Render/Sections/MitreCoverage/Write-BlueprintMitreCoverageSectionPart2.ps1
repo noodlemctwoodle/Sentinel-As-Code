@@ -183,16 +183,6 @@ $(Format-BlueprintTable -Items $msIncidentRows -Columns 'Name','Product','Severi
         }
     }
 
-    $mitreRows = foreach ($t in $tactics) {
-        $count = $tacticCounts[$t.sentinelShortName]
-        [pscustomobject]@{
-            ID           = $t.id
-            Tactic       = $t.name
-            EnabledRules = $count
-            Coverage     = if ($count -eq 0) { 'None' } elseif ($count -lt 3) { 'Thin' } else { 'Covered' }
-        }
-    }
-
     # Build the hierarchy: tactic -> technique -> sub-technique -> rules, from
     # Get-AttackCoverage (Private/Lookup/Get-AttackCoverage.ps1), which the dashboard's
     # ATT&CK grid reads too, so the two agree. It maps every rule, enabled or

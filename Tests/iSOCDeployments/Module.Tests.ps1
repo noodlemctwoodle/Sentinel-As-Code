@@ -58,6 +58,12 @@ BeforeAll {
 
     $script:codeFiles = @(Get-ChildItem -LiteralPath $script:moduleRoot -Include '*.ps1', '*.psm1', '*.psd1' -File -Recurse)
     function Get-CommandCall {
+        <#
+        .SYNOPSIS
+            Returns the file, line and name of every call in the module code files to a command whose name matches the pattern.
+        .PARAMETER Pattern
+            The regular expression the command name must match.
+        #>
         param([string] $Pattern)
         foreach ($file in $script:codeFiles) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)

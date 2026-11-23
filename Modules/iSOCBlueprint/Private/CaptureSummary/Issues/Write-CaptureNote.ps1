@@ -37,6 +37,7 @@ function Write-CaptureNote {
     .PARAMETER Text
         What happened.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Tells the operator at the console, in the outcome colour, that a capture could not be read as it happens.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [ValidateSet('NotAvailable', 'Permission', 'Error')] [string] $Kind,

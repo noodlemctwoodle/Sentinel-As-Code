@@ -37,7 +37,6 @@ function Write-BlueprintCoverageBreakdownsSection {
 
     # Taken from the render context.
     $cat = $Context.cat
-    $m = $Context.m
     $n = $Context.n
     $rawRoot = $Context.rawRoot
     $s = $Context.s

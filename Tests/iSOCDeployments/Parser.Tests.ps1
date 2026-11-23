@@ -43,6 +43,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-ParserItem {
+        <#
+        .SYNOPSIS
+            Reads the parser items of a repository with the ReadRepo handler of the Parser content type.
+        .PARAMETER Repo
+            The repository path; the fixture repository by default.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -51,10 +57,22 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Returns the request the module builds for a parser item.
+        .PARAMETER Item
+            The parser item read from the repository.
+        #>
         param([psobject] $Item)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) ConvertTo-iSOCParserRequest -Item $I }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Returns the validation errors the module reports for a parser item.
+        .PARAMETER Item
+            The parser item read from the repository.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCParser -Item $I })
     }
@@ -105,6 +123,14 @@ Describe 'Content/Parsers in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name Parser }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Runs a handler of the repository content type under test.
+            .PARAMETER Handler
+                The name of the handler to run.
+            .PARAMETER Parameters
+                The parameters passed to the handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

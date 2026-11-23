@@ -38,8 +38,6 @@ function Write-BlueprintRuleHealthQualitySection {
     # Taken from the render context.
     $analyticsLinks = $Context.analyticsLinks
     $complexitySection = $Context.complexitySection
-    $m = $Context.m
-    $n = $Context.n
     $ruleHealthSection = $Context.ruleHealthSection
     $rules = $Context.rules
     $staleSection = $Context.staleSection

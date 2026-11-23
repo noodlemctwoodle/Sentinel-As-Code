@@ -43,7 +43,6 @@ function Build-SitePage {
     $MaxTableRows = $Context.MaxTableRows
     $Source = $Context.Source
     $tableRows = $Context.tableRows
-    $Title = $Context.Title
 
     $sections = @()
     $siteSections = @()

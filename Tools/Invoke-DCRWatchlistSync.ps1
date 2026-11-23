@@ -62,7 +62,7 @@
     Website:        https://sentinel.blog
     Created:        2026-03-23
     Version:        1.0.2
-    Last Updated:   2026-11-09
+    Last Updated:   2026-11-23
     Requires:       PowerShell 7.6+, Az.Accounts
 
     Required RBAC on managed identity:
@@ -115,6 +115,16 @@ $ARM_BASE = 'https://management.azure.com'
 #region ── Helper: Write-AuditLog ───────────────────────────────────────────────
 
 function Write-AuditLog {
+    <#
+    .SYNOPSIS
+        Write a timestamped log line to the output stream.
+
+    .PARAMETER Message
+        The text to log.
+
+    .PARAMETER Level
+        Info, Warning, Error or Success; defaults to Info.
+    #>
     [CmdletBinding()]
     param (
         [string] $Message
@@ -378,6 +388,16 @@ $itemsBaseUri = "$watchlistBase/watchlistItems"
 # ── Helper: Build CSV row from DCR data ───────────────────────────────────────
 
 function ConvertTo-WatchlistCsvRow {
+    <#
+    .SYNOPSIS
+        Build one CSV line for the watchlist from a DCR data row.
+
+    .PARAMETER Row
+        The DCR row, holding its resource names, types and count.
+
+    .PARAMETER Columns
+        The watchlist columns to write, in order.
+    #>
     param ([PSCustomObject] $Row, [string[]] $Columns)
 
     $values = foreach ($col in $Columns) {

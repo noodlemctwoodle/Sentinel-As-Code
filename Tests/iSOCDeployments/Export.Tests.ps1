@@ -73,10 +73,27 @@ BeforeAll {
     }
 
     function Invoke-Private {
+        <#
+        .SYNOPSIS
+            Invoke a private module command inside the module scope.
+        .PARAMETER Command
+            Name of the private command to invoke.
+        .PARAMETER Arguments
+            Parameters splatted to the command.
+        #>
         param([string] $Command, [hashtable] $Arguments = @{})
         InModuleScope iSOCDeployments -Parameters @{ C = $Command; A = $Arguments } { param($C, $A) & $C @A }
     }
-    function Get-Type { param([string] $Name) Invoke-Private Get-iSOCContentTypeDefinition @{ Name = $Name } }
+    function Get-Type {
+        <#
+        .SYNOPSIS
+            Return a content type definition by name.
+        .PARAMETER Name
+            Name to use.
+        #>
+        param([string] $Name)
+        Invoke-Private Get-iSOCContentTypeDefinition @{ Name = $Name }
+    }
 
     # The value ARM substitutes for each expression the exporter writes.
     $script:ExpressionValues = @{
@@ -88,6 +105,12 @@ BeforeAll {
     }
 
     function New-TestContext {
+        <#
+        .SYNOPSIS
+            Build a portable export context for the test subscription and workspace.
+        .PARAMETER PlaybookResourceGroup
+            Resource group holding the playbooks.
+        #>
         param([string] $PlaybookResourceGroup = 'rg-automation')
         Invoke-Private Get-iSOCPortableContext @{ SubscriptionId = $script:Sub; PlaybookResourceGroup = $PlaybookResourceGroup; WorkspaceResourceGroup = 'rg-sentinel'; WorkspaceName = 'law-lab'; WorkspaceId = $script:WsId }
     }
@@ -95,6 +118,12 @@ BeforeAll {
     # A small ARM string evaluator: [[ escapes, bare expressions, and
     # concat() of single-quoted literals and the known expressions.
     function Resolve-ArmString {
+        <#
+        .SYNOPSIS
+            Evaluate the limited ARM string expressions used by the converted templates.
+        .PARAMETER Value
+            ARM string, possibly a bracketed expression.
+        #>
         param([string] $Value)
         if ($Value.StartsWith('[[')) { return $Value.Substring(1) }
         if (-not ($Value.StartsWith('[') -and $Value.EndsWith(']'))) { return $Value }
@@ -141,6 +170,16 @@ BeforeAll {
     # The path of every string in the converted copy that does not
     # evaluate back to the original.
     function Compare-PortableRoundTrip {
+        <#
+        .SYNOPSIS
+            Return the path of every string in the converted copy that does not evaluate back to the original.
+        .PARAMETER Original
+            Original value.
+        .PARAMETER Converted
+            Converted value.
+        .PARAMETER Path
+            Path of the value being compared.
+        #>
         param($Original, $Converted, [string] $Path = '')
         $mismatches = [System.Collections.Generic.List[string]]::new()
         if ($Original -is [string]) {
@@ -252,11 +291,42 @@ BeforeAll {
 }
 '@.Replace('{SUB}', $script:Sub).Replace('{WSID}', $script:WsId)
 
-    function Get-FixtureLogicApp { $script:FixtureJson | ConvertFrom-Json -Depth 100 }
-    function ConvertTo-TemplateHashtable { param($Template) $Template | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100 -AsHashtable }
+    function Get-FixtureLogicApp {
+        <#
+        .SYNOPSIS
+            Return the fixture Logic App parsed from JSON.
+        #>
+        $script:FixtureJson | ConvertFrom-Json -Depth 100
+    }
+    function ConvertTo-TemplateHashtable {
+        <#
+        .SYNOPSIS
+            Convert a template object to a nested hashtable.
+        .PARAMETER Template
+            Template object to convert.
+        #>
+        param($Template)
+        $Template | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100 -AsHashtable
+    }
 
     # A Logic App as the API returns it.
     function New-LogicApp {
+        <#
+        .SYNOPSIS
+            Build a Logic App resource as the REST API returns it.
+        .PARAMETER Name
+            Logic App name.
+        .PARAMETER Triggers
+            Workflow triggers.
+        .PARAMETER Actions
+            Workflow actions.
+        .PARAMETER Connections
+            Connections to declare.
+        .PARAMETER State
+            Workflow state.
+        .PARAMETER NoDefinition
+            Leave the workflow definition out.
+        #>
         param([string] $Name, [hashtable] $Triggers, [hashtable] $Actions = @{}, [hashtable] $Connections = @{}, [string] $State = 'Enabled', [switch] $NoDefinition)
         $app = [ordered]@{ id = "$($script:laBase)/$Name"; name = $Name; type = 'Microsoft.Logic/workflows'; location = 'uksouth'; properties = [ordered]@{ state = $State } }
         if (-not $NoDefinition) {
@@ -271,6 +341,14 @@ BeforeAll {
         $app | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100
     }
     function New-Connection {
+        <#
+        .SYNOPSIS
+            Build a Logic App connection entry for an API.
+        .PARAMETER Api
+            Name of the managed API.
+        .PARAMETER ManagedIdentity
+            Add managed identity authentication.
+        #>
         param([string] $Api, [switch] $ManagedIdentity)
         $value = [ordered]@{ connectionId = "/subscriptions/$($script:Sub)/resourceGroups/rg-automation/providers/Microsoft.Web/connections/$Api"; id = "/subscriptions/$($script:Sub)/providers/Microsoft.Web/locations/uksouth/managedApis/$Api" }
         if ($ManagedIdentity) { $value.connectionProperties = @{ authentication = @{ type = 'ManagedServiceIdentity' } } }
@@ -279,6 +357,22 @@ BeforeAll {
 
     # A workbook as the API returns it.
     function New-Workbook {
+        <#
+        .SYNOPSIS
+            Build a workbook resource as the REST API returns it.
+        .PARAMETER Name
+            Workbook name.
+        .PARAMETER DisplayName
+            Workbook display name.
+        .PARAMETER SerializedData
+            Serialised workbook content.
+        .PARAMETER Category
+            Workbook category.
+        .PARAMETER Description
+            Workbook description.
+        .PARAMETER NoContent
+            Leave the serialised content out.
+        #>
         param([string] $Name, [string] $DisplayName, [AllowNull()] [string] $SerializedData, [string] $Category = 'sentinel', [string] $Description = '', [switch] $NoContent)
         $properties = [ordered]@{ displayName = $DisplayName; description = $Description; category = $Category; sourceId = $script:wsPath.ToLowerInvariant(); version = '1.0' }
         if (-not $NoContent) { $properties.serializedData = $SerializedData }
@@ -286,6 +380,14 @@ BeforeAll {
             ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100
     }
     function New-GalleryTemplate {
+        <#
+        .SYNOPSIS
+            Build serialised gallery template JSON with a title.
+        .PARAMETER Title
+            Title shown in the template text.
+        .PARAMETER Workspace
+            Use the workspace as the fallback resource instead of Azure Monitor.
+        #>
         param([string] $Title, [switch] $Workspace)
         $template = [ordered]@{ version = 'Notebook/1.0'; items = @([ordered]@{ type = 1; content = [ordered]@{ json = "## $Title" }; name = 'text - 0' }); isLocked = $false }
         $template.fallbackResourceIds = @($(if ($Workspace) { $script:wsPath.ToLowerInvariant() } else { 'Azure Monitor' }))
@@ -293,6 +395,12 @@ BeforeAll {
     }
 
     function New-RepoCopy {
+        <#
+        .SYNOPSIS
+            Copy repository content folders into a fresh test folder and return its path.
+        .PARAMETER Folder
+            Content folders to copy.
+        #>
         param([string[]] $Folder = @('Content/Workbooks', 'Content/Playbooks'))
         $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path (Join-Path $copy 'Content') -Force | Out-Null
@@ -301,6 +409,14 @@ BeforeAll {
     }
 
     function Get-TreeFile {
+        <#
+        .SYNOPSIS
+            List the files under a folder as ordinally sorted relative paths.
+        .PARAMETER Root
+            Root the relative paths are taken from.
+        .PARAMETER Folder
+            Folder to read from.
+        #>
         param([string] $Root, [string] $Folder)
         $base = Join-Path $Root $Folder
         if (-not (Test-Path -LiteralPath $base)) { return @() }
@@ -364,6 +480,14 @@ Describe 'Workbook helpers (carried over from Test-ExportSentinelWorkbooks.Tests
     Context 'merging metadata' {
         BeforeAll {
             function Merge {
+                <#
+                .SYNOPSIS
+                    Merge workbook metadata through the private merge command with defaults.
+                .PARAMETER Api
+                    Values that replace the default arguments.
+                .PARAMETER Existing
+                    Existing metadata.
+                #>
                 param([hashtable] $Api = @{}, $Existing)
                 $arguments = @{ ApiDisplayName = 'Cost'; ApiDescription = ''; ApiCategory = 'sentinel'; FolderName = 'Cost'; WorkbookId = 'abc'; ExistingMetadata = $Existing }
                 foreach ($key in $Api.Keys) { $arguments[$key] = $Api[$key] }
@@ -700,10 +824,28 @@ Describe 'Export handlers' {
     BeforeAll {
         $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
         function New-Run {
+            <#
+            .SYNOPSIS
+                Create a drift run over a repository, inside the module scope.
+            .PARAMETER RepoPath
+                Repository root; defaults to the fixture repository.
+            .PARAMETER Exclude
+                Sources excluded from the run.
+            #>
             param([string] $RepoPath = $script:fixtureRepo, [string[]] $Exclude = @('ContentHub'))
             Invoke-Private New-iSOCDriftRun @{ Context = $script:context; RepoPath = $RepoPath; Options = @{ ExcludeSource = $Exclude } }
         }
         function Get-Source {
+            <#
+            .SYNOPSIS
+                Classify a workspace item through the content type handler.
+            .PARAMETER Type
+                Content type name.
+            .PARAMETER Item
+                Workspace item to classify.
+            .PARAMETER Run
+                Drift run; a new run by default.
+            #>
             param([string] $Type, [psobject] $Item, [psobject] $Run = (New-Run))
             Invoke-Private Invoke-iSOCContentTypeHandler @{ ContentType = (Get-Type $Type); Handler = 'Classify'; Parameters = @{ Run = $Run; ContentType = (Get-Type $Type); WorkspaceItem = $Item } }
         }
@@ -782,7 +924,7 @@ Describe 'Export handlers' {
             $source.Source | Should -Be 'ContentHub'
             $source.Solution | Should -Be 'Azure Activity'
             $source.State | Should -Be 'Skipped'
-            (Get-Source Workbook $hub (New-Run -Exclude @())).State | Should -BeNullOrEmpty
+            (Get-Source -Type Workbook -Item $hub -Run (New-Run -Exclude @())).State | Should -BeNullOrEmpty
         }
 
         It 'fails one that could not be read, and skips one with no content or content that is not JSON' {
@@ -797,7 +939,7 @@ Describe 'Export handlers' {
 
         It 'reads the repository and the Content Hub records once per run' {
             $run = New-Run
-            foreach ($name in 'p', 'q', 'r') { Get-Source Workbook (New-Workbook -Name $name -DisplayName $name -SerializedData '{}') $run | Out-Null }
+            foreach ($name in 'p', 'q', 'r') { Get-Source -Type Workbook -Item (New-Workbook -Name $name -DisplayName $name -SerializedData '{}') -Run $run | Out-Null }
             Should -Invoke -ModuleName iSOCDeployments Get-iSOCContentHubWorkbookLookup -Times 1 -Exactly -Scope It
         }
     }
@@ -810,7 +952,7 @@ Describe 'Export handlers' {
         }
 
         It 'skips as ambiguous a Logic App two templates name, as five pairs in this repository do' {
-            $source = Get-Source Playbook (New-LogicApp -Name 'AzureOpenAIAssistant' -Triggers @{ t = @{ type = 'Recurrence' } }) (New-Run -RepoPath $script:repoRoot)
+            $source = Get-Source -Type Playbook -Item (New-LogicApp -Name 'AzureOpenAIAssistant' -Triggers @{ t = @{ type = 'Recurrence' } }) -Run (New-Run -RepoPath $script:repoRoot)
             $source.State | Should -Be 'Skipped'
             $source.Reason | Should -Match 'Content/Playbooks/Alert/AzureOpenAIAssistant.bicep and Content/Playbooks/Incident/AzureOpenAIAssistant.bicep'
         }
@@ -983,6 +1125,14 @@ Describe 'Export-iSOCContent' {
             )
         }
         function Invoke-SmallExport {
+            <#
+            .SYNOPSIS
+                Run Export-iSOCContent against the small stand-in workspace with the REST client stood in.
+            .PARAMETER Parameters
+                Parameters splatted to the command.
+            .PARAMETER RepoPath
+                Repository to export into.
+            #>
             param([hashtable] $Parameters = @{}, [string] $RepoPath)
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }
             Mock -ModuleName iSOCDeployments Assert-iSOCPrerequisite { }
@@ -995,6 +1145,10 @@ Describe 'Export-iSOCContent' {
             Export-iSOCContent -Context $script:context -RepoPath $RepoPath -Author 'tester' @Parameters
         }
         function New-FixtureCopy {
+            <#
+            .SYNOPSIS
+                Copy the fixture repository into a fresh test folder and return its path.
+            #>
             $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Fixtures/repo') -Destination $copy -Recurse
             $copy
@@ -1157,6 +1311,16 @@ Describe 'Export-iSOCContent against a workspace built from this repository' {
         Set-Content -LiteralPath $script:standInPath -Value (ConvertTo-Json -InputObject $standIn -Depth 100)
 
         function Invoke-ModuleExport {
+            <#
+            .SYNOPSIS
+                Run Export-iSOCContent with the REST client answering from an export stand-in file.
+            .PARAMETER RepoPath
+                Repository to export into.
+            .PARAMETER Parameters
+                Parameters splatted to the command.
+            .PARAMETER StandInPath
+                Path of the stand-in answers file.
+            #>
             param([string] $RepoPath, [hashtable] $Parameters = @{}, [string] $StandInPath = $script:standInPath)
             $script:moduleStandIn = Read-ExportStandIn -Path $StandInPath
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }

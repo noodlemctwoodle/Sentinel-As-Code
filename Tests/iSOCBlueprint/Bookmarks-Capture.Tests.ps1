@@ -36,6 +36,12 @@ BeforeAll {
     $script:capture = Get-Content (Join-Path $collectorRoot 'Captures/Sentinel/Invoke-BookmarksCapture.ps1') -Raw
 
     function New-BookmarkRow([string]$Tags) {
+        <#
+        .SYNOPSIS
+            Builds one bookmark row as the bookmarks query returns it.
+        .PARAMETER Tags
+            The tags value for the row.
+        #>
         [pscustomobject]@{
             BookmarkId      = '73e01a99-5cd7-4139-a149-9f2736ff2ab5'
             BookmarkName    = 'Lateral movement from VPN'

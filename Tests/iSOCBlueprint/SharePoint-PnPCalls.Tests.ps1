@@ -94,13 +94,21 @@ Describe 'PnP.PowerShell calls in the SharePoint scripts' -Skip:(-not $script:pn
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
             $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) | ForEach-Object { $_.Extent.Text }
         }
-        $script:defsModule = New-Module -Name SacCallCheck -ScriptBlock ([scriptblock]::Create(($definitions -join "`n`n") +
-                "`nExport-ModuleMember -Function *")) |
-            Import-Module -PassThru -Force
+        $moduleParameters = @{
+            Name        = 'SacCallCheck'
+            ScriptBlock = [scriptblock]::Create(($definitions -join "`n`n") + "`nExport-ModuleMember -Function *")
+        }
+        $script:defsModule = New-Module @moduleParameters | Import-Module -PassThru -Force
 
         $common = [System.Management.Automation.Cmdlet]::CommonParameters + [System.Management.Automation.Cmdlet]::OptionalCommonParameters
 
         function Test-SacCommandCall {
+            <#
+            .SYNOPSIS
+                Returns the calls in a script that use parameters the command does not have.
+            .PARAMETER Path
+                The script to check.
+            #>
             param([string] $Path)
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
             foreach ($cmd in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)) {

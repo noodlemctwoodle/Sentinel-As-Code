@@ -37,8 +37,6 @@ function Write-BlueprintWorkspaceSectionPart2 {
 
     # Taken from the render context.
     $features = $Context.features
-    $m = $Context.m
-    $n = $Context.n
     $sentinelPricingText = $Context.sentinelPricingText
     $timelineBody = $Context.timelineBody
     $usageTrendBlock = $Context.usageTrendBlock

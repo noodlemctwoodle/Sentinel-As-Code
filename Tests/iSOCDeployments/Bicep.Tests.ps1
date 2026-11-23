@@ -47,10 +47,32 @@ BeforeAll {
     $script:fixturePlaybooks = Join-Path $PSScriptRoot 'Fixtures/repo/Content/Playbooks'
 
     function Invoke-InModule {
+        <#
+        .SYNOPSIS
+            Run a script block inside the iSOCDeployments module scope.
+        .PARAMETER ScriptBlock
+            Script block to run inside the module scope.
+        .PARAMETER Parameters
+            Values made available to the script block.
+        #>
         param([scriptblock] $ScriptBlock, [hashtable] $Parameters = @{})
-        InModuleScope iSOCDeployments -ScriptBlock $ScriptBlock -Parameters $Parameters
+        InModuleScope iSOCDeployments -Parameters $Parameters $ScriptBlock
     }
     function Get-SymbolTable {
+        <#
+        .SYNOPSIS
+            Build a symbol table object of the shape the Bicep converter expects.
+        .PARAMETER Parameters
+            Template parameter names mapped to their types.
+        .PARAMETER Variables
+            Variables keyed by name, each carrying an Identifier and a Value.
+        .PARAMETER Resources
+            Resource entries to add to the table.
+        .PARAMETER Current
+            Name of the current resource.
+        .PARAMETER Location
+            Location value; null when empty.
+        #>
         param([hashtable] $Parameters = @{}, [hashtable] $Variables = @{}, [object[]] $Resources = @(), [string] $Current, [string] $Location)
         $symbols = [pscustomobject]@{ Parameters = @{}; ParameterTypes = @{}; Variables = @{}; VariableValues = @{}; Resources = [System.Collections.Generic.List[object]]::new(); Current = $Current; Location = $(if ($Location) { $Location } else { $null }) }
         foreach ($name in $Parameters.Keys) { $symbols.Parameters[$name] = $name; $symbols.ParameterTypes[$name] = $Parameters[$name] }
@@ -59,14 +81,42 @@ BeforeAll {
         $symbols
     }
     function ConvertTo-Bicep {
+        <#
+        .SYNOPSIS
+            Convert an ARM expression to Bicep, inside the module scope.
+        .PARAMETER Expression
+            ARM expression text to convert.
+        .PARAMETER Symbols
+            Symbol table used to resolve names.
+        #>
         param([string] $Expression, [psobject] $Symbols)
         Invoke-InModule { param($E, $S) ConvertTo-iSOCBicepExpression -Node (ConvertFrom-iSOCArmExpression -Expression $E) -Symbols $S } @{ E = $Expression; S = $Symbols }
     }
     function ConvertTo-BicepFile {
+        <#
+        .SYNOPSIS
+            Convert ARM template JSON text to Bicep source, inside the module scope.
+        .PARAMETER Json
+            ARM template JSON text.
+        .PARAMETER VariableName
+            Names to give generated variables.
+        .PARAMETER ParameterDescription
+            Descriptions to attach to the generated parameters.
+        #>
         param([string] $Json, [hashtable] $VariableName = @{}, [hashtable] $ParameterDescription = @{})
         Invoke-InModule { param($J, $V, $D) ConvertTo-iSOCBicepTemplate -Template (ConvertFrom-iSOCJsonText -Text $J) -VariableName $V -ParameterDescription $D } @{ J = $Json; V = $VariableName; D = $ParameterDescription }
     }
     function Compare-Json {
+        <#
+        .SYNOPSIS
+            Compare two ARM template JSON texts and return the differences, inside the module scope.
+        .PARAMETER Expected
+            Expected ARM template JSON text.
+        .PARAMETER Actual
+            Actual ARM template JSON text.
+        .PARAMETER InlineParameter
+            Parameter names treated as inlined when comparing.
+        #>
         param([string] $Expected, [string] $Actual, [string[]] $InlineParameter = @())
         Invoke-InModule { param($A, $B, $I) Compare-iSOCArmTemplate -Expected (ConvertFrom-iSOCJsonText -Text $A) -Actual (ConvertFrom-iSOCJsonText -Text $B) -InlineParameter $I } @{ A = $Expected; B = $Actual; I = $InlineParameter }
     }
@@ -75,6 +125,12 @@ BeforeAll {
     # compared with the JSON: nothing when they deploy the same thing. The
     # location parameter the writer adds reads as resourceGroup().location.
     function Test-RoundTrip {
+        <#
+        .SYNOPSIS
+            Convert templates to Bicep, build them and report any that fail to build or differ from the original.
+        .PARAMETER JsonPath
+            Paths of the ARM template files to round-trip.
+        #>
         param([string[]] $JsonPath)
         $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $folder | Out-Null

@@ -59,12 +59,29 @@ BeforeAll {
     $script:subscription = (Get-WorkspaceStandIn).SubscriptionId
 
     function Get-CaseState {
+        <#
+        .SYNOPSIS
+            Returns a stand-in workspace state built from the case parameters.
+        .PARAMETER State
+            The parameters of Get-WorkspaceStandIn, splatted.
+        #>
         param([hashtable] $State)
         Get-WorkspaceStandIn @State
     }
 
     function Invoke-PipelineStep {
-        <# Run one pipeline step unchanged in a child pwsh over $State; return its outputs, error lines, exit code and the state after. #>
+        <#
+        .SYNOPSIS
+            Run one pipeline step unchanged in a child pwsh over $State; return its outputs, error lines, exit code and the state after.
+        .PARAMETER File
+            The path of the pipeline file.
+        .PARAMETER Step
+            The display name, or name, of the step.
+        .PARAMETER State
+            The stand-in state the step runs over.
+        .PARAMETER Playbook
+            The playbook resource group the step is given.
+        #>
         param([string] $File, [string] $Step, $State, [string] $Playbook)
 
         $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
@@ -125,7 +142,14 @@ finally {
     }
 
     function Invoke-ModuleOnboarding {
-        <# Run Get-iSOCWorkspaceOnboarding over $State; return its result or error and what it logged. #>
+        <#
+        .SYNOPSIS
+            Run Get-iSOCWorkspaceOnboarding over $State; return its result or error and what it logged.
+        .PARAMETER State
+            The stand-in state the command runs over.
+        .PARAMETER Playbook
+            The playbook resource group the command is given.
+        #>
         param($State, [string] $Playbook)
 
         $script:standIn = $State

@@ -71,6 +71,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function New-TestContext {
+        <#
+        .SYNOPSIS
+            Returns a module context for the tests with the given workspace ID.
+        .PARAMETER WorkspaceId
+            The ID of the workspace.
+        #>
         param([string] $WorkspaceId = 'c')
         InModuleScope iSOCDeployments -Parameters @{ Id = $WorkspaceId } {
             param($Id)
@@ -85,6 +91,12 @@ BeforeAll {
     $script:context = New-TestContext
 
     function Get-PlaybookItem {
+        <#
+        .SYNOPSIS
+            Reads the playbook items of a repository with the ReadRepo handler of the Playbook content type.
+        .PARAMETER Repo
+            The repository path; the fixture repository by default.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -93,18 +105,44 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Returns the request the module builds for a playbook item.
+        .PARAMETER Item
+            The playbook item.
+        .PARAMETER Context
+            The module context; the one the tests set up by default.
+        #>
         param([psobject] $Item, [psobject] $Context = $script:context)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item; C = $Context } { param($I, $C) ConvertTo-iSOCPlaybookRequest -Item $I -Context $C }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Returns the validation errors the module reports for a playbook item.
+        .PARAMETER Item
+            The playbook item.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCPlaybook -Item $I })
     }
     function Get-Order {
+        <#
+        .SYNOPSIS
+            Returns the playbook items in the order the module deploys them.
+        .PARAMETER Item
+            The playbook items.
+        #>
         param([psobject[]] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Get-iSOCPlaybookOrder -Item $I })
     }
     function New-PlaybookRepo {
+        <#
+        .SYNOPSIS
+            Creates a repository in a new temporary folder with the given files under Content/Playbooks, and returns its path.
+        .PARAMETER File
+            The file contents by path relative to Content/Playbooks.
+        #>
         param([hashtable] $File)
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         foreach ($relative in $File.Keys) {
@@ -115,6 +153,12 @@ BeforeAll {
         $repo
     }
     function New-Template {
+        <#
+        .SYNOPSIS
+            Returns ARM template text with one resource that calls each of the named Logic Apps.
+        .PARAMETER Calls
+            The names of the Logic Apps the template calls.
+        #>
         param([string[]] $Calls = @())
         $actions = ($Calls | ForEach-Object { "`"$_`": { `"id`": `"[concat(resourceGroup().id, '/providers/Microsoft.Logic/workflows/$_')]`" }" }) -join ', '
         "{ `"`$schema`": `"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#`", `"parameters`": {}, `"resources`": [ { $actions } ] }"
@@ -342,11 +386,34 @@ Describe 'Invoke-iSOCPlaybookDeploy' {
 Describe 'Az.Resources wrappers' {
     BeforeAll {
         function global:New-AzResourceGroupDeployment {
+            <#
+            .SYNOPSIS
+                Stand-in for New-AzResourceGroupDeployment that stores the bound parameters in a global variable for the test to read.
+            .PARAMETER Name
+                The name of the deployment.
+            .PARAMETER ResourceGroupName
+                The resource group of the deployment.
+            .PARAMETER TemplateFile
+                The path of the template file.
+            .PARAMETER SentinelWorkspaceName
+                The template parameter that names the workspace.
+            #>
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Test stand-in that only records the bound parameters; it mirrors the real cmdlet binding (SupportsShouldProcess) and makes no change to ask about.')]
             [CmdletBinding(SupportsShouldProcess)]
             param($Name, $ResourceGroupName, $TemplateFile, $SentinelWorkspaceName)
             $global:iSOCAzCall = [hashtable] $PSBoundParameters
         }
         function global:Test-AzResourceGroupDeployment {
+            <#
+            .SYNOPSIS
+                Stand-in for Test-AzResourceGroupDeployment that stores the bound parameters in a global variable for the test to read.
+            .PARAMETER ResourceGroupName
+                The resource group of the deployment.
+            .PARAMETER TemplateFile
+                The path of the template file.
+            .PARAMETER SentinelWorkspaceName
+                The template parameter that names the workspace.
+            #>
             [CmdletBinding()]
             param($ResourceGroupName, $TemplateFile, $SentinelWorkspaceName)
             $global:iSOCAzCall = [hashtable] $PSBoundParameters
@@ -386,6 +453,14 @@ Describe 'Content/Playbooks in this repository' {
     BeforeAll {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Runs a handler of the Playbook content type.
+            .PARAMETER Handler
+                The name of the handler to run.
+            .PARAMETER Parameters
+                The parameters passed to the handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:playbookType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)
@@ -396,6 +471,12 @@ Describe 'Content/Playbooks in this repository' {
         # Dependency pairs worked out here, apart from the module's code: a
         # module that names Microsoft.Logic/workflows/Module-X calls module X.
         function Test-ModulesFirst {
+            <#
+            .SYNOPSIS
+                Returns a message for the first break of the deploy order: a playbook that is not a module before a module, or a module before one it calls. Returns nothing when the order holds.
+            .PARAMETER Path
+                The playbook paths in deploy order.
+            #>
             param([string[]] $Path)
             $isModule = { param($P) (Split-Path -Leaf (Split-Path -Parent $P)) -eq 'Module' }
             $modules = @($Path | Where-Object { & $isModule $_ })
@@ -438,11 +519,21 @@ Describe 'Content/Playbooks in this repository' {
 Describe 'Convert-iSOCPlaybook' {
     BeforeAll {
         function New-FixtureCopy {
+            <#
+            .SYNOPSIS
+                Copies the fixture repository to a new temporary folder and returns its path.
+            #>
             $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
             Copy-Item -LiteralPath $script:fixtureRepo -Destination $copy -Recurse
             $copy
         }
         function Get-PlaybookFile {
+            <#
+            .SYNOPSIS
+                Returns the sorted paths of the files under Content/Playbooks, relative to the repository.
+            .PARAMETER Repo
+                The repository path.
+            #>
             param([string] $Repo)
             @(Get-ChildItem -LiteralPath (Join-Path $Repo 'Content/Playbooks') -Recurse -File | ForEach-Object { [System.IO.Path]::GetRelativePath($Repo, $_.FullName).Replace('\', '/') } | Sort-Object)
         }
@@ -537,6 +628,16 @@ Describe 'Convert-iSOCPlaybook' {
 Describe 'ConvertTo-iSOCPlaybookBicep' {
     BeforeAll {
         function New-Connection {
+            <#
+            .SYNOPSIS
+                Returns a Microsoft.Web/connections template resource for a managed API.
+            .PARAMETER Variable
+                The template variable that names the connection.
+            .PARAMETER Api
+                The name of the managed API.
+            .PARAMETER Name
+                The literal name of the connection, used instead of the variable.
+            #>
             param([string] $Variable, [string] $Api, [string] $Name)
             [ordered]@{
                 type       = 'Microsoft.Web/connections'

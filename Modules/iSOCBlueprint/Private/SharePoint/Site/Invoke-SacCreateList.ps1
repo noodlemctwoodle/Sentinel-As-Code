@@ -42,6 +42,7 @@ function Invoke-SacCreateList {
     .OUTPUTS
         The list.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Tells the operator at the console, in yellow, that a list reported a failure but exists, so the run carries on.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $Url,

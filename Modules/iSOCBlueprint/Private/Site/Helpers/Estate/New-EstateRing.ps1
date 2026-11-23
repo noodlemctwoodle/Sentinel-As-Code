@@ -46,6 +46,7 @@ function New-EstateRing {
     .OUTPUTS
         [ordered] A dictionary with label, value, max and pct.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
     [CmdletBinding()]
     param([string]$Label, [int]$Value, [int]$Max)

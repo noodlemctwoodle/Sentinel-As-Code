@@ -32,15 +32,14 @@ function Write-BlueprintMitreCoverageSectionPart3 {
     .PARAMETER Context
         The render context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'techNameById', Justification = 'Read by Format-MitreTechniqueCell from this function scope, which the analyser cannot see.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
     $disabledOnlyTechniques = $Context.disabledOnlyTechniques
     $key = $Context.key
-    $m = $Context.m
     $mitreHierarchy = $Context.mitreHierarchy
-    $n = $Context.n
     $ruleAttackRows = $Context.ruleAttackRows
     $rulesEnabledCount = $Context.rulesEnabledCount
     $rulesWithoutTechnique = $Context.rulesWithoutTechnique

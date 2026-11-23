@@ -34,6 +34,7 @@ function New-Finding {
     .OUTPUTS
         [pscustomobject] with the properties Evidence and Detail.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

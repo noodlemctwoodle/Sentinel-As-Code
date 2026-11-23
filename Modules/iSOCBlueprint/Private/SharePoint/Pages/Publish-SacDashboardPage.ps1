@@ -40,6 +40,7 @@ function Publish-SacDashboardPage {
         How long to keep retrying when a freshly deployed web part is not
         available on the site yet.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Progress for the operator at the console while the dashboard page is rebuilt and its web part is awaited.')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)] [string] $PageName,

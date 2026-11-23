@@ -55,6 +55,12 @@ BeforeAll {
     }
 
     function Get-WorkbookItem {
+        <#
+        .SYNOPSIS
+            Reads the workbook items of a repository with the ReadRepo handler of the Workbook content type.
+        .PARAMETER Repo
+            The repository path; the fixture repository by default.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -63,14 +69,36 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Returns the request the module builds for a workbook item.
+        .PARAMETER Item
+            The workbook item.
+        #>
         param([psobject] $Item)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item; C = $script:context } { param($I, $C) ConvertTo-iSOCWorkbookRequest -Item $I -Context $C }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Returns the validation errors the module reports for a workbook item.
+        .PARAMETER Item
+            The workbook item.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCWorkbook -Item $I })
     }
     function New-WorkbookFolder {
+        <#
+        .SYNOPSIS
+            Writes a workbook folder with the given workbook and metadata into a new temporary repository and returns the item read from it.
+        .PARAMETER Name
+            The name of the workbook folder.
+        .PARAMETER Workbook
+            The text of workbook.json; the file is left out when null.
+        .PARAMETER Metadata
+            The text of metadata.json; the file is left out when empty.
+        #>
         param([string] $Name, [string] $Workbook, [string] $Metadata)
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         $folder = Join-Path $repo "Content/Workbooks/$Name"
@@ -166,6 +194,14 @@ Describe 'Content/Workbooks in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name Workbook }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Runs a handler of the content type under test.
+            .PARAMETER Handler
+                The name of the handler to run.
+            .PARAMETER Parameters
+                The parameters passed to the handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

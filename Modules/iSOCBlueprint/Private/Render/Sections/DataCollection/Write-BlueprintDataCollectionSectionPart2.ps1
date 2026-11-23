@@ -47,8 +47,6 @@ function Write-BlueprintDataCollectionSectionPart2 {
     $hasBasic = $Context.hasBasic
     $hasDataLake = $Context.hasDataLake
     $hasDownstream = $Context.hasDownstream
-    $m = $Context.m
-    $n = $Context.n
     $sourceEdges = $Context.sourceEdges
     $srcLines = $Context.srcLines
     $topologyVisualLine = $Context.topologyVisualLine

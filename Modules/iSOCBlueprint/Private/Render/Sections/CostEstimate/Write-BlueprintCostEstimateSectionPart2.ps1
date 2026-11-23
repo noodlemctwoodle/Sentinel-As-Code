@@ -43,8 +43,6 @@ function Write-BlueprintCostEstimateSectionPart2 {
     $costTierText = $Context.costTierText
     $costVisualLine = $Context.costVisualLine
     $grantRows = $Context.grantRows
-    $m = $Context.m
-    $n = $Context.n
     $planTableRows = $Context.planTableRows
     $sankeyFlowText = $Context.sankeyFlowText
     $sankeyHeight = $Context.sankeyHeight

@@ -38,8 +38,6 @@ function Write-BlueprintParsersFunctionsSection {
     # Taken from the render context.
     $c = $Context.c
     $cat = $Context.cat
-    $m = $Context.m
-    $n = $Context.n
     $parsers = $Context.parsers
     $q = $Context.q
 

@@ -60,12 +60,24 @@ BeforeAll {
     $script:frozen = @{ '847ef86:Tools/Export-Playbooks.ps1' = 'b1bf8fa848640f2a3c4bc7daa86039d60323fd4f' }
 
     function Resolve-SourcePath {
+        <#
+        .SYNOPSIS
+            Turns a source from the migration map into a file path: a commit-and-path source becomes the legacy fixture of that file name, any other becomes a path under the repository root.
+        .PARAMETER Source
+            The source as the migration map gives it.
+        #>
         param([string] $Source)
         if ($Source -match '^[0-9a-f]{7,40}:(.+)$') { return Join-Path $script:repoRoot "Tests/iSOCDeployments/Fixtures/legacy/$(Split-Path -Leaf $Matches[1])" }
         Join-Path $script:repoRoot $Source
     }
 
     function Get-GitBlobId {
+        <#
+        .SYNOPSIS
+            Returns the Git blob ID of a file, hashed with its line endings as LF.
+        .PARAMETER Path
+            The path of the file to read.
+        #>
         param([string] $Path)
         $text = [System.IO.File]::ReadAllText($Path).Replace("`r`n", "`n")
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
@@ -76,6 +88,12 @@ BeforeAll {
     }
 
     function Get-DefinedFunction {
+        <#
+        .SYNOPSIS
+            Returns the names of the functions a PowerShell file defines.
+        .PARAMETER Path
+            The path of the file to read.
+        #>
         param([string] $Path)
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
         @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false) | ForEach-Object Name)

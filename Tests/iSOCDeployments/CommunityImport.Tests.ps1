@@ -45,6 +45,14 @@ BeforeAll {
     Import-Module powershell-yaml -ErrorAction Stop
 
     function Invoke-Private {
+        <#
+        .SYNOPSIS
+            Invoke a private module command inside the module scope with logging stood in.
+        .PARAMETER Command
+            Name of the private command to invoke.
+        .PARAMETER Arguments
+            Parameters splatted to the command.
+        #>
         param([string] $Command, [hashtable] $Arguments = @{})
         InModuleScope iSOCDeployments -Parameters @{ C = $Command; A = $Arguments } { param($C, $A) Mock Write-iSOCLog { }; & $C @A }
     }
@@ -86,10 +94,22 @@ Describe 'Helpers (carried over from Test-ImportCommunityRules.Tests.ps1)' {
     Context 'normalising a rule' {
         BeforeAll {
             function ConvertTo-Rule {
+                <#
+                .SYNOPSIS
+                    Convert a community rule to YAML using the Dalonso source stand-in.
+                .PARAMETER Rule
+                    Rule definition to use.
+                #>
                 param([System.Collections.IDictionary] $Rule)
                 Invoke-Private ConvertTo-iSOCCommunityRuleYaml @{ Rule = $Rule; SourceFile = 'fake.yaml'; Source = $script:dalonsoSource }
             }
-            function New-Rule { [ordered]@{ id = 'x'; name = 'Sample'; kind = 'Scheduled'; severity = 'Medium'; query = 'T | take 1' } }
+            function New-Rule {
+                <#
+                .SYNOPSIS
+                    Return a minimal community rule definition.
+                #>
+                [ordered]@{ id = 'x'; name = 'Sample'; kind = 'Scheduled'; severity = 'Medium'; query = 'T | take 1' }
+            }
         }
 
         It 'refuses a rule without its required fields' {
@@ -126,6 +146,14 @@ Describe 'Helpers (carried over from Test-ImportCommunityRules.Tests.ps1)' {
     Context 'an ARM rule' {
         BeforeAll {
             function New-ArmResource {
+                <#
+                .SYNOPSIS
+                    Build an ARM analytical rule resource, optionally overriding or removing properties.
+                .PARAMETER Override
+                    Property values that replace the defaults.
+                .PARAMETER Remove
+                    Property names to remove.
+                #>
                 param([hashtable] $Override = @{}, [string[]] $Remove = @())
                 $base = [ordered]@{
                     displayName = 'Sample ARM rule'; description = 'ARM description'; severity = 'High'; query = 'AuditLogs | take 1'
@@ -136,7 +164,18 @@ Describe 'Helpers (carried over from Test-ImportCommunityRules.Tests.ps1)' {
                 foreach ($key in $Remove) { $base.Remove($key) }
                 [ordered]@{ kind = 'Scheduled'; properties = $base } | ConvertTo-Json -Depth 20 | ConvertFrom-Json -Depth 20
             }
-            function ConvertFrom-Arm { param($Resource, [string] $Fallback = 'fallback-id') ConvertFrom-Yaml (Invoke-Private ConvertFrom-iSOCArmAlertRule @{ Resource = $Resource; SourceFile = 'fake-arm.json'; Source = $script:dalonsoSource; FallbackId = $Fallback }) }
+            function ConvertFrom-Arm {
+                <#
+                .SYNOPSIS
+                    Convert an ARM alert rule resource to a parsed YAML object.
+                .PARAMETER Resource
+                    ARM alert rule resource to convert.
+                .PARAMETER Fallback
+                    Identifier used when the resource has none.
+                #>
+                param($Resource, [string] $Fallback = 'fallback-id')
+                ConvertFrom-Yaml (Invoke-Private ConvertFrom-iSOCArmAlertRule @{ Resource = $Resource; SourceFile = 'fake-arm.json'; Source = $script:dalonsoSource; FallbackId = $Fallback })
+            }
         }
 
         It 'maps every standard field' {
@@ -231,13 +270,52 @@ kind: Scheduled
     Context 'settling ids' {
         BeforeAll {
             $script:source = 'https://github.com/example-org/rules.git'
-            function New-Pending { param([string] $RelativePath, [string] $Id) @{ RelativePath = $RelativePath; YamlContent = "id: $Id`nname: $RelativePath`nquery: |`n  T`n"; Category = 'X' } }
-            function Get-PendingId { param($Rule) ([regex]::Match($Rule.YamlContent, '(?m)^id: (.+)$')).Groups[1].Value }
+            function New-Pending {
+                <#
+                .SYNOPSIS
+                    Build a pending rule entry with the given relative path and identifier.
+                .PARAMETER RelativePath
+                    Relative path of the pending rule; also used as its name.
+                .PARAMETER Id
+                    Identifier written into the rule YAML.
+                #>
+                param([string] $RelativePath, [string] $Id)
+                @{ RelativePath = $RelativePath; YamlContent = "id: $Id`nname: $RelativePath`nquery: |`n  T`n"; Category = 'X' }
+            }
+            function Get-PendingId {
+                <#
+                .SYNOPSIS
+                    Read the identifier from a pending rule's YAML content.
+                .PARAMETER Rule
+                    Pending rule entry.
+                #>
+                param($Rule)
+                ([regex]::Match($Rule.YamlContent, '(?m)^id: (.+)$')).Groups[1].Value
+            }
             function Resolve-Id {
+                <#
+                .SYNOPSIS
+                    Resolve identifiers for pending rules and return the result.
+                .PARAMETER Pending
+                    Pending rule entries.
+                .PARAMETER Reserved
+                    Identifiers already reserved.
+                .PARAMETER Repo
+                    Source repository used for resolution; defaults to the test source.
+                #>
                 param([System.Collections.IList] $Pending, [hashtable] $Reserved = @{}, [string] $Repo = $script:source)
                 @(Invoke-Private Resolve-iSOCCommunityRuleId @{ PendingRules = $Pending; OutputPath = $script:out; SourceRepo = $Repo; ReservedIds = $Reserved })
             }
-            function Get-DerivedId { param([string] $Path) Invoke-Private New-iSOCCommunityRuleId @{ Name = "https://github.com/example-org/rules#$Path" } }
+            function Get-DerivedId {
+                <#
+                .SYNOPSIS
+                    Return the identifier derived from a rule path.
+                .PARAMETER Path
+                    Rule path inside the example upstream repository.
+                #>
+                param([string] $Path)
+                Invoke-Private New-iSOCCommunityRuleId @{ Name = "https://github.com/example-org/rules#$Path" }
+            }
         }
 
         BeforeEach {
@@ -360,7 +438,18 @@ Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
         $script:existingFile = 'SigninLogs/11-SIGNIN-SlowLowPasswordSpray.yaml'
         $script:existingId = Invoke-Private Get-iSOCRuleFileId @{ Path = (Join-Path $script:repoRoot "Content/AnalyticalRules/Community/Dalonso/$($script:existingFile)") }
 
-        function Invoke-Git { param([string] $Folder, [string[]] $Arguments) & git -C $Folder -c user.name=test -c user.email=test@example.invalid -c commit.gpgsign=false @Arguments 2>&1 | Out-Null }
+        function Invoke-Git {
+            <#
+            .SYNOPSIS
+                Run git in a folder with a fixed test identity and signing off, discarding output.
+            .PARAMETER Folder
+                Repository folder to run git in.
+            .PARAMETER Arguments
+                Arguments passed to git.
+            #>
+            param([string] $Folder, [string[]] $Arguments)
+            & git -C $Folder -c user.name=test -c user.email=test@example.invalid -c commit.gpgsign=false @Arguments 2>&1 | Out-Null
+        }
 
         # A synthetic upstream in the Dalonso layout: a rule the repository
         # has (under a new upstream id), two rules sharing an id across
@@ -368,6 +457,14 @@ Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
         # list, files the import ignores, and ARM templates with rules, with
         # none, and that do not parse.
         function New-Upstream {
+            <#
+            .SYNOPSIS
+                Create a git repository of upstream community rules and return its path, URL and commit.
+            .PARAMETER Name
+                Folder name under the test drive.
+            .PARAMETER NoTemplateName
+                Leave the first ARM rule without a template name.
+            #>
             param([string] $Name, [switch] $NoTemplateName)
             $root = Join-Path $TestDrive $Name
             $write = {
@@ -411,6 +508,10 @@ Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
         }
 
         function New-Tree {
+            <#
+            .SYNOPSIS
+                Create a working copy holding a copy of the repository's analytical rules.
+            #>
             $tree = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
             New-Item -ItemType Directory -Path (Join-Path $tree 'Content') -Force | Out-Null
             Copy-Item -LiteralPath (Join-Path $script:repoRoot 'Content/AnalyticalRules') -Destination (Join-Path $tree 'Content') -Recurse
@@ -418,12 +519,28 @@ Describe 'Import-iSOCCommunityRule against a synthetic upstream' {
         }
 
         function Invoke-Module {
+            <#
+            .SYNOPSIS
+                Run Import-iSOCCommunityRule against a working copy and upstream URL with logging stood in.
+            .PARAMETER Tree
+                Working copy to import into.
+            .PARAMETER Url
+                Upstream repository URL.
+            .PARAMETER Parameters
+                Parameters splatted to the import command.
+            #>
             param([string] $Tree, [string] $Url, [hashtable] $Parameters = @{ IncludeKqlConversion = $true })
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }
             Import-iSOCCommunityRule -RepoPath $Tree -SourceRepo $Url @Parameters
         }
 
         function Get-Snapshot {
+            <#
+            .SYNOPSIS
+                Capture the text of every file under the community rule and docs folders, keyed by relative path.
+            .PARAMETER Tree
+                Working copy to capture.
+            #>
             param([string] $Tree)
             $snapshot = [ordered]@{}
             foreach ($folder in 'Content/AnalyticalRules/Community/Dalonso', 'Docs/Content/Community') {

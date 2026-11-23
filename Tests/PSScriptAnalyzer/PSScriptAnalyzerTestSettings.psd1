@@ -18,6 +18,10 @@
         'PSAvoidUsingConvertToSecureStringWithPlainText'
         # A stub that replaces a state-changing Az cmdlet changes nothing.
         'PSUseShouldProcessForStateChangingFunctions'
+        # The .psd1 files under Tests/ are lint data, not module manifests. An
+        # empty baseline is an empty hashtable, which this rule reads as a
+        # manifest with no fields.
+        'PSMissingModuleManifestField'
     )
     Rules               = @{
         PSAvoidSemicolonsAsLineTerminators        = @{

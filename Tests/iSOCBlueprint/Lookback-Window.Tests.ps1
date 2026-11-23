@@ -42,6 +42,12 @@ BeforeAll {
 
     # A copy of the fixture's _raw with the run's lookback set.
     function New-WindowedFixture([int]$Days) {
+        <#
+        .SYNOPSIS
+            Copies the fixture capture into a temporary folder with the given lookback window.
+        .PARAMETER Days
+            The lookback in days.
+        #>
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('bp-lookback-' + [guid]::NewGuid())
         Copy-Item -Path $script:fixtureRaw -Destination $dir -Recurse
         $rcPath = Join-Path $dir 'run-context.json'
@@ -53,6 +59,14 @@ BeforeAll {
     }
     # A function from a script, by name, for a test to call.
     function Get-ScriptFunction([string]$Path, [string]$Name) {
+        <#
+        .SYNOPSIS
+            Returns the source text of one function from a script.
+        .PARAMETER Path
+            The script to parse.
+        .PARAMETER Name
+            The function name.
+        #>
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
         return $ast.Find({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq $Name }, $true).Extent.Text
     }
@@ -171,7 +185,16 @@ Describe 'The maturity assessment and the cost estimate follow the window' {
 
 Describe 'The renderer names the window it read' {
     It 'fills the window tokens from run-context.json' {
-        function Read-BlueprintRaw { param($Name) [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 } }
+        function Read-BlueprintRaw {
+            <#
+            .SYNOPSIS
+                Stand-in capture reader that returns a one day window.
+            .PARAMETER Name
+                The capture name the real reader takes; unused.
+            #>
+            param($Name)
+            [pscustomobject]@{ LookbackDays = 1; RecentDays = 1 }
+        }
         . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Render/Helpers/Window/Get-BlueprintWindow.ps1') 'Get-BlueprintWindow')))
         . ([scriptblock]::Create((Get-ScriptFunction (Join-Path $script:moduleRoot 'Private/Render/Helpers/Window/Resolve-BlueprintWindowText.ps1') 'Resolve-BlueprintWindowText')))
         $script:BpWindow = $null

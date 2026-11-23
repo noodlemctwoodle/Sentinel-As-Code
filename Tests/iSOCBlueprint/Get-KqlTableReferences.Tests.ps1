@@ -45,7 +45,15 @@ BeforeAll {
     $script:ruleRefs = Get-RuleTableReference -AlertRules $script:rules
     $script:templateRefs = Get-TemplateTableReference -Templates $script:templates -AlertRules $script:rules
 
-    function Canonical($rows) { @($rows) | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 5 } }
+    function Canonical($rows) {
+        <#
+        .SYNOPSIS
+            Serialises rows to compact JSON lines so they compare as text.
+        .PARAMETER rows
+            The rows to serialise.
+        #>
+        @($rows) | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 5 }
+    }
 }
 
 Describe 'Resolve-KqlTableName' {

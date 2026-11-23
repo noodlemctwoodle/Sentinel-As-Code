@@ -52,6 +52,7 @@ function Convert-FindingBullet {
     .OUTPUTS
         [string] The rewritten text.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'TitleMap', Justification = 'Read inside the $evaluator script block that rewrites each match, which the analyser does not follow.')]
     [CmdletBinding()]
     [OutputType([string])]
     param(

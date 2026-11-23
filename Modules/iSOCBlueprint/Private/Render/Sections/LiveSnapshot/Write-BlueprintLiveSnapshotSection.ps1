@@ -44,10 +44,8 @@ function Write-BlueprintLiveSnapshotSection {
     $f = $Context.f
     $gapBySeverity = $Context.gapBySeverity
     $gapFindings = $Context.gapFindings
-    $m = $Context.m
     $maturityCell = $Context.maturityCell
     $mitreRowsRich = $Context.mitreRowsRich
-    $n = $Context.n
     $operationalTables = $Context.operationalTables
     $parts = $Context.parts
     $populatedTables = $Context.populatedTables

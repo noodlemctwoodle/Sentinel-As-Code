@@ -89,7 +89,7 @@ BeforeDiscovery {
                             $meta = Get-Content -Path $metaPath -Raw -ErrorAction Stop |
                                 ConvertFrom-Json -Depth 16 -AsHashtable -ErrorAction Stop
                             } catch {
-                                # Metadata schema test owns this.
+                                Write-Verbose -Message 'Metadata schema test owns this.'
                             }
                         }
 
@@ -223,7 +223,7 @@ BeforeDiscovery {
                                 $script:workbookGuidMap[$guid] += $_.Name
                             }
                         } catch {
-                            # Per-file test owns parse errors.
+                            Write-Verbose -Message 'Per-file test owns parse errors.'
                         }
                     }
                 }

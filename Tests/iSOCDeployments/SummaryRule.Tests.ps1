@@ -44,6 +44,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-RuleItem {
+        <#
+        .SYNOPSIS
+            Reads the summary rule items of a repository with the ReadRepo handler of the SummaryRule content type.
+        .PARAMETER Repo
+            The repository path; the fixture repository by default.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -52,14 +58,32 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Returns the request the module builds for a summary rule item.
+        .PARAMETER Item
+            The summary rule item.
+        #>
         param([psobject] $Item)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) ConvertTo-iSOCSummaryRuleRequest -Item $I }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Returns the validation errors the module reports for a summary rule item.
+        .PARAMETER Item
+            The summary rule item.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCSummaryRule -Item $I })
     }
     function New-RuleFile {
+        <#
+        .SYNOPSIS
+            Writes the JSON as the only summary rule of a new temporary repository and returns the item read from it.
+        .PARAMETER Json
+            The text of the rule file.
+        #>
         param([string] $Json)
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path (Join-Path $repo 'Content/SummaryRules') -Force | Out-Null
@@ -141,6 +165,14 @@ Describe 'Content/SummaryRules in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name SummaryRule }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Runs a handler of the content type under test.
+            .PARAMETER Handler
+                The name of the handler to run.
+            .PARAMETER Parameters
+                The parameters passed to the handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

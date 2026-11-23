@@ -98,6 +98,7 @@ function Invoke-iSOCBlueprintSiteInitialize {
 
         Shows what the bootstrap would do. Drop -WhatIf to run it.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Progress and the next steps for the operator at the console while the site is set up.')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]

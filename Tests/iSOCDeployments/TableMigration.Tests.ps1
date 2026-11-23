@@ -136,6 +136,14 @@ BeforeAll {
     $script:toJson = { param($Value) ConvertTo-Json -InputObject $Value -Depth 30 }
 
     function Invoke-ModuleReview {
+        <#
+        .SYNOPSIS
+            Runs the table migration review and report over a stand-in workspace with the REST commands mocked to answer reads only, and returns the review, the report files and the requests sent.
+        .PARAMETER StandIn
+            The stand-in workspace content; the one the tests set up by default.
+        .PARAMETER Path
+            The folder the report is written to; a new temporary folder by default.
+        #>
         param($StandIn = $script:standIn, [string] $Path = (Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))))
         $script:moduleStandIn = $StandIn
         $script:moduleRequests = [System.Collections.Generic.List[string]]::new()
@@ -168,6 +176,12 @@ BeforeAll {
     }
 
     function Format-ImpactLine {
+        <#
+        .SYNOPSIS
+            Returns a table impact as lines of text, one for the summary and one for each affected item.
+        .PARAMETER Impact
+            The impact the module reports for one table.
+        #>
         param($Impact)
         $lines = [System.Collections.Generic.List[string]]::new()
         $lines.Add(('{0}: {1} direct, {2} indirect, {3} affected, truncated {4}' -f $Impact.TableName, $Impact.TotalImpacted, $Impact.TotalIndirect, $Impact.TotalAffected, $Impact.ChainTruncated))
@@ -193,6 +207,12 @@ BeforeAll {
     }
 
     function Format-AliasIndexLine {
+        <#
+        .SYNOPSIS
+            Returns an alias index as lines of text: the aliases, the skipped aliases, and the reference and provider ID maps with the items they point to.
+        .PARAMETER Index
+            The alias index the module builds.
+        #>
         param($Index)
         $nodes = @($Index.Nodes)
         $lines = [System.Collections.Generic.List[string]]::new()

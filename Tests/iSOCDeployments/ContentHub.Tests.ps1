@@ -58,13 +58,32 @@ BeforeAll {
     }
 
     function Invoke-InModule {
+        <#
+        .SYNOPSIS
+            Run a script block inside the iSOCDeployments module scope.
+        .PARAMETER ScriptBlock
+            Script block to run inside the module scope.
+        .PARAMETER Parameters
+            Values made available to the script block.
+        #>
         param([scriptblock] $ScriptBlock, [hashtable] $Parameters = @{})
-        InModuleScope iSOCDeployments -ScriptBlock $ScriptBlock -Parameters $Parameters
+        InModuleScope iSOCDeployments -Parameters $Parameters $ScriptBlock
     }
 
     # The module against a fresh stand-in, with the REST client, GUIDs and
     # waits stood in for.
     function Invoke-ModuleRun {
+        <#
+        .SYNOPSIS
+            Run a Content Hub command against a fresh stand-in, with the REST client, GUIDs and waits stood in.
+        .PARAMETER Parameters
+            Parameters splatted to the command.
+        .PARAMETER WhatIf
+            Run the command in what-if mode.
+        .PARAMETER Command
+            Name of the command to run.
+        #>
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSupportsShouldProcess', '', Justification = 'The helper mirrors the -WhatIf switch of the module commands under test so the test can forward it; it changes no state itself.')]
         param([hashtable] $Parameters = @{}, [switch] $WhatIf, [string] $Command = 'Install-iSOCContentHubSolution')
         $script:moduleHub = New-ContentHubStandIn -Path $script:fixture
         $script:guidCounter = 0
@@ -86,6 +105,14 @@ BeforeAll {
         [pscustomobject]@{ Run = $run; Writes = @($script:moduleHub.Writes) }
     }
     function Get-Result {
+        <#
+        .SYNOPSIS
+            Return the run results with the given name.
+        .PARAMETER Run
+            Deployment or drift run object returned by the module.
+        .PARAMETER Name
+            Result name to match.
+        #>
         param($Run, [string] $Name)
         @($Run.Results | Where-Object { $_.Name -eq $Name })
     }
@@ -117,12 +144,26 @@ Describe 'Compare-iSOCSemanticVersion' {
 Describe 'Test-iSOCContentHubRuleCustomised' {
     BeforeAll {
         function New-RuleProp {
+            <#
+            .SYNOPSIS
+                Build a rule properties object with default values, optionally overridden.
+            .PARAMETER Override
+                Property values that replace the defaults.
+            #>
             param([hashtable] $Override = @{})
             $base = [ordered]@{ query = 'T | take 1'; queryFrequency = 'PT5M'; queryPeriod = 'PT5M'; triggerOperator = 'GreaterThan'; triggerThreshold = 0; severity = 'Medium' }
             foreach ($key in $Override.Keys) { $base[$key] = $Override[$key] }
             [pscustomobject]$base
         }
         function Test-Customised {
+            <#
+            .SYNOPSIS
+                Check whether an existing rule has been customised relative to its template.
+            .PARAMETER Rule
+                Properties of the existing rule.
+            .PARAMETER Template
+                Properties of the template.
+            #>
             param([hashtable] $Rule = @{}, [hashtable] $Template = @{})
             Invoke-InModule { param($R, $T) Test-iSOCContentHubRuleCustomised -ExistingRule ([pscustomobject]@{ name = 'r'; properties = $R }) -TemplateProperties $T } @{ R = (New-RuleProp $Rule); T = (New-RuleProp $Template) }
         }
@@ -211,6 +252,12 @@ Describe 'Invoke-iSOCContentHubSolutionDeploy' {
             CatalogEntry = [pscustomobject]@{ name = 'test.solution'; properties = [pscustomobject]@{ contentId = 'test.solution' } }; InstalledPackage = $null
         }
         function Invoke-Deploy {
+            <#
+            .SYNOPSIS
+                Deploy a Content Hub solution with the given description against stood-in REST calls, recording the PUT requests.
+            .PARAMETER Description
+                Description returned by the stand-in solution template.
+            #>
             param([string] $Description)
             $script:puts = [System.Collections.Generic.List[object]]::new()
             Mock -ModuleName iSOCDeployments Write-iSOCLog { }
@@ -259,6 +306,12 @@ Describe 'Rule templates' {
     BeforeAll {
         $script:hubData = (New-ContentHubStandIn -Path $script:fixture).Data
         function Get-Record {
+            <#
+            .SYNOPSIS
+                Read the rule template record for a template name.
+            .PARAMETER Id
+                Name of the template.
+            #>
             param([string] $Id)
             $template = $script:hubData.templates | Where-Object { $_.name -eq $Id }
             Invoke-InModule { param($T) Read-iSOCContentHubRuleTemplate -Template $T } @{ T = $template }
@@ -327,6 +380,14 @@ Describe 'Rule templates' {
                 $script:byName[$rule.properties.displayName] = $rule
             }
             function Get-Action {
+                <#
+                .SYNOPSIS
+                    Return the Content Hub action for a template record.
+                .PARAMETER Id
+                    Name of the template to read the record for.
+                .PARAMETER Switches
+                    Switch parameters splatted to the action command.
+                #>
                 param([string] $Id, [hashtable] $Switches = @{})
                 Invoke-InModule { param($R, $T, $N, $S) Get-iSOCContentHubRuleAction -Record $R -RulesByTemplate $T -RulesByName $N @S } @{ R = (Get-Record $Id); T = $script:byTemplate; N = $script:byName; S = $Switches }
             }
@@ -533,6 +594,16 @@ Describe 'Install-iSOCContentHubSolution' {
 Describe 'Whole runs of Install-iSOCContentHubSolution' {
     BeforeAll {
         function Get-ModuleCount {
+            <#
+            .SYNOPSIS
+                Count the run results of a content type that have one of the given outcomes.
+            .PARAMETER Run
+                Deployment or drift run object returned by the module.
+            .PARAMETER Type
+                Content type to match.
+            .PARAMETER Outcome
+                Outcomes to match.
+            #>
             param($Run, [string] $Type, [string[]] $Outcome)
             @($Run.Results | Where-Object { $_.ContentType -eq $Type -and $_.Outcome -in $Outcome }).Count
         }
@@ -545,7 +616,7 @@ Describe 'Whole runs of Install-iSOCContentHubSolution' {
 
         It 'sends every rule disabled and overwrites the changed ones' {
             @($script:moduleB.Writes | Where-Object { $_.Path -like '*/alertRules/*' -and $_.Method -eq 'PUT' } | ForEach-Object { $_.Body.properties.enabled } | Select-Object -Unique) | Should -Be @($false)
-            Get-ModuleCount $script:moduleB.Run AnalyticsRule Protected | Should -Be 0
+            Get-ModuleCount -Run $script:moduleB.Run -Type AnalyticsRule -Outcome Protected | Should -Be 0
         }
     }
 
@@ -571,7 +642,7 @@ Describe 'Whole runs of Install-iSOCContentHubSolution' {
             @($run.Solutions | Where-Object { $_.Outcome -eq 'WhatIf' -and $_.Reason -in 'update', 'forceupdate' }).Count | Should -Be 2
             @($run.Results | Where-Object { $_.ContentType -eq 'AnalyticsRule' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'deploy' }).Count | Should -Be 6
             @($run.Results | Where-Object { $_.ContentType -eq 'AnalyticsRule' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'update' }).Count | Should -Be 4
-            Get-ModuleCount $run AnalyticsRule Protected | Should -Be 2
+            Get-ModuleCount -Run $run -Type AnalyticsRule -Outcome Protected | Should -Be 2
             @($run.Results | Where-Object { $_.ContentType -eq 'Workbook' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'deploy' }).Count | Should -Be 8
             @($run.Results | Where-Object { $_.ContentType -eq 'Workbook' -and $_.Outcome -eq 'WhatIf' -and $_.Reason -eq 'update' }).Count | Should -Be 3
         }

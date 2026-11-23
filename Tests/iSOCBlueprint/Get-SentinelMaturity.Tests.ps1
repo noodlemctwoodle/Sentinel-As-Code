@@ -59,6 +59,14 @@ BeforeAll {
     # A criteria document with one area and the CSF reference the engine
     # validates against, for the synthetic cases.
     function New-SyntheticCriterion {
+        <#
+        .SYNOPSIS
+            Writes a small criteria file and returns its path.
+        .PARAMETER Criteria
+            The criteria to include.
+        .PARAMETER Path
+            Where to write the file.
+        #>
         param([object[]]$Criteria, [string]$Path)
         $doc = [ordered]@{
             version     = '0.0.1'
@@ -74,6 +82,20 @@ BeforeAll {
         return $Path
     }
     function New-GapCriterion {
+        <#
+        .SYNOPSIS
+            Builds one criterion that is read from a gap rule.
+        .PARAMETER Id
+            The criterion id.
+        .PARAMETER Rule
+            The gap rule that feeds it.
+        .PARAMETER Weight
+            The criterion weight.
+        .PARAMETER Effort
+            The effort rating.
+        .PARAMETER Area
+            The area the criterion belongs to.
+        #>
         param([string]$Id, [string]$Rule, [double]$Weight = 1, [string]$Effort = 'Low', [string]$Area = 'ONE')
         return @{
             id       = $Id
@@ -89,10 +111,28 @@ BeforeAll {
         }
     }
     function New-Outcome {
+        <#
+        .SYNOPSIS
+            Builds one gap outcome record.
+        .PARAMETER Id
+            The rule id.
+        .PARAMETER Outcome
+            The outcome, such as Fired or Passed.
+        #>
         param([string]$Id, [string]$Outcome)
         return [pscustomobject]@{ Id = $Id; Check = 'Test-X'; Outcome = $Outcome; Message = $null }
     }
     function Invoke-Synthetic {
+        <#
+        .SYNOPSIS
+            Scores a set of synthetic criteria and outcomes in a temporary workspace.
+        .PARAMETER Criteria
+            The criteria to score.
+        .PARAMETER Outcomes
+            The gap outcomes to score against.
+        .PARAMETER Target
+            The target maturity level.
+        #>
         param([object[]]$Criteria, [object[]]$Outcomes, [int]$Target = 3)
         $dir = Join-Path $TestDrive ('synthetic-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -423,6 +463,12 @@ Describe 'maturity-criteria.json schema guards' {
         $script:ruleIds = @((Get-Content $rulesPath -Raw | ConvertFrom-Json).rules | ForEach-Object id)
         $script:metricNames = @((New-MaturityMetric -InputRoot $fixtureRaw -ResourcesRoot $resourcesDir).Keys)
         function Get-SourceLeaf($Source) {
+            <#
+            .SYNOPSIS
+                Flattens nested allOf and anyOf sources into their leaf sources.
+            .PARAMETER Source
+                The criterion source to flatten.
+            #>
             if ($Source.kind -in 'allOf', 'anyOf') { foreach ($s in $Source.sources) { Get-SourceLeaf $s } } else { $Source }
         }
     }

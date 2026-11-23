@@ -33,6 +33,12 @@ BeforeAll {
         }
     }
     function Invoke-Status([string]$Text) {
+        <#
+        .SYNOPSIS
+            Runs the status word converter and returns the text with the replacement count.
+        .PARAMETER Text
+            The Markdown to convert.
+        #>
         $count = [ref]0
         [pscustomobject]@{ Text = (Convert-StatusWord -Text $Text -Count $count); Count = $count.Value }
     }

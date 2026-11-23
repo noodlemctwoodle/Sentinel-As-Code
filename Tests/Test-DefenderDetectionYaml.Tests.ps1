@@ -102,6 +102,14 @@ BeforeAll {
     )
 
     function Get-YamlPath {
+        <#
+        .SYNOPSIS
+            Tests whether a dotted path exists in a parsed YAML document.
+        .PARAMETER Yaml
+            The parsed YAML document.
+        .PARAMETER Path
+            Dotted path of keys to look for, such as queryCondition.queryText.
+        #>
         param([System.Collections.IDictionary]$Yaml, [string]$Path)
         $node = $Yaml
         foreach ($segment in $Path -split '\.') {
@@ -174,12 +182,18 @@ Describe 'Defender custom detections: cross-file invariants' {
                         $pair.Map[$value] += $rel
                     }
                 } catch {
-                    # Per-file schema test owns parse errors; skip silently here.
+                    Write-Verbose -Message 'Per-file schema test owns parse errors; skip silently here.'
                 }
             }
         }
 
         function Format-Duplicate {
+            <#
+            .SYNOPSIS
+                Formats the values used by more than one file as a readable report.
+            .PARAMETER Map
+                Hashtable of value to the list of files that use it.
+            #>
             param([hashtable]$Map)
             ($Map.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 } | ForEach-Object {
                 "  '$($_.Key)' used by:`n    - $($_.Value -join "`n    - ")"

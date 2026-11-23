@@ -37,8 +37,6 @@ function Write-BlueprintRulePerformanceSection {
 
     # Taken from the render context.
     $analyticsLinks = $Context.analyticsLinks
-    $m = $Context.m
-    $n = $Context.n
     $volumeSection = $Context.volumeSection
 
     # Section 21: how the rules perform, alert volume and closure verdicts.

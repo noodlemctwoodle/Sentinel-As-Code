@@ -45,7 +45,6 @@ function Write-BlueprintDataConnectorsSectionPart2 {
     $healthRows = $Context.healthRows
     $kindCounts = $Context.kindCounts
     $kindPieRows = $Context.kindPieRows
-    $m = $Context.m
     $unificationRows = $Context.unificationRows
 
     $connectorBody = @"

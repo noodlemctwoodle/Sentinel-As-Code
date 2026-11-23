@@ -61,6 +61,10 @@ BeforeAll {
 
     # A checkout as the agent has it: the fixture content and the module.
     function Build-PipelineCheckout {
+        <#
+        .SYNOPSIS
+            Creates a checkout in a new temporary folder holding the fixture content and the module, and returns its path.
+        #>
         $checkout = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path (Join-Path $checkout 'Modules') | Out-Null
         Copy-Item -LiteralPath (Join-Path $script:fixtureRepo 'Content') -Destination $checkout -Recurse
@@ -71,6 +75,20 @@ BeforeAll {
     # Run a step's script in a child pwsh with the variables the agent
     # sets for it, as the agent runs it.
     function Invoke-PipelineStep {
+        <#
+        .SYNOPSIS
+            Runs a step script in a child pwsh with the variables the agent sets for it, and returns its exit code and output.
+        .PARAMETER Script
+            The text of the step script.
+        .PARAMETER Checkout
+            The path of the checkout, set as the sources directory.
+        .PARAMETER Environment
+            Further environment variables for the step.
+        .PARAMETER Prelude
+            PowerShell text run before the script.
+        .PARAMETER TempDirectory
+            The agent temporary directory; a new one by default.
+        #>
         param([string] $Script, [string] $Checkout, [hashtable] $Environment = @{}, [string] $Prelude = '', [string] $TempDirectory)
         $temp = if ($TempDirectory) { $TempDirectory } else { Join-Path $TestDrive ([guid]::NewGuid().ToString()) }
         New-Item -ItemType Directory -Path $temp -Force | Out-Null
@@ -92,6 +110,12 @@ BeforeAll {
     }
 
     function Get-StepText {
+        <#
+        .SYNOPSIS
+            Returns the script text of a pipeline step, whichever input holds it, or an empty string.
+        .PARAMETER Step
+            The pipeline step.
+        #>
         param([System.Collections.IDictionary] $Step)
         if ($Step.Contains('inputs') -and $Step.inputs.Contains('script')) { return [string]$Step.inputs.script }
         if ($Step.Contains('inputs') -and $Step.inputs.Contains('Inline')) { return [string]$Step.inputs.Inline }
@@ -103,6 +127,14 @@ BeforeAll {
     # The parameters as Azure DevOps puts them into a template expression:
     # booleans as True or False.
     function Get-RenderedParameter {
+        <#
+        .SYNOPSIS
+            Returns the parameters of a pipeline file, each value as a string.
+        .PARAMETER Path
+            The path of the pipeline file.
+        .PARAMETER Parameters
+            The values the pipeline parameters take instead of their defaults.
+        #>
         param([string] $Path, [hashtable] $Parameters = @{})
         $values = Resolve-PipelineParameter -Yaml (Read-PipelineYaml -Path $Path) -Parameters $Parameters
         $rendered = @{}
@@ -114,6 +146,16 @@ BeforeAll {
     # as its own text when the variable is not set), and parameters from
     # their template expressions.
     function Get-StepEnvironment {
+        <#
+        .SYNOPSIS
+            Returns the environment of a step, with its pipeline variable macros and parameter expressions replaced by their values.
+        .PARAMETER Step
+            The pipeline step.
+        .PARAMETER Variables
+            The values of the pipeline variables, by name.
+        .PARAMETER Rendered
+            The rendered parameter values, by name.
+        #>
         param([System.Collections.IDictionary] $Step, [hashtable] $Variables, [hashtable] $Rendered)
         $known = $Variables
         $parameterValues = $Rendered
@@ -135,6 +177,12 @@ BeforeAll {
     # Compare-iSOCContent HasDrift from STUB_HAS_DRIFT; Sync-iSOCContent
     # passes the result on. Import-Module does nothing.
     function Get-ModuleStub {
+        <#
+        .SYNOPSIS
+            Returns PowerShell text that stubs the named module commands with the real parameter blocks, each recording its call to the file the environment names.
+        .PARAMETER Command
+            The names of the module commands to stub.
+        #>
         param([string[]] $Command)
         $text = [System.Text.StringBuilder]::new()
         [void]$text.AppendLine('function Import-Module { }')
@@ -170,6 +218,26 @@ function Save-StubCall {
 
     # Run one step of a pipeline as the agent would, with the stand-ins.
     function Invoke-StubbedStep {
+        <#
+        .SYNOPSIS
+            Runs one step of a pipeline as the agent would, with the stand-ins, and returns its exit code, output and the calls the stubs recorded.
+        .PARAMETER Path
+            The path of the pipeline file.
+        .PARAMETER Step
+            The display name of the step.
+        .PARAMETER Parameters
+            The values the pipeline parameters take instead of their defaults.
+        .PARAMETER Variables
+            The values of the pipeline variables, by name.
+        .PARAMETER Stub
+            The names of the module commands to stub.
+        .PARAMETER Environment
+            Further environment variables for the step.
+        .PARAMETER Checkout
+            The path of the checkout; a new empty folder by default.
+        .PARAMETER TempDirectory
+            The agent temporary directory; a new one by default.
+        #>
         param([string] $Path, [string] $Step, [hashtable] $Parameters = @{}, [hashtable] $Variables = @{}, [string[]] $Stub = @(), [hashtable] $Environment = @{}, [string] $Checkout, [string] $TempDirectory)
         $rendered = Get-RenderedParameter -Path $Path -Parameters $Parameters
         $known = @{}
@@ -188,17 +256,37 @@ function Save-StubCall {
     }
 
     function Get-Call {
+        <#
+        .SYNOPSIS
+            Returns the parameters of each recorded call to a command.
+        .PARAMETER Run
+            The result of Invoke-StubbedStep.
+        .PARAMETER Command
+            The name of the command.
+        #>
         param($Run, [string] $Command)
         , @($Run.Calls | Where-Object { $_.Command -eq $Command } | ForEach-Object { $_.Parameters })
     }
 
     function Get-ManifestHash {
+        <#
+        .SYNOPSIS
+            Returns the file hash of the dependencies.json in a checkout.
+        .PARAMETER Checkout
+            The path of the checkout.
+        #>
         param([string] $Checkout)
         (Get-FileHash -LiteralPath (Join-Path $Checkout 'dependencies.json')).Hash
     }
 
     # A call as canonical JSON: keys in order, so two calls compare as text.
     function Format-Call {
+        <#
+        .SYNOPSIS
+            Returns a recorded call as compressed JSON with its keys sorted.
+        .PARAMETER Call
+            The recorded parameters of the call.
+        #>
         param([System.Collections.IDictionary] $Call)
         $sorted = [ordered]@{}
         foreach ($key in ($Call.Keys | Sort-Object)) { $sorted[$key] = $Call[$key] }
@@ -433,6 +521,10 @@ Describe 'Pipelines/Sentinel-Deploy.yml' {
         }
 
         function Get-DefaultSolution {
+            <#
+            .SYNOPSIS
+                Returns the default solutions of the deploy pipeline as a list.
+            #>
             $default = @((Read-PipelineYaml -Path $script:deployPipeline).parameters | Where-Object { $_.name -eq 'solutions' })[0].default
             @($default -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         }

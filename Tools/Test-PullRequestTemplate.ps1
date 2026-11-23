@@ -66,10 +66,11 @@
     Website:        https://sentinel.blog
     Created:        2026-07-08
     Version:        1.1.1
-    Last Updated:   2026-11-09
+    Last Updated:   2026-11-23
     Requires:       PowerShell 7.6+
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The ::error:: lines are GitHub Actions log commands, which only work on stdout.')]
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
@@ -91,6 +92,16 @@ $ErrorActionPreference = 'Stop'
 # replaced it; this script is not part of that module, so it keeps the
 # three levels it uses, unchanged.
 function Write-TemplateMessage {
+    <#
+    .SYNOPSIS
+        Write a message as an Azure DevOps log command or as plain or coloured text.
+
+    .PARAMETER Message
+        The text to write.
+
+    .PARAMETER Level
+        Error, Section or Success; defaults to Success.
+    #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Pipeline logging commands must reach the host stream.')]
     [CmdletBinding()]
     param(
@@ -127,6 +138,14 @@ function Write-TemplateMessage {
 # us tell "author wrote a real description" from "author left the template
 # untouched".
 function Remove-MarkdownComment {
+    <#
+    .SYNOPSIS
+        Strip HTML comment blocks from a chunk of Markdown.
+
+    .PARAMETER Text
+        The Markdown to strip.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a string in memory; nothing outside the call changes.')]
     [OutputType([string])]
     [CmdletBinding()]
     param(
@@ -147,6 +166,13 @@ function Remove-MarkdownComment {
 # deeper headings (### and beyond) stay part of the current section's
 # content, so an author's sub-headings never accidentally split a section.
 function Get-PullRequestSection {
+    <#
+    .SYNOPSIS
+        Split a pull-request body into its level-2 sections.
+
+    .PARAMETER Body
+        The raw pull-request description.
+    #>
     [OutputType([System.Collections.Generic.List[object]])]
     [CmdletBinding()]
     param(
@@ -193,6 +219,13 @@ function Get-PullRequestSection {
 # { IsValid; Errors }. No console output and no exit - the entry-point
 # below renders the result. This shape is what the Pester suite asserts on.
 function Test-PullRequestTemplateBody {
+    <#
+    .SYNOPSIS
+        Check a pull-request body against the template and return the result and its errors.
+
+    .PARAMETER Body
+        The raw pull-request description.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]

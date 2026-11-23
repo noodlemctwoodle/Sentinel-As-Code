@@ -39,8 +39,6 @@ function Write-BlueprintDetectionOpportunitiesSection {
     $connectorCatalogue = $Context.connectorCatalogue
     $customDetectionTableSet = $Context.customDetectionTableSet
     $enabledRules = $Context.enabledRules
-    $m = $Context.m
-    $n = $Context.n
     $name = $Context.name
     $ruleTableRefs = $Context.ruleTableRefs
     $sol = $Context.sol

@@ -51,6 +51,12 @@ BeforeAll {
     $script:mapText = Get-Content -LiteralPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/MIGRATION.md') -Raw
 
     function Test-RepoPath {
+        <#
+        .SYNOPSIS
+            Tests whether a path from the migration map exists in the repository.
+        .PARAMETER Path
+            The mapped path; a trailing glob is dropped.
+        #>
         param([string] $Path)
         Test-Path -LiteralPath (Join-Path $script:repoRoot ($Path -replace '/\*\*$', ''))
     }

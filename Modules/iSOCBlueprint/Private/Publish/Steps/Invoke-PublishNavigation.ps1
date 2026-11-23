@@ -33,6 +33,7 @@ function Invoke-PublishNavigation {
     .PARAMETER Context
         The publish context: the values earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Reports the navigation outcome to the operator at the console as the publish runs.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

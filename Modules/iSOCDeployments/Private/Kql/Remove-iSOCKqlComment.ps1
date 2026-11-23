@@ -19,7 +19,7 @@
     Website:      https://sentinel.blog
     Created:      2026-10-23
     Version:      0.1.2
-    Last Updated: 2026-11-09
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -35,6 +35,7 @@ function Remove-iSOCKqlComment {
     extraction so commented-out _GetWatchlist / externaldata calls do
     not produce false positives in the manifest.
 #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a string in memory; nothing outside the call changes.')]
     [OutputType([string])]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string]$Query)

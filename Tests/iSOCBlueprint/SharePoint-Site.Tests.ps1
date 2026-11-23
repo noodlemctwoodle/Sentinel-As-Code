@@ -43,21 +43,51 @@ BeforeAll {
     # Pages are built from the section model; these tests write the section
     # as Markdown for readability and convert it the way the renderer does.
     function ConvertTo-Segment([string]$Markdown, [string]$File = '20-analytics-rules.md', [int]$Max = 500) {
+        <#
+        .SYNOPSIS
+            Converts Markdown to SharePoint page segments.
+        .PARAMETER Markdown
+            The Markdown to convert.
+        .PARAMETER File
+            The section file name.
+        .PARAMETER Max
+            The most table rows shown before the table is cut.
+        #>
         $section = ConvertTo-BlueprintSection -Markdown $Markdown -Id ([System.IO.Path]::GetFileNameWithoutExtension($File))
         ConvertTo-SharePointPageSegment -Section $section -MaxTableRows $Max
     }
-    function Join-Html($Result) { ($Result.Segments | Where-Object { $_.type -eq 'html' } | ForEach-Object { $_.html }) -join "`n" }
+    function Join-Html($Result) {
+        <#
+        .SYNOPSIS
+            Joins the HTML segments of a conversion result.
+        .PARAMETER Result
+            The conversion result.
+        #>
+        ($Result.Segments | Where-Object { $_.type -eq 'html' } | ForEach-Object { $_.html }) -join "`n"
+    }
 
     # Stand-ins for PnP.PowerShell cmdlets. Functions win over cmdlets of the
     # same name, so these apply whether or not PnP.PowerShell is installed,
     # and Mock replaces them. Keys are cmdlet names, values their parameters.
     function Install-PnPStub([System.Collections.IDictionary] $Stubs) {
+        <#
+        .SYNOPSIS
+            Defines global stand-in functions for PnP.PowerShell cmdlets.
+        .PARAMETER Stubs
+            Cmdlet name mapped to its parameter list.
+        #>
         foreach ($name in $Stubs.Keys) {
             Set-Item -Path "function:global:$name" -Value ([scriptblock]::Create("[CmdletBinding()] param($($Stubs[$name]))"))
         }
         @($Stubs.Keys)
     }
     function Remove-PnPStub([string[]] $Names) {
+        <#
+        .SYNOPSIS
+            Removes the global stand-in functions.
+        .PARAMETER Names
+            The cmdlet names to remove.
+        #>
         foreach ($name in $Names) { Remove-Item -Path "function:global:$name" -ErrorAction SilentlyContinue }
     }
 }
@@ -254,7 +284,7 @@ Describe 'ConvertTo-SharePointPageSegment' {
         BeforeAll {
             $rows = 1..7 | ForEach-Object { "| r$_ | $_ |" }
             $md = (@('# T', '', '| | |', '|---|---:|', '| Key | Value |', '', '| Name | Count |', '|---|---:|') + $rows) -join "`n"
-            $script:r = ConvertTo-Segment $md '20-analytics-rules.md' 5
+            $script:r = ConvertTo-Segment $md -File '20-analytics-rules.md' -Max 5
             $script:html = Join-Html $r
         }
         It 'uses the SharePoint editor table markup' {
@@ -433,7 +463,15 @@ Describe 'Get-PageSyncPlan' {
         )
         $script:plan = Get-PageSyncPlan -Desired $desired -ExistingNames @('sac-00-overview', 'sac-10-data', 'sac-99-gone') `
             -PublishedHashes @{ 'sac-00-overview' = 'a'; 'sac-10-data' = 'b1' }
-        function ActionFor($n) { ($plan | Where-Object Name -EQ $n).Action }
+        function ActionFor($n) {
+            <#
+            .SYNOPSIS
+                Returns the sync action planned for one page.
+            .PARAMETER n
+                The page name.
+            #>
+            ($plan | Where-Object Name -EQ $n).Action
+        }
     }
     It 'skips pages whose hash matches the last publish' { ActionFor 'sac-00-overview' | Should -Be 'Skip' }
     It 'updates pages whose hash changed' { ActionFor 'sac-10-data' | Should -Be 'Update' }
@@ -449,6 +487,14 @@ Describe 'Get-FindingSyncPlan' {
     BeforeAll {
         $script:now = [datetime]::SpecifyKind([datetime]'2026-10-08T06:00:00', [System.DateTimeKind]::Utc)
         function F($id, $sev = 'Warning') {
+            <#
+            .SYNOPSIS
+                Builds one finding.
+            .PARAMETER id
+                The finding id.
+            .PARAMETER sev
+                The severity.
+            #>
             [pscustomobject]@{
                 id          = $id
                 title       = "t $id"
@@ -459,16 +505,50 @@ Describe 'Get-FindingSyncPlan' {
                 learn       = 'https://learn.microsoft.com/x'
             }
         }
-        function E($item, $id, $status) { [pscustomobject]@{ ItemId = $item; FindingId = $id; Status = $status } }
-        function C($id, $o) { [pscustomobject]@{ Id = $id; Outcome = $o } }
+        function E($item, $id, $status) {
+            <#
+            .SYNOPSIS
+                Builds one existing list item.
+            .PARAMETER item
+                The item id.
+            .PARAMETER id
+                The finding id on the item.
+            .PARAMETER status
+                The item status.
+            #>
+            [pscustomobject]@{ ItemId = $item; FindingId = $id; Status = $status }
+        }
+        function C($id, $o) {
+            <#
+            .SYNOPSIS
+                Builds one check outcome.
+            .PARAMETER id
+                The check id.
+            .PARAMETER o
+                The outcome.
+            #>
+            [pscustomobject]@{ Id = $id; Outcome = $o }
+        }
         function Plan($current, $existing, $checks, $available = $true) {
+            <#
+            .SYNOPSIS
+                Plans the finding sync for the given findings, items and checks.
+            .PARAMETER current
+                The current findings.
+            .PARAMETER existing
+                The existing list items.
+            .PARAMETER checks
+                The check outcomes.
+            .PARAMETER available
+                Whether the analysis ran.
+            #>
             Get-FindingSyncPlan -Current $current -Existing $existing -Checks $checks -AnalysisAvailable $available -NowUtc $now
         }
     }
 
     It 'updates an item filed under the legacy id in place and moves it to the new id' {
         $cur = F 'SAC-LOG-03'; $cur | Add-Member -NotePropertyName legacyId -NotePropertyValue 'SENT-001'
-        $p = Plan @($cur) @(E 7 'SENT-001' 'Open') @(C 'SAC-LOG-03' 'Fired')
+        $p = Plan -Current @($cur) -Existing @(E -item 7 -id 'SENT-001' -status 'Open') -Checks @(C 'SAC-LOG-03' 'Fired')
         @($p).Count | Should -Be 1
         $p.Action | Should -Be 'Update'
         $p.ItemId | Should -Be 7
@@ -478,13 +558,13 @@ Describe 'Get-FindingSyncPlan' {
 
     It 'reopens a resolved legacy item under the new id rather than adding a duplicate' {
         $cur = F 'SAC-LOG-03'; $cur | Add-Member -NotePropertyName legacyId -NotePropertyValue 'SENT-001'
-        $p = Plan @($cur) @(E 7 'SENT-001' 'Resolved') @(C 'SAC-LOG-03' 'Fired')
+        $p = Plan -Current @($cur) -Existing @(E -item 7 -id 'SENT-001' -status 'Resolved') -Checks @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Reopen'
         $p.ItemId | Should -Be 7
     }
 
     It 'adds a new finding as Open with first and last seen' {
-        $p = Plan @(F 'SAC-LOG-03') @() @(C 'SAC-LOG-03' 'Fired')
+        $p = Plan -Current @(F 'SAC-LOG-03') -Existing @() -Checks @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Add'
         $p.Values.Status | Should -Be 'Open'
         $p.Values.FirstSeen | Should -Be $now
@@ -494,14 +574,14 @@ Describe 'Get-FindingSyncPlan' {
     }
 
     It 'updates an open finding that still fires' {
-        $p = Plan @(F 'SAC-LOG-03') @(E 7 'SAC-LOG-03' 'Open') @(C 'SAC-LOG-03' 'Fired')
+        $p = Plan -Current @(F 'SAC-LOG-03') -Existing @(E -item 7 -id 'SAC-LOG-03' -status 'Open') -Checks @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Update'
         $p.ItemId | Should -Be 7
         $p.Values.ContainsKey('FirstSeen') | Should -BeFalse
     }
 
     It 'reopens a resolved finding that fires again' {
-        $p = Plan @(F 'SAC-LOG-03') @(E 7 'SAC-LOG-03' 'Resolved') @(C 'SAC-LOG-03' 'Fired')
+        $p = Plan -Current @(F 'SAC-LOG-03') -Existing @(E -item 7 -id 'SAC-LOG-03' -status 'Resolved') -Checks @(C 'SAC-LOG-03' 'Fired')
         $p.Action | Should -Be 'Reopen'
         $p.Values.Status | Should -Be 'Open'
         $p.Values.ContainsKey('ResolvedOn') | Should -BeTrue
@@ -509,32 +589,33 @@ Describe 'Get-FindingSyncPlan' {
     }
 
     It 'resolves an open finding whose check passed' {
-        $p = Plan @() @(E 7 'SAC-LOG-03' 'Open') @(C 'SAC-LOG-03' 'Passed')
+        $p = Plan -Current @() -Existing @(E -item 7 -id 'SAC-LOG-03' -status 'Open') -Checks @(C 'SAC-LOG-03' 'Passed')
         $p.Action | Should -Be 'Resolve'
         $p.Values.Status | Should -Be 'Resolved'
         $p.Values.ResolvedOn | Should -Be $now
     }
 
     It 'keeps an open finding open when its check errored' {
-        @(Plan @() @(E 7 'SAC-LOG-03' 'Open') @(C 'SAC-LOG-03' 'Errored')).Count | Should -Be 0
+        @(Plan -Current @() -Existing @(E -item 7 -id 'SAC-LOG-03' -status 'Open') -Checks @(C 'SAC-LOG-03' 'Errored')).Count | Should -Be 0
     }
 
     It 'retires an open finding whose rule left the rule set' {
-        $p = Plan @() @(E 7 'SAC-TI-02' 'Open') @(C 'SAC-LOG-03' 'Passed')
+        $p = Plan -Current @() -Existing @(E -item 7 -id 'SAC-TI-02' -status 'Open') -Checks @(C 'SAC-LOG-03' 'Passed')
         $p.Action | Should -Be 'Retire'
         $p.Values.Status | Should -Be 'Retired'
     }
 
     It 'leaves resolved and retired items alone' {
-        @(Plan @() @((E 7 'SAC-LOG-03' 'Resolved'), (E 8 'SAC-LOG-07' 'Retired')) @(C 'SAC-LOG-03' 'Passed')).Count | Should -Be 0
+        $existing = @((E -item 7 -id 'SAC-LOG-03' -status 'Resolved'), (E -item 8 -id 'SAC-LOG-07' -status 'Retired'))
+        @(Plan -Current @() -Existing $existing -Checks @(C 'SAC-LOG-03' 'Passed')).Count | Should -Be 0
     }
 
     It 'resolves on absence when the snapshot has no per-check outcomes' {
-        (Plan @() @(E 7 'SAC-LOG-03' 'Open') $null).Action | Should -Be 'Resolve'
+        (Plan -Current @() -Existing @(E -item 7 -id 'SAC-LOG-03' -status 'Open') -Checks $null).Action | Should -Be 'Resolve'
     }
 
     It 'resolves nothing when the snapshot has no gap analysis' {
-        @(Plan @() @(E 7 'SAC-LOG-03' 'Open') $null $false).Count | Should -Be 0
+        @(Plan -Current @() -Existing @(E -item 7 -id 'SAC-LOG-03' -status 'Open') -Checks $null -available $false).Count | Should -Be 0
     }
 }
 
@@ -638,6 +719,12 @@ Describe 'Web part package' {
         $script:wp = Join-Path $repoRoot 'Modules/iSOCBlueprint/WebParts'
         # SPFx config and manifests allow // comments, which ConvertFrom-Json does not.
         function Read-Jsonc([string] $Path) {
+            <#
+            .SYNOPSIS
+                Reads a JSON file that allows line comments.
+            .PARAMETER Path
+                The file to read.
+            #>
             (Get-Content -LiteralPath $Path -Raw) -replace '(?m)^\s*//.*$', '' -replace '(?m)\s+//[^"\r\n]*$', '' | ConvertFrom-Json
         }
         $script:bundled = @((Read-Jsonc (Join-Path $wp 'config/config.json')).bundles.PSObject.Properties.Value |
@@ -689,6 +776,14 @@ Describe 'Add-SacMaturityHistoryEntry' {
 
     BeforeAll {
         function New-HistoryEntry([string]$Built, [double]$Score) {
+            <#
+            .SYNOPSIS
+                Builds one score history entry.
+            .PARAMETER Built
+                The bundle build time.
+            .PARAMETER Score
+                The overall score.
+            #>
             @{
                 publishedUtc   = "$Built"
                 bundleBuiltUtc = $Built
@@ -729,7 +824,17 @@ Describe 'Add-SacMaturityHistoryEntry' {
 Describe 'Add-SacSnapshotEntry' {
 
     BeforeAll {
-        function New-Snap([string]$Date, [int]$Findings = 3) { @{ date = $Date; file = "$Date.html"; findings = $Findings; score = 1.5 } }
+        function New-Snap([string]$Date, [int]$Findings = 3) {
+            <#
+            .SYNOPSIS
+                Builds one snapshot index entry.
+            .PARAMETER Date
+                The snapshot date.
+            .PARAMETER Findings
+                The finding count.
+            #>
+            @{ date = $Date; file = "$Date.html"; findings = $Findings; score = 1.5 }
+        }
     }
 
     It 'starts a list with the first day' {
@@ -951,6 +1056,12 @@ Describe 'Publish-SacSectionPage' {
         # A stand-in for the PnP Core page object: records the controls it is
         # given and counts component lookups.
         function New-FakePage([object[]] $Components) {
+            <#
+            .SYNOPSIS
+                Builds a fake client side page that records what is added to it.
+            .PARAMETER Components
+                The components the page offers.
+            #>
             $page = [pscustomobject]@{
                 PageTitle  = ''
                 Sections   = @([pscustomobject]@{ Columns = @('column') })
@@ -1132,6 +1243,20 @@ Describe 'Publish-SacAppPackage' {
             })
         $script:productId = '7f7eb9c2-a720-45f1-ab47-7772da011e1d'
         function New-CatalogApp([string] $Id, [string] $Title, [string] $Version, [bool] $Valid = $true, [string] $ProductId = $script:productId) {
+            <#
+            .SYNOPSIS
+                Builds one app catalogue entry.
+            .PARAMETER Id
+                The item id.
+            .PARAMETER Title
+                The app title.
+            .PARAMETER Version
+                The app version.
+            .PARAMETER Valid
+                Whether the package is valid.
+            .PARAMETER ProductId
+                The solution product id.
+            #>
             [pscustomobject]@{
                 Id         = $Id
                 ProductId  = $ProductId
@@ -1142,8 +1267,8 @@ Describe 'Publish-SacAppPackage' {
                 Error      = $(if ($Valid) { '' } else { 'A package with this id already exists' })
             }
         }
-        $script:oldApp = New-CatalogApp 'old-item' 'old-name-client-side-solution' '1.1.0.0'
-        $script:failedNew = New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.2.0.0' -Valid $false
+        $script:oldApp = New-CatalogApp -Id 'old-item' -Title 'old-name-client-side-solution' -Version '1.1.0.0'
+        $script:failedNew = New-CatalogApp -Id 'new-item' -Title 'isoc-blueprint-client-side-solution' -Version '1.2.0.0' -Valid $false
     }
     AfterAll { Remove-PnPStub $script:pnpStubs }
     BeforeEach {
@@ -1164,7 +1289,7 @@ Describe 'Publish-SacAppPackage' {
     }
 
     It 'matches the package by title when the catalog reports no product id' {
-        $noProduct = New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.2.0.0' -ProductId ''
+        $noProduct = New-CatalogApp -Id 'new-item' -Title 'isoc-blueprint-client-side-solution' -Version '1.2.0.0' -ProductId ''
         Mock Get-SacCatalogApp { $noProduct }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Should -Be '1.2.0.0'
         Should -Invoke Add-PnPApp -Times 0 -Exactly -Because 'the same version is already deployed'
@@ -1178,21 +1303,23 @@ Describe 'Publish-SacAppPackage' {
     }
 
     It 'upgrades the same solution in place without removing anything' {
-        Mock Get-SacCatalogApp { New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.1.0.0' }
+        Mock Get-SacCatalogApp { New-CatalogApp -Id 'new-item' -Title 'isoc-blueprint-client-side-solution' -Version '1.1.0.0' }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Out-Null
         Should -Invoke Remove-PnPApp -Times 0 -Exactly
         Should -Invoke Add-PnPApp -Times 1 -Exactly
     }
 
     It 'does nothing when the same version is already deployed' {
-        Mock Get-SacCatalogApp { New-CatalogApp 'new-item' 'isoc-blueprint-client-side-solution' '1.2.0.0' }
+        Mock Get-SacCatalogApp { New-CatalogApp -Id 'new-item' -Title 'isoc-blueprint-client-side-solution' -Version '1.2.0.0' }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Should -Be '1.2.0.0'
         Should -Invoke Add-PnPApp -Times 0 -Exactly
         Should -Invoke Remove-PnPApp -Times 0 -Exactly
     }
 
     It 'ignores other solutions in the catalog' {
-        Mock Get-SacCatalogApp { New-CatalogApp 'other' 'someone-elses-solution' '3.0.0.0' -ProductId '11111111-2222-3333-4444-555555555555' }
+        Mock Get-SacCatalogApp {
+            New-CatalogApp -Id 'other' -Title 'someone-elses-solution' -Version '3.0.0.0' -ProductId '11111111-2222-3333-4444-555555555555'
+        }
         Publish-SacAppPackage -Path 'isoc-blueprint.sppkg' | Out-Null
         Should -Invoke Remove-PnPApp -Times 0 -Exactly
         Should -Invoke Add-PnPApp -Times 1 -Exactly

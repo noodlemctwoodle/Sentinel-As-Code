@@ -165,41 +165,144 @@ $region = 'uksouth'
 $wsId = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.OperationalInsights/workspaces/$WorkspaceName"
 $siId = "$wsId/providers/Microsoft.SecurityInsights"
 
-function Get-DemoRandom { $script:Rng.NextDouble() }
-function Get-DemoBetween([double]$Min, [double]$Max) { $Min + ($Max - $Min) * $script:Rng.NextDouble() }
+function Get-DemoRandom {
+    <#
+    .SYNOPSIS
+        Return the next uniform random number from the demo generator, from 0 up to but not including 1.
+    #>
+    $script:Rng.NextDouble()
+}
+function Get-DemoBetween([double]$Min, [double]$Max) {
+    <#
+    .SYNOPSIS
+        Return a uniform random number between a minimum and a maximum.
+
+    .PARAMETER Min
+        The lower bound.
+
+    .PARAMETER Max
+        The upper bound.
+    #>
+    $Min + ($Max - $Min) * $script:Rng.NextDouble()
+}
 function Get-DemoNormal([double]$Mean, [double]$Sd) {
+    <#
+    .SYNOPSIS
+        Return a normally distributed random number (Box-Muller) for a mean and a standard deviation.
+
+    .PARAMETER Mean
+        The mean of the distribution.
+
+    .PARAMETER Sd
+        The standard deviation of the distribution.
+    #>
     $u1 = 1.0 - $script:Rng.NextDouble(); $u2 = $script:Rng.NextDouble()
     $Mean + $Sd * [math]::Sqrt(-2.0 * [math]::Log($u1)) * [math]::Cos(2 * [math]::PI * $u2)
 }
 function Get-DemoPoisson([double]$Lambda) {
+    <#
+    .SYNOPSIS
+        Return a Poisson distributed random count, using a normal approximation above a mean of 30.
+
+    .PARAMETER Lambda
+        The mean count. Zero or less returns 0.
+    #>
     if ($Lambda -le 0) { return 0 }
     if ($Lambda -gt 30) { return [int][math]::Max(0, [math]::Round((Get-DemoNormal $Lambda ([math]::Sqrt($Lambda))))) }
     $limit = [math]::Exp(-$Lambda); $k = 0; $p = 1.0
     do { $k++; $p *= $script:Rng.NextDouble() } while ($p -gt $limit)
     return $k - 1
 }
-function Get-DemoLogNormal([double]$Median, [double]$Sigma) { $Median * [math]::Exp((Get-DemoNormal 0 $Sigma)) }
-# One of $Items, chosen with the matching $Weights.
+function Get-DemoLogNormal([double]$Median, [double]$Sigma) {
+    <#
+    .SYNOPSIS
+        Return a log-normally distributed random number for a median and a sigma.
+
+    .PARAMETER Median
+        The median of the distribution.
+
+    .PARAMETER Sigma
+        The standard deviation of the underlying normal distribution.
+    #>
+    $Median * [math]::Exp((Get-DemoNormal 0 $Sigma))
+}
 function Get-DemoPick([object[]]$Items, [double[]]$Weights) {
+    <#
+    .SYNOPSIS
+        Return one of the items, chosen with the matching weights.
+
+    .PARAMETER Items
+        The items to choose from.
+
+    .PARAMETER Weights
+        The weight of each item, in the same order as the items.
+    #>
     $total = ($Weights | Measure-Object -Sum).Sum
     $x = $script:Rng.NextDouble() * $total
     for ($i = 0; $i -lt $Items.Count; $i++) { $x -= $Weights[$i]; if ($x -le 0) { return $Items[$i] } }
     return $Items[-1]
 }
-# The same GUID for the same key and seed, so ids are stable across runs.
-function New-DemoGuid([string]$Key) {
+function New-DemoGuid {
+    <#
+    .SYNOPSIS
+        Return a GUID derived from a key and the seed, so the same key gives the same id on every run.
+
+    .PARAMETER Key
+        The text the GUID is derived from, together with the seed.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    param([string]$Key)
     $md5 = [System.Security.Cryptography.MD5]::Create()
     try { ([guid]::new($md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes("$Seed|$Key")))).ToString() } finally { $md5.Dispose() }
 }
 function Get-DemoSum($Items, [string]$Property) {
+    <#
+    .SYNOPSIS
+        Return the sum of one numeric property across a set of objects, skipping objects or values that are null.
+
+    .PARAMETER Items
+        The objects to sum over.
+
+    .PARAMETER Property
+        The name of the numeric property to add up.
+    #>
     $t = 0.0
     foreach ($x in @($Items)) { if ($null -ne $x -and $null -ne $x.$Property) { $t += $x.$Property } }
     $t
 }
-function Format-DemoTime([datetime]$Time) { $Time.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
-# A time inside the day-ago bucket $Day (0 = the last 24 hours).
-function Get-DemoTimeIn([int]$Day) { $asOfUtc.AddDays(-$Day - (Get-DemoBetween 0.05 0.95)) }
+function Format-DemoTime([datetime]$Time) {
+    <#
+    .SYNOPSIS
+        Format a time as an ISO 8601 UTC string, to the second.
+
+    .PARAMETER Time
+        The time to format.
+    #>
+    $Time.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
+function Get-DemoTimeIn([int]$Day) {
+    <#
+    .SYNOPSIS
+        Return a random time inside a day-ago bucket, counted back from the demo collection time.
+
+    .PARAMETER Day
+        The bucket, where 0 is the last 24 hours.
+    #>
+    $asOfUtc.AddDays(-$Day - (Get-DemoBetween 0.05 0.95))
+}
 function Save-DemoJson([string]$Name, $Data) {
+    <#
+    .SYNOPSIS
+        Write demo data as JSON to a file in the _raw folder, replacing the sample vendor name in it with the demo organisation.
+
+    .PARAMETER Name
+        The file name inside the _raw folder.
+
+    .PARAMETER Data
+        The data to write. Null becomes an empty array, and a single object is written as is.
+    #>
     $json = if ($null -eq $Data) { '[]' }
     elseif ($Data -is [System.Collections.IDictionary] -or $Data -is [System.Management.Automation.PSCustomObject]) {
         ConvertTo-Json -InputObject $Data -Depth 64
@@ -211,13 +314,41 @@ function Save-DemoJson([string]$Name, $Data) {
     $json = $json -replace '(?i)contoso\.com', 'sentinel-blog.example' -replace '(?i)contoso', 'sentinel-blog'
     Set-Content -LiteralPath (Join-Path $raw $Name) -Value $json -Encoding utf8NoBOM
 }
-function Read-DemoYaml([string]$Path) { ConvertFrom-Yaml (Get-Content -LiteralPath $Path -Raw) }
+function Read-DemoYaml([string]$Path) {
+    <#
+    .SYNOPSIS
+        Read a YAML file into a dictionary.
+
+    .PARAMETER Path
+        The path of the YAML file.
+    #>
+    ConvertFrom-Yaml (Get-Content -LiteralPath $Path -Raw)
+}
 function Get-DemoValue($Map, [string]$Key, $Default = $null) {
+    <#
+    .SYNOPSIS
+        Return the value of a key in a dictionary, or a default when the key is missing or null.
+
+    .PARAMETER Map
+        The dictionary to read. Anything that is not a dictionary gives the default.
+
+    .PARAMETER Key
+        The key to look up.
+
+    .PARAMETER Default
+        The value returned when the key is missing or null.
+    #>
     if ($null -ne $Map -and $Map -is [System.Collections.IDictionary] -and $Map.Contains($Key) -and $null -ne $Map[$Key]) { return $Map[$Key] }
     return $Default
 }
-# Minutes in an ISO 8601 duration (PT5M, PT1H, P1D).
 function ConvertFrom-DemoDuration([string]$Text) {
+    <#
+    .SYNOPSIS
+        Convert an ISO 8601 duration such as PT5M, PT1H or P1D to minutes.
+
+    .PARAMETER Text
+        The duration. Text that does not parse, and a zero duration, give 60.
+    #>
     if ($Text -notmatch '^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$') { return 60 }
     $m = 0
     if ($Matches[1]) { $m += 1440 * [int]$Matches[1] }
@@ -226,8 +357,25 @@ function ConvertFrom-DemoDuration([string]$Text) {
     if ($m -le 0) { 60 } else { $m }
 }
 $people = @('amara.okafor', 'ben.hughes', 'chloe.martin', 'dev.patel', 'ellie.brooks', 'farid.haddad', 'grace.lee', 'hamish.reid')
-function Get-DemoPerson { $p = $people[$script:Rng.Next($people.Count)]; "$p@sentinel-blog.example" }
-function New-DemoActor([string]$Upn) {
+function Get-DemoPerson {
+    <#
+    .SYNOPSIS
+        Return the address of a random demo analyst on the demo domain.
+    #>
+    $p = $people[$script:Rng.Next($people.Count)]; "$p@sentinel-blog.example"
+}
+function New-DemoActor {
+    <#
+    .SYNOPSIS
+        Build the actor object an incident records for a person, from their address.
+
+    .PARAMETER Upn
+        The user principal name, such as amara.okafor at the demo domain.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    param([string]$Upn)
     [ordered]@{
         objectId          = (New-DemoGuid "user|$Upn")
         email             = $Upn
@@ -348,7 +496,19 @@ foreach ($s in $tableSpec) {
 $analyticsDaily /= $window30
 $rungs = @((Get-Content -LiteralPath (Join-Path $resources 'commitment-tiers.json') -Raw | ConvertFrom-Json).rungsGbPerDay)
 $commitmentGb = if ($analyticsDaily -ge 80) { [int]($rungs | Sort-Object { [math]::Abs($_ - $analyticsDaily) } | Select-Object -First 1) } else { 0 }
-function Get-SeriesSum([string]$Table, [int]$Days) { $t = 0.0; $d = $series[$Table]; for ($i = 0; $i -lt [math]::Min($Days, $L); $i++) { $t += $d[$i] }; $t }
+function Get-SeriesSum([string]$Table, [int]$Days) {
+    <#
+    .SYNOPSIS
+        Return the ingest of one table summed over its most recent days.
+
+    .PARAMETER Table
+        The table name, a key of the daily series.
+
+    .PARAMETER Days
+        How many days back from today to sum, capped at the lookback.
+    #>
+    $t = 0.0; $d = $series[$Table]; for ($i = 0; $i -lt [math]::Min($Days, $L); $i++) { $t += $d[$i] }; $t
+}
 
 $tablesWithData = foreach ($s in $tableSpec) {
     $billable = -not $s.ContainsKey('Free')
@@ -449,34 +609,63 @@ foreach ($f in $ruleFiles) {
     if ($f.FullName -match '[/\\]Community[/\\]') { $communityYaml.Add($entry) } else { $customYaml.Add($entry) }
 }
 # A rule can fire when it reads a table the estate ingests.
-function Test-DemoReadable([string[]]$Tables) { foreach ($t in $Tables) { if ($hasData.ContainsKey($t)) { return $true } }; return $false }
+function Test-DemoReadable([string[]]$Tables) {
+    <#
+    .SYNOPSIS
+        Test whether any of the tables is one the demo estate ingests.
 
-function New-DemoRuleProperty($Y, [bool]$Enabled, [string]$Template, [string]$TemplateVersion) {
-    $kind = [string](Get-DemoValue $Y 'kind' 'Scheduled')
+    .PARAMETER Tables
+        The table names a rule or query reads.
+    #>
+    foreach ($t in $Tables) { if ($hasData.ContainsKey($t)) { return $true } }; return $false
+}
+
+function New-DemoRuleProperty {
+    <#
+    .SYNOPSIS
+        Build the properties of a deployed analytics rule from a repository rule definition.
+
+    .PARAMETER Y
+        The rule definition read from the repository YAML.
+
+    .PARAMETER Enabled
+        Whether the deployed rule is enabled.
+
+    .PARAMETER Template
+        The Content Hub template id the rule was deployed from, or null for a rule deployed from the repository.
+
+    .PARAMETER TemplateVersion
+        The template version recorded on a rule deployed from a template, or null.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds an object in memory; nothing outside the call changes.')]
+    param($Y, [bool]$Enabled, [string]$Template, [string]$TemplateVersion)
+    $kind = [string](Get-DemoValue -Map $Y -Key 'kind' -Default 'Scheduled')
     $p = [ordered]@{
         displayName         = [string]$Y['name']
-        description         = ([string](Get-DemoValue $Y 'description' '')).Trim().Trim("'")
-        severity            = [string](Get-DemoValue $Y 'severity' 'Medium')
+        description         = ([string](Get-DemoValue -Map $Y -Key 'description' -Default '')).Trim().Trim("'")
+        severity            = [string](Get-DemoValue -Map $Y -Key 'severity' -Default 'Medium')
         enabled             = $Enabled
         query               = [string]$Y['query']
-        suppressionDuration = [string](Get-DemoValue $Y 'suppressionDuration' 'PT5H')
-        suppressionEnabled  = [bool](Get-DemoValue $Y 'suppressionEnabled' $false)
+        suppressionDuration = [string](Get-DemoValue -Map $Y -Key 'suppressionDuration' -Default 'PT5H')
+        suppressionEnabled  = [bool](Get-DemoValue -Map $Y -Key 'suppressionEnabled' -Default $false)
     }
     if ($kind -eq 'Scheduled') {
-        $p.queryFrequency = [string](Get-DemoValue $Y 'queryFrequency' 'PT1H')
-        $p.queryPeriod = [string](Get-DemoValue $Y 'queryPeriod' 'PT1H')
-        $op = ([string](Get-DemoValue $Y 'triggerOperator' 'gt')).ToLowerInvariant()
+        $p.queryFrequency = [string](Get-DemoValue -Map $Y -Key 'queryFrequency' -Default 'PT1H')
+        $p.queryPeriod = [string](Get-DemoValue -Map $Y -Key 'queryPeriod' -Default 'PT1H')
+        $op = ([string](Get-DemoValue -Map $Y -Key 'triggerOperator' -Default 'gt')).ToLowerInvariant()
         $p.triggerOperator = if ($operatorMap.ContainsKey($op)) { $operatorMap[$op] } else { 'GreaterThan' }
-        $p.triggerThreshold = [int](Get-DemoValue $Y 'triggerThreshold' 0)
+        $p.triggerThreshold = [int](Get-DemoValue -Map $Y -Key 'triggerThreshold' -Default 0)
     }
-    $p.tactics = @(Get-DemoValue $Y 'tactics' @())
-    $techs = @(Get-DemoValue $Y 'relevantTechniques' (Get-DemoValue $Y 'techniques' @()))
+    $p.tactics = @(Get-DemoValue -Map $Y -Key 'tactics' -Default @())
+    $techs = @(Get-DemoValue -Map $Y -Key 'relevantTechniques' -Default (Get-DemoValue -Map $Y -Key 'techniques' -Default @()))
     $p.techniques = @($techs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
     $p.subTechniques = @($techs | Where-Object { $_ -match '\.' } | Select-Object -Unique)
     foreach ($k in 'entityMappings', 'customDetails', 'alertDetailsOverride', 'eventGroupingSettings') {
         if ($Y.ContainsKey($k) -and $Y[$k]) { $p[$k] = $Y[$k] }
     }
-    $inc = Get-DemoValue $Y 'incidentConfiguration' $null
+    $inc = Get-DemoValue -Map $Y -Key 'incidentConfiguration' -Default $null
     $p.incidentConfiguration = if ($inc) {
         $inc
     } else {
@@ -497,24 +686,24 @@ $alertRules = [System.Collections.Generic.List[object]]::new()
 $ruleModels = [System.Collections.Generic.List[object]]::new()
 foreach ($e in $customYaml) {
     $id = ([string]$e.Yaml['id']).ToLowerInvariant()
-    $enabled = [bool](Get-DemoValue $e.Yaml 'enabled' $true)
-    $kind = [string](Get-DemoValue $e.Yaml 'kind' 'Scheduled')
+    $enabled = [bool](Get-DemoValue -Map $e.Yaml -Key 'enabled' -Default $true)
+    $kind = [string](Get-DemoValue -Map $e.Yaml -Key 'kind' -Default 'Scheduled')
     $alertRules.Add([ordered]@{
             id         = "$siId/alertRules/$id"
             name       = $id
             etag       = '"' + (New-DemoGuid "etag|$id") + '"'
             type       = 'Microsoft.SecurityInsights/alertRules'
             kind       = $kind
-            properties = (New-DemoRuleProperty $e.Yaml $enabled $null $null)
+            properties = (New-DemoRuleProperty -Y $e.Yaml -Enabled $enabled -Template $null -TemplateVersion $null)
         })
     $ruleModels.Add([pscustomobject]@{
             Id        = $id
             Name      = [string]$e.Yaml['name']
             Kind      = $kind
-            Severity  = [string](Get-DemoValue $e.Yaml 'severity' 'Medium')
+            Severity  = [string](Get-DemoValue -Map $e.Yaml -Key 'severity' -Default 'Medium')
             Enabled   = $enabled
             Tables    = $e.Tables
-            Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue $e.Yaml 'queryFrequency' 'PT1H')))
+            Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue -Map $e.Yaml -Key 'queryFrequency' -Default 'PT1H')))
         })
 }
 $templateDeployed = @{}
@@ -522,23 +711,23 @@ foreach ($e in $communityYaml) {
     if (-not (Test-DemoReadable $e.Tables) -or (Get-DemoRandom) -gt 0.5) { continue }
     $tid = ([string]$e.Yaml['id']).ToLowerInvariant()
     $id = New-DemoGuid "from-template|$tid"
-    $version = [string](Get-DemoValue $e.Yaml 'version' '1.0.0')
+    $version = [string](Get-DemoValue -Map $e.Yaml -Key 'version' -Default '1.0.0')
     $alertRules.Add([ordered]@{
             id         = "$siId/alertRules/$id"
             name       = $id
             etag       = '"' + (New-DemoGuid "etag|$id") + '"'
             type       = 'Microsoft.SecurityInsights/alertRules'
             kind       = 'Scheduled'
-            properties = (New-DemoRuleProperty $e.Yaml $true $tid $version)
+            properties = (New-DemoRuleProperty -Y $e.Yaml -Enabled $true -Template $tid -TemplateVersion $version)
         })
     $ruleModels.Add([pscustomobject]@{
             Id        = $id
             Name      = [string]$e.Yaml['name']
             Kind      = 'Scheduled'
-            Severity  = [string](Get-DemoValue $e.Yaml 'severity' 'Medium')
+            Severity  = [string](Get-DemoValue -Map $e.Yaml -Key 'severity' -Default 'Medium')
             Enabled   = $true
             Tables    = $e.Tables
-            Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue $e.Yaml 'queryFrequency' 'PT1H')))
+            Frequency = (ConvertFrom-DemoDuration ([string](Get-DemoValue -Map $e.Yaml -Key 'queryFrequency' -Default 'PT1H')))
         })
     $templateDeployed[$tid] = $true
 }
@@ -569,6 +758,13 @@ Save-DemoJson 'alert-rules.json' $alertRules
 # The Community rules as Content Hub templates, grouped into solutions by the
 # data they read.
 function Get-DemoSolutionFor([string[]]$Tables) {
+    <#
+    .SYNOPSIS
+        Return the name of the Content Hub solution a rule belongs to, chosen from the first table it reads that maps to one.
+
+    .PARAMETER Tables
+        The table names the rule reads.
+    #>
     foreach ($t in $Tables) {
         switch -regex ($t) {
             '^CommonSecurityLog$' { return 'Common Event Format' }
@@ -588,25 +784,32 @@ $templates = [System.Collections.Generic.List[object]]::new()
 $solutionTemplates = [ordered]@{}
 foreach ($e in $communityYaml) {
     $y = $e.Yaml; $tid = ([string]$y['id']).ToLowerInvariant()
-    $techs = @(Get-DemoValue $y 'relevantTechniques' (Get-DemoValue $y 'techniques' @()))
+    $techs = @(Get-DemoValue -Map $y -Key 'relevantTechniques' -Default (Get-DemoValue -Map $y -Key 'techniques' -Default @()))
     $created = $asOfUtc.AddDays( - (Get-DemoBetween 200 1400))
     $templates.Add([ordered]@{
             id = "$siId/alertRuleTemplates/$tid"; name = $tid; type = 'Microsoft.SecurityInsights/alertRuleTemplates'; kind = 'Scheduled'
             properties = [ordered]@{
-                queryFrequency = [string](Get-DemoValue $y 'queryFrequency' 'PT1H'); queryPeriod = [string](Get-DemoValue $y 'queryPeriod' 'PT1H')
-                triggerOperator = 'GreaterThan'; triggerThreshold = [int](Get-DemoValue $y 'triggerThreshold' 0)
-                severity = [string](Get-DemoValue $y 'severity' 'Medium'); query = [string]$y['query']
-                entityMappings = @(Get-DemoValue $y 'entityMappings' @()); version = [string](Get-DemoValue $y 'version' '1.0.0')
-                tactics = @(Get-DemoValue $y 'tactics' @()); techniques = @($techs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
-                displayName = [string]$y['name']; description = ([string](Get-DemoValue $y 'description' '')).Trim().Trim("'")
+                queryFrequency                   = [string](Get-DemoValue -Map $y -Key 'queryFrequency' -Default 'PT1H')
+                queryPeriod                      = [string](Get-DemoValue -Map $y -Key 'queryPeriod' -Default 'PT1H')
+                triggerOperator = 'GreaterThan'; triggerThreshold = [int](Get-DemoValue -Map $y -Key 'triggerThreshold' -Default 0)
+                severity = [string](Get-DemoValue -Map $y -Key 'severity' -Default 'Medium'); query = [string]$y['query']
+                entityMappings                   = @(Get-DemoValue -Map $y -Key 'entityMappings' -Default @())
+                version                          = [string](Get-DemoValue -Map $y -Key 'version' -Default '1.0.0')
+                tactics                          = @(Get-DemoValue -Map $y -Key 'tactics' -Default @())
+                techniques                       = @($techs | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
+                displayName = [string]$y['name']; description = ([string](Get-DemoValue -Map $y -Key 'description' -Default '')).Trim().Trim("'")
                 lastUpdatedDateUTC = (Format-DemoTime $created.AddDays(120)); createdDateUTC = (Format-DemoTime $created); status = 'Available'
-                requiredDataConnectors           = @(Get-DemoValue $y 'requiredDataConnectors' @())
+                requiredDataConnectors           = @(Get-DemoValue -Map $y -Key 'requiredDataConnectors' -Default @())
                 alertRulesCreatedByTemplateCount = $(if ($templateDeployed.ContainsKey($tid)) { 1 } else { 0 })
             }
         })
     $sol = Get-DemoSolutionFor $e.Tables
     if (-not $solutionTemplates.Contains($sol)) { $solutionTemplates[$sol] = [System.Collections.Generic.List[object]]::new() }
-    $solutionTemplates[$sol].Add([ordered]@{ contentId = $tid; kind = 'AnalyticsRule'; version = [string](Get-DemoValue $y 'version' '1.0.0') })
+    $solutionTemplates[$sol].Add([ordered]@{
+            contentId = $tid
+            kind      = 'AnalyticsRule'
+            version   = [string](Get-DemoValue -Map $y -Key 'version' -Default '1.0.0')
+        })
 }
 Save-DemoJson 'alert-rule-templates.json' $templates
 # Every solution is installed except Azure Storage, so its template reads
@@ -669,11 +872,14 @@ $hunting = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Hunt
             tags = @(
                 [ordered]@{
                     name  = 'description'
-                    value = ([string](Get-DemoValue $y 'description' '')).Trim()
+                    value = ([string](Get-DemoValue -Map $y -Key 'description' -Default '')).Trim()
                 }, [ordered]@{
                     name  = 'tactics'
-                    value = (@(Get-DemoValue $y 'tactics' @()) -join ',')
-                }, [ordered]@{ name = 'techniques'; value = (@(Get-DemoValue $y 'techniques' (Get-DemoValue $y 'relevantTechniques' @())) -join ',') }
+                    value = (@(Get-DemoValue -Map $y -Key 'tactics' -Default @()) -join ',')
+                }, [ordered]@{
+                    name  = 'techniques'
+                    value = (@(Get-DemoValue -Map $y -Key 'techniques' -Default (Get-DemoValue -Map $y -Key 'relevantTechniques' -Default @())) -join ',')
+                }
             )
         }
         id         = "$wsId/savedSearches/$id"
@@ -685,9 +891,9 @@ $hunting = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Hunt
 Save-DemoJson 'hunting-queries.json' $hunting
 $parsers = foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'Parsers') -Recurse -Filter '*.yaml')) {
     $y = Read-DemoYaml $f.FullName
-    $alias = [string](Get-DemoValue $y 'functionAlias' $y['id'])
+    $alias = [string](Get-DemoValue -Map $y -Key 'functionAlias' -Default $y['id'])
     [ordered]@{ properties = [ordered]@{
-            category      = [string](Get-DemoValue $y 'category' 'Security')
+            category      = [string](Get-DemoValue -Map $y -Key 'category' -Default 'Security')
             displayName   = [string]$y['name']
             version       = 2
             functionAlias = $alias
@@ -957,25 +1163,28 @@ foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $content 'DefenderCustomD
     $y = Read-DemoYaml $f.FullName
     if (-not $y -or -not $y['queryCondition']) { continue }
     $n++
-    $at = Get-DemoValue $y['detectionAction'] 'alertTemplate' @{}
+    $at = Get-DemoValue -Map $y['detectionAction'] -Key 'alertTemplate' -Default @{}
     $modified = $asOfUtc.AddDays( - (Get-DemoBetween 2 160))
     $detections.Add([ordered]@{ id = "$n"
             displayName            = [string]$y['displayName']
-            isEnabled              = [bool](Get-DemoValue $y 'isEnabled' $true)
+            isEnabled              = [bool](Get-DemoValue -Map $y -Key 'isEnabled' -Default $true)
             createdBy              = 'secops@sentinel-blog.example'
             createdDateTime        = (Format-DemoTime $modified.AddDays(-30))
             lastModifiedBy         = 'secops@sentinel-blog.example'
             lastModifiedDateTime   = (Format-DemoTime $modified)
-            schedule               = [ordered]@{ period = [string](Get-DemoValue $y['schedule'] 'period' '1H'); nextRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(37)) }
+            schedule               = [ordered]@{
+                period          = [string](Get-DemoValue -Map $y['schedule'] -Key 'period' -Default '1H')
+                nextRunDateTime = (Format-DemoTime $asOfUtc.AddMinutes(37))
+            }
             queryCondition         = [ordered]@{ queryText = [string]$y['queryCondition']['queryText']; lastModifiedDateTime = (Format-DemoTime $modified) }
             detectionAction        = [ordered]@{
                 alertTemplate       = [ordered]@{
-                    title              = [string](Get-DemoValue $at 'title' $y['displayName'])
-                    description        = [string](Get-DemoValue $at 'description' '')
-                    severity           = [string](Get-DemoValue $at 'severity' 'medium')
-                    category           = [string](Get-DemoValue $at 'category' '')
-                    mitreTechniques    = @(Get-DemoValue $at 'mitreTechniques' @())
-                    recommendedActions = [string](Get-DemoValue $at 'recommendedActions' '')
+                    title              = [string](Get-DemoValue -Map $at -Key 'title' -Default $y['displayName'])
+                    description        = [string](Get-DemoValue -Map $at -Key 'description' -Default '')
+                    severity           = [string](Get-DemoValue -Map $at -Key 'severity' -Default 'medium')
+                    category           = [string](Get-DemoValue -Map $at -Key 'category' -Default '')
+                    mitreTechniques    = @(Get-DemoValue -Map $at -Key 'mitreTechniques' -Default @())
+                    recommendedActions = [string](Get-DemoValue -Map $at -Key 'recommendedActions' -Default '')
                     impactedAssets     = @()
                 }
                 organizationalScope = $null
@@ -1358,6 +1567,16 @@ Save-DemoJson 'daily-alerts.json' @(foreach ($s in $sources) {
 
 # Incident captures.
 function Get-DemoBag($Items, [scriptblock]$Key) {
+    <#
+    .SYNOPSIS
+        Count items by a key, returning an ordered dictionary of key to count.
+
+    .PARAMETER Items
+        The items to count.
+
+    .PARAMETER Key
+        A script block that returns the key for an item, called with the item as its argument.
+    #>
     $b = [ordered]@{}
     foreach ($x in $Items) { $k = & $Key $x; if (-not $b.Contains($k)) { $b[$k] = 0 }; $b[$k]++ }
     $b
@@ -1409,6 +1628,13 @@ Save-DemoJson 'daily-incidents.json' @(foreach ($g in ($incidents |
     })
 # Per detection: incidents and verdicts, overall and per day.
 function Get-DemoVerdict($Items) {
+    <#
+    .SYNOPSIS
+        Summarise a set of incidents: how many there are, how many are closed and how the closed ones were classified.
+
+    .PARAMETER Items
+        The incidents to summarise.
+    #>
     $closed = @($Items | Where-Object Status -EQ 'Closed')
     [ordered]@{ Incidents = @($Items).Count
         Closed            = $closed.Count
@@ -1544,6 +1770,22 @@ $failingName = @{}; foreach ($r in $failingRules) { $failingName[$r.Name] = $tru
 $failReasons = @('Query execution exceeded the 10 minute timeout.', "The query referenced a column that does not exist: 'ActorDisplayName'.")
 $health = @{}
 function Add-DemoHealth([int]$Day, [string]$Op, [string]$Status, [long]$N) {
+    <#
+    .SYNOPSIS
+        Add a count of runs to the health tally for a day, an operation and a status.
+
+    .PARAMETER Day
+        The day-ago bucket, where 0 is the last 24 hours.
+
+    .PARAMETER Op
+        The operation name, such as Scheduled analytics rule run.
+
+    .PARAMETER Status
+        The outcome, such as Success or Failure.
+
+    .PARAMETER N
+        The number of runs to add. Zero or less adds nothing.
+    #>
     if ($N -le 0) { return }
     $k = "$Day|$Op|$Status"
     if (-not $health.ContainsKey($k)) { $health[$k] = 0 }
@@ -1558,7 +1800,7 @@ foreach ($r in $enabledRules) {
         $f = if ($failingName.ContainsKey($r.Name) -and $i -lt 12) {
             [int][math]::Round($perDay * (Get-DemoBetween 0.2 0.5))
         } elseif ((Get-DemoRandom) -lt 0.01) { 1 } else { 0 }
-        Add-DemoHealth $i $op 'Success' ($perDay - $f); Add-DemoHealth $i $op 'Failure' $f
+        Add-DemoHealth -Day $i -Op $op -Status 'Success' -N ($perDay - $f); Add-DemoHealth -Day $i -Op $op -Status 'Failure' -N $f
         $fails += $f; if ($f -gt 0 -and -not $lastFail) { $lastFail = Format-DemoTime (Get-DemoTimeIn $i) }
     }
     $resourceHealth.Add([ordered]@{
@@ -1576,8 +1818,8 @@ foreach ($c in @('Sophos Endpoint Protection (CCF)', 'Google Workspace Activitie
     $fails = 0
     for ($i = 0; $i -lt $L; $i++) {
         $f = if ($c -like 'Google*' -and $i -ge 40 -and $i -lt 43) { 96 } elseif ((Get-DemoRandom) -lt 0.05) { 2 } else { 0 }
-        Add-DemoHealth $i 'Data fetcher run' 'Success' (288 - $f)
-        Add-DemoHealth $i 'Data fetcher run' 'Failure' $f
+        Add-DemoHealth -Day $i -Op 'Data fetcher run' -Status 'Success' -N (288 - $f)
+        Add-DemoHealth -Day $i -Op 'Data fetcher run' -Status 'Failure' -N $f
         $fails += $f
     }
     $resourceHealth.Add([ordered]@{
@@ -1594,12 +1836,12 @@ foreach ($c in @('Sophos Endpoint Protection (CCF)', 'Google Workspace Activitie
 $incPerDay = [int[]]::new($L); foreach ($inc in $incidents) { $incPerDay[$inc.Day]++ }
 foreach ($i in 0..($L - 1)) {
     $n = $incPerDay[$i]
-    Add-DemoHealth $i 'Automation rule run' 'Success' ([long]($n * $automation.Count * 0.98))
-    Add-DemoHealth $i 'Automation rule run' 'Partial success' ([long]($n * 0.02))
+    Add-DemoHealth -Day $i -Op 'Automation rule run' -Status 'Success' -N ([long]($n * $automation.Count * 0.98))
+    Add-DemoHealth -Day $i -Op 'Automation rule run' -Status 'Partial success' -N ([long]($n * 0.02))
     foreach ($p in $playbookModels) {
         $rb = $runsByPlaybook[$p.Name]
-        Add-DemoHealth $i 'Playbook was triggered' 'Success' ($rb.Runs[$i] - $rb.Failed[$i])
-        Add-DemoHealth $i 'Playbook was triggered' 'Failure' $rb.Failed[$i]
+        Add-DemoHealth -Day $i -Op 'Playbook was triggered' -Status 'Success' -N ($rb.Runs[$i] - $rb.Failed[$i])
+        Add-DemoHealth -Day $i -Op 'Playbook was triggered' -Status 'Failure' -N $rb.Failed[$i]
     }
 }
 foreach ($a in $automation) {
@@ -2251,7 +2493,8 @@ Save-DemoJson 'custom-detection-table-references.json' @(Get-CustomDetectionTabl
 # The cost estimate, gap checks and maturity assessment (the module's own
 # Private folders), defined in this scope.
 foreach ($area in 'Lookup', 'Format', 'Cost', 'GapAnalysis', 'Gap', 'Maturity') {
-    foreach ($areaFile in Get-ChildItem -LiteralPath (Join-Path $moduleRoot 'Private' $area) -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
+    $areaFolder = Join-Path -Path $moduleRoot -ChildPath 'Private' -AdditionalChildPath $area
+    foreach ($areaFile in Get-ChildItem -LiteralPath $areaFolder -Filter '*.ps1' -File -Recurse | Sort-Object FullName) {
         . $areaFile.FullName
     }
 }

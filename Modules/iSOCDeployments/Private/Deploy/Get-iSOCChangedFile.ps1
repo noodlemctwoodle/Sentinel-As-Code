@@ -17,7 +17,7 @@
     Website:      https://sentinel.blog
     Created:      2026-11-03
     Version:      0.2.1
-    Last Updated: 2026-11-09
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     Needs git 2.x on PATH when smart deployment is asked for.
@@ -52,6 +52,7 @@ function Get-iSOCChangedFile {
     .EXAMPLE
         $changed = Get-iSOCChangedFile -RepoPath $repo
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'RepoPath', Justification = 'RepoPath is read inside the $git script block, which the analyser does not trace.')]
     [CmdletBinding()]
     [OutputType([string[]], [object[]])]
     param(

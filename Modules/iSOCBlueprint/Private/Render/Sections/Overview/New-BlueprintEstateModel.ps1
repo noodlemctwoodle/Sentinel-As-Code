@@ -43,6 +43,7 @@ function New-BlueprintEstateModel {
         [pscustomobject] with Sources, ProductAlerts and the table, GB, rule, alert
         and incident counts.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object in memory; nothing outside the call changes.')]
     [CmdletBinding()]
     param()
     $enabledRefs = @($ruleTableRefs | Where-Object { $_.Enabled -eq $true })

@@ -36,8 +36,6 @@ function Write-BlueprintSentinelHealthSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $m = $Context.m
-    $n = $Context.n
     $s = $Context.s
 
     # Section 11 — Sentinel health (TOC 4.8)
@@ -55,7 +53,6 @@ function Write-BlueprintSentinelHealthSection {
     }
     # Data connectors that reported a failure. Failures arrived after the first
     # captures; an older snapshot falls back to a non-Success status.
-    $healthFailuresCaptured = @($health | Where-Object { $_ -and $_.PSObject.Properties['Failures'] }).Count -gt 0
     $connectorHealthRows = @($health | Where-Object {
             $_ -and (([string]$_.SentinelResourceType + ' ' + [string]$_.SentinelResourceKind) -match 'connector') -and
             $(

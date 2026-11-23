@@ -36,6 +36,16 @@ BeforeAll {
     Import-Module (Join-Path $script:repoRoot 'Modules/iSOCDeployments/iSOCDeployments.psd1') -Force
 
     function Test-Field {
+        <#
+        .SYNOPSIS
+            Compare two field values with a named comparer, inside the module scope.
+        .PARAMETER Comparer
+            Name of the comparer to use.
+        .PARAMETER Expected
+            Expected field value.
+        .PARAMETER Actual
+            Actual field value.
+        #>
         param([string] $Comparer, $Expected, $Actual)
         InModuleScope iSOCDeployments -Parameters @{ C = $Comparer; E = $Expected; A = $Actual } { param($C, $E, $A) Compare-iSOCFieldValue -Comparer $C -Expected $E -Actual $A }
     }
@@ -58,7 +68,7 @@ Describe 'Compare-iSOCFieldValue' {
         @{ Comparer = 'OrderedList'; Expected = @('a', 'b'); Actual = @('a', 'b') }
         @{ Comparer = 'Ignore'; Expected = 'x'; Actual = 'y' }
     ) {
-        Test-Field $Comparer $Expected $Actual | Should -BeTrue
+        Test-Field -Comparer $Comparer -Expected $Expected -Actual $Actual | Should -BeTrue
     }
 
     It '<Comparer> finds <Expected> and <Actual> different' -ForEach @(
@@ -71,28 +81,28 @@ Describe 'Compare-iSOCFieldValue' {
         @{ Comparer = 'Set'; Expected = @('A'); Actual = @('a') }
         @{ Comparer = 'OrderedList'; Expected = @('a', 'b'); Actual = @('b', 'a') }
     ) {
-        Test-Field $Comparer $Expected $Actual | Should -BeFalse
+        Test-Field -Comparer $Comparer -Expected $Expected -Actual $Actual | Should -BeFalse
     }
 
     It 'Json compares structure with keys in any order' {
         $repo = @{ b = @{ y = 2; x = 1 }; a = @(1, 2) }
         $workspace = [pscustomobject]@{ a = @(1, 2); b = [pscustomobject]@{ x = 1; y = 2 } }
-        Test-Field Json $repo $workspace | Should -BeTrue
-        Test-Field Json $repo ([pscustomobject]@{ a = @(2, 1); b = [pscustomobject]@{ x = 1; y = 2 } }) | Should -BeFalse
+        Test-Field -Comparer Json -Expected $repo -Actual $workspace | Should -BeTrue
+        Test-Field -Comparer Json -Expected $repo -Actual ([pscustomobject]@{ a = @(2, 1); b = [pscustomobject]@{ x = 1; y = 2 } }) | Should -BeFalse
     }
 
     It '<Comparer> treats missing, empty text, an empty list and an empty mapping as the same unset value' -ForEach @(
         @{ Comparer = 'Exact' }, @{ Comparer = 'Whitespace' }, @{ Comparer = 'Number' }, @{ Comparer = 'Duration' }, @{ Comparer = 'Set' }, @{ Comparer = 'Json' }
     ) {
-        Test-Field $Comparer $null '' | Should -BeTrue
-        Test-Field $Comparer @() $null | Should -BeTrue
-        Test-Field $Comparer @{} ([pscustomobject]@{}) | Should -BeTrue
-        Test-Field $Comparer $null 'value' | Should -BeFalse
-        Test-Field $Comparer 'value' @() | Should -BeFalse
+        Test-Field -Comparer $Comparer -Expected $null -Actual '' | Should -BeTrue
+        Test-Field -Comparer $Comparer -Expected @() -Actual $null | Should -BeTrue
+        Test-Field -Comparer $Comparer -Expected @{} -Actual ([pscustomobject]@{}) | Should -BeTrue
+        Test-Field -Comparer $Comparer -Expected $null -Actual 'value' | Should -BeFalse
+        Test-Field -Comparer $Comparer -Expected 'value' -Actual @() | Should -BeFalse
     }
 
     It 'rejects an unknown comparer' {
-        { Test-Field 'Fuzzy' 'a' 'a' } | Should -Throw
+        { Test-Field -Comparer 'Fuzzy' -Expected 'a' -Actual 'a' } | Should -Throw
     }
 }
 

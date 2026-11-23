@@ -45,6 +45,18 @@ BeforeAll {
     foreach ($n in $script:settingNames) { $script:savedSettings[$n] = [System.Environment]::GetEnvironmentVariable($n); [System.Environment]::SetEnvironmentVariable($n, $null) }
 
     function Invoke-ModuleRehearsal {
+        <#
+        .SYNOPSIS
+            Runs a rehearsal command with the module REST, HTTP and query commands mocked over the stand-in workspace, and returns its result, any error message and the writes the stand-in recorded.
+        .PARAMETER Command
+            The name of the command to run.
+        .PARAMETER Parameters
+            The parameters of the command.
+        .PARAMETER FailBatch
+            A comma separated list of the Logs Ingestion batches that fail.
+        .PARAMETER FailCollector
+            Makes the Data Collector post fail.
+        #>
         param([string] $Command, [hashtable] $Parameters, [string] $FailBatch = '', [switch] $FailCollector)
         $script:rehState = Get-RehearsalStandIn -FailBatch @($FailBatch -split ',' | Where-Object { $_ } | ForEach-Object { [int]$_ }) -FailCollector:$FailCollector
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
@@ -104,6 +116,12 @@ BeforeAll {
     }
 
     function Use-RehearsalFolder {
+        <#
+        .SYNOPSIS
+            Creates a new temporary folder and returns its path, with an env file holding a rehearsal service principal when asked.
+        .PARAMETER EnvFile
+            Writes the env file into the folder.
+        #>
         param([switch] $EnvFile)
         $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $folder | Out-Null

@@ -33,6 +33,7 @@ function Invoke-PublishAsset {
     .PARAMETER Context
         The publish context: the values earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Reports each asset upload and history step to the operator at the console as the publish runs.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

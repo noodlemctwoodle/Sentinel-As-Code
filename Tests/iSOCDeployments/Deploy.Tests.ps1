@@ -40,6 +40,10 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function New-FixtureCopy {
+        <#
+        .SYNOPSIS
+            Copy the fixture repository content into a fresh test folder and return its path.
+        #>
         $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path $copy | Out-Null
         Copy-Item -LiteralPath (Join-Path $script:fixtureRepo 'Content') -Destination $copy -Recurse
@@ -53,6 +57,22 @@ BeforeAll {
         }
     }
     function New-TestRun {
+        <#
+        .SYNOPSIS
+            Build a deployment run object over a repository, inside the module scope.
+        .PARAMETER Repo
+            Repository root.
+        .PARAMETER Changed
+            Changed file paths.
+        .PARAMETER Items
+            Prior state items keyed by relative path.
+        .PARAMETER Excluded
+            Content types excluded from the run.
+        .PARAMETER Prioritized
+            Prioritised paths.
+        .PARAMETER Graph
+            Dependency graph.
+        #>
         param([string] $Repo, [string[]] $Changed, [hashtable] $Items = @{}, [string[]] $Excluded = @(), [string[]] $Prioritized = @(), [hashtable] $Graph = @{})
         InModuleScope iSOCDeployments -Parameters @{ C = $script:context; R = $Repo; Ch = $Changed; I = $Items; E = $Excluded; P = $Prioritized; G = $Graph } {
             param($C, $R, $Ch, $I, $E, $P, $G)
@@ -62,6 +82,16 @@ BeforeAll {
         }
     }
     function Get-Item1 {
+        <#
+        .SYNOPSIS
+            Read the repository items of a content type and return those whose relative path ends in the leaf.
+        .PARAMETER Type
+            Content type name to read.
+        .PARAMETER Leaf
+            File name, or trailing path, to match against item relative paths.
+        .PARAMETER Repo
+            Repository root to read; defaults to the fixture repository.
+        #>
         param([string] $Type, [string] $Leaf, [string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ T = $Type; R = $Repo; L = $Leaf } {
             param($T, $R, $L)
@@ -153,6 +183,14 @@ Describe 'Test-iSOCShouldDeployItem' {
         $script:rule = Get-Item1 AnalyticsRule 'Identity/NrtRule.yaml'
         $script:watchlist = Get-Item1 Watchlist 'vipUsers'
         function Test-Decision {
+            <#
+            .SYNOPSIS
+                Ask the module whether an item should be deployed in a run.
+            .PARAMETER Run
+                Deployment or drift run object returned by the module.
+            .PARAMETER Item
+                Parsed content item to act on.
+            #>
             param($Run, $Item)
             InModuleScope iSOCDeployments -Parameters @{ Run = $Run; I = $Item } { param($Run, $I) Test-iSOCShouldDeployItem -Run $Run -Item $I }
         }
@@ -228,6 +266,14 @@ Describe 'Dependencies' {
             $script:hunt = Get-Item1 HuntingQuery 'FixtureHunt.yaml'
             $script:graph = @{ 'Content/HuntingQueries/SigninLogs/FixtureHunt.yaml' = @{ tables = @('SigninLogs'); watchlists = @('vipUsers', 'notInRepo'); functions = @('FixtureSignIns', 'ASimDns') } }
             function Test-Dependency {
+                <#
+                .SYNOPSIS
+                    Ask the module whether the hunting item's dependencies are satisfied by an inventory.
+                .PARAMETER Inventory
+                    Inventory of existing workspace content.
+                .PARAMETER Graph
+                    Dependency graph; defaults to the suite graph.
+                #>
                 param($Inventory, [hashtable] $Graph = $script:graph)
                 $run = New-TestRun -Repo $script:fixtureRepo -Graph $Graph
                 $run.Inventory = $Inventory
@@ -325,7 +371,18 @@ Describe 'Deploy-iSOCContent' {
         }
         Mock -ModuleName iSOCDeployments New-iSOCAzResourceGroupDeployment { $script:deployments.Add([pscustomobject]@{ Name = $Name; Parameters = $Parameters }) }
         Mock -ModuleName iSOCDeployments Test-iSOCAzResourceGroupDeployment { }
-        function Get-Outcome { param($Run, [string] $Leaf) ($Run.Results | Where-Object { $_.RelativePath -like "*$Leaf" }).Outcome }
+        function Get-Outcome {
+            <#
+            .SYNOPSIS
+                Return the outcomes of the run results whose relative path ends in the leaf.
+            .PARAMETER Run
+                Deployment or drift run object returned by the module.
+            .PARAMETER Leaf
+                File name, or trailing path, to match against item relative paths.
+            #>
+            param($Run, [string] $Leaf)
+            ($Run.Results | Where-Object { $_.RelativePath -like "*$Leaf" }).Outcome
+        }
     }
 
     It 'deploys every type in order and reports each item' {

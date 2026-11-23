@@ -44,6 +44,12 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function Get-WatchlistItem {
+        <#
+        .SYNOPSIS
+            Reads the watchlist items of a repository with the ReadRepo handler of the Watchlist content type.
+        .PARAMETER Repo
+            The repository path; the fixture repository by default.
+        #>
         param([string] $Repo = $script:fixtureRepo)
         InModuleScope iSOCDeployments -Parameters @{ R = $Repo } {
             param($R)
@@ -52,14 +58,36 @@ BeforeAll {
         }
     }
     function Get-Request {
+        <#
+        .SYNOPSIS
+            Returns the request the module builds for a watchlist item.
+        .PARAMETER Item
+            The watchlist item.
+        #>
         param([psobject] $Item)
         InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) ConvertTo-iSOCWatchlistRequest -Item $I }
     }
     function Test-Item {
+        <#
+        .SYNOPSIS
+            Returns the validation errors the module reports for a watchlist item.
+        .PARAMETER Item
+            The watchlist item.
+        #>
         param([psobject] $Item)
         @(InModuleScope iSOCDeployments -Parameters @{ I = $Item } { param($I) Test-iSOCWatchlist -Item $I })
     }
     function New-WatchlistFolder {
+        <#
+        .SYNOPSIS
+            Writes a watchlist folder with the given metadata and data into a new temporary repository and returns the item read from it.
+        .PARAMETER Name
+            The name of the watchlist folder.
+        .PARAMETER Metadata
+            The text of watchlist.json; the file is left out when null.
+        .PARAMETER Csv
+            The text of data.csv; the file is left out when null.
+        #>
         param([string] $Name, [string] $Metadata, [string] $Csv)
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         $folder = Join-Path $repo "Content/Watchlists/$Name"
@@ -148,6 +176,14 @@ Describe 'Content/Watchlists in this repository' {
         Mock -ModuleName iSOCDeployments Write-iSOCLog { }
         $script:repoType = InModuleScope iSOCDeployments { Get-iSOCContentTypeDefinition -Name Watchlist }
         function Invoke-RepoHandler {
+            <#
+            .SYNOPSIS
+                Runs a handler of the content type under test.
+            .PARAMETER Handler
+                The name of the handler to run.
+            .PARAMETER Parameters
+                The parameters passed to the handler.
+            #>
             param([string] $Handler, [hashtable] $Parameters)
             InModuleScope iSOCDeployments -Parameters @{ T = $script:repoType; H = $Handler; P = $Parameters } {
                 param($T, $H, $P)

@@ -72,7 +72,12 @@ BeforeAll {
     }
 
     function ConvertTo-CanonicalJson {
-        <# JSON with every object's keys sorted, so two bodies compare whatever order they were built in. #>
+        <#
+        .SYNOPSIS
+            JSON with every object's keys sorted, so two bodies compare whatever order they were built in.
+        .PARAMETER Value
+            The value to convert.
+        #>
         param($Value)
         $sort = {
             param($v)
@@ -88,7 +93,10 @@ BeforeAll {
     }
 
     function Get-SettingRepo {
-        <# A copy of the repository's workspace settings, so deploy writes its state file outside the repository. #>
+        <#
+        .SYNOPSIS
+            A copy of the repository's workspace settings, so deploy writes its state file outside the repository.
+        #>
         $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
         New-Item -ItemType Directory -Path (Join-Path $copy 'Content') -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $script:repoRoot 'Content/WorkspaceSettings') -Destination (Join-Path $copy 'Content') -Recurse
@@ -96,7 +104,14 @@ BeforeAll {
     }
 
     function Get-SettingItem {
-        <# A repository item for one setting written as $Text. #>
+        <#
+        .SYNOPSIS
+            A repository item for one setting written as $Text.
+        .PARAMETER Text
+            The text of the setting file.
+        .PARAMETER Name
+            The file name of the setting.
+        #>
         param([string] $Text, [string] $Name = 'Setting.json')
         $repo = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
         New-Item -ItemType Directory -Path (Join-Path $repo 'Content/WorkspaceSettings') -Force | Out-Null
@@ -109,7 +124,14 @@ BeforeAll {
     }
 
     function Invoke-PipelineSettingStep {
-        <# Run the workflow's Configure Sentinel Settings step unchanged in a child pwsh over $State. #>
+        <#
+        .SYNOPSIS
+            Run the workflow's Configure Sentinel Settings step unchanged in a child pwsh over $State.
+        .PARAMETER File
+            The path of the pipeline file.
+        .PARAMETER State
+            The stand-in state the step runs over.
+        #>
         param([string] $File, $State)
 
         $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))
@@ -156,7 +178,14 @@ finally {
     }
 
     function Invoke-ModuleSettingDeploy {
-        <# Deploy the repository's workspace settings with Deploy-iSOCContent over $State; -Preview runs it under -WhatIf. #>
+        <#
+        .SYNOPSIS
+            Deploy the repository's workspace settings with Deploy-iSOCContent over $State; -Preview runs it under -WhatIf.
+        .PARAMETER State
+            The stand-in state the deploy runs over.
+        .PARAMETER Preview
+            Runs the deploy under WhatIf.
+        #>
         param($State, [switch] $Preview)
 
         $script:standIn = $State
@@ -179,7 +208,12 @@ finally {
     }
 
     function Get-SentBody {
-        <# A write's body as the service reads it: an etag of null is no etag. #>
+        <#
+        .SYNOPSIS
+            A write's body as the service reads it: an etag of null is no etag.
+        .PARAMETER Write
+            The write the stand-in recorded.
+        #>
         param($Write)
         $body = [ordered]@{}
         foreach ($key in $Write.Body.Keys) { if (-not ($key -eq 'etag' -and $null -eq $Write.Body[$key])) { $body[$key] = $Write.Body[$key] } }

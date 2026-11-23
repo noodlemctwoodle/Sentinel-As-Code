@@ -20,7 +20,7 @@
     Website:      https://sentinel.blog
     Created:      2026-10-23
     Version:      0.1.2
-    Last Updated: 2026-11-09
+    Last Updated: 2026-11-23
     Requires:     PowerShell 7.6+
 
     This file defines functions rather than running. Per-parameter detail
@@ -69,6 +69,7 @@ function Get-iSOCContentKqlQuery {
     } catch {
         # Per-file content-schema test owns parse errors; this helper
         # silently returns $null when extraction fails.
+        Write-Verbose "No KQL read from '$Path': the content-schema test owns parse errors."
     }
     return $null
 }

@@ -42,6 +42,14 @@ BeforeAll {
     $script:vendorFiles = @(Get-ChildItem -LiteralPath (Join-Path $script:repoRoot 'Modules/iSOCBlueprint/Private/Kql/Vendor') -Filter '*.ps1' -File)
 
     function Get-FunctionText {
+        <#
+        .SYNOPSIS
+            Returns the source text of a named function from a set of scripts.
+        .PARAMETER File
+            The scripts to search.
+        .PARAMETER Name
+            The function name.
+        #>
         param([System.IO.FileInfo[]] $File, [string] $Name)
         foreach ($f in $File) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)

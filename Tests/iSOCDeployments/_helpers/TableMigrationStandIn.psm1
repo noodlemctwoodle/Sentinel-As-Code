@@ -43,6 +43,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-TableMigrationStandIn {
+    <#
+    .SYNOPSIS
+        Returns the stand-in workspace content for the table migration tests: tables, rules, saved searches, workbooks, rules and playbooks.
+    .PARAMETER SubscriptionId
+        The subscription ID the stand-in resources sit in.
+    #>
     param(
         [string] $SubscriptionId = '11111111-2222-3333-4444-555555555555'
     )
@@ -147,6 +153,14 @@ function Get-TableMigrationStandIn {
 }
 
 function ConvertTo-StandInItem {
+    <#
+    .SYNOPSIS
+        Returns a copy of a stand-in item as the service would send it, without the test-only marker and, when asked, without the workbook content.
+    .PARAMETER Item
+        The stand-in item to copy.
+    .PARAMETER WithoutContent
+        Drops the serialised workbook data from the copy.
+    #>
     param($Item, [switch] $WithoutContent)
     $json = ConvertTo-Json -InputObject $Item -Depth 30 -Compress
     $copy = $json | ConvertFrom-Json -Depth 30
@@ -156,6 +170,16 @@ function ConvertTo-StandInItem {
 }
 
 function Get-TableMigrationStandInAnswer {
+    <#
+    .SYNOPSIS
+        Returns what the stand-in workspace answers for a GET of the given path, and throws for a path it does not know.
+    .PARAMETER StandIn
+        The stand-in workspace content from Get-TableMigrationStandIn.
+    .PARAMETER Path
+        The request path, without the query string.
+    .PARAMETER Query
+        The query string values of the request.
+    #>
     param(
         [Parameter(Mandatory)]
         $StandIn,
@@ -190,6 +214,12 @@ function Get-TableMigrationStandInAnswer {
 }
 
 function ConvertTo-TableMigrationContent {
+    <#
+    .SYNOPSIS
+        Returns the stand-in content grouped as the module reads it: alert rules, saved searches, hunting queries, parsers, workbooks, data collection rules and playbooks.
+    .PARAMETER StandIn
+        The stand-in workspace content from Get-TableMigrationStandIn.
+    #>
     param(
         [Parameter(Mandatory)]
         $StandIn

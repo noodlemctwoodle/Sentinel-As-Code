@@ -225,7 +225,7 @@ Describe 'Automation rules: cross-file invariants' {
                     $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                     $script:ruleIdMap[$id] += $rel
                 } catch {
-                    # Per-file test owns parse errors.
+                    Write-Verbose -Message 'Per-file test owns parse errors.'
                 }
             }
         }

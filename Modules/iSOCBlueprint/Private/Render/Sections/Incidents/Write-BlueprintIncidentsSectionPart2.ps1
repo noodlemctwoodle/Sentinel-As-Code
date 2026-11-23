@@ -44,9 +44,7 @@ function Write-BlueprintIncidentsSectionPart2 {
     $incProviderRows = $Context.incProviderRows
     $incSummary = $Context.incSummary
     $lifecycleVisualLine = $Context.lifecycleVisualLine
-    $m = $Context.m
     $mttrLine = $Context.mttrLine
-    $n = $Context.n
     $totalIncidents = $Context.totalIncidents
     $unackCount = $Context.unackCount
 

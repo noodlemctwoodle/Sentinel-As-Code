@@ -40,12 +40,10 @@ function Write-BlueprintAnalyticsRulesSectionPart2 {
     $counted = $Context.counted
     $customDetectionRefs = $Context.customDetectionRefs
     $customDetectionsCaptured = $Context.customDetectionsCaptured
-    $m = $Context.m
     $mismatchRows = $Context.mismatchRows
     $modificationsSection = $Context.modificationsSection
     $mouldyRows = $Context.mouldyRows
     $msRulesSection = $Context.msRulesSection
-    $n = $Context.n
     $props = $Context.props
     $q = $Context.q
     $rawRoot = $Context.rawRoot

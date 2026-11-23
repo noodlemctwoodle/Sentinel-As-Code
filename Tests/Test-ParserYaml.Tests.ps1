@@ -122,7 +122,7 @@ Describe 'Parsers: cross-file invariants' {
                     $rel = ($_.FullName.Substring($repoRoot.Length + 1)) -replace '\\', '/'
                     $script:functionAliasMap[$alias] += $rel
                 } catch {
-                    # Per-file test owns parse errors.
+                    Write-Verbose -Message 'Per-file test owns parse errors.'
                 }
             }
         }

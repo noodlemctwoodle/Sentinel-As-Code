@@ -32,13 +32,9 @@ function Write-BlueprintReferencesMicrosoftSection {
     .PARAMETER Context
         The render context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Context', Justification = 'Every section writer is called with the render context; this one reads nothing from it.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
-
-    # Taken from the render context.
-    $found = $Context.found
-    $m = $Context.m
-    $n = $Context.n
 
     # Section 96 — User-facing Microsoft references (TOC 6.x)
     Write-BlueprintSection '96-references-microsoft.md' (@"

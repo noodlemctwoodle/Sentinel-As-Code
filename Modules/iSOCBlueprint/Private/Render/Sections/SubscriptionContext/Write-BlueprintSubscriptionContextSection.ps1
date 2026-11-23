@@ -36,8 +36,6 @@ function Write-BlueprintSubscriptionContextSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $m = $Context.m
-    $n = $Context.n
     $name = $Context.name
     $s = $Context.s
 

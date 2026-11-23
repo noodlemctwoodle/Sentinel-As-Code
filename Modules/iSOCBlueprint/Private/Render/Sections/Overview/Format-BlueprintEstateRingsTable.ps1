@@ -43,7 +43,8 @@ function Format-BlueprintEstateRingsTable {
     [OutputType([string])]
     [CmdletBinding()]
     param($Estate)
-    function _Row([string]$Stage, [int]$Value, [int]$Of) {
+    $row = {
+        param([string]$Stage, [int]$Value, [int]$Of)
         if ($Of -le 0) { return "| $Stage | $(Format-BlueprintCount $Value) | $(Format-BlueprintCount $Of) | _n/a_ | _n/a_ |" }
         $pct = [int][math]::Round(100.0 * $Value / $Of, 0)
         $badge = if ($pct -ge 80) { 'Strong' } elseif ($pct -ge 65) { 'Fair' } else { 'Weak' }
@@ -52,9 +53,9 @@ function Format-BlueprintEstateRingsTable {
     @"
 | Stage | In use | Of | Share | Rating |
 |---|---:|---:|---:|---|
-$(_Row 'Ingestion: tables still receiving data ({recent-d}, of those with data in {lookback-d})' $Estate.TablesActive $Estate.TablesSeen)
-$(_Row 'Detection: active tables read by at least one enabled rule' $Estate.TablesCovered $Estate.TablesActive)
-$(_Row 'Alerts: enabled Scheduled/NRT rules that fired in {lookback-d}' $Estate.RulesFired $Estate.RulesQueryEnabled)
-$(_Row 'Incidents: closed, of those created in {lookback-d}' $Estate.IncidentsClosed $Estate.Incidents)
+$(& $row -Stage 'Ingestion: tables still receiving data ({recent-d}, of those with data in {lookback-d})' -Value $Estate.TablesActive -Of $Estate.TablesSeen)
+$(& $row -Stage 'Detection: active tables read by at least one enabled rule' -Value $Estate.TablesCovered -Of $Estate.TablesActive)
+$(& $row -Stage 'Alerts: enabled Scheduled/NRT rules that fired in {lookback-d}' -Value $Estate.RulesFired -Of $Estate.RulesQueryEnabled)
+$(& $row -Stage 'Incidents: closed, of those created in {lookback-d}' -Value $Estate.IncidentsClosed -Of $Estate.Incidents)
 "@
 }

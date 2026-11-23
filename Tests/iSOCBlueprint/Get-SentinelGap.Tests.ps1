@@ -453,16 +453,28 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
     BeforeAll {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
-        function New-Rule($name, $title, $enabled, $modified) {
+        function New-Rule($Name, $Title, $Enabled, $Modified) {
+            <#
+            .SYNOPSIS
+                Builds an analytics rule object as the rules capture returns it.
+            .PARAMETER Name
+                The rule name.
+            .PARAMETER Title
+                The rule display name.
+            .PARAMETER Enabled
+                Whether the rule is enabled.
+            .PARAMETER Modified
+                The last modified time, UTC.
+            #>
             [pscustomobject]@{
-                name       = $name
+                name       = $Name
                 kind       = 'Scheduled'
-                properties = [pscustomobject]@{ displayName = $title; enabled = $enabled; lastModifiedUtc = $modified }
+                properties = [pscustomobject]@{ displayName = $Title; enabled = $Enabled; lastModifiedUtc = $Modified }
             }
         }
-        $rules = @(1..12 | ForEach-Object { New-Rule ("r$_") "Rule $_" $false '2026-08-31T10:00:00Z' })
-        $rules += New-Rule 'r13' 'Still firing' $false '2026-09-19T08:00:00Z'
-        $rules += New-Rule 'r14' 'Kept on' $true '2026-01-01T00:00:00Z'
+        $rules = @(1..12 | ForEach-Object { New-Rule -Name ("r$_") -Title "Rule $_" -Enabled $false -Modified '2026-08-31T10:00:00Z' })
+        $rules += New-Rule -Name 'r13' -Title 'Still firing' -Enabled $false -Modified '2026-09-19T08:00:00Z'
+        $rules += New-Rule -Name 'r14' -Title 'Kept on' -Enabled $true -Modified '2026-01-01T00:00:00Z'
         $script:inv = [pscustomobject]@{
             AlertRules = $rules
             RulesFired = @(
@@ -491,7 +503,10 @@ Describe 'Disabled-rules check names bulk changes and rules that still fired' {
 
     It 'stays quiet about bulk changes when the disabled set is small' {
         $small = [pscustomobject]@{
-            AlertRules = @((New-Rule 'a' 'A' $false '2026-08-31T10:00:00Z'), (New-Rule 'b' 'B' $false '2026-08-31T10:00:00Z'))
+            AlertRules = @(
+                (New-Rule -Name 'a' -Title 'A' -Enabled $false -Modified '2026-08-31T10:00:00Z'),
+                (New-Rule -Name 'b' -Title 'B' -Enabled $false -Modified '2026-08-31T10:00:00Z')
+            )
             RulesFired = @()
         }
         $r = Test-RulesDisabledOrFailing -Inventory $small
@@ -738,8 +753,26 @@ Describe 'Sentinel gap-analysis engine: per-check outcomes' {
         # to prove both are recorded rather than silently dropped.
         $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "gap-outcomes-$(New-Guid)"
         New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
-        function Test-Throw { param($Inventory) throw 'boom' }
-        function Test-Quiet { param($Inventory) return $null }
+        function Test-Throw {
+            <#
+            .SYNOPSIS
+                Stand-in check that always throws.
+            .PARAMETER Inventory
+                The inventory the real check takes; unused.
+            #>
+            param($Inventory)
+            throw 'boom'
+        }
+        function Test-Quiet {
+            <#
+            .SYNOPSIS
+                Stand-in check that returns nothing.
+            .PARAMETER Inventory
+                The inventory the real check takes; unused.
+            #>
+            param($Inventory)
+            return $null
+        }
         $badRules = Join-Path $script:tempDir 'rules.json'
         @{ rules = @(
                 @{ id = 'SAC-TST-01'; title = 't'; category = 'c'; severity = 'Info'; check = 'Test-Throw'; remediation = ''; learn = '' }
@@ -800,6 +833,18 @@ Describe 'Rules ported from health check build 38' {
         $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         . (Get-iSOCBlueprintAreaLoader -Bundle Gap -Strict)
         function New-Table([string] $Name, [int] $Analytics, [int] $Total, [string] $Plan = 'Analytics') {
+            <#
+            .SYNOPSIS
+                Builds a workspace table object with the given plan and retention.
+            .PARAMETER Name
+                The table name.
+            .PARAMETER Analytics
+                Interactive retention in days.
+            .PARAMETER Total
+                Total retention in days.
+            .PARAMETER Plan
+                The table plan.
+            #>
             [pscustomobject]@{ name = $Name; properties = [pscustomobject]@{ plan = $Plan; retentionInDays = $Analytics; totalRetentionInDays = $Total } }
         }
     }
@@ -861,7 +906,11 @@ Describe 'Rules ported from health check build 38' {
         It 'fires when analytics retention exceeds total retention, and only then' {
             $inv = [pscustomobject]@{
                 RawFiles        = @('workspace-tables.json')
-                WorkspaceTables = @((New-Table 'Bad' 180 90), (New-Table 'Good' 90 365), (New-Table 'Equal' 30 30))
+                WorkspaceTables = @(
+                    (New-Table -Name 'Bad' -Analytics 180 -Total 90),
+                    (New-Table -Name 'Good' -Analytics 90 -Total 365),
+                    (New-Table -Name 'Equal' -Analytics 30 -Total 30)
+                )
             }
             $f = Test-RetentionOrder -Inventory $inv
             $f.Evidence | Should -Match 'Bad \(analytics 180 days, total 90 days\)'
@@ -874,7 +923,11 @@ Describe 'Rules ported from health check build 38' {
             $script:lakeInv = {
                 param($Refs = @(), $Usage = @(), $Summary = @(), $Extra = @())
                 [pscustomobject]@{ RawFiles = @('table-query-usage.json', 'rule-table-references.json')
-                    WorkspaceTables         = @((New-Table 'LongTable' 30 365), (New-Table 'LakeOnly' 0 730 'DataLake'), (New-Table 'Short' 30 30)) + $Extra
+                    WorkspaceTables         = @(
+                        (New-Table -Name 'LongTable' -Analytics 30 -Total 365),
+                        (New-Table -Name 'LakeOnly' -Analytics 0 -Total 730 -Plan 'DataLake'),
+                        (New-Table -Name 'Short' -Analytics 30 -Total 30)
+                    ) + $Extra
                     RuleTableReferences = $Refs; TableQueryUsage = $Usage; SummaryRules = $Summary
                 }
             }

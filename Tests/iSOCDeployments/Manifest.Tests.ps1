@@ -40,6 +40,10 @@ BeforeAll {
     $script:fixtureRepo = Join-Path $PSScriptRoot 'Fixtures/repo'
 
     function New-FixtureCopy {
+        <#
+        .SYNOPSIS
+            Copy the fixture repository content into a fresh test folder and return its path.
+        #>
         $copy = Join-Path $TestDrive ([guid]::NewGuid().ToString())
         New-Item -ItemType Directory -Path $copy | Out-Null
         Copy-Item -LiteralPath (Join-Path $script:fixtureRepo 'Content') -Destination $copy -Recurse

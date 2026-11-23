@@ -121,7 +121,7 @@
     Website:        https://sentinel.blog
     Created:        2026-10-12
     Version:        0.3.1
-    Last Updated:   2026-11-09
+    Last Updated:   2026-11-23
     Permissions:    Entra ID: create applications and grant admin consent
                     (Application Administrator plus Privileged Role
                     Administrator, or Global Administrator). Azure: User
@@ -133,6 +133,8 @@
                     missing, pulling in Microsoft.Graph.Authentication).
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The banner, step, status and summary lines are coloured operator progress, written straight to the host and not meant to be captured.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'AdoPersonalAccessToken', Justification = 'Part of the script interface (documented in Docs/Deploy/Scripts.md); it is read inside Get-AdoHeader through script scope, which the analyser does not trace.')]
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [Parameter(Mandatory = $true)]
@@ -181,11 +183,48 @@ $sitesSelectedRoleId = '20d37865-089c-4dee-8c41-6967602d4ac8'
 $adoResourceId = '499b84ac-1321-427f-aa17-267ca6975798'
 $adoApi = 'api-version=7.1-preview.4'
 
-function Write-Step { param([string]$Text) Write-Host ''; Write-Host $Text -ForegroundColor Yellow }
-function Write-Ok { param([string]$Text) Write-Host "  $Text" -ForegroundColor Green }
-function Write-Skip { param([string]$Text) Write-Host "  $Text" -ForegroundColor DarkGray }
+function Write-Step {
+    <#
+    .SYNOPSIS
+        Write a blank line and then a step heading in yellow.
+
+    .PARAMETER Text
+        The heading text.
+    #>
+    param([string]$Text)
+    Write-Host ''
+    Write-Host $Text -ForegroundColor Yellow
+}
+
+function Write-Ok {
+    <#
+    .SYNOPSIS
+        Write an indented success line in green.
+
+    .PARAMETER Text
+        The text to write.
+    #>
+    param([string]$Text)
+    Write-Host "  $Text" -ForegroundColor Green
+}
+
+function Write-Skip {
+    <#
+    .SYNOPSIS
+        Write an indented line in dark grey for a step that is skipped or already done.
+
+    .PARAMETER Text
+        The text to write.
+    #>
+    param([string]$Text)
+    Write-Host "  $Text" -ForegroundColor DarkGray
+}
 
 function Get-AdoHeader {
+    <#
+    .SYNOPSIS
+        Build the Authorization header for Azure DevOps calls, from the PAT if one was given and the Az sign-in otherwise.
+    #>
     if ($AdoPersonalAccessToken) {
         $plain = [System.Net.NetworkCredential]::new('', $AdoPersonalAccessToken).Password
         return @{ Authorization = 'Basic ' + [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes(":$plain")) }
@@ -196,6 +235,19 @@ function Get-AdoHeader {
 }
 
 function Invoke-Ado {
+    <#
+    .SYNOPSIS
+        Call an Azure DevOps REST endpoint and surface the service's error message on failure.
+
+    .PARAMETER Method
+        The HTTP method: GET, POST, PUT or PATCH.
+
+    .PARAMETER Uri
+        The full request URI.
+
+    .PARAMETER Body
+        An optional object, sent as JSON.
+    #>
     param(
         [Parameter(Mandatory = $true)] [ValidateSet('GET', 'POST', 'PUT', 'PATCH')] [string]$Method,
         [Parameter(Mandatory = $true)] [string]$Uri,

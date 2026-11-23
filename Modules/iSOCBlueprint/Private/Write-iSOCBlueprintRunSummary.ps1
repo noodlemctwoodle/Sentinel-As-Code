@@ -50,6 +50,7 @@ function Write-iSOCBlueprintRunSummary {
     .PARAMETER SiteUrl
         The site the bundle was published to, if any.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The run summary is console output for the operator, coloured by outcome.')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $Path,

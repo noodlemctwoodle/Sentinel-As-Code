@@ -34,6 +34,10 @@ BeforeAll {
     $script:migrate = Join-Path (Split-Path -Parent $PSScriptRoot) 'Tools/Migrate-ForkLayout.ps1'
 
     function New-ForkRepo {
+        <#
+        .SYNOPSIS
+            Creates a temporary git repository laid out like a fork that still has the old Blueprint folders.
+        #>
         $root = Join-Path ([System.IO.Path]::GetTempPath()) ('fork-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $root | Out-Null
         git -C $root init -q

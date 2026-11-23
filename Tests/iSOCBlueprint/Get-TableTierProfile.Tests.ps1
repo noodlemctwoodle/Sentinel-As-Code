@@ -28,6 +28,18 @@ BeforeAll {
     . (Get-iSOCBlueprintAreaLoader -Area Lookup)
 
     function New-TierTable {
+        <#
+        .SYNOPSIS
+            Builds a workspace table object with the given plan and retention.
+        .PARAMETER Name
+            The table name.
+        .PARAMETER Plan
+            The table plan.
+        .PARAMETER Retention
+            Interactive retention in days.
+        .PARAMETER Total
+            Total retention in days.
+        #>
         param([string]$Name, [string]$Plan = 'Analytics', [int]$Retention = 30, [int]$Total = 30)
         [pscustomobject]@{
             name       = $Name

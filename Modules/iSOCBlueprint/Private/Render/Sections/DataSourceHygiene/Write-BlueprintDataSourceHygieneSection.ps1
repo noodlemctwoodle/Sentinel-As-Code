@@ -36,8 +36,6 @@ function Write-BlueprintDataSourceHygieneSection {
     param([Parameter(Mandatory)] [hashtable] $Context)
 
     # Taken from the render context.
-    $m = $Context.m
-    $n = $Context.n
     $v = $Context.v
 
     # Section 13 — Data source hygiene

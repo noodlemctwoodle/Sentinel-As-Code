@@ -55,7 +55,7 @@ function Get-CaptureErrorText {
                 $text = ([string]$value).Trim()
                 if ($text -and -not $parts.Contains($text) -and -not $parts[0].Contains($text)) { $parts.Add($text) }
             }
-        } catch { }
+        } catch { Write-Verbose 'Probe skipped: this error does not carry that property.' }
     }
     ($parts | ForEach-Object { $_.TrimEnd('.') }) -join '. '
 }

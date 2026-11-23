@@ -37,8 +37,6 @@ function Write-BlueprintSearchRestoreSection {
 
     # Taken from the render context.
     $f = $Context.f
-    $m = $Context.m
-    $n = $Context.n
     $name = $Context.name
     $p = $Context.p
     $r = $Context.r

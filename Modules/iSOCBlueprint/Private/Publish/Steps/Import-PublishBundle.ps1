@@ -33,6 +33,7 @@ function Import-PublishBundle {
     .PARAMETER Context
         The publish context: the values earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Opens the publish run with a heading and the bundle summary for the operator at the console.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

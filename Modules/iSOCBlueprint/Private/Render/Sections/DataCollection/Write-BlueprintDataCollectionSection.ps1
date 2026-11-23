@@ -32,6 +32,8 @@ function Write-BlueprintDataCollectionSection {
     .PARAMETER Context
         The render context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSPossibleIncorrectComparisonWithNull', '', Justification = 'The left side is deliberately a collection (one value per data flow); -ne $null filters the empty ones.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'ccfTitleByName', Justification = 'Read by Get-BlueprintTopologyBucket from this function scope, which the analyser cannot see.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 

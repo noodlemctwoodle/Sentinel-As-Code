@@ -32,6 +32,17 @@ function Write-BlueprintOverviewSection {
     .PARAMETER Context
         The render context: the figures earlier steps produced and this one adds to.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'customDetectionRefs', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'customDetectionsCaptured', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'customDetectionsRaw', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'customDetectionTableSet', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'incSummary', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'rulesFired', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'ruleTableRefs', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'ruleVolumesAll', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'tablesWithData', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'templateSolutionMap', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'templateTableRefs', Justification = 'Read by New-BlueprintEstateModel from this function scope, which the analyser cannot see.')]
     [CmdletBinding()]
     param([Parameter(Mandatory)] [hashtable] $Context)
 
