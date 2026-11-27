@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-11-27T15:53:49Z",
+  "workspace": "PRT-UKS-SIEM-LAW",
+  "resourceGroup": "prt-uks-siem-rg",
+  "summary": {
+    "totalDeployed": 316,
+    "contentHubClean": 236,
+    "contentHubDrift": 0,
+    "customClean": 78,
+    "customDrift": 0,
+    "orphan": 1,
+    "managed": 1,
+    "skipped": 0
+  },
+  "drifted": [],
+  "orphans": [
+    {
+      "ruleName": "18a8e88e-f1fb-4dc3-9ea7-985637bcaebd",
+      "displayName": "A new Lighthouse service provider was added",
+      "kind": "Scheduled",
+      "enabled": true,
+      "absorbedPath": "Content/AnalyticalRules/AbsorbedFromPortal/Orphans/A-new-Lighthouse-service-provider-was-added.yaml",
+      "absorbedAction": "created"
+    }
+  ]
+}

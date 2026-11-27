@@ -1,0 +1,50 @@
+id: 18a8e88e-f1fb-4dc3-9ea7-985637bcaebd
+name: A new Lighthouse service provider was added
+description: |
+  'Enter rule description here'
+severity: Informational
+queryFrequency: PT30M
+queryPeriod: PT30M
+triggerOperator: gt
+triggerThreshold: 0
+enabled: true
+tactics:
+- Persistence
+- PrivilegeEscalation
+relevantTechniques:
+- T1098
+query: |
+  AzureActivity
+  | where OperationNameValue =~ "Microsoft.ManagedServices/registrationAssignments/Write"
+  | extend timestamp = TimeGenerated, AccountCustomEntity = Caller, IPCustomEntity = CallerIpAddress
+entityMappings:
+- entityType: Account
+  fieldMappings:
+  - identifier: FullName
+    columnName: AccountCustomEntity
+- entityType: IP
+  fieldMappings:
+  - identifier: Address
+    columnName: IPCustomEntity
+- entityType: AzureResource
+  fieldMappings:
+  - identifier: ResourceId
+    columnName: SubscriptionId
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    reopenClosedIncident: false
+    lookbackDuration: PT5H
+    matchingMethod: AllEntities
+    groupByEntities: []
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+version: 1.0.0
+kind: Scheduled
+tags:
+- Sentinel-As-Code
+- Custom
+- AbsorbedFromPortal-Orphan
